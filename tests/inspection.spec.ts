@@ -1,0 +1,148 @@
+import { test, expect } from '@playwright/test';
+import type { Page } from '@playwright/test';
+import ExcelJS from 'exceljs';
+
+async function fillGeneral(page: Page) {
+  await page.getByLabel('Razón social').fill('Industrias del Pacífico S.A.C.');
+  await page.getByLabel('RUC', { exact: true }).fill('20123456789');
+  await page.getByLabel('Instalación / sede').fill('Planta principal — Lima');
+  await page.getByLabel('Área a inspeccionar').fill('Almacén y despacho');
+  await page.getByLabel('Fecha de inspección').fill('2026-11-03');
+  await page.getByLabel('Objetivo de la inspección').fill('Verificar las condiciones de almacenamiento y las rutas de evacuación.');
+  await page.getByLabel(/Nombre completo/).fill('Ana Torres');
+  await page.getByLabel(/Correo electrónico/).fill('ana@example.com');
+}
+
+test('recorrido completo con evidencia, persistencia y un Excel válido', async ({ page }) => {
+  const errors: string[] = [];
+  page.on('pageerror', e => errors.push(e.message));
+  await page.setViewportSize({ width: 1440, height: 1080 });
+  await page.goto('./');
+  await fillGeneral(page);
+  await page.getByRole('button', { name: 'Añadir', exact: true }).click();
+  const responsibles = page.locator('.responsible-row');
+  await responsibles.nth(1).getByLabel('Nombre completo').fill('José Rojas');
+  await responsibles.nth(1).getByLabel('Correo electrónico').fill('jose@example.com');
+  await expect(responsibles).toHaveCount(2);
+  await page.getByRole('button', { name: 'Continuar', exact: true }).click();
+  await page.getByRole('button', { name: 'Añadir observación', exact: true }).click();
+  await page.getByLabel('Descripción de la observación').fill('Ruta de evacuación obstruida por cajas en el almacén.');
+  await page.getByLabel('Medida correctiva').fill('Retirar las cajas y señalizar la ruta de evacuación.');
+  await page.getByRole('button', { name: 'Alta', exact: true }).click();
+  await page.getByLabel('Fecha de compromiso').fill('2026-11-06');
+  await page.getByLabel('Añadir fotos a observación 1').setInputFiles({ name: 'evidencia.png', mimeType: 'image/png', buffer: Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=', 'base64') });
+  await expect(page.locator('.photo-thumb')).toHaveCount(1);
+  await page.getByRole('button', { name: 'Añadir observación', exact: true }).click();
+  const secondObservation = page.locator('.observation-card').nth(1);
+  await expect(secondObservation.getByLabel('Fecha de compromiso')).toHaveValue('');
+  await secondObservation.getByLabel('Descripción de la observación').fill('Falta de identificación en un estante.');
+  await secondObservation.getByLabel('Medida correctiva').fill('Instalar la etiqueta de identificación.');
+  await secondObservation.getByRole('button', { name: 'Baja', exact: true }).click();
+  await secondObservation.getByLabel('Fecha de compromiso').fill('2026-11-10');
+  await expect(page.getByText('Guardado en este navegador', { exact: true })).toBeVisible();
+  await page.reload();
+  await expect(page.getByLabel('Descripción de la observación').first()).toHaveValue('Ruta de evacuación obstruida por cajas en el almacén.');
+  await expect(page.locator('.observation-card')).toHaveCount(2);
+  await expect(page.locator('.photo-thumb')).toHaveCount(1);
+  await page.getByRole('button', { name: 'Continuar', exact: true }).click();
+  await expect(page.getByRole('heading', { name: 'Resumen de observaciones' })).toBeVisible();
+  await expect(page.locator('.review-observation')).toHaveCount(2);
+  await expect(page.getByText('Retirar las cajas y señalizar la ruta de evacuación.')).toBeVisible();
+  await page.getByRole('button', { name: 'Continuar', exact: true }).click();
+  await page.getByLabel(/Conclusiones/).fill('Se identificó una condición de criticidad alta que requiere atención inmediata.');
+  await page.getByLabel(/Recomendaciones/).fill('Verificar diariamente que la ruta de evacuación permanezca despejada.');
+  await page.getByRole('button', { name: 'Continuar', exact: true }).click();
+  await expect(page.getByRole('heading', { name: 'Revisión final' })).toBeVisible();
+  await expect(page.getByText('Ana Torres', { exact: true })).toBeVisible();
+  const requestUrls: string[] = [];
+  page.on('request', request => { if (request.method() === 'POST') requestUrls.push(request.url()); });
+  await page.getByRole('button', { name: 'Enviar inspección', exact: true }).click();
+  await expect(page.getByText('No se ha enviado ningún correo.')).toBeVisible();
+  await page.getByRole('button', { name: 'Cerrar ventana' }).click();
+  const downloadEvent = page.waitForEvent('download');
+  await page.getByRole('button', { name: 'Descargar Excel', exact: true }).click();
+  const download = await downloadEvent;
+  expect(download.suggestedFilename()).toMatch(/^Inspeccion-.*\.xlsx$/);
+  const book = new ExcelJS.Workbook();
+  await book.xlsx.readFile((await download.path())!);
+  const sheet = book.getWorksheet('Inspección SST')!;
+  const content = JSON.stringify(sheet.getSheetValues());
+  expect(content).toContain('Industrias del Pacífico S.A.C.');
+  expect(content).toContain('Ruta de evacuación obstruida');
+  expect(content).toContain('ana@example.com');
+  expect(content).toContain('jose@example.com');
+  expect(content).toContain('ALTA');
+  expect(content).toContain('Falta de identificación en un estante.');
+  expect(content).toContain('BAJA');
+  expect(sheet.getImages()).toHaveLength(1);
+  expect(requestUrls).toEqual([]);
+  await page.getByRole('button', { name: 'Guardar y salir' }).click();
+  await expect(page.locator('.inspection-list-row')).toHaveCount(1);
+  await expect(page.locator('.list-status')).toHaveText('Informe preparado');
+  expect(errors).toEqual([]);
+});
+
+test('validación de campos y confirmación explícita sin hallazgos', async ({ page }) => {
+  await page.goto('./');
+  await page.getByRole('button', { name: 'Continuar', exact: true }).click();
+  await expect(page.getByText('Completa la razón social.')).toBeVisible();
+  await fillGeneral(page);
+  await page.getByLabel(/Correo electrónico/).fill('correo-incorrecto');
+  await page.getByRole('button', { name: 'Continuar', exact: true }).click();
+  await expect(page.getByText('Escribe un correo válido.')).toBeVisible();
+  await page.getByLabel(/Correo electrónico/).fill('ana@example.com');
+  await page.getByRole('button', { name: 'Continuar', exact: true }).click();
+  await page.getByRole('button', { name: 'Continuar', exact: true }).click();
+  await expect(page.getByText('Añade una observación o confirma que no se identificaron hallazgos.')).toBeVisible();
+  await page.getByRole('checkbox', { name: 'No se identificaron observaciones durante la inspección.' }).check();
+  await page.getByRole('button', { name: 'Continuar', exact: true }).click();
+  await expect(page.getByText('Confirmaste que no se identificaron hallazgos durante la inspección.')).toBeVisible();
+  await page.getByRole('button', { name: 'Continuar', exact: true }).click();
+  await page.getByRole('button', { name: 'Continuar', exact: true }).click();
+  await expect(page.getByText('Añade las conclusiones de la inspección.')).toBeVisible();
+});
+
+test('móvil: menú, borradores, búsqueda y eliminación', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto('./');
+  await fillGeneral(page);
+  await page.getByRole('button', { name: 'Abrir menú' }).click();
+  await expect(page.getByRole('dialog', { name: 'Menú principal' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Editar mi perfil' })).toBeVisible();
+  await page.getByRole('button', { name: 'Mis inspecciones' }).click();
+  await expect(page.getByRole('heading', { name: 'Mis inspecciones' })).toBeVisible();
+  await expect(page.locator('.sidebar')).not.toHaveClass(/sidebar-open/);
+  await page.getByLabel('Buscar inspecciones').fill('No coincide');
+  await expect(page.getByText('No encontramos inspecciones')).toBeVisible();
+  await page.getByLabel('Buscar inspecciones').fill('Lima');
+  await expect(page.locator('.inspection-list-row')).toHaveCount(1);
+  await page.getByRole('button', { name: 'Continuar', exact: true }).click();
+  await expect(page.getByLabel('Instalación / sede')).toHaveValue('Planta principal — Lima');
+  await page.getByRole('button', { name: 'Guardar y salir' }).click();
+  await page.getByRole('button', { name: 'Eliminar inspección Planta principal — Lima', exact: true }).click();
+  await page.getByRole('button', { name: 'Conservar inspección' }).click();
+  await expect(page.locator('.inspection-list-row')).toHaveCount(1);
+  await page.getByRole('button', { name: 'Eliminar inspección Planta principal — Lima', exact: true }).click();
+  await page.getByRole('button', { name: 'Eliminar', exact: true }).click();
+  await expect(page.locator('.inspection-list-info').getByText('Planta principal — Lima')).toHaveCount(0);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+});
+
+test('diseño adaptable sin desbordamiento y capturas de la primera pantalla', async ({ page }) => {
+  await page.goto('./');
+  for (const width of [360, 390, 768, 1024, 1440]) {
+    await page.setViewportSize({ width, height: 1000 });
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+  }
+  await page.evaluate(() => document.fonts.ready);
+  await expect(page.getByText('Guardado en este navegador', { exact: true })).toBeVisible();
+  await page.screenshot({ path: '/tmp/berry-desktop.png', fullPage: true });
+  await page.setViewportSize({ width: 390, height: 844 });
+  await expect.poll(() => page.locator('.sidebar').evaluate(el => el.getBoundingClientRect().right)).toBeLessThanOrEqual(0);
+  await page.screenshot({ path: '/tmp/berry-mobile.png', fullPage: true });
+  await page.getByRole('button', { name: 'Abrir menú' }).click();
+  await expect.poll(() => page.locator('.sidebar').evaluate(el => Math.round(el.getBoundingClientRect().left))).toBe(0);
+  await page.screenshot({ path: '/tmp/berry-mobile-menu.png' });
+  await page.keyboard.press('Escape');
+  await expect(page.getByRole('button', { name: 'Abrir menú' })).toBeFocused();
+});
