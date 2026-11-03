@@ -2,6 +2,8 @@
 
 Aplicación web adaptable a teléfono, tablet y laptop para registrar inspecciones de seguridad y salud en el trabajo. Primera versión funcional en español, construida con React, TypeScript y Vite.
 
+Puedes revisar [las capturas reales de escritorio y teléfono](docs/vistas/README.md) directamente en este repositorio. Son vistas del diseño; la publicación interactiva requiere que GitHub Pages esté activado.
+
 ## Desarrollo
 
 Requisitos: Node.js 22 o posterior y npm. En el entorno de desarrollo se validó con Node.js 24.
