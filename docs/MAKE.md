@@ -92,4 +92,6 @@ Fecha y año usan `America/Lima`. El número es un ejemplo sin reserva de correl
 
 Se ejecutó una única prueba desde la interfaz local, pasando por la API y usando la URL entregada únicamente desde la configuración privada del servidor. Make devolvió **HTTP 410 (Gone)**; la API informó rechazo y no presentó un éxito ficticio. No se confirma recepción correcta en el escenario. La prueba solicitó `send_email:false` y destinatarios ficticios; Berry no llamó a ningún servicio de correo.
 
-La prueba local quedó desactivada después de esa llamada. Para repetirla hace falta verificar/reactivar el webhook o actualizar su URL vigente en el secreto del servidor. La web pública necesita además el servicio Render y la variable pública de API descritos arriba.
+Después de que el usuario confirmara nuevamente la URL, se realizó una única prueba adicional a través de la API el 4 de noviembre de 2026 a las 19:59 UTC. Make respondió **HTTP 200**; la API devolvió `receipt:http_accepted`, con ID `728d0c02-883b-4ed9-bdc0-988f539ba7cf`. Se utilizaron datos ficticios y `send_email:false`. Esto confirma aceptación HTTP, no ejecución completa del escenario ni entrega de correo.
+
+La prueba solo se habilitó en memoria para esa llamada; la configuración local permanece desactivada. El servidor temporal se cerró después de la prueba. La web pública todavía necesita el servicio Render y la variable pública de API descritos arriba.
