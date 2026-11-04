@@ -22,6 +22,9 @@ Esta lista es la referencia de trabajo y se resumirá al cerrar cada avance. Se 
 
 - [x] Simplificar el mensaje inicial de observaciones y retirar «Las fotos son opcionales» y la opción de inspección sin observaciones. Se requiere al menos una observación para continuar; los campos de cada hallazgo se conservan.
 
+- [x] Observaciones compactas: textos junto a criticidad, Fecha de Cierre y fotos en pantallas amplias; distribución vertical en el teléfono.
+- [x] La primera Fecha de Cierre se comparte una sola vez con todas las observaciones y se conserva como fecha inicial para nuevas observaciones. Los cambios posteriores son individuales y persisten al recargar. Los borradores antiguos conservan sus fechas.
+
 ## Pendientes operativos, por orden de dependencia
 
 1. [ ] Elegir y conectar el sistema de automatización y la base de datos real. Confirmar alojamiento y credenciales mediante configuración segura, sin claves en el navegador.

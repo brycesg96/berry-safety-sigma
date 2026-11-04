@@ -45,7 +45,7 @@ export async function exportExcel(d: Inspection) {
   for (const [index, o] of d.observations.entries()) {
     line(`Observación ${index + 1}`, o.description);
     line('Medida correctiva', o.correctiveAction);
-    line('Criticidad', o.severity.toUpperCase()); line('Fecha de compromiso', formatDate(o.dueDate));
+    line('Criticidad', o.severity.toUpperCase()); line('Fecha de Cierre', formatDate(o.dueDate));
     for (const photo of o.photos) {
       const imageId = book.addImage({ base64: photo.data, extension: 'jpeg' });
       const image = new Image(); image.src = photo.data; await image.decode();

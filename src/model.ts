@@ -32,6 +32,7 @@ export type Inspection = {
   objective: string;
   responsibles: Responsible[];
   observations: Observation[];
+  defaultClosingDate: string;
   conclusions: string;
   recommendations: string;
   inspector: string;
@@ -43,13 +44,24 @@ export type Inspection = {
 
 export const id = () => crypto.randomUUID();
 export const newResponsible = (): Responsible => ({ id: id(), name: '', email: '' });
-export const newObservation = (): Observation => ({ id: id(), description: '', correctiveAction: '', severity: 'media', dueDate: '', photos: [] });
+export const newObservation = (closingDate = ''): Observation => ({ id: id(), description: '', correctiveAction: '', severity: 'media', dueDate: closingDate, photos: [] });
 export const newInspection = (profile: Profile): Inspection => ({
   id: id(), ownerId: profile.accountId || 'demo-admin', company: EMPLOYER.name, ruc: EMPLOYER.ruc, facility: '', area: '', type: '', otherType: '', registrationNumber: '', inspectionTime: '', inspectionPeriod: '',
   date: new Date().toLocaleDateString('en-CA'), objective: '', responsibles: [newResponsible()],
-  observations: [], conclusions: '', recommendations: '', inspector: profile.name,
+  observations: [], defaultClosingDate: '', conclusions: '', recommendations: '', inspector: profile.name,
   inspectorEmail: profile.email, step: 0, updatedAt: new Date().toISOString(), status: 'draft',
 });
+
+// The first closing date is shared once; later edits belong only to that observation.
+export function setObservationClosingDate(draft: Inspection, observationId: string, date: string): Inspection {
+  if (!draft.observations.some(o => o.id === observationId)) return draft;
+  const firstDate = Boolean(date) && !draft.defaultClosingDate;
+  return {
+    ...draft,
+    defaultClosingDate: firstDate ? date : draft.defaultClosingDate,
+    observations: draft.observations.map(o => firstDate || o.id === observationId ? { ...o, dueDate: date } : o),
+  };
+}
 
 export const stepNames = ['Datos generales', 'Observaciones', 'Resumen', 'Cierre', 'Revisión y envío'];
 export const emailValid = (email: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim());
@@ -74,7 +86,7 @@ export function validateStep(d: Inspection, step: number): Record<string, string
   if (step === 1) d.observations.forEach(o => {
     if (!o.description.trim()) errors[`description-${o.id}`] = 'Describe la observación.';
     if (!o.correctiveAction.trim()) errors[`action-${o.id}`] = 'Indica una medida correctiva.';
-    if (!o.dueDate) errors[`date-${o.id}`] = 'Selecciona una fecha de compromiso.';
+    if (!o.dueDate) errors[`date-${o.id}`] = 'Selecciona una Fecha de Cierre.';
   });
   if (step === 3) {
     if (!d.conclusions.trim()) errors.conclusions = 'Añade las conclusiones de la inspección.';
@@ -87,7 +99,7 @@ export function validateStep(d: Inspection, step: number): Record<string, string
 
 export function normalizeInspection(value: Inspection): Inspection {
   const type = ['Planeada', 'No planeada', 'Otro'].includes(value.type) ? value.type : '';
-  return { ...value, ownerId: value.ownerId || 'demo-admin', type, otherType: value.otherType || '', registrationNumber: '', ...(value.registrationNumber ? { legacyRegistrationNumber: value.registrationNumber } : {}), ...migrateInspectionTime(value.inspectionTime || '', value.inspectionPeriod), ...(value.type && !type ? { legacyType: value.type } : {}) };
+  return { ...value, defaultClosingDate: value.defaultClosingDate ?? value.observations.find(o => o.dueDate)?.dueDate ?? '', ownerId: value.ownerId || 'demo-admin', type, otherType: value.otherType || '', registrationNumber: '', ...(value.registrationNumber ? { legacyRegistrationNumber: value.registrationNumber } : {}), ...migrateInspectionTime(value.inspectionTime || '', value.inspectionPeriod), ...(value.type && !type ? { legacyType: value.type } : {}) };
 }
 
 export const formatDate = (value: string) => value ? new Intl.DateTimeFormat('es-PE', { day: '2-digit', month: 'short', year: 'numeric' }).format(new Date(`${value}T12:00:00`)) : 'Sin definir';

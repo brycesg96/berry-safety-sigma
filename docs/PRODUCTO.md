@@ -6,7 +6,7 @@ Agilizar las inspecciones de instalaciones y actividades SST desde el teléfono 
 
 ## Estructura del registro
 
-El modelo tipado de `src/model.ts` mantiene los datos de una inspección: datos generales, responsables, observaciones con fotografías, conclusiones, recomendaciones e inspector. Cada registro, responsable, observación y fotografía tiene un identificador independiente. Las fechas de compromiso son elegidas por el inspector; no se completan automáticamente.
+El modelo tipado de `src/model.ts` mantiene los datos de una inspección: datos generales, responsables, observaciones con fotografías, conclusiones, recomendaciones e inspector. Cada registro, responsable, observación y fotografía tiene un identificador independiente. La primera Fecha de Cierre elegida por el inspector se aplica a todas las observaciones existentes y se usa al añadir nuevas. Los cambios posteriores afectan solo a la observación editada; la fecha inicial permanece guardada en el borrador.
 
 El progreso del asistente indica la posición del recorrido, no una evaluación de cumplimiento normativo ni del riesgo total de la instalación. La criticidad de cada hallazgo la selecciona el inspector.
 
