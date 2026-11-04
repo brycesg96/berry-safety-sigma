@@ -14,8 +14,6 @@ services:
       - key: MAKE_TEST_API_TOKEN
         generateValue: true
       - key: MAKE_TEST_ENABLED
-        value: "false"
-      - key: MAKE_REPORTS_ENABLED
-        value: "false"
+        sync: false
       - key: BERRY_ALLOWED_ORIGINS
         value: https://brycesg96.github.io

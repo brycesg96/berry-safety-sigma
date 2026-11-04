@@ -27,7 +27,7 @@ El botón de prueba de conexión no envía correos y no convierte las direccione
 
 - `MAKE_WEBHOOK_URL`: secreto ya configurado. Nunca colocar en `VITE_*`.
 - `MAKE_TEST_API_TOKEN`: clave compartida que se introduce en el formulario de envío. Se mantiene solo en la memoria de esa pantalla, no en localStorage, IndexedDB ni el bundle.
-- `MAKE_REPORTS_ENABLED=true`: habilitar únicamente después de configurar Outlook como arriba. Por defecto false. `MAKE_TEST_ENABLED` sigue siendo independiente.
+- `MAKE_REPORTS_ENABLED=true`: añadir esta variable en Environment si aún no existe; habilitar únicamente después de configurar Outlook como arriba. Por defecto false. `MAKE_TEST_ENABLED` sigue siendo independiente.
 - `BERRY_ALLOWED_ORIGINS=https://brycesg96.github.io`.
 - `REPORT_REGISTRY_PATH`: por defecto `/tmp/berry-report-receipts.sqlite`; para persistencia operativa requiere una base compartida o un disco persistente.
 
@@ -50,3 +50,7 @@ Un journal SQLite reclama el ID **antes** de llamar Make. Conserva el hash de me
 ## Acceso en esta fase
 
 Las cuentas, asociaciones y perfiles siguen siendo locales de prueba. La API exige la clave compartida; los roles del navegador no constituyen autenticación Microsoft ni autorización del servidor. El poseedor de la clave puede solicitar envíos a direcciones validadas. Antes de habilitar el uso operativo multiusuario, conectar identidades Microsoft, directorio y asociaciones autoritativas en servidor; entonces ya no se pedirá esta clave compartida a los usuarios.
+
+## Captura de campos nuevos verificada
+
+El 4 de noviembre de 2026 a las 18:07 (Lima), el usuario confirmó el webhook esperando nuevos valores. Se envió una sola prueba ficticia a través de la API local con `outlook` y `adjuntos`; Make respondió HTTP 200 al ID `07e6e0d3-9092-4533-8236-f1b80ab3d560`, con `send_email:false`. Falta confirmar en la pantalla de Make los campos detectados y mapearlos en Outlook. Esto no fue un envío de correo real.

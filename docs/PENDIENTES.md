@@ -64,7 +64,8 @@ Esta lista es la referencia de trabajo y se resumirá al cerrar cada avance. Se 
 - [x] Prueba autenticada desde la web pública aceptada por Make (HTTP 200), mostrada por el usuario.
 - [x] Conectar Enviar inspección con API, correo general, Excel provisional adjunto y recibo de aceptación separado del resultado de Outlook.
 - [x] Asociar correos de jefes/gerentes a cuentas y añadirlos en CC de los responsables, con validación y deduplicación. Asociaciones locales de prueba.
-- [ ] En Make: reconocer los campos nuevos y mapear Para, CC y adjunto base64; retirar destinatario fijo de prueba. Después habilitar `MAKE_REPORTS_ENABLED=true` en Render y probar recepción real del Excel. [Guía](ENVIO_INFORMES.md).
+- [x] Ejemplo con campos de Outlook y Excel ficticio enviado al webhook que esperaba datos: HTTP 200, sin solicitar correo.
+- [ ] En Make: confirmar los campos detectados y mapear Para, CC y adjunto base64; retirar destinatario fijo de prueba. Después habilitar `MAKE_REPORTS_ENABLED=true` en Render y probar recepción real del Excel. [Guía](ENVIO_INFORMES.md).
 - [ ] Journal persistente/compartido para deduplicación entre despliegues y réplicas, y devolución autenticada del resultado de Outlook a la app.
 
 ## Pendientes operativos, por orden de dependencia
