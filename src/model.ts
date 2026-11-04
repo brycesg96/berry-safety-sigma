@@ -1,3 +1,4 @@
+import type { PhotoEdit } from './photo-editing';
 import { EMPLOYER, OBJECTIVE_LIMIT } from './employer';
 import { migrateInspectionTime, validInspectionTime } from './inspection-time';
 import type { InspectionPeriod } from './inspection-time';
@@ -6,7 +7,7 @@ import type { RegistrationDetails } from './registration';
 import type { Delivery } from './follow-up';
 import type { RegistrationReceipt } from './inspection-code';
 export type Responsible = { id: string; name: string; email: string; personId?: string; area?: string; jobTitle?: string };
-export type Evidence = { id: string; name: string; data: string };
+export type Evidence = { id: string; name: string; data: string; originalData?: string; editState?: PhotoEdit };
 export type Observation = {
   id: string;
   description: string;
@@ -92,8 +93,8 @@ export function validateStep(d: Inspection, step: number): Record<string, string
   }
   if (step === 1 && !d.observations.length) errors.observations = 'Añade al menos una observación para continuar.';
   if (step === 1) d.observations.forEach(o => {
-    if (!o.description.trim()) errors[`description-${o.id}`] = 'Describe la observación.';
-    if (!o.correctiveAction.trim()) errors[`action-${o.id}`] = 'Indica una medida correctiva.';
+    if (!o.description.trim()) errors[`description-${o.id}`] = 'Completa la descripción.';
+    if (!o.correctiveAction.trim()) errors[`action-${o.id}`] = 'Indica la acción a tomar.';
     if (!o.dueDate) errors[`date-${o.id}`] = 'Selecciona una Fecha de Cierre.';
   });
   if (step === 3) {

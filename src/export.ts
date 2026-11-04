@@ -53,12 +53,12 @@ export async function exportExcel(d: Inspection) {
   line('Objetivo', d.objective);
   section('RESPONSABLES Y DESTINATARIOS');
   d.responsibles.forEach(r => line(r.name, r.email));
-  section(`02 · OBSERVACIONES (${d.observations.length})`);
+  section(`02 · RESULTADO DE LA INSPECCIÓN (${d.observations.length})`);
   if (!d.observations.length) line('Resultado', 'Sin observaciones registradas.');
   for (const [index, o] of d.observations.entries()) {
     line(`Observación ${index + 1}`, o.description);
-    line('Medida correctiva', o.correctiveAction);
-    line('Criticidad', o.severity.toUpperCase()); line('Fecha de Cierre', formatDate(o.dueDate));
+    line('Acción a tomar', o.correctiveAction);
+    line('Nivel de riesgo', o.severity.toUpperCase()); line('Fecha de Cierre', formatDate(o.dueDate));
     for (const photo of o.photos) {
       await addPhoto(photo);
     }

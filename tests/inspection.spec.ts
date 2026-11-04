@@ -28,8 +28,8 @@ test('recorrido completo con evidencia, persistencia y un Excel válido', async 
   await expect(responsibles).toHaveCount(2);
   await page.getByRole('button', { name: 'Continuar', exact: true }).click();
   await page.getByRole('button', { name: 'Añadir observación', exact: true }).click();
-  await page.getByLabel('Descripción de la observación').fill('Ruta de evacuación obstruida por cajas en el almacén.');
-  await page.getByLabel('Medida correctiva').fill('Retirar las cajas y señalizar la ruta de evacuación.');
+  await page.getByLabel('Descripción').fill('Ruta de evacuación obstruida por cajas en el almacén.');
+  await page.getByLabel('Acción a tomar').fill('Retirar las cajas y señalizar la ruta de evacuación.');
   await page.getByRole('button', { name: 'Alta', exact: true }).click();
   await page.getByLabel('Fecha de Cierre').fill('2026-11-06');
   await page.getByLabel('Añadir fotos a observación 1').setInputFiles({ name: 'evidencia.png', mimeType: 'image/png', buffer: Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=', 'base64') });
@@ -37,13 +37,13 @@ test('recorrido completo con evidencia, persistencia y un Excel válido', async 
   await page.getByRole('button', { name: 'Añadir observación', exact: true }).click();
   const secondObservation = page.locator('.observation-card').nth(1);
   await expect(secondObservation.getByLabel('Fecha de Cierre')).toHaveValue('2026-11-06');
-  await secondObservation.getByLabel('Descripción de la observación').fill('Falta de identificación en un estante.');
-  await secondObservation.getByLabel('Medida correctiva').fill('Instalar la etiqueta de identificación.');
+  await secondObservation.getByLabel('Descripción').fill('Falta de identificación en un estante.');
+  await secondObservation.getByLabel('Acción a tomar').fill('Instalar la etiqueta de identificación.');
   await secondObservation.getByRole('button', { name: 'Baja', exact: true }).click();
   await secondObservation.getByLabel('Fecha de Cierre').fill('2026-11-10');
   await expect(page.getByText('Guardado en este navegador', { exact: true })).toBeVisible();
   await page.reload();
-  await expect(page.getByLabel('Descripción de la observación').first()).toHaveValue('Ruta de evacuación obstruida por cajas en el almacén.');
+  await expect(page.getByLabel('Descripción').first()).toHaveValue('Ruta de evacuación obstruida por cajas en el almacén.');
   await expect(page.locator('.observation-card')).toHaveCount(2);
   await expect(page.locator('.photo-thumb')).toHaveCount(1);
   await page.getByRole('button', { name: 'Continuar', exact: true }).click();
@@ -104,8 +104,8 @@ test('validación de campos y observación obligatoria', async ({ page }) => {
   await expect(page.getByText('Las fotos son opcionales')).toHaveCount(0);
   await expect(page.getByText('Añade tu primer hallazgo y acompáñalo con fotos.')).toBeVisible();
   await page.getByRole('button', { name: 'Añadir observación', exact: true }).click();
-  await page.getByLabel('Descripción de la observación').fill('Ruta obstruida.');
-  await page.getByLabel('Medida correctiva').fill('Despejar la ruta.');
+  await page.getByLabel('Descripción').fill('Ruta obstruida.');
+  await page.getByLabel('Acción a tomar').fill('Despejar la ruta.');
   await page.getByLabel('Fecha de Cierre').fill('2026-11-06');
   await page.getByRole('button', { name: 'Continuar', exact: true }).click();
   await expect(page.locator('.review-observation')).toHaveCount(1);
@@ -185,7 +185,7 @@ test('Fecha de Cierre compartida una sola vez, nuevas observaciones y diseño co
   const detail = await cards.first().locator('.observation-details').boundingBox();
   expect(detail!.x).toBeGreaterThan(text!.x + text!.width);
   expect(Math.abs(detail!.y - text!.y)).toBeLessThan(2);
-  expect((await cards.first().getByLabel('Descripción de la observación').boundingBox())!.height).toBeLessThanOrEqual(100);
+  expect((await cards.first().getByLabel('Descripción').boundingBox())!.height).toBeLessThanOrEqual(100);
   await cards.first().screenshot({ path: 'test-results/observation-desktop.png' });
   await page.setViewportSize({ width: 390, height: 844 });
   const mobileText = await cards.first().locator('.observation-texts').boundingBox();

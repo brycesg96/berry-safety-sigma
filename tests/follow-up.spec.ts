@@ -21,8 +21,8 @@ async function createReport(page: Page) {
   for (let i = 0; i < 2; i++) {
     await page.getByRole('button', { name: 'Añadir observación', exact: true }).click();
     const card = page.locator('.observation-card').nth(i);
-    await card.getByLabel('Descripción de la observación').fill(`Hallazgo ${i + 1}`);
-    await card.getByLabel('Medida correctiva').fill(`Corregir hallazgo ${i + 1}`);
+    await card.getByLabel('Descripción').fill(`Hallazgo ${i + 1}`);
+    await card.getByLabel('Acción a tomar').fill(`Corregir hallazgo ${i + 1}`);
     await card.getByLabel('Fecha de Cierre').fill('2026-11-15');
   }
   await page.getByRole('button', { name: 'Continuar', exact: true }).click();

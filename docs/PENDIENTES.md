@@ -48,6 +48,9 @@ Esta lista es la referencia de trabajo y se resumirá al cerrar cada avance. Se 
 - [x] Cierre con descripción de causas primero y conclusiones/recomendaciones en un solo campo, ambos compactos y con máximo 1200 caracteres. Migración de textos antiguos sin recortes.
 - [x] RESPONSABLE DEL REGISTRO con nombre, cargo, fecha y firma adjunta por imagen para hasta tres personas, conservados en revisión y exportación provisional. Firma y cargo no se inventan; la firma no se genera automáticamente.
 
+- [x] RESULTADO DE LA INSPECCIÓN con etiquetas Descripción, Acción a tomar y Nivel de riesgo.
+- [x] Editor básico de evidencias del borrador: recorte, flechas y círculos, selección de color/grosor, movimiento, tamaño con puntos y botones, deshacer y restaurar original. Guarda imagen editada y conserva original y marcas para reabrir; los informes enviados siguen sin edición.
+
 ## Pendientes operativos, por orden de dependencia
 
 1. [ ] Elegir y conectar el sistema de automatización y la base de datos real. Confirmar alojamiento y credenciales mediante configuración segura, sin claves en el navegador.

@@ -40,7 +40,7 @@ test('empleador fijo, tres tipos, Otro con detalle y máximo 560', async ({ page
   await expect(page.getByRole('combobox', { name: /Nombre completo/ })).toHaveValue('Ana Torres');
   await expect(page.getByLabel('Correo electrónico')).toHaveValue('ana@example.com');
   await page.getByRole('button', { name: 'Continuar', exact: true }).click();
-  await expect(page.getByRole('heading', { name: 'Registro de observaciones' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'RESULTADO DE LA INSPECCIÓN' })).toBeVisible();
 });
 
 test('selección por teclado, homónimos, correo automático y limpieza al cambiar el nombre', async ({ page }) => {
