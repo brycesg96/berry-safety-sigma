@@ -1,5 +1,7 @@
 # Berry · Safety Workspace
 
+Seguimiento: [lista de pendientes](docs/PENDIENTES.md). Numeración: [códigos de inspección](docs/CODIGOS_INSPECCION.md).
+
 Aplicación web adaptable a teléfono, tablet y laptop para registrar inspecciones de seguridad y salud en el trabajo. Primera versión funcional en español, construida con React, TypeScript y Vite.
 
 Puedes revisar [las capturas reales de escritorio y teléfono](docs/vistas/README.md) directamente en este repositorio. Son vistas del diseño; la publicación interactiva requiere que GitHub Pages esté activado.
@@ -29,7 +31,7 @@ El flujo `.github/workflows/pages.yml` prepara la publicación en GitHub Pages a
 
 ## Flujo implementado
 
-1. **Datos generales:** empleador de solo lectura; registro/año, área, fecha, hora, responsable de la inspección; tipo Planeada, No planeada u Otro con detalle; objetivo de hasta 560 caracteres y responsables seleccionados por nombre, con correo automático no editable. [Alcance y conexión del directorio](docs/PRIMER_APARTADO.md).
+1. **Datos generales:** empleador de solo lectura; código pendiente de asignación al registrar el envío, área, fecha, hora, responsable de la inspección; tipo Planeada, No planeada u Otro con detalle; objetivo de hasta 560 caracteres y responsables seleccionados por nombre, con correo automático no editable. [Alcance y conexión del directorio](docs/PRIMER_APARTADO.md).
 2. **Observaciones:** registros repetibles, descripción, medida correctiva, criticidad alta/media/baja, fecha de compromiso manual y hasta ocho fotografías por observación. También permite confirmar explícitamente una inspección sin hallazgos.
 3. **Resumen:** recuento por criticidad, evidencias, acciones y fechas, con acceso a la edición.
 4. **Cierre:** conclusiones, recomendaciones e identificación del inspector.

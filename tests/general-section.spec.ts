@@ -3,15 +3,19 @@ import { mockDirectory, people } from './directory-fixture';
 
 test('empleador fijo, tres tipos, Otro con detalle y máximo 560', async ({ page }) => {
   await mockDirectory(page); await page.goto('./');
-  const employer = page.getByRole('region', { name: 'Datos del empleador, solo lectura' });
+  const employer = page.getByRole('region', { name: 'Datos del empleador' });
   await expect(employer.locator('input,textarea,select,[contenteditable=true]')).toHaveCount(0);
   for (const text of ['HORTIFRUT PERÚ S.A.C.', '20602822533', '> 500', 'CIIU: 0125']) await expect(employer).toContainText(text);
-  await page.getByLabel('N.º de registro / año').fill('002 / 2026');
+  await expect(page.getByLabel('Código de inspección')).toHaveAttribute('readonly', '');
+  await expect(employer.getByText('Solo lectura')).toHaveCount(0);
+  await expect(employer.locator('svg')).toHaveCount(0);
   await page.getByLabel('Área inspeccionada').fill('Taller');
   await page.getByLabel('Hora de inspección').fill('08:40');
   await page.getByLabel('Responsable de la inspección').fill('Brian Torres');
   const objective = page.getByLabel('Objetivo de la inspección');
   await expect(objective).toHaveAttribute('maxlength', '560');
+  expect((await objective.boundingBox())!.height).toBeLessThanOrEqual(60);
+  await expect(page.getByText('Se completa automáticamente al seleccionar a la persona.', { exact: true })).toHaveCount(0);
   await objective.fill('a'.repeat(560)); await objective.press('End'); await objective.press('b');
   await expect(objective).toHaveValue('a'.repeat(560));
   await expect(page.locator('.character-count')).toHaveText('560 / 560');

@@ -10,7 +10,7 @@ Los valores de empresa guardados en borradores antiguos no se borran, pero no re
 
 ## Información editable
 
-- Número de registro / año, área inspeccionada, fecha, responsable de la inspección y hora.
+- Área inspeccionada, fecha, responsable de la inspección y hora. El código ya no se escribe: se asignará de forma única al registrar el envío; véase [CODIGOS_INSPECCION.md](CODIGOS_INSPECCION.md).
 - Tipo: Planeada, No planeada u Otro. Se selecciona una opción. Otro habilita un campo de detalle obligatorio; al cambiar de opción se conserva el texto, pero no se exporta mientras Otro no esté seleccionado.
 - Objetivo de hasta 560 caracteres, con contador y validación antes de continuar y antes de exportar. Los objetivos antiguos más largos se conservan completos para que la persona los revise, sin recortes automáticos.
 

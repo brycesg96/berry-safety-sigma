@@ -8,3 +8,8 @@ playwright-report/
 .env
 .env.*
 !.env.example
+
+__pycache__/
+*.sqlite
+*.sqlite-wal
+*.sqlite-shm

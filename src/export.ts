@@ -33,7 +33,7 @@ export async function exportExcel(d: Inspection) {
   section('01 · DATOS GENERALES');
   line('Razón social', EMPLOYER.name); line('RUC', EMPLOYER.ruc);
   line('Domicilio', EMPLOYER.address); line('Actividad económica', EMPLOYER.activity); line('Trabajadores', EMPLOYER.workers);
-  line('N.º de registro / año', d.registrationNumber); line('Responsable de la inspección', d.inspector);
+  line('Código de inspección', 'BORRADOR — pendiente de registro'); line('Responsable de la inspección', d.inspector);
   line('Área inspeccionada', d.area);
   line('Tipo de inspección', d.type === 'Otro' ? `Otro: ${d.otherType}` : d.type); line('Fecha de inspección', formatDate(d.date)); line('Hora de inspección', d.inspectionTime);
   line('Objetivo', d.objective);
@@ -62,6 +62,7 @@ export async function exportExcel(d: Inspection) {
   line('Conclusiones', d.conclusions); line('Recomendaciones', d.recommendations);
   line('Realizado por', d.inspector); line('Correo del inspector', d.inspectorEmail || 'No indicado');
   sheet.addRow([]);
+  line('Código', 'Sin código definitivo. Este archivo es una copia de borrador, no un envío registrado.');
   line('Formato', 'Informe provisional. Pendiente de adaptar a la plantilla oficial de la empresa.');
   sheet.views = [{ state: 'frozen', ySplit: 3 }];
   sheet.pageSetup = { paperSize: 9, orientation: 'portrait', fitToPage: true, fitToWidth: 1, fitToHeight: 0 };

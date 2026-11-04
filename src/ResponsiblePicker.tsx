@@ -49,6 +49,6 @@ export function ResponsiblePicker({ value, onChange, error, excludedIds }: { val
         {state === 'error' && <p role="alert">No se pudo consultar el directorio. <button type="button" className="text-button" onMouseDown={e => e.preventDefault()} onClick={() => setRetry(n => n + 1)}>Reintentar</button></p>}
       </div>}
     </div>}</Field>
-    <Field label="Correo electrónico" hint="Se completa automáticamente al seleccionar a la persona.">{props => <div className="input-icon"><Mail size={16} /><input {...props} type="email" value={value.email} readOnly aria-readonly="true" placeholder="Se completa al seleccionar" /></div>}</Field>
+    <Field label="Correo electrónico">{props => <div className="input-icon"><Mail size={16} /><input {...props} type="email" value={value.email} readOnly aria-readonly="true" placeholder="Se completa al seleccionar" /></div>}</Field>
   </div>;
 }

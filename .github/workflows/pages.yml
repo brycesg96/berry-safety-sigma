@@ -28,6 +28,8 @@ jobs:
           cache: npm
       - name: Instalar dependencias
         run: npm ci --no-audit --no-fund
+      - name: Verificar la referencia de numeración transaccional
+        run: python3 -m unittest discover -s reference -p 'test_*.py' -v
       - name: Compilar para la ruta de GitHub Pages
         run: npm run build:pages
       - name: Configurar GitHub Pages

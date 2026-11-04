@@ -19,6 +19,7 @@ export type Inspection = {
   type: '' | 'Planeada' | 'No planeada' | 'Otro';
   otherType: string;
   registrationNumber: string;
+  legacyRegistrationNumber?: string;
   inspectionTime: string;
   legacyType?: string;
   date: string;
@@ -50,7 +51,7 @@ export const emailValid = (email: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e
 export function validateStep(d: Inspection, step: number): Record<string, string> {
   const errors: Record<string, string> = {};
   if (step === 0) {
-    for (const [key, label] of [['registrationNumber', 'el número de registro / año'], ['area', 'el área inspeccionada'], ['date', 'la fecha'], ['inspectionTime', 'la hora de inspección'], ['inspector', 'el responsable de la inspección'], ['objective', 'el objetivo']] as const) {
+    for (const [key, label] of [['area', 'el área inspeccionada'], ['date', 'la fecha'], ['inspectionTime', 'la hora de inspección'], ['inspector', 'el responsable de la inspección'], ['objective', 'el objetivo']] as const) {
       if (!d[key].trim()) errors[key] = `Completa ${label}.`;
     }
     if (!['Planeada', 'No planeada', 'Otro'].includes(d.type)) errors.type = 'Selecciona un tipo de inspección.';
@@ -79,7 +80,7 @@ export function validateStep(d: Inspection, step: number): Record<string, string
 
 export function normalizeInspection(value: Inspection): Inspection {
   const type = ['Planeada', 'No planeada', 'Otro'].includes(value.type) ? value.type : '';
-  return { ...value, type, otherType: value.otherType || '', registrationNumber: value.registrationNumber || '', inspectionTime: value.inspectionTime || '', ...(value.type && !type ? { legacyType: value.type } : {}) };
+  return { ...value, type, otherType: value.otherType || '', registrationNumber: '', ...(value.registrationNumber ? { legacyRegistrationNumber: value.registrationNumber } : {}), inspectionTime: value.inspectionTime || '', ...(value.type && !type ? { legacyType: value.type } : {}) };
 }
 
 export const formatDate = (value: string) => value ? new Intl.DateTimeFormat('es-PE', { day: '2-digit', month: 'short', year: 'numeric' }).format(new Date(`${value}T12:00:00`)) : 'Sin definir';

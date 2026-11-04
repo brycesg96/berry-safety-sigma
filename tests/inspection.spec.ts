@@ -5,7 +5,6 @@ import { mockDirectory } from './directory-fixture';
 test.beforeEach(async ({ page }) => { await mockDirectory(page); });
 
 async function fillGeneral(page: Page) {
-  await page.getByLabel('N.º de registro / año').fill('001 / 2026');
   await page.getByLabel('Área inspeccionada').fill('Almacén y despacho');
   await page.getByLabel('Hora de inspección').fill('07:30');
   await page.getByRole('radio', { name: 'Planeada', exact: true }).check();
@@ -70,7 +69,7 @@ test('recorrido completo con evidencia, persistencia y un Excel válido', async 
   const sheet = book.getWorksheet('Inspección SST')!;
   const content = JSON.stringify(sheet.getSheetValues());
   expect(content).toContain('HORTIFRUT PERÚ S.A.C.');
-  expect(content).toContain('001 / 2026');
+  expect(content).toContain('BORRADOR — pendiente de registro');
   expect(content).toContain('07:30');
   expect(content).toContain('Ruta de evacuación obstruida');
   expect(content).toContain('ana@example.com');
@@ -89,7 +88,7 @@ test('recorrido completo con evidencia, persistencia y un Excel válido', async 
 test('validación de campos y confirmación explícita sin hallazgos', async ({ page }) => {
   await page.goto('./');
   await page.getByRole('button', { name: 'Continuar', exact: true }).click();
-  await expect(page.getByText('Completa el número de registro / año.')).toBeVisible();
+  await expect(page.getByText('Completa el área inspeccionada.')).toBeVisible();
   await fillGeneral(page);
   await page.getByRole('combobox').fill('Persona sin seleccionar');
   await expect(page.getByLabel(/Correo electrónico/)).toHaveValue('');
