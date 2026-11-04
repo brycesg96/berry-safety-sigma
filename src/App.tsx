@@ -42,6 +42,7 @@ function WorkspaceApp({ initialAccounts }: { initialAccounts: DemoAccount[] }) {
   const [draft, setDraft] = useState<Inspection>(() => newInspection(profile));
   const [inspections, setInspections] = useState<Inspection[]>([]);
   const [received, setReceived] = useState<Inspection[]>([]);
+  const [receivedFilter, setReceivedFilter] = useState<'pending' | 'closed'>('pending');
   const [followUp, setFollowUp] = useState<Inspection | null>(null);
   const [followUpOrigin, setFollowUpOrigin] = useState<'list' | 'received'>('list');
   const [loaded, setLoaded] = useState(false);
@@ -83,7 +84,7 @@ function WorkspaceApp({ initialAccounts }: { initialAccounts: DemoAccount[] }) {
 
   useEffect(() => {
     let active = true;
-    setLoaded(false); setView('editor'); setErrors({});
+    setLoaded(false); setView('editor'); setErrors({}); setReceivedFilter('pending');
     setProfileForm({ name: account.name, email: account.email, area: account.area, accountId: account.id });
     loadInspections().then(items => {
       if (!active) return;
@@ -252,6 +253,8 @@ function WorkspaceApp({ initialAccounts }: { initialAccounts: DemoAccount[] }) {
     catch (error) { setToast(error instanceof Error ? error.message : 'No se pudo cambiar la cuenta.'); }
   };
   const showAdmin = async () => { if (!isAdmin) return; await save(draft); setView('admin'); setMenuOpen(false); top(); };
+  const pendingReceivedCount = received.filter(item => !inspectionClosed(item)).length;
+  const visibleReceived = received.filter(item => receivedFilter === 'closed' ? inspectionClosed(item) : !inspectionClosed(item));
   const draftCount = inspections.filter(d => !d.delivery).length;
   const matches = (i: Inspection) => (filter === 'all' || (filter === 'draft' && !i.delivery) || (filter === 'pending' && i.delivery && !inspectionClosed(i) && !needsReview(i)) || (filter === 'review' && needsReview(i)) || (filter === 'closed' && inspectionClosed(i))) && `${i.company} ${i.facility} ${i.area}`.toLowerCase().includes(query.toLowerCase());
   const counts = { alta: draft.observations.filter(o => o.severity === 'alta').length, media: draft.observations.filter(o => o.severity === 'media').length, baja: draft.observations.filter(o => o.severity === 'baja').length };
@@ -268,7 +271,7 @@ function WorkspaceApp({ initialAccounts }: { initialAccounts: DemoAccount[] }) {
       <nav className="sidebar-nav">
         <button className={view === 'editor' ? 'active' : ''} onClick={() => { if (view !== 'editor') void startNew(); else setMenuOpen(false); }}><ClipboardCheck size={19} /><span>Nueva inspección</span><Plus size={15} /></button>
         <button aria-label="Mis inspecciones" className={view === 'list' ? 'active' : ''} onClick={() => void showList()}><LayoutGrid size={19} /><span>Mis inspecciones</span>{inspections.length > 0 && <span className="nav-count">{inspections.length}</span>}</button>
-        <button aria-label="Inspecciones recibidas" className={view === 'received' ? 'active' : ''} onClick={() => void showReceived()}><Mail size={19}/><span>Inspecciones recibidas</span>{received.length > 0 && <span className="nav-count">{received.length}</span>}</button>
+        <button aria-label="Inspecciones recibidas" className={view === 'received' ? 'active' : ''} onClick={() => void showReceived()}><Mail size={19}/><span>Inspecciones recibidas</span>{pendingReceivedCount > 0 && <span className="nav-count">{pendingReceivedCount}</span>}</button>
         {isAdmin && <button className={view === 'admin' ? 'active' : ''} onClick={() => void showAdmin()}><Settings2 size={19}/><span>Administración</span></button>}
       </nav>
       <div className="sidebar-bottom"><div className="prevention-card"><div className="prevention-art"><ShieldCheck size={32} strokeWidth={1.4} /><span /><span /></div><h3>La prevención<br />empieza contigo.</h3><p>Cada observación es una oportunidad para cuidar a tu equipo.</p><div className="small-line" /></div><button className="help-button" onClick={() => { setModal('help'); setMenuOpen(false); }}><HelpCircle size={18} /><span>¿Necesitas una mano?</span><ArrowUpRight size={15} /></button><div className="sidebar-footer"><span className="online-dot" />Tu espacio de seguridad<span>v0.1</span></div></div>
@@ -282,7 +285,8 @@ function WorkspaceApp({ initialAccounts }: { initialAccounts: DemoAccount[] }) {
         {view === 'followup' && followUp ? <FollowUp inspection={followUp} actor={account} onChange={updateFollowUp} onBack={() => void (followUpOrigin === 'received' ? showReceived() : showList())}/> : view === 'received' ? <>
           <div className="page-heading"><div><div className="eyebrow">SEGUIMIENTO DE HALLAZGOS</div><h1>Inspecciones recibidas</h1><p>Revisa los informes asignados a tu cuenta y registra sus levantamientos.</p></div></div>
           <div className="notice"><Info size={18}/><p>Prueba local: los informes aparecen al cambiar entre cuentas en este navegador. El correo y la sincronización entre dispositivos siguen pendientes.</p></div>
-          <div className="list-card inspection-list">{received.length === 0 ? <div className="empty-list"><Mail size={32}/><h3>No tienes inspecciones recibidas</h3><p>Los informes enviados a tu cuenta aparecerán aquí.</p></div> : received.map(item => <div className="inspection-list-row" key={item.id}><div className="list-building"><ClipboardCheck size={23}/></div><div className="inspection-list-info"><strong>{item.area}</strong><span>{item.inspector} · {formatDate(item.date)}</span><small>{item.observations.length} observaciones · {workflowLabel(item)}</small></div><button className="button button-outline" onClick={() => openFollowUp(item, 'received')}>Revisar inspección<ArrowRight size={15}/></button></div>)}</div>
+          <div className="received-filters" role="group" aria-label="Estado de las inspecciones recibidas">{([['pending', 'Pendientes'], ['closed', 'Cerradas']] as const).map(([value, label]) => <button key={value} type="button" aria-label={label} aria-pressed={receivedFilter === value} onClick={() => setReceivedFilter(value)}>{label}</button>)}</div>
+          <div className="list-card inspection-list">{visibleReceived.length === 0 ? <div className="empty-list"><Mail size={32}/><h3>{received.length === 0 ? 'No tienes inspecciones recibidas' : receivedFilter === 'pending' ? 'No tienes inspecciones pendientes' : 'No tienes inspecciones cerradas'}</h3><p>{receivedFilter === 'closed' ? 'Las inspecciones con todos sus hallazgos ejecutados aparecerán aquí.' : 'Los informes pendientes asignados a tu cuenta aparecerán aquí.'}</p></div> : visibleReceived.map(item => <div className="inspection-list-row" key={item.id}><div className="list-building"><ClipboardCheck size={23}/></div><div className="inspection-list-info"><strong>{item.area}</strong><span>{item.inspector} · {formatDate(item.date)}</span><small>{item.observations.length} observaciones · {workflowLabel(item)}</small></div><button className="button button-outline" onClick={() => openFollowUp(item, 'received')}>Revisar inspección<ArrowRight size={15}/></button></div>)}</div>
         </> : view === 'editor' ? <>
           <div className="page-heading"><div><div className="eyebrow"><span />SEGURIDAD Y SALUD EN EL TRABAJO</div><div className="title-row"><h1>Nueva inspección</h1><span className="draft-badge"><span />Borrador</span></div><p>{stepDescriptions[draft.step][0]}</p></div><button className="button button-outline save-exit" onClick={() => void showList()}><Save size={16} />Guardar y salir</button></div>
           <Stepper step={draft.step} names={stepNames} onStep={goToStep} />

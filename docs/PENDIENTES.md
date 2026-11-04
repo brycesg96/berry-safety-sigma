@@ -33,6 +33,8 @@ Esta lista es la referencia de trabajo y se resumirá al cerrar cada avance. Se 
 
 - [x] Vista de levantamiento más compacta: textos y responsable junto a fecha, estado y evidencias; márgenes y cuadros reducidos, con distribución vertical en teléfonos.
 
+- [x] Inspecciones recibidas separadas mediante botones Pendientes y Cerradas. El número del menú cuenta solo las recibidas sin cerrar y desaparece al quedar en cero.
+
 ## Pendientes operativos, por orden de dependencia
 
 1. [ ] Elegir y conectar el sistema de automatización y la base de datos real. Confirmar alojamiento y credenciales mediante configuración segura, sin claves en el navegador.
