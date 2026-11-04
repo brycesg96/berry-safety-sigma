@@ -1,12 +1,15 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { ArrowDownToLine, ArrowLeft, ArrowRight, ArrowUpRight, Building2, CalendarDays, Camera, Check, CheckCheck, ChevronRight, CircleCheck, ClipboardCheck, ClipboardList, Download, FileCheck2, FileSpreadsheet, FileText, HelpCircle, ImagePlus, Info, LayoutGrid, Leaf, ListFilter, LoaderCircle, LockKeyhole, Mail, Menu, MoreHorizontal, Pencil, Plus, Save, Search, Send, ShieldCheck, Sparkles, Trash2, UserRound, X } from 'lucide-react';
+import { ArrowDownToLine, ArrowLeft, ArrowRight, ArrowUpRight, Building2, CalendarDays, Camera, Check, CheckCheck, ChevronRight, CircleCheck, ClipboardCheck, ClipboardList, Download, FileCheck2, FileSpreadsheet, FileText, HelpCircle, ImagePlus, Info, LayoutGrid, Leaf, ListFilter, LoaderCircle, LockKeyhole, Mail, Menu, MoreHorizontal, Pencil, Plus, Save, Search, Send, ShieldCheck, Settings2, Sparkles, Trash2, UserRound, X } from 'lucide-react';
 import { Badge, Brand, Field, Modal, SectionTitle, Stepper } from './components';
-import type { Inspection, Observation, Profile } from './model';
+import type { Inspection, Observation } from './model';
 import { emailValid, formatDate, initials, loadInspections, newInspection, newObservation, persistInspection, preparePhoto, removeInspection, stepNames, validateStep } from './model';
 import { exportExcel } from './export';
 import { GeneralSection } from './GeneralSection';
 import { EMPLOYER, OBJECTIVE_LIMIT } from './employer';
 import { pendingCodeLabel } from './inspection-code';
+import { Administration, MicrosoftAccess } from './Administration';
+import { readAccounts, activeAccountId, selectTestAccount, updateOwnProfile } from './accounts';
+import type { DemoAccount } from './accounts';
 
 const stepDescriptions = [
   ['El primer paso para un entorno más seguro.', 'Cuéntanos dónde se realizará la inspección y quiénes serán los responsables.'],
@@ -16,20 +19,26 @@ const stepDescriptions = [
   ['Todo listo para el siguiente paso.', 'Verifica la información y descarga el informe para compartirlo con tu equipo.'],
 ];
 
-function readProfile(): Profile {
-  try {
-    const p = JSON.parse(localStorage.getItem('berry-profile') || 'null');
-    if (p && typeof p.name === 'string' && typeof p.email === 'string') return p;
-  } catch { /* El perfil local es opcional. */ }
-  return { name: 'Brian', email: '' };
+export default function App() {
+  const [initial] = useState(() => {
+    try { return { accounts: readAccounts(), error: '' }; }
+    catch (error) { return { accounts: [] as DemoAccount[], error: error instanceof Error ? error.message : 'Revisa la configuración de cuentas de prueba.' }; }
+  });
+  if (initial.error) return <main className="account-configuration-error"><Brand dark/><h1>Revisa las cuentas de prueba</h1><p role="alert">{initial.error}</p></main>;
+  return <WorkspaceApp initialAccounts={initial.accounts}/>;
 }
 
-export default function App() {
-  const [profile, setProfile] = useState<Profile>(readProfile);
+function WorkspaceApp({ initialAccounts }: { initialAccounts: DemoAccount[] }) {
+  const [accounts, setAccounts] = useState(initialAccounts);
+  const [activeId, setActiveId] = useState(() => activeAccountId(initialAccounts));
+  const account = accounts.find(a => a.id === activeId && a.enabled) || accounts[0];
+  const isAdmin = account.role === 'admin';
+  const profile = { name: account.name, email: account.email, area: account.area, accountId: account.id };
+  const activeIdRef = useRef(account.id); activeIdRef.current = account.id;
   const [draft, setDraft] = useState<Inspection>(() => newInspection(profile));
   const [inspections, setInspections] = useState<Inspection[]>([]);
   const [loaded, setLoaded] = useState(false);
-  const [view, setView] = useState<'editor' | 'list'>('editor');
+  const [view, setView] = useState<'editor' | 'list' | 'admin'>('editor');
   const [menuOpen, setMenuOpen] = useState(false);
   const [isMobile, setIsMobile] = useState(() => window.matchMedia('(max-width: 899px)').matches);
   const [modal, setModal] = useState<'help' | 'profile' | 'send' | null>(null);
@@ -56,35 +65,43 @@ export default function App() {
   }, []);
 
   useEffect(() => {
+    const refresh = () => {
+      try { const next = readAccounts(); setAccounts(next); setActiveId(activeAccountId(next)); }
+      catch { setToast('No se pudo leer la configuración de cuentas.'); }
+    };
+    window.addEventListener('berry-accounts-changed', refresh);
+    window.addEventListener('storage', refresh);
+    return () => { window.removeEventListener('berry-accounts-changed', refresh); window.removeEventListener('storage', refresh); };
+  }, []);
+
+  useEffect(() => {
     let active = true;
+    setLoaded(false); setView('editor'); setErrors({});
+    setProfileForm({ name: account.name, email: account.email, area: account.area, accountId: account.id });
     loadInspections().then(items => {
       if (!active) return;
-      setInspections(items);
-      if (items[0]) setDraft(items[0]);
-      setLoaded(true);
-    }).catch(() => {
-      if (!active) return;
-      setStorageError(true); setLoaded(true);
-    });
+      const owned = items.filter(item => item.ownerId === account.id);
+      setInspections(owned); setDraft(owned[0] || newInspection(profile)); setLoaded(true);
+    }).catch(() => { if (active) { setInspections([]); setDraft(newInspection(profile)); setStorageError(true); setLoaded(true); } });
     return () => { active = false; };
-  }, []);
+  }, [account.id]);
 
   const save = useCallback(async (item: Inspection) => {
     setSaveState('saving');
     try {
       await persistInspection(item);
-      setInspections(items => [item, ...items.filter(i => i.id !== item.id)].sort((a, b) => b.updatedAt.localeCompare(a.updatedAt)));
+      if (item.ownerId === activeIdRef.current) setInspections(items => [item, ...items.filter(i => i.id !== item.id)].sort((a, b) => b.updatedAt.localeCompare(a.updatedAt)));
       setSaveState('saved'); setStorageError(false);
       return true;
     } catch { setSaveState('error'); setStorageError(true); return false; }
   }, []);
 
   useEffect(() => {
-    if (!loaded) return;
+    if (!loaded || draft.ownerId !== account.id) return;
     setSaveState('saving');
     const timer = window.setTimeout(() => { void save(draft); }, 650);
     return () => clearTimeout(timer);
-  }, [draft, loaded, save]);
+  }, [draft, loaded, save, account.id]);
 
   useEffect(() => {
     if (!toast) return;
@@ -174,11 +191,21 @@ export default function App() {
     finally { setBusy(false); }
   };
   const saveProfile = () => {
-    if (!profileForm.name.trim() || (profileForm.email && !emailValid(profileForm.email))) { setProfileError('Escribe tu nombre y, si incluyes un correo, comprueba que sea válido.'); return; }
-    try { localStorage.setItem('berry-profile', JSON.stringify(profileForm)); }
-    catch { setProfileError('No pudimos guardar el perfil en este navegador.'); return; }
-    setProfile(profileForm); setModal(null); setToast('Perfil actualizado. Se usará en las nuevas inspecciones.');
+    try {
+      const next = updateOwnProfile(account.id, profileForm.name, profileForm.area);
+      setAccounts(next); setModal(null); setProfileError('');
+      if (!draft.area && !draft.observations.length) setDraft(d => ({ ...d, inspector: profileForm.name.trim(), inspectorEmail: account.email, updatedAt: new Date().toISOString() }));
+      setToast('Perfil actualizado. El correo corresponde a tu cuenta.');
+    } catch (error) { setProfileError(error instanceof Error ? error.message : 'No pudimos guardar el perfil.'); }
   };
+  const switchAccount = async (id: string) => {
+    if (id === account.id) return;
+    if (busy || photoBusy) { setToast('Espera a que termine de procesarse el archivo antes de cambiar de cuenta.'); return; }
+    if (!await save(draft)) { setToast('Guarda el borrador antes de cambiar de cuenta.'); return; }
+    try { selectTestAccount(id); setLoaded(false); setActiveId(id); setView('editor'); setMenuOpen(false); setProfileError(''); }
+    catch (error) { setToast(error instanceof Error ? error.message : 'No se pudo cambiar la cuenta.'); }
+  };
+  const showAdmin = async () => { if (!isAdmin) return; await save(draft); setView('admin'); setMenuOpen(false); top(); };
   const draftCount = inspections.filter(d => d.status === 'draft').length;
   const counts = { alta: draft.observations.filter(o => o.severity === 'alta').length, media: draft.observations.filter(o => o.severity === 'media').length, baja: draft.observations.filter(o => o.severity === 'baja').length };
   const formField = (key: 'company' | 'ruc' | 'facility' | 'area' | 'date' | 'objective' | 'conclusions' | 'recommendations' | 'inspector' | 'inspectorEmail', label: string, placeholder: string, required = true, type = 'text', textarea = false) => <Field label={label} required={required} error={errors[key]}>{props => textarea ? <textarea {...props} placeholder={placeholder} rows={key === 'objective' ? 3 : 5} value={draft[key]} onChange={e => patch(key, e.target.value)} maxLength={key === 'objective' ? OBJECTIVE_LIMIT : 5000} /> : <input {...props} type={type} placeholder={placeholder} value={draft[key]} onChange={e => patch(key, e.target.value)} maxLength={key === 'ruc' ? 11 : 250} inputMode={key === 'ruc' ? 'numeric' : undefined} />}</Field>;
@@ -188,18 +215,19 @@ export default function App() {
     {menuOpen && <div className="sidebar-scrim" onClick={() => setMenuOpen(false)} />}
     <aside ref={sidebarRef} className={`sidebar ${menuOpen ? 'sidebar-open' : ''}`} aria-label="Menú principal" role={isMobile && menuOpen ? 'dialog' : undefined} aria-modal={isMobile && menuOpen ? true : undefined} inert={!menuOpen && isMobile ? true : undefined}>
       <div className="sidebar-brand"><Brand /><button className="mobile-close icon-button" aria-label="Cerrar menú" onClick={() => setMenuOpen(false)}><X size={20} /></button></div>
-      <button className="user-card" onClick={() => { setProfileForm(profile); setProfileError(''); setModal('profile'); setMenuOpen(false); }} aria-label="Editar mi perfil"><span className="avatar">{initials(profile.name)}</span><span className="user-details"><strong>{profile.name}</strong><span>Inspector de seguridad</span></span><MoreHorizontal size={18} /></button>
+      <button className="user-card" onClick={() => { setProfileForm(profile); setProfileError(''); setModal('profile'); setMenuOpen(false); }} aria-label="Editar mi perfil"><span className="avatar">{initials(profile.name)}</span><span className="user-details"><strong>{profile.name}</strong><span>{isAdmin ? 'Administrador' : 'Inspecciones'}{account.area ? ` · ${account.area}` : ''}</span></span><MoreHorizontal size={18} /></button>
       <div className="sidebar-divider" />
       <div className="nav-caption">ESPACIO DE TRABAJO</div>
       <nav className="sidebar-nav">
         <button className={view === 'editor' ? 'active' : ''} onClick={() => { if (view !== 'editor') void startNew(); else setMenuOpen(false); }}><ClipboardCheck size={19} /><span>Nueva inspección</span><Plus size={15} /></button>
         <button className={view === 'list' ? 'active' : ''} onClick={() => void showList()}><LayoutGrid size={19} /><span>Mis inspecciones</span>{inspections.length > 0 && <span className="nav-count">{inspections.length}</span>}</button>
+        {isAdmin && <button className={view === 'admin' ? 'active' : ''} onClick={() => void showAdmin()}><Settings2 size={19}/><span>Administración</span></button>}
       </nav>
       <div className="sidebar-bottom"><div className="prevention-card"><div className="prevention-art"><ShieldCheck size={32} strokeWidth={1.4} /><span /><span /></div><h3>La prevención<br />empieza contigo.</h3><p>Cada observación es una oportunidad para cuidar a tu equipo.</p><div className="small-line" /></div><button className="help-button" onClick={() => { setModal('help'); setMenuOpen(false); }}><HelpCircle size={18} /><span>¿Necesitas una mano?</span><ArrowUpRight size={15} /></button><div className="sidebar-footer"><span className="online-dot" />Tu espacio de seguridad<span>v0.1</span></div></div>
     </aside>
 
     <div className="workspace">
-      <header className="topbar"><div className="topbar-left"><button className="menu-toggle icon-button" aria-label="Abrir menú" aria-expanded={menuOpen} onClick={() => setMenuOpen(v => !v)}><Menu size={23} /></button><span className="breadcrumb-parent">Espacio de trabajo</span><ChevronRight className="breadcrumb-separator" size={14} /><span className="breadcrumb-current">{view === 'editor' ? 'Nueva inspección' : 'Mis inspecciones'}</span></div><div className="topbar-right"><span className={`save-status ${saveState === 'error' ? 'save-error' : ''}`} aria-live="polite">{saveState === 'saving' ? <LoaderCircle className="spin" size={15} /> : saveState === 'error' ? <Info size={15} /> : <CircleCheck size={16} />}<span>{saveState === 'saving' ? 'Guardando…' : saveState === 'error' ? 'Sin guardar' : 'Guardado en este navegador'}</span></span><div className="topbar-separator" /><button className="top-avatar" aria-label="Mi perfil" onClick={() => { setProfileForm(profile); setProfileError(''); setModal('profile'); }}>{initials(profile.name)}</button></div></header>
+      <header className="topbar"><div className="topbar-left"><button className="menu-toggle icon-button" aria-label="Abrir menú" aria-expanded={menuOpen} onClick={() => setMenuOpen(v => !v)}><Menu size={23} /></button><span className="breadcrumb-parent">Espacio de trabajo</span><ChevronRight className="breadcrumb-separator" size={14} /><span className="breadcrumb-current">{view === 'editor' ? 'Nueva inspección' : view === 'admin' ? 'Administración' : 'Mis inspecciones'}</span></div><div className="topbar-right"><span className="demo-badge header-demo-badge">Modo de prueba</span><span className={`save-status ${saveState === 'error' ? 'save-error' : ''}`} aria-live="polite">{saveState === 'saving' ? <LoaderCircle className="spin" size={15} /> : saveState === 'error' ? <Info size={15} /> : <CircleCheck size={16} />}<span>{saveState === 'saving' ? 'Guardando…' : saveState === 'error' ? 'Sin guardar' : 'Guardado en este navegador'}</span></span><div className="topbar-separator" /><button className="top-avatar" aria-label="Mi perfil" onClick={() => { setProfileForm(profile); setProfileError(''); setModal('profile'); }}>{initials(profile.name)}</button></div></header>
 
       <main id="main-content" className="main-content" ref={contentRef}>
         {storageError && <div className="notice notice-error" role="alert"><Info size={19} /><div><strong>No se ha podido guardar el borrador.</strong><p>Comprueba el espacio y los permisos del navegador. Mantén esta pestaña abierta para conservar los datos.</p></div><button className="text-button" onClick={() => void save(draft)}>Reintentar</button></div>}
@@ -252,7 +280,7 @@ export default function App() {
             <div className="tip-card"><span className="tip-icon"><Sparkles size={18} /></span><div><h4>Un detalle que hace la diferencia</h4><p>{draft.step === 0 ? 'Un objetivo claro te ayudará a enfocar la inspección y obtener mejores resultados.' : draft.step === 1 ? 'Fotografía el contexto y el detalle del hallazgo. Una buena evidencia facilita la corrección.' : draft.step === 3 ? 'Las recomendaciones concretas ayudan a que cada hallazgo se convierta en una mejora.' : 'Revisa que las fechas y las medidas correctivas sean claras para los responsables.'}</p></div></div>
           </aside></div>
           <footer className="page-footer"><span>Hecho para cuidar a las personas.</span><span>Berry Safety Workspace<ShieldCheck size={13} /></span></footer>
-        </> : <>
+        </> : view === 'admin' ? <Administration accounts={accounts} actor={account} onAccounts={setAccounts}/> : <>
           <div className="page-heading"><div><div className="eyebrow"><span />TU ESPACIO DE SEGURIDAD</div><h1>Mis inspecciones</h1><p>Cada registro, un paso hacia un trabajo más seguro.</p></div><button className="button button-primary" onClick={() => void startNew()}><Plus size={17} />Nueva inspección</button></div>
           <div className="list-stats"><div><span className="list-stat-icon"><ClipboardList size={22} /></span><div><strong>{inspections.length}</strong><span>Inspecciones</span></div></div><div><span className="list-stat-icon muted-icon"><Pencil size={22} /></span><div><strong>{draftCount}</strong><span>En borrador</span></div></div><div><span className="list-stat-icon green-icon"><FileCheck2 size={22} /></span><div><strong>{inspections.filter(i => i.status === 'ready').length}</strong><span>Informes preparados</span></div></div></div>
           <div className="list-card"><div className="list-toolbar"><div className="search-box"><Search size={18} /><input aria-label="Buscar inspecciones" placeholder="Buscar por empresa, instalación o área…" value={query} onChange={e => setQuery(e.target.value)} /></div><label className="filter-select"><ListFilter size={16} /><select aria-label="Filtrar por estado" value={filter} onChange={e => setFilter(e.target.value)}><option value="all">Todos los estados</option><option value="draft">Borradores</option><option value="ready">Informes preparados</option></select></label></div>
@@ -265,7 +293,7 @@ export default function App() {
 
     {toast && <div className="toast" role="status"><Info size={18} /><span>{toast}</span><button aria-label="Cerrar aviso" onClick={() => setToast('')}><X size={16} /></button></div>}
     {modal === 'help' && <Modal title="Una inspección, paso a paso" onClose={() => setModal(null)}><p className="modal-description">Lo importante es lo que observas. Berry te ayuda a darle forma.</p><ol className="help-steps">{['Define la empresa, la instalación, el objetivo y los responsables.', 'Añade tus observaciones, fotos y medidas correctivas. Selecciona la criticidad y una fecha de compromiso.', 'Revisa el resumen de los hallazgos.', 'Completa las conclusiones, recomendaciones y los datos del inspector.', 'Revisa los destinatarios y descarga el informe Excel.'].map((text, i) => <li key={text}><span>{i + 1}</span><div><strong>{stepNames[i]}</strong><p>{text}</p></div></li>)}</ol><div className="notice"><Info size={19} /><p>Los borradores se guardan automáticamente en este navegador. El envío por correo y la plantilla oficial se incorporarán en una siguiente etapa.</p></div><button className="button button-primary full-width" onClick={() => setModal(null)}>Entendido<Check size={16} /></button></Modal>}
-    {modal === 'profile' && <Modal title="Tu perfil" onClose={() => setModal(null)}><div className="profile-modal-avatar">{initials(profileForm.name)}</div><p className="modal-description centered">Estos datos se usarán al crear nuevas inspecciones.<br />Este es un perfil local, sin inicio de sesión.</p><Field label="Nombre completo" required>{props => <input {...props} autoComplete="name" value={profileForm.name} maxLength={250} onChange={e => setProfileForm(p => ({ ...p, name: e.target.value }))} />}</Field><Field label="Correo electrónico" hint="Opcional. Aparecerá como correo del inspector.">{props => <input {...props} type="email" autoComplete="email" placeholder="nombre@empresa.com" value={profileForm.email} maxLength={250} onChange={e => setProfileForm(p => ({ ...p, email: e.target.value }))} />}</Field>{profileError && <p className="error-message" role="alert">{profileError}</p>}<button className="button button-primary full-width" onClick={saveProfile}>Guardar perfil<Check size={16} /></button></Modal>}
+    {modal === 'profile' && <Modal title="Tu perfil" onClose={() => setModal(null)}><div className="profile-modal-avatar">{initials(profileForm.name)}</div><Field label="Cuenta de prueba" hint="Cambia de cuenta sin iniciar sesión mientras Microsoft está desactivado.">{props => <select {...props} value={account.id} disabled={!loaded || busy || photoBusy !== null} onChange={e => void switchAccount(e.target.value)}>{accounts.filter(a => a.enabled).map(a => <option key={a.id} value={a.id}>{a.name} — {a.email} ({a.role === 'admin' ? 'Administrador' : 'Inspecciones'})</option>)}</select>}</Field><form onSubmit={e => { e.preventDefault(); saveProfile(); }}><Field label="Nombres y apellidos" required>{props => <input {...props} autoComplete="name" placeholder="Nombres y apellidos completos" value={profileForm.name} maxLength={250} onChange={e => setProfileForm(p => ({ ...p, name: e.target.value }))}/>}</Field><Field label="Área" required>{props => <input {...props} placeholder="Área a la que perteneces" value={profileForm.area} maxLength={250} onChange={e => setProfileForm(p => ({ ...p, area: e.target.value }))}/>}</Field><Field label="Correo de tu cuenta">{props => <input {...props} type="email" value={profileForm.email} readOnly/>}</Field>{profileError && <p className="error-message" role="alert">{profileError}</p>}<button type="submit" className="button button-primary full-width">Guardar perfil<Check size={16}/></button></form><MicrosoftAccess/></Modal>}
     {modal === 'send' && <Modal title="Compartir tu inspección" onClose={() => setModal(null)}><div className="send-illustration"><Mail size={34} /></div><h3 className="centered">Tu borrador ya tiene destinatarios</h3><p className="modal-description centered">El registro del envío y la numeración definitiva aún no están conectados. Por ahora, puedes descargar el Excel y compartirlo con los responsables.</p><div className="send-recipients">{draft.responsibles.map(r => <div key={r.id}><Mail size={16} /><span><strong>{r.name}</strong><small>{r.email}</small></span></div>)}</div><button className="button button-primary full-width" disabled={busy} onClick={() => void download()}>{busy ? <LoaderCircle className="spin" size={16} /> : <ArrowDownToLine size={16} />}{busy ? 'Generando informe…' : 'Descargar informe Excel'}</button><p className="send-status"><Info size={14} />No se ha enviado ningún correo.</p></Modal>}
     {previewPhoto && <Modal title="Evidencia fotográfica" wide onClose={() => setPreviewPhoto(null)}><img className="photo-full" src={previewPhoto.data} alt={previewPhoto.name} /><p className="photo-caption">{previewPhoto.name}</p></Modal>}
     {deleteTarget && <Modal title="Eliminar inspección" onClose={() => setDeleteTarget(null)}><p className="modal-description">Se eliminará «{deleteTarget.area || deleteTarget.facility || 'Inspección sin título'}» y sus fotografías de este navegador. Esta acción no se puede deshacer.</p><div className="modal-actions"><button className="button button-outline" onClick={() => setDeleteTarget(null)}>Conservar inspección</button><button className="button button-danger" onClick={async () => { try { await removeInspection(deleteTarget.id); setInspections(items => items.filter(i => i.id !== deleteTarget.id)); if (draft.id === deleteTarget.id) setDraft(newInspection(profile)); setDeleteTarget(null); setToast('Inspección eliminada.'); } catch { setToast('No pudimos eliminar la inspección. Inténtalo de nuevo.'); } }}><Trash2 size={16} />Eliminar</button></div></Modal>}

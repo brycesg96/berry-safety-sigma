@@ -12,6 +12,11 @@ export function ResponsiblePicker({ value, onChange, error, excludedIds }: { val
   const [people, setPeople] = useState<DirectoryPerson[]>([]);
   const [state, setState] = useState<'idle' | 'loading' | 'ready' | 'unconfigured' | 'error'>('idle');
   const [retry, setRetry] = useState(0);
+  useEffect(() => {
+    const refresh = () => setRetry(n => n + 1);
+    window.addEventListener('berry-accounts-changed', refresh); window.addEventListener('storage', refresh);
+    return () => { window.removeEventListener('berry-accounts-changed', refresh); window.removeEventListener('storage', refresh); };
+  }, []);
   const searching = open && !value.personId && value.name.trim().length >= 2;
   useEffect(() => {
     setPeople([]); setActive(-1);

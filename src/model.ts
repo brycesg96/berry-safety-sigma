@@ -9,9 +9,10 @@ export type Observation = {
   dueDate: string;
   photos: Evidence[];
 };
-export type Profile = { name: string; email: string };
+export type Profile = { name: string; email: string; area?: string; accountId?: string };
 export type Inspection = {
   id: string;
+  ownerId: string;
   company: string;
   ruc: string;
   facility: string;
@@ -40,7 +41,7 @@ export const id = () => crypto.randomUUID();
 export const newResponsible = (): Responsible => ({ id: id(), name: '', email: '' });
 export const newObservation = (): Observation => ({ id: id(), description: '', correctiveAction: '', severity: 'media', dueDate: '', photos: [] });
 export const newInspection = (profile: Profile): Inspection => ({
-  id: id(), company: EMPLOYER.name, ruc: EMPLOYER.ruc, facility: '', area: '', type: '', otherType: '', registrationNumber: '', inspectionTime: '',
+  id: id(), ownerId: profile.accountId || 'demo-admin', company: EMPLOYER.name, ruc: EMPLOYER.ruc, facility: '', area: '', type: '', otherType: '', registrationNumber: '', inspectionTime: '',
   date: new Date().toLocaleDateString('en-CA'), objective: '', responsibles: [newResponsible()],
   observations: [], noFindings: false, conclusions: '', recommendations: '', inspector: profile.name,
   inspectorEmail: profile.email, step: 0, updatedAt: new Date().toISOString(), status: 'draft',
@@ -80,7 +81,7 @@ export function validateStep(d: Inspection, step: number): Record<string, string
 
 export function normalizeInspection(value: Inspection): Inspection {
   const type = ['Planeada', 'No planeada', 'Otro'].includes(value.type) ? value.type : '';
-  return { ...value, type, otherType: value.otherType || '', registrationNumber: '', ...(value.registrationNumber ? { legacyRegistrationNumber: value.registrationNumber } : {}), inspectionTime: value.inspectionTime || '', ...(value.type && !type ? { legacyType: value.type } : {}) };
+  return { ...value, ownerId: value.ownerId || 'demo-admin', type, otherType: value.otherType || '', registrationNumber: '', ...(value.registrationNumber ? { legacyRegistrationNumber: value.registrationNumber } : {}), inspectionTime: value.inspectionTime || '', ...(value.type && !type ? { legacyType: value.type } : {}) };
 }
 
 export const formatDate = (value: string) => value ? new Intl.DateTimeFormat('es-PE', { day: '2-digit', month: 'short', year: 'numeric' }).format(new Date(`${value}T12:00:00`)) : 'Sin definir';

@@ -32,6 +32,11 @@ jobs:
         run: python3 -m unittest discover -s reference -p 'test_*.py' -v
       - name: Compilar para la ruta de GitHub Pages
         run: npm run build:pages
+        env:
+          VITE_DEMO_ADMIN_EMAIL: ${{ vars.VITE_DEMO_ADMIN_EMAIL }}
+          VITE_DEMO_ADMIN_NAME: ${{ vars.VITE_DEMO_ADMIN_NAME }}
+          VITE_DEMO_INSPECTOR_EMAIL: ${{ vars.VITE_DEMO_INSPECTOR_EMAIL }}
+          VITE_DEMO_INSPECTOR_NAME: ${{ vars.VITE_DEMO_INSPECTOR_NAME }}
       - name: Configurar GitHub Pages
         uses: actions/configure-pages@v5
       - name: Preparar los archivos de publicación

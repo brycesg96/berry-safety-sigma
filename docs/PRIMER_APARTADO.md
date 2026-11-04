@@ -22,7 +22,7 @@ Editar el nombre después de seleccionar una persona borra la selección y el co
 
 ### Conexión pendiente
 
-La app actual no tiene servicio de cuentas ni directorio real. No se incluyen nombres o correos ficticios en el producto ni se convierten correos introducidos manualmente en identidades verificadas.
+El modo de prueba ya incluye el directorio local de las dos cuentas solicitadas por el usuario y las cuentas que se añadan desde Administración. No hay autenticación real ni sincronización de cuentas entre dispositivos. Véase [ADMINISTRACION.md](ADMINISTRACION.md).
 
 El buscador se conecta mediante la variable de compilación no secreta `VITE_DIRECTORY_URL`. Ejemplo de configuración para un backend que sirva el directorio en el mismo dominio:
 
@@ -44,10 +44,10 @@ Contrato de respuesta:
 
 Los datos del ejemplo describen el contrato y no son una lista de usuarios. El servicio debe autenticar la sesión, devolver únicamente cuentas activas y autorizadas de la empresa, buscar por nombre y revalidar identificadores y correos en el servidor al guardar o enviar la inspección. La selección y el almacenamiento local del frontend no sustituyen esas comprobaciones.
 
-Sin endpoint configurado se muestra un aviso de directorio no conectado. Ante error, hay una opción de reintento; si no hay coincidencias, se informa sin permitir escribir un correo alternativo. En las pruebas se intercepta la API con identidades ficticias que solo existen en `tests/directory-fixture.ts`.
+Sin endpoint configurado se usan las cuentas locales habilitadas de prueba. Ante error, hay una opción de reintento; si no hay coincidencias, se informa sin permitir escribir un correo alternativo. En las pruebas se intercepta la API con identidades ficticias que solo existen en `tests/directory-fixture.ts`.
 
 ## Persistencia y publicación
 
 Los borradores siguen en IndexedDB. Se añaden los nuevos campos al cargar borradores anteriores sin descartar sus textos o fotografías. El tipo antiguo de inspección se conserva como referencia en `legacyType` y se pide elegir uno de los tres tipos nuevos.
 
-Esta actualización no publica la web ni modifica la configuración de GitHub Pages. Para usar el selector con personas reales sigue siendo necesario conectar el servicio de cuentas del administrador.
+Esta actualización no publica la web ni modifica la configuración de GitHub Pages. Para usarlo como control de acceso real y compartir las altas entre dispositivos sigue siendo necesario conectar Microsoft y el servicio de cuentas del administrador.

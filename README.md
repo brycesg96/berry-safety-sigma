@@ -1,6 +1,6 @@
 # Berry · Safety Workspace
 
-Seguimiento: [lista de pendientes](docs/PENDIENTES.md). Numeración: [códigos de inspección](docs/CODIGOS_INSPECCION.md).
+Seguimiento: [lista de pendientes](docs/PENDIENTES.md). Administración: [cuentas y acceso de prueba](docs/ADMINISTRACION.md). Numeración: [códigos de inspección](docs/CODIGOS_INSPECCION.md).
 
 Aplicación web adaptable a teléfono, tablet y laptop para registrar inspecciones de seguridad y salud en el trabajo. Primera versión funcional en español, construida con React, TypeScript y Vite.
 
@@ -43,10 +43,10 @@ El menú lateral se convierte en un panel desplegable en móvil. Incluye perfil 
 
 - Los borradores y las fotografías se guardan automáticamente en **IndexedDB del navegador**; el perfil usa almacenamiento local. Se puede retomar una inspección al recargar. No se sincronizan entre dispositivos y se pierden si se borran los datos del sitio.
 - Las fotos JPG, PNG y WebP se convierten a JPEG de hasta 1600 píxeles para reducir el almacenamiento. El límite de entrada es de 15 MB por fotografía.
-- El directorio real de cuentas aún no está conectado. El buscador requiere configurar `VITE_DIRECTORY_URL` hacia un servicio autenticado; sin esa conexión no se pueden seleccionar responsables nuevos. Las pruebas usan respuestas simuladas, no usuarios reales.
+- La demostración incluye las cuentas Bryan `bryx.96@gmail.com` (administrador) y `bcespedes@hortifrut.com` (inspecciones). Las altas locales de Administración aparecen en el directorio de ese navegador. `VITE_DIRECTORY_URL` permite añadir un directorio remoto; Microsoft y la sincronización real siguen pendientes.
 - El Excel es **provisional**: aún falta recibir y mapear la plantilla oficial de la empresa.
 - **No se envían correos.** El botón de envío explica que la conexión está pendiente y ofrece descargar el informe. No presenta una confirmación ficticia de envío.
-- El perfil es local: no se ha implementado autenticación, control de permisos ni almacenamiento compartido. Esta versión sirve para probar el flujo y el diseño; la operación con varios usuarios requiere el backend descrito en [el alcance del producto](docs/PRODUCTO.md).
+- El perfil y los roles son locales de prueba: no se ha implementado autenticación ni control de permisos en el servidor ni almacenamiento compartido. Esta versión sirve para probar el flujo y el diseño; la operación con varios usuarios requiere el backend descrito en [el alcance del producto](docs/PRODUCTO.md).
 - La generación de Excel se carga bajo demanda para no retrasar la pantalla inicial.
 
 ## Pruebas
