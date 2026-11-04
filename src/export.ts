@@ -1,5 +1,6 @@
 import type { Inspection } from './model';
 import { formatDate, validateStep } from './model';
+import { formatInspectionTime } from './inspection-time';
 import { EMPLOYER } from './employer';
 
 export async function exportExcel(d: Inspection) {
@@ -35,7 +36,7 @@ export async function exportExcel(d: Inspection) {
   line('Domicilio', EMPLOYER.address); line('Actividad económica', EMPLOYER.activity); line('Trabajadores', EMPLOYER.workers);
   line('Código de inspección', 'BORRADOR — pendiente de registro'); line('Responsable de la inspección', d.inspector);
   line('Área inspeccionada', d.area);
-  line('Tipo de inspección', d.type === 'Otro' ? `Otro: ${d.otherType}` : d.type); line('Fecha de inspección', formatDate(d.date)); line('Hora de inspección', d.inspectionTime);
+  line('Tipo de inspección', d.type === 'Otro' ? `Otro: ${d.otherType}` : d.type); line('Fecha de inspección', formatDate(d.date)); line('Hora de inspección', formatInspectionTime(d.inspectionTime, d.inspectionPeriod));
   line('Objetivo', d.objective);
   section('RESPONSABLES Y DESTINATARIOS');
   d.responsibles.forEach(r => line(r.name, r.email));

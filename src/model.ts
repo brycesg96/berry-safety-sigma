@@ -1,4 +1,7 @@
 import { EMPLOYER, OBJECTIVE_LIMIT } from './employer';
+import { migrateInspectionTime, validInspectionTime } from './inspection-time';
+import type { InspectionPeriod } from './inspection-time';
+import type { RegistrationReceipt } from './inspection-code';
 export type Responsible = { id: string; name: string; email: string; personId?: string };
 export type Evidence = { id: string; name: string; data: string };
 export type Observation = {
@@ -20,8 +23,10 @@ export type Inspection = {
   type: '' | 'Planeada' | 'No planeada' | 'Otro';
   otherType: string;
   registrationNumber: string;
+  serverRegistration?: RegistrationReceipt;
   legacyRegistrationNumber?: string;
   inspectionTime: string;
+  inspectionPeriod: InspectionPeriod;
   legacyType?: string;
   date: string;
   objective: string;
@@ -41,7 +46,7 @@ export const id = () => crypto.randomUUID();
 export const newResponsible = (): Responsible => ({ id: id(), name: '', email: '' });
 export const newObservation = (): Observation => ({ id: id(), description: '', correctiveAction: '', severity: 'media', dueDate: '', photos: [] });
 export const newInspection = (profile: Profile): Inspection => ({
-  id: id(), ownerId: profile.accountId || 'demo-admin', company: EMPLOYER.name, ruc: EMPLOYER.ruc, facility: '', area: '', type: '', otherType: '', registrationNumber: '', inspectionTime: '',
+  id: id(), ownerId: profile.accountId || 'demo-admin', company: EMPLOYER.name, ruc: EMPLOYER.ruc, facility: '', area: '', type: '', otherType: '', registrationNumber: '', inspectionTime: '', inspectionPeriod: '',
   date: new Date().toLocaleDateString('en-CA'), objective: '', responsibles: [newResponsible()],
   observations: [], noFindings: false, conclusions: '', recommendations: '', inspector: profile.name,
   inspectorEmail: profile.email, step: 0, updatedAt: new Date().toISOString(), status: 'draft',
@@ -56,6 +61,8 @@ export function validateStep(d: Inspection, step: number): Record<string, string
       if (!d[key].trim()) errors[key] = `Completa ${label}.`;
     }
     if (!['Planeada', 'No planeada', 'Otro'].includes(d.type)) errors.type = 'Selecciona un tipo de inspección.';
+    if (d.inspectionTime && !validInspectionTime(d.inspectionTime)) errors.inspectionTime = 'Escribe una hora entre 01:00 y 12:59 (hh:mm).';
+    if (!['AM', 'PM'].includes(d.inspectionPeriod)) errors.inspectionPeriod = 'Selecciona AM o PM.';
     if (d.type === 'Otro' && !d.otherType.trim()) errors.otherType = 'Detalla el otro tipo de inspección.';
     if (d.objective.length > OBJECTIVE_LIMIT) errors.objective = `El objetivo debe tener como máximo ${OBJECTIVE_LIMIT} caracteres.`;
     if (!d.responsibles.length) errors.responsibles = 'Añade al menos un responsable.';
@@ -81,7 +88,7 @@ export function validateStep(d: Inspection, step: number): Record<string, string
 
 export function normalizeInspection(value: Inspection): Inspection {
   const type = ['Planeada', 'No planeada', 'Otro'].includes(value.type) ? value.type : '';
-  return { ...value, ownerId: value.ownerId || 'demo-admin', type, otherType: value.otherType || '', registrationNumber: '', ...(value.registrationNumber ? { legacyRegistrationNumber: value.registrationNumber } : {}), inspectionTime: value.inspectionTime || '', ...(value.type && !type ? { legacyType: value.type } : {}) };
+  return { ...value, ownerId: value.ownerId || 'demo-admin', type, otherType: value.otherType || '', registrationNumber: '', ...(value.registrationNumber ? { legacyRegistrationNumber: value.registrationNumber } : {}), ...migrateInspectionTime(value.inspectionTime || '', value.inspectionPeriod), ...(value.type && !type ? { legacyType: value.type } : {}) };
 }
 
 export const formatDate = (value: string) => value ? new Intl.DateTimeFormat('es-PE', { day: '2-digit', month: 'short', year: 'numeric' }).format(new Date(`${value}T12:00:00`)) : 'Sin definir';

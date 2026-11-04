@@ -4,7 +4,9 @@ Formato fijo: `IH-{año de registro}-{secuencia anual con un mínimo de tres dí
 
 ## Lo que está disponible en la web
 
-El campo es de solo lectura y muestra `IH-AÑO-…`, junto a un ejemplo como `IH-2026-001`. No muestra un número provisional que dos usuarios puedan confundir con un código definitivo. Las descargas locales se identifican como borradores sin código registrado. Los números introducidos manualmente en versiones anteriores se conservan como `legacyRegistrationNumber`, pero no se validan ni se publican como códigos definitivos.
+El campo es de solo lectura y muestra un código numérico **tentativo**, como `IH-2026-001`, sin puntos suspensivos. El texto aclara que puede variar según el orden de envío y que el definitivo aparecerá en Mis inspecciones. Hasta conectar un servicio de numeración, se utiliza 001 como estimación inicial del año; no se reserva un número ni se garantiza que sea el siguiente real. Distintos borradores pueden mostrar la misma estimación. Las descargas locales se identifican como borradores sin código registrado. Los números introducidos manualmente en versiones anteriores se conservan como `legacyRegistrationNumber`, pero no se validan ni se publican como códigos definitivos.
+
+La lista Mis inspecciones distingue «Código definitivo: pendiente de envío» de un código presente en un recibo de registro con `inspectionId`, `code` y `acceptedAt`. Ese recibo debe provenir del servidor después de confirmar la transacción. La interfaz valida su forma, correspondencia con la inspección y año; esas validaciones no sustituyen la autenticación ni la consulta al servidor. Actualmente no se generan recibos reales desde la app.
 
 ## Operación futura de registro
 

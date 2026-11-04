@@ -10,9 +10,9 @@ test('dos cuentas Bryan en el directorio y correo automático al seleccionar', a
   await page.goto('./');
   await expect(page.getByRole('button', { name: 'Administración', exact: true })).toBeVisible();
   await page.getByRole('combobox', { name: /Nombre completo/ }).fill('bryan');
-  await expect(page.getByRole('option')).toHaveCount(2);
-  await expect(page.getByRole('option', { name: new RegExp(adminEmail.replace('.', '\\.')) })).toBeVisible();
-  await page.getByRole('option', { name: new RegExp(inspectorEmail.replace('.', '\\.')) }).click();
+  await expect(page.getByRole('listbox').getByRole('option')).toHaveCount(2);
+  await expect(page.getByRole('listbox').getByRole('option', { name: new RegExp(adminEmail.replace('.', '\\.')) })).toBeVisible();
+  await page.getByRole('listbox').getByRole('option', { name: new RegExp(inspectorEmail.replace('.', '\\.')) }).click();
   await expect(page.getByLabel('Correo electrónico')).toHaveValue(inspectorEmail);
   await expect(page.getByLabel('Correo electrónico')).toHaveAttribute('readonly', '');
 });
@@ -49,7 +49,7 @@ test('administración añade, edita, desactiva y conserva una cuenta tras recarg
   await page.locator('.account-row').filter({ hasText: 'laura@example.com' }).getByRole('button', { name: 'Activar', exact: true }).click();
   await page.getByRole('button', { name: 'Nueva inspección', exact: true }).click();
   await page.getByRole('combobox', { name: /Nombre completo/ }).fill('Laura');
-  await page.getByRole('option', { name: /Laura Editada/ }).click();
+  await page.getByRole('listbox').getByRole('option', { name: /Laura Editada/ }).click();
   await expect(page.getByLabel('Correo electrónico')).toHaveValue('laura@example.com');
 });
 

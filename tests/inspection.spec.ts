@@ -7,11 +7,12 @@ test.beforeEach(async ({ page }) => { await mockDirectory(page); });
 async function fillGeneral(page: Page) {
   await page.getByLabel('Área inspeccionada').fill('Almacén y despacho');
   await page.getByLabel('Hora de inspección').fill('07:30');
+  await page.getByLabel('AM o PM').selectOption('AM');
   await page.getByRole('radio', { name: 'Planeada', exact: true }).check();
   await page.getByLabel('Fecha de inspección').fill('2026-11-03');
   await page.getByLabel('Objetivo de la inspección').fill('Verificar las condiciones de almacenamiento y las rutas de evacuación.');
   await page.getByLabel(/Nombre completo/).fill('Ana Torres');
-  await page.getByRole('option', { name: /Ana Torres/ }).click();
+  await page.getByRole('listbox').getByRole('option', { name: /Ana Torres/ }).click();
 }
 
 test('recorrido completo con evidencia, persistencia y un Excel válido', async ({ page }) => {
@@ -23,7 +24,7 @@ test('recorrido completo con evidencia, persistencia y un Excel válido', async 
   await page.getByRole('button', { name: 'Añadir', exact: true }).click();
   const responsibles = page.locator('.responsible-row');
   await responsibles.nth(1).getByLabel('Nombre completo').fill('José Rojas');
-  await page.getByRole('option', { name: /José Rojas/ }).click();
+  await page.getByRole('listbox').getByRole('option', { name: /José Rojas/ }).click();
   await expect(responsibles).toHaveCount(2);
   await page.getByRole('button', { name: 'Continuar', exact: true }).click();
   await page.getByRole('button', { name: 'Añadir observación', exact: true }).click();
@@ -90,12 +91,12 @@ test('validación de campos y confirmación explícita sin hallazgos', async ({ 
   await page.getByRole('button', { name: 'Continuar', exact: true }).click();
   await expect(page.getByText('Completa el área inspeccionada.')).toBeVisible();
   await fillGeneral(page);
-  await page.getByRole('combobox').fill('Persona sin seleccionar');
+  await page.getByRole('combobox', { name: /Nombre completo/ }).fill('Persona sin seleccionar');
   await expect(page.getByLabel(/Correo electrónico/)).toHaveValue('');
   await page.getByRole('button', { name: 'Continuar', exact: true }).click();
   await expect(page.getByText('Selecciona una persona del directorio.')).toBeVisible();
-  await page.getByRole('combobox').fill('Ana');
-  await page.getByRole('option', { name: /Ana Torres/ }).click();
+  await page.getByRole('combobox', { name: /Nombre completo/ }).fill('Ana');
+  await page.getByRole('listbox').getByRole('option', { name: /Ana Torres/ }).click();
   await page.getByRole('button', { name: 'Continuar', exact: true }).click();
   await page.getByRole('button', { name: 'Continuar', exact: true }).click();
   await expect(page.getByText('Añade una observación o confirma que no se identificaron hallazgos.')).toBeVisible();

@@ -10,9 +10,11 @@ Los valores de empresa guardados en borradores antiguos no se borran, pero no re
 
 ## Información editable
 
-- Área inspeccionada, fecha, responsable de la inspección y hora. El código ya no se escribe: se asignará de forma única al registrar el envío; véase [CODIGOS_INSPECCION.md](CODIGOS_INSPECCION.md).
+- Área inspeccionada con ejemplo de instalación y ubicación («Ej. Taller de Maquinaria - Armonía 2»), fecha, responsable de la inspección y hora de 12 horas con AM/PM. El código ya no se escribe: se asignará de forma única al registrar el envío; véase [CODIGOS_INSPECCION.md](CODIGOS_INSPECCION.md).
 - Tipo: Planeada, No planeada u Otro. Se selecciona una opción. Otro habilita un campo de detalle obligatorio; al cambiar de opción se conserva el texto, pero no se exporta mientras Otro no esté seleccionado.
 - Objetivo de hasta 560 caracteres, con contador y validación antes de continuar y antes de exportar. Los objetivos antiguos más largos se conservan completos para que la persona los revise, sin recortes automáticos.
+
+La hora y el período comienzan vacíos. Se exige una hora de 01:00 a 12:59 y elegir AM o PM antes de continuar. La revisión y el Excel incluyen el período. Los borradores antiguos que guardaban hora de 24 horas se convierten sin perder el momento: 00:05 pasa a 12:05 AM y 23:59 a 11:59 PM. Un campo nuevo todavía sin período no se completa automáticamente al recargar.
 
 ## Responsables
 

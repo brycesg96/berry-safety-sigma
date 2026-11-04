@@ -4,7 +4,7 @@ Esta lista es la referencia de trabajo y se resumirá al cerrar cada avance. Se 
 
 ## Implementado y disponible para pruebas
 
-- [x] Código de inspección sin edición manual. El borrador muestra `IH-AÑO-…`; `IH-2026-001` es un ejemplo del formato, no una reserva.
+- [x] Código de inspección sin edición manual. El borrador muestra un código tentativo numérico, como `IH-2026-001`, con aviso de que puede variar según el orden de envío. No reserva correlativos.
 - [x] Año según la fecha de aceptación del envío en Perú, con reinicio anual del correlativo y un mínimo de tres dígitos (después de 999 continúa 1000).
 - [x] Referencia de base de datos con transacción, códigos únicos, archivo Excel y cola de envío guardados juntos; pruebas de concurrencia, reintentos, cambio de año y fallos. **No está conectada a la app.**
 - [x] Retirar el texto y candado de Solo lectura del bloque del empleador, manteniendo sus datos sin edición y compactando espacios.
@@ -15,6 +15,10 @@ Esta lista es la referencia de trabajo y se resumirá al cerrar cada avance. Se 
 - [x] Dos cuentas locales Bryan: administrador `bryx.96@gmail.com` e inspector `bcespedes@hortifrut.com`, configurables en la compilación.
 - [x] Directorio local de cuentas habilitadas: búsqueda por nombre, correo automático y altas, edición y desactivación desde Administración.
 - [x] Cambio de cuenta de prueba sin login, correo de perfil no editable, área y nombre por cuenta, y borradores separados en el navegador.
+
+- [x] Ejemplo de área con ubicación: «Ej. Taller de Maquinaria - Armonía 2».
+- [x] Hora en 12 horas con selección AM/PM, ambas inicialmente vacías y obligatorias; migración de horas antiguas de 24 horas.
+- [x] Mis inspecciones muestra el espacio del código definitivo, pendiente hasta recibir un registro confirmado del servidor.
 
 ## Pendientes operativos, por orden de dependencia
 
