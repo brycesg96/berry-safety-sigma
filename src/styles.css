@@ -119,3 +119,5 @@
 
 .objective-section .section-title h3::after{content:" *";color:#6b9b80}
 @media(max-width:600px){.form-heading-title-row:has(.inspection-code-badge){gap:8px}.form-heading-title-row:has(.inspection-code-badge)>h2{font-size:17px}.inspection-code-badge>input{width:90px;font-size:10.5px}}
+
+.inspection-register{margin-left:auto;flex-shrink:0;display:flex;flex-direction:column;gap:5px}.inspection-register>label{font-size:9px;font-weight:600;letter-spacing:.7px;color:#74836c;line-height:1.2;padding-left:1px}.inspection-register .inspection-code-badge{margin-left:0}@media(max-width:600px){.inspection-register{gap:4px}.inspection-register>label{font-size:8px;letter-spacing:.6px}}
