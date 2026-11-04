@@ -43,6 +43,8 @@ Esta lista es la referencia de trabajo y se resumirá al cerrar cada avance. Se 
 
 - [x] Añadir hasta dos inspectores adicionales desde Responsable de la inspección en el primer paso, sincronizados con Realizado por y con validación del equipo al continuar.
 
+- [x] Resumen de observaciones en dos columnas de tarjetas compactas cuando hay ancho suficiente y una columna en teléfonos; sin recortar textos ni perder acceso a fotos y edición.
+
 ## Pendientes operativos, por orden de dependencia
 
 1. [ ] Elegir y conectar el sistema de automatización y la base de datos real. Confirmar alojamiento y credenciales mediante configuración segura, sin claves en el navegador.
