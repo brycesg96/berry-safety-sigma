@@ -3,7 +3,7 @@ import { ArrowLeft, ArrowRight, ArrowUpRight, Building2, CalendarDays, Camera, C
 import { Badge, Brand, Field, Modal, Stepper } from './components';
 import { PhotoViewer } from './PhotoViewer';
 import type { Evidence, Inspection, Observation } from './model';
-import { emailValid, formatDate, initials, loadInspections, newInspection, newObservation, setObservationClosingDate, persistInspection, preparePhoto, removeInspection, stepNames, validateStep } from './model';
+import { emailValid, formatDate, initials, hasInspectionContent, loadInspections, newInspection, newObservation, setObservationClosingDate, persistInspection, preparePhoto, removeInspection, stepNames, validateStep } from './model';
 import { exportExcel } from './export';
 import { GeneralSection } from './GeneralSection';
 import { EMPLOYER } from './employer';
@@ -49,6 +49,7 @@ function WorkspaceApp({ initialAccounts }: { initialAccounts: DemoAccount[] }) {
   const [receivedFilter, setReceivedFilter] = useState<'pending' | 'closed'>('pending');
   const [followUp, setFollowUp] = useState<Inspection | null>(null);
   const [followUpOrigin, setFollowUpOrigin] = useState<'list' | 'received'>('list');
+  const startedDraftIds = useRef(new Set<string>());
   const [loaded, setLoaded] = useState(false);
   const [view, setView] = useState<'editor' | 'list' | 'admin' | 'received' | 'followup'>('editor');
   const [menuOpen, setMenuOpen] = useState(false);
@@ -57,7 +58,7 @@ function WorkspaceApp({ initialAccounts }: { initialAccounts: DemoAccount[] }) {
   const [profileForm, setProfileForm] = useState(profile);
   const [profileError, setProfileError] = useState('');
   const [errors, setErrors] = useState<Record<string, string>>({});
-  const [saveState, setSaveState] = useState<'saved' | 'saving' | 'error'>('saved');
+  const [saveState, setSaveState] = useState<'saved' | 'saving' | 'error' | 'empty'>('empty');
   const [storageError, setStorageError] = useState(false);
   const [toast, setToast] = useState('');
   const [busy, setBusy] = useState(false);
@@ -93,6 +94,7 @@ function WorkspaceApp({ initialAccounts }: { initialAccounts: DemoAccount[] }) {
     loadInspections().then(items => {
       if (!active) return;
       const owned = items.filter(item => item.ownerId === account.id);
+      owned.filter(hasInspectionContent).forEach(item => startedDraftIds.current.add(item.id));
       setInspections(owned); setReceived(items.filter(item => isRecipient(item, account.id))); setDraft(owned.find(i => !i.delivery) || newInspection(profile)); setFollowUp(null); setLoaded(true);
     }).catch(() => { if (active) { setInspections([]); setDraft(newInspection(profile)); setStorageError(true); setLoaded(true); } });
     return () => { active = false; };
@@ -110,7 +112,7 @@ function WorkspaceApp({ initialAccounts }: { initialAccounts: DemoAccount[] }) {
       for (const person of registrationPeople(d)) {
         if (!records[person.id]) {
           const accountPerson = accounts.find(a => a.id === person.id || a.email.toLowerCase() === person.email.toLowerCase());
-          records[person.id] = { jobTitle: accountPerson?.jobTitle || person.jobTitle || '', date: d.date }; changed = true;
+          records[person.id] = { jobTitle: accountPerson?.jobTitle || person.jobTitle || '', initialJobTitle: accountPerson?.jobTitle || person.jobTitle || '', date: d.date }; changed = true;
         }
       }
       return changed ? { ...d, registrationDetails: records } : d;
@@ -122,17 +124,22 @@ function WorkspaceApp({ initialAccounts }: { initialAccounts: DemoAccount[] }) {
 
   const save = useCallback(async (item: Inspection) => {
     if (item.delivery) return true;
+    const hasContent = hasInspectionContent(item);
+    if (!hasContent && !startedDraftIds.current.has(item.id)) { setSaveState('empty'); return true; }
+    startedDraftIds.current.add(item.id);
     setSaveState('saving');
     try {
       await persistInspection(item);
-      if (item.ownerId === activeIdRef.current) setInspections(items => [item, ...items.filter(i => i.id !== item.id)].sort((a, b) => b.updatedAt.localeCompare(a.updatedAt)));
-      setSaveState('saved'); setStorageError(false);
+      if (item.ownerId === activeIdRef.current) setInspections(items => (hasContent ? [item, ...items.filter(i => i.id !== item.id)] : items.filter(i => i.id !== item.id)).sort((a, b) => b.updatedAt.localeCompare(a.updatedAt)));
+      if (!hasContent) startedDraftIds.current.delete(item.id);
+      setSaveState(hasContent ? 'saved' : 'empty'); setStorageError(false);
       return true;
     } catch { setSaveState('error'); setStorageError(true); return false; }
   }, []);
 
   useEffect(() => {
     if (!loaded || draft.ownerId !== account.id || draft.delivery) return;
+    if (!hasInspectionContent(draft) && !startedDraftIds.current.has(draft.id)) { setSaveState('empty'); return; }
     setSaveState('saving');
     const timer = window.setTimeout(() => { void save(draft); }, 650);
     return () => clearTimeout(timer);
@@ -166,7 +173,7 @@ function WorkspaceApp({ initialAccounts }: { initialAccounts: DemoAccount[] }) {
 
   useEffect(() => {
     const handler = (event: BeforeUnloadEvent) => {
-      if (saveState !== 'saved') event.preventDefault();
+      if (saveState === 'saving' || saveState === 'error') event.preventDefault();
     };
     window.addEventListener('beforeunload', handler);
     return () => window.removeEventListener('beforeunload', handler);
@@ -299,7 +306,7 @@ function WorkspaceApp({ initialAccounts }: { initialAccounts: DemoAccount[] }) {
     </aside>
 
     <div className="workspace">
-      <header className="topbar"><div className="topbar-left"><button className="menu-toggle icon-button" aria-label="Abrir menú" aria-expanded={menuOpen} onClick={() => setMenuOpen(v => !v)}><Menu size={23} /></button><span className="breadcrumb-parent">Espacio de trabajo</span><ChevronRight className="breadcrumb-separator" size={14} /><span className="breadcrumb-current">{view === 'editor' ? 'Nueva inspección' : view === 'admin' ? 'Administración' : view === 'received' ? 'Inspecciones recibidas' : view === 'followup' ? 'Levantamiento' : 'Mis inspecciones'}</span></div><div className="topbar-right"><span className="demo-badge header-demo-badge">Modo de prueba</span><span className={`save-status ${saveState === 'error' ? 'save-error' : ''}`} aria-live="polite">{view === 'followup' ? <Info size={15}/> : saveState === 'saving' ? <LoaderCircle className="spin" size={15} /> : saveState === 'error' ? <Info size={15} /> : <CircleCheck size={16} />}<span>{view === 'followup' ? 'Guarda cada avance' : saveState === 'saving' ? 'Guardando…' : saveState === 'error' ? 'Sin guardar' : 'Guardado en este navegador'}</span></span><div className="topbar-separator" /><button className="top-avatar" aria-label="Mi perfil" onClick={() => { setProfileForm(profile); setProfileError(''); setModal('profile'); }}>{initials(profile.name)}</button></div></header>
+      <header className="topbar"><div className="topbar-left"><button className="menu-toggle icon-button" aria-label="Abrir menú" aria-expanded={menuOpen} onClick={() => setMenuOpen(v => !v)}><Menu size={23} /></button><span className="breadcrumb-parent">Espacio de trabajo</span><ChevronRight className="breadcrumb-separator" size={14} /><span className="breadcrumb-current">{view === 'editor' ? 'Nueva inspección' : view === 'admin' ? 'Administración' : view === 'received' ? 'Inspecciones recibidas' : view === 'followup' ? 'Levantamiento' : 'Mis inspecciones'}</span></div><div className="topbar-right"><span className="demo-badge header-demo-badge">Modo de prueba</span><span className={`save-status ${saveState === 'error' ? 'save-error' : ''}`} aria-live="polite">{view === 'followup' ? <Info size={15}/> : saveState === 'empty' ? <Pencil size={15}/> : saveState === 'saving' ? <LoaderCircle className="spin" size={15} /> : saveState === 'error' ? <Info size={15} /> : <CircleCheck size={16} />}<span>{view === 'followup' ? 'Guarda cada avance' : saveState === 'empty' ? 'Sin iniciar' : saveState === 'saving' ? 'Guardando…' : saveState === 'error' ? 'Sin guardar' : 'Guardado en este navegador'}</span></span><div className="topbar-separator" /><button className="top-avatar" aria-label="Mi perfil" onClick={() => { setProfileForm(profile); setProfileError(''); setModal('profile'); }}>{initials(profile.name)}</button></div></header>
 
       <main id="main-content" className="main-content" ref={contentRef}>
         {storageError && <div className="notice notice-error" role="alert"><Info size={19} /><div><strong>No se ha podido guardar el borrador.</strong><p>Comprueba el espacio y los permisos del navegador. Mantén esta pestaña abierta para conservar los datos.</p></div><button className="text-button" onClick={() => void save(draft)}>Reintentar</button></div>}

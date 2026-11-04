@@ -147,7 +147,7 @@ test('diseño adaptable sin desbordamiento y capturas de la primera pantalla', a
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
   }
   await page.evaluate(() => document.fonts.ready);
-  await expect(page.getByText('Guardado en este navegador', { exact: true })).toBeVisible();
+  await expect(page.getByText('Sin iniciar', { exact: true })).toBeVisible();
   await page.screenshot({ path: '/tmp/berry-desktop.png', fullPage: true });
   await page.setViewportSize({ width: 390, height: 844 });
   await expect.poll(() => page.locator('.sidebar').evaluate(el => el.getBoundingClientRect().right)).toBeLessThanOrEqual(0);

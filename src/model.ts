@@ -34,6 +34,7 @@ export type Inspection = {
   inspectionPeriod: InspectionPeriod;
   legacyType?: string;
   date: string;
+  initialInspectionDate?: string;
   objective: string;
   responsibles: Responsible[];
   observations: Observation[];
@@ -54,12 +55,28 @@ export type Inspection = {
 export const id = () => crypto.randomUUID();
 export const newResponsible = (): Responsible => ({ id: id(), name: '', email: '' });
 export const newObservation = (closingDate = ''): Observation => ({ id: id(), description: '', correctiveAction: '', severity: 'media', dueDate: closingDate, photos: [] });
-export const newInspection = (profile: Profile): Inspection => ({
+export const newInspection = (profile: Profile): Inspection => {
+  const date = new Date().toLocaleDateString('en-CA');
+  return ({
   id: id(), ownerId: profile.accountId || 'demo-admin', company: EMPLOYER.name, ruc: EMPLOYER.ruc, facility: '', area: '', type: '', otherType: '', registrationNumber: '', inspectionTime: '', inspectionPeriod: '',
-  date: new Date().toLocaleDateString('en-CA'), objective: '', responsibles: [newResponsible()],
+  date, initialInspectionDate: date, objective: '', responsibles: [newResponsible()],
   observations: [], defaultClosingDate: '', unfavorableCause: '', closingRemarks: '', registrationDetails: {}, conclusions: '', recommendations: '', inspector: profile.name,
   inspectorEmail: profile.email, additionalInspectors: [], step: 0, updatedAt: new Date().toISOString(), status: 'draft',
 });
+};
+
+/** Ignore generated defaults and empty rows when deciding whether a draft exists. */
+export function hasInspectionContent(d: Inspection): boolean {
+  if (d.delivery || d.serverRegistration || d.status === 'ready') return true;
+  const text = [d.area, d.facility, d.objective, d.inspectionTime, d.type, d.otherType, d.unfavorableCause, d.closingRemarks, d.conclusions, d.recommendations, d.registrationNumber, d.legacyRegistrationNumber];
+  if (text.some(value => value?.trim())) return true;
+  if (d.inspectionPeriod || (d.date && d.initialInspectionDate && d.date !== d.initialInspectionDate)) return true;
+  if ((d.company?.trim() && d.company !== EMPLOYER.name) || (d.ruc?.trim() && d.ruc !== EMPLOYER.ruc)) return true;
+  if ([...(d.responsibles || []), ...(d.additionalInspectors || [])].some(p => p.personId || p.name?.trim() || p.email?.trim())) return true;
+  if ((d.observations || []).some(o => o.description?.trim() || o.correctiveAction?.trim() || o.dueDate || o.photos?.length || o.severity !== 'media')) return true;
+  if (Object.values(d.registrationDetails || {}).some(r => r.signature || (r.date && r.date !== d.date) || (r.jobTitle?.trim() && (r.initialJobTitle === undefined || r.jobTitle !== r.initialJobTitle)))) return true;
+  return Boolean((d as Inspection & { noFindings?: boolean }).noFindings);
+}
 
 // The first closing date is shared once; later edits belong only to that observation.
 export function setObservationClosingDate(draft: Inspection, observationId: string, date: string): Inspection {
@@ -117,7 +134,7 @@ export function validateStep(d: Inspection, step: number): Record<string, string
 
 export function normalizeInspection(value: Inspection): Inspection {
   const type = ['Planeada', 'No planeada', 'Otro'].includes(value.type) ? value.type : '';
-  return { ...value, unfavorableCause: value.unfavorableCause || '', closingRemarks: closingRemarksOf(value), registrationDetails: value.registrationDetails || {}, additionalInspectors: value.additionalInspectors || [], defaultClosingDate: value.defaultClosingDate ?? value.observations.find(o => o.dueDate)?.dueDate ?? '', ownerId: value.ownerId || 'demo-admin', type, otherType: value.otherType || '', registrationNumber: '', ...(value.registrationNumber ? { legacyRegistrationNumber: value.registrationNumber } : {}), ...migrateInspectionTime(value.inspectionTime || '', value.inspectionPeriod), ...(value.type && !type ? { legacyType: value.type } : {}) };
+  return { ...value, initialInspectionDate: value.initialInspectionDate ?? value.date, unfavorableCause: value.unfavorableCause || '', closingRemarks: closingRemarksOf(value), registrationDetails: value.registrationDetails || {}, additionalInspectors: value.additionalInspectors || [], defaultClosingDate: value.defaultClosingDate ?? value.observations.find(o => o.dueDate)?.dueDate ?? '', ownerId: value.ownerId || 'demo-admin', type, otherType: value.otherType || '', registrationNumber: '', ...(value.registrationNumber ? { legacyRegistrationNumber: value.registrationNumber } : {}), ...migrateInspectionTime(value.inspectionTime || '', value.inspectionPeriod), ...(value.type && !type ? { legacyType: value.type } : {}) };
 }
 
 export const formatDate = (value: string) => value ? new Intl.DateTimeFormat('es-PE', { day: '2-digit', month: 'short', year: 'numeric' }).format(new Date(`${value}T12:00:00`)) : 'Sin definir';
@@ -150,7 +167,8 @@ export async function persistInspection(inspection: Inspection): Promise<void> {
     const existing = store.get(inspection.id);
     existing.onsuccess = () => {
       if (existing.result?.delivery) { tx.abort(); return; }
-      store.put(inspection);
+      if (hasInspectionContent(inspection)) store.put(inspection);
+      else if (existing.result) store.delete(inspection.id);
     };
     tx.oncomplete = () => { db.close(); resolve(); };
     tx.onerror = () => { db.close(); reject(tx.error); };

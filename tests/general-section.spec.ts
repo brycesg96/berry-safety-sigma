@@ -72,7 +72,7 @@ test('directorio vacío o caído no permite inventar un destinatario', async ({ 
 
 test('borrador anterior conserva el objetivo largo y solicita corregirlo', async ({ page }) => {
   await page.goto('./');
-  await expect(page.getByText('Guardado en este navegador', { exact: true })).toBeVisible();
+  await expect(page.getByText('Sin iniciar', { exact: true })).toBeVisible();
   await page.evaluate(async () => {
     const request = indexedDB.open('berry-safety', 1);
     const db = await new Promise<IDBDatabase>((resolve, reject) => { request.onsuccess = () => resolve(request.result); request.onerror = reject; });
