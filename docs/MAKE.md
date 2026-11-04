@@ -35,7 +35,7 @@ Se incluye `render.yaml` para un servicio Docker gratuito y `server/Dockerfile` 
 3. En el escenario existente, colocar un filtro entre **Custom webhook** y **Microsoft 365 Email (Outlook) → Send an Email**, con ambas condiciones (AND): `send_email` igual al booleano `true` y `mode` distinto de `test`. Durante esta fase todos los ejemplos llevan `send_email:false` y `mode:test`, por lo que Outlook no debe ejecutarse. Alternativamente, desconectar temporalmente Outlook mientras se comprueba la recepción. El indicador por sí solo no desactiva módulos externos; no utilizar destinatarios reales ni campos de destinatario fijos en Outlook para esta prueba.
 4. Configurar `BERRY_ALLOWED_ORIGINS=https://brycesg96.github.io`. Cambiar `MAKE_TEST_ENABLED` a `true` cuando el webhook esté preparado. Render termina HTTPS delante del servidor HTTP del contenedor.
 5. Comprobar `https://<servicio>.onrender.com/healthz`; debe devolver `{"status":"ok"}`. El plan gratuito puede tardar en despertar tras inactividad; esperar a que el servicio esté listo antes de la prueba.
-6. En GitHub, **Settings → Secrets and variables → Actions → Variables**, crear `VITE_MAKE_TEST_API_URL` con `https://<servicio>.onrender.com/api/integrations/make/test` y volver a ejecutar `pages.yml`. Esta dirección es pública y no contiene la URL ni la clave de Make.
+6. La publicación de Pages ya utiliza `https://berry-safety-api.onrender.com/api/integrations/make/test` como API pública predeterminada. Para cambiar de alojamiento, en GitHub → **Settings → Secrets and variables → Actions → Variables**, crear `VITE_MAKE_TEST_API_URL` con el nuevo endpoint y volver a ejecutar `pages.yml`. Esta dirección es pública y no contiene la URL ni la clave de Make.
 7. Abrir **Administración → Integraciones**, introducir la clave de prueba de la API y pulsar **Probar conexión con Make**. Mientras no exista el alojamiento y esa variable pública, la web muestra el apartado desconectado y el botón deshabilitado.
 
 ## Dónde introducir la URL
@@ -103,3 +103,7 @@ Se ejecutó una única prueba desde la interfaz local, pasando por la API y usan
 Después de que el usuario confirmara nuevamente la URL, se realizó una única prueba adicional a través de la API el 4 de noviembre de 2026 a las 14:59 (hora de Lima). Make respondió **HTTP 200**; la API devolvió `receipt:http_accepted`, con ID `728d0c02-883b-4ed9-bdc0-988f539ba7cf`. Se utilizaron datos ficticios y `send_email:false`. Esto confirma aceptación HTTP, no ejecución completa del escenario ni entrega de correo.
 
 La prueba solo se habilitó en memoria para esa llamada; la configuración local permanece desactivada. El servidor temporal se cerró después de la prueba. La web pública todavía necesita el servicio Render y la variable pública de API descritos arriba.
+
+## Backend Render verificado
+
+El 4 de noviembre de 2026 se comprobó `https://berry-safety-api.onrender.com/healthz`: HTTP 200 y `{"status":"ok"}`. El preflight OPTIONS de la ruta de prueba devolvió HTTP 204 y autorizó el origen `https://brycesg96.github.io`, POST y los encabezados de autenticación y prueba. La publicación web queda configurada para ese endpoint público. Estas comprobaciones no ejecutan Make, no prueban los secretos y no confirman el estado de `MAKE_TEST_ENABLED`; la prueba real del escenario con Outlook sigue pendiente de su filtro y habilitación.

@@ -60,7 +60,8 @@ Esta lista es la referencia de trabajo y se resumirá al cerrar cada avance. Se 
 - [x] Webhook confirmado: tras el rechazo HTTP 410 inicial, una nueva prueba autorizada el 4 de noviembre de 2026 recibió HTTP 200 de Make, con datos ficticios y `send_email:false`. Confirma aceptación HTTP, no ejecución completa del escenario ni entrega de correo.
 - [x] Botón temporal «Probar conexión con Make» y guía de configuración segura de `MAKE_WEBHOOK_URL`, adaptados al escenario con Outlook y filtro para excluir pruebas.
 - [ ] Confirmar el filtro de Make antes de Outlook (`send_email = true` Y `mode != test`) antes de repetir una prueba real con el escenario actualizado.
-- [ ] Crear el servicio API HTTPS en Render, cargar los secretos y conectar `VITE_MAKE_TEST_API_URL` para habilitar la prueba desde la web pública.
+- [x] Backend Render creado en `https://berry-safety-api.onrender.com`: health HTTP 200 y CORS HTTP 204 verificados; endpoint público configurado para la publicación de Pages.
+- [ ] Confirmar filtro de Outlook y secretos en Render; habilitar `MAKE_TEST_ENABLED=true` y comprobar la prueba autenticada desde la web pública. Health y CORS no verifican los secretos ni el envío.
 
 ## Pendientes operativos, por orden de dependencia
 
