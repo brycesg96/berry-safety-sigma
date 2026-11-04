@@ -1,6 +1,7 @@
 import type { Inspection } from './model';
 import { formatDate, validateStep } from './model';
 import { formatInspectionTime } from './inspection-time';
+import { workflowLabel } from './follow-up';
 import { EMPLOYER } from './employer';
 
 export async function exportExcel(d: Inspection) {
@@ -31,6 +32,17 @@ export async function exportExcel(d: Inspection) {
     row.getCell(2).alignment = { wrapText: true, vertical: 'top' };
     row.height = Math.max(24, Math.ceil(value.length / 95) * 18);
   };
+  const addPhoto = async (photo: Inspection['observations'][number]['photos'][number]) => {
+      const imageId = book.addImage({ base64: photo.data, extension: 'jpeg' });
+      const image = new Image(); image.src = photo.data; await image.decode();
+      const scale = Math.min(460 / image.naturalWidth, 260 / image.naturalHeight);
+      const width = Math.round(image.naturalWidth * scale), height = Math.round(image.naturalHeight * scale);
+      const startRow = sheet.rowCount;
+      const rowCount = Math.ceil(height / 20) + 1;
+      for (let i = 0; i < rowCount; i++) sheet.addRow([]).height = 15;
+      sheet.addImage(imageId, { tl: { col: 1, row: startRow }, ext: { width, height } });
+      line('Evidencia', photo.name);
+  };
   section('01 · DATOS GENERALES');
   line('Razón social', EMPLOYER.name); line('RUC', EMPLOYER.ruc);
   line('Domicilio', EMPLOYER.address); line('Actividad económica', EMPLOYER.activity); line('Trabajadores', EMPLOYER.workers);
@@ -47,18 +59,23 @@ export async function exportExcel(d: Inspection) {
     line('Medida correctiva', o.correctiveAction);
     line('Criticidad', o.severity.toUpperCase()); line('Fecha de Cierre', formatDate(o.dueDate));
     for (const photo of o.photos) {
-      const imageId = book.addImage({ base64: photo.data, extension: 'jpeg' });
-      const image = new Image(); image.src = photo.data; await image.decode();
-      const scale = Math.min(460 / image.naturalWidth, 260 / image.naturalHeight);
-      const width = Math.round(image.naturalWidth * scale), height = Math.round(image.naturalHeight * scale);
-      const startRow = sheet.rowCount;
-      const rowCount = Math.ceil(height / 20) + 1;
-      for (let i = 0; i < rowCount; i++) sheet.addRow([]).height = 15;
-      sheet.addImage(imageId, { tl: { col: 1, row: startRow }, ext: { width, height } });
-      line('Evidencia', photo.name);
+      await addPhoto(photo);
+    }
+    if (d.delivery) {
+      const correction = d.delivery.corrections[o.id];
+      line('LEVANTAMIENTO DE RESULTADOS DE LA INSPECCIÓN', correction ? correction.action : 'Pendiente de registro');
+      line('Apellidos y nombres del responsable del levantamiento', correction?.responsibleName || 'Sin asignar');
+      line('Estado', correction?.state || 'Pendiente');
+      line('Fecha de Cierre', correction?.date ? formatDate(correction.date) : 'Sin definir');
+      if (correction) {
+        line('Revisión', correction.decision === 'approved' ? 'Aprobado' : correction.decision === 'review' ? 'En revisión' : correction.decision === 'changes' ? 'Ajustes solicitados' : 'Borrador del levantamiento');
+        if (correction.note) line('Comentario del revisor', correction.note);
+        for (const photo of correction.photos) await addPhoto(photo);
+      }
     }
     sheet.addRow([]);
   }
+  if (d.delivery) line('Estado de la inspección', workflowLabel(d));
   section('03 · CIERRE DE LA INSPECCIÓN');
   line('Conclusiones', d.conclusions); line('Recomendaciones', d.recommendations);
   line('Realizado por', d.inspector); line('Correo del inspector', d.inspectorEmail || 'No indicado');

@@ -1,0 +1,20 @@
+# Inspecciones recibidas y levantamientos
+
+## Probar el flujo actual
+
+La app publicada sigue siendo una demostración local, sin Microsoft, backend ni correo conectados. Las cuentas comparten informes enviados dentro del mismo navegador y origen; abrir otro teléfono, otra sesión privada u otro navegador no sincroniza los datos.
+
+1. Con la cuenta autora, completa el informe y pulsa **Enviar inspección → Enviar a destinatarios de prueba**. Todos los correos seleccionados deben pertenecer a cuentas habilitadas en Administración. El envío local conserva los destinatarios, congela el informe y no asigna un código definitivo.
+2. Abre **Mi perfil → Cuenta de prueba**, selecciona la cuenta destinataria y cierra el perfil. En **Inspecciones recibidas**, abre el informe. Los borradores sin enviar no aparecen.
+3. En cada hallazgo, registra apellidos y nombres del responsable del levantamiento, acción realizada, Fecha de Cierre, estado propuesto y registro fotográfico del levantamiento. Las fotografías originales y las de corrección se conservan por separado. Se pueden guardar avances sin enviarlos a revisión.
+4. Para proponer **Ejecutado**, adjunta al menos una evidencia y pulsa **Enviar a revisión**. Hasta la aprobación del autor, el estado confirmado continúa en **Pendiente**.
+5. Cambia a la cuenta autora. En **Mis inspecciones**, el contador y filtro **Inspecciones a revisar** muestran los informes con levantamientos enviados a revisión. El autor puede aprobar cada uno o solicitar ajustes con un comentario obligatorio. No puede aprobar un estado propuesto Pendiente.
+6. La aprobación cambia ese hallazgo a **Ejecutado**. Solo cuando todos están en Ejecutado, la inspección aparece como **Cerrada** en el contador y filtro **Inspecciones cerradas**. Descargar Excel no cierra una inspección. Los informes antiguos preparados pero sin envío se muestran como **Sin enviar**.
+
+Cada revisión modifica un hallazgo. Los aprobados se bloquean y los devueltos admiten nuevas evidencias y reenvío. Una inspección enviada no se puede editar ni eliminar desde el asistente; las operaciones de levantamiento leen el registro más reciente en una transacción y rechazan versiones antiguas. Se deben guardar los avances de cada levantamiento antes de salir. Las cuentas con varios destinatarios colaboran sobre los mismos hallazgos.
+
+La descarga provisional incluye los datos y fotografías del levantamiento y sus estados de revisión. Sigue pendiente ubicar estos datos dentro de la plantilla oficial proporcionada, conservar versiones finales y asignar el código único mediante el servidor.
+
+## Límites y pendientes
+
+Los controles de cuentas y estados del navegador permiten probar la experiencia, pero no sustituyen autenticación ni autorización del servidor. Falta conectar almacenamiento compartido, roles reales, sincronización, avisos por correo, auditoría de cambios y conservación de documentos. La aprobación corresponde al autor de la inspección en este primer flujo; los permisos adicionales del administrador y la reasignación se definirán después.

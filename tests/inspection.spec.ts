@@ -82,7 +82,7 @@ test('recorrido completo con evidencia, persistencia y un Excel válido', async 
   expect(requestUrls).toEqual([]);
   await page.getByRole('button', { name: 'Guardar y salir' }).click();
   await expect(page.locator('.inspection-list-row')).toHaveCount(1);
-  await expect(page.locator('.list-status')).toHaveText('Informe preparado');
+  await expect(page.locator('.list-status')).toHaveText('Sin enviar');
   expect(errors).toEqual([]);
 });
 

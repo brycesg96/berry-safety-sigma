@@ -25,6 +25,10 @@ Esta lista es la referencia de trabajo y se resumirá al cerrar cada avance. Se 
 - [x] Observaciones compactas: textos junto a criticidad, Fecha de Cierre y fotos en pantallas amplias; distribución vertical en el teléfono.
 - [x] La primera Fecha de Cierre se comparte una sola vez con todas las observaciones y se conserva como fecha inicial para nuevas observaciones. Los cambios posteriores son individuales y persisten al recargar. Los borradores antiguos conservan sus fechas.
 
+- [x] Inspecciones recibidas después de Mis inspecciones: entrega local entre las cuentas destinatarias, levantamientos con acción, responsable, Estado y Fecha de Cierre, fotos separadas y guardado de avances.
+- [x] Revisión por el autor, solicitud de ajustes y cierre solo al quedar todos los estados aprobados en Ejecutado. Contadores/filtros Inspecciones a revisar e Inspecciones cerradas. Descargar un informe no lo cierra.
+- [x] Protección local contra sobrescritura o eliminación del informe enviado y rechazo de revisiones obsoletas. Exportación provisional con datos y evidencias del levantamiento. [Guía de prueba y límites](SEGUIMIENTO.md).
+
 ## Pendientes operativos, por orden de dependencia
 
 1. [ ] Elegir y conectar el sistema de automatización y la base de datos real. Confirmar alojamiento y credenciales mediante configuración segura, sin claves en el navegador.
@@ -34,8 +38,9 @@ Esta lista es la referencia de trabajo y se resumirá al cerrar cada avance. Se 
 5. [ ] Recuperar e incorporar la exportación sobre el Excel proporcionado y revisar los apartados segundo y tercero. El código actual conserva todavía el exportador genérico provisional; no se debe confundir con la adaptación completa anterior.
 6. [ ] Conectar almacenamiento compartido y evidencias para retomar inspecciones entre dispositivos. Los borradores actuales permanecen en cada navegador.
 7. [ ] Conectar el envío de correo y el seguimiento de entrega, con reintentos sin duplicados. Aceptar y registrar una inspección no significa que el correo ya fue entregado.
-8. [ ] Definir con Brian los permisos adicionales del apartado Administración.
-9. [ ] Revisar con Brian el informe final, las firmas, las reglas de acceso y la conservación de documentos antes del uso operativo.
+8. [ ] Conectar entregas y levantamientos al backend autenticado: permisos por destinatario y revisor, auditoría y versiones, avisos, sincronización entre dispositivos y resolución de concurrencia del servidor. El flujo actual es una demostración en el mismo navegador.
+9. [ ] Definir con Brian los permisos adicionales del apartado Administración.
+10. [ ] Revisar con Brian el informe final, las firmas, las reglas de acceso y la conservación de documentos antes del uso operativo.
 
 ## Regla de numeración acordada
 

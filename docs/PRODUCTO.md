@@ -10,6 +10,10 @@ El modelo tipado de `src/model.ts` mantiene los datos de una inspección: datos 
 
 El progreso del asistente indica la posición del recorrido, no una evaluación de cumplimiento normativo ni del riesgo total de la instalación. La criticidad de cada hallazgo la selecciona el inspector.
 
+## Seguimiento de inspecciones
+
+El flujo de prueba incorpora Inspecciones recibidas, levantamientos con evidencias, revisión del autor y cierre cuando todos los hallazgos quedan en Ejecutado. Los informes se comparten entre cuentas únicamente dentro del mismo navegador; no se envía correo. Descargar el Excel no cierra una inspección. Consulta [la guía de prueba](SEGUIMIENTO.md).
+
 ## Próxima etapa: plantilla y automatización
 
 Para adaptar la exportación, se necesita la plantilla Excel oficial y la correspondencia entre los campos y sus celdas, incluyendo cómo se repiten las observaciones y dónde se insertan las fotografías. El informe actual es provisional y lo identifica dentro del archivo.

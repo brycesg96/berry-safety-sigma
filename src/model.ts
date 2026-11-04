@@ -1,6 +1,7 @@
 import { EMPLOYER, OBJECTIVE_LIMIT } from './employer';
 import { migrateInspectionTime, validInspectionTime } from './inspection-time';
 import type { InspectionPeriod } from './inspection-time';
+import type { Delivery } from './follow-up';
 import type { RegistrationReceipt } from './inspection-code';
 export type Responsible = { id: string; name: string; email: string; personId?: string };
 export type Evidence = { id: string; name: string; data: string };
@@ -24,6 +25,7 @@ export type Inspection = {
   otherType: string;
   registrationNumber: string;
   serverRegistration?: RegistrationReceipt;
+  delivery?: Delivery;
   legacyRegistrationNumber?: string;
   inspectionTime: string;
   inspectionPeriod: InspectionPeriod;
@@ -106,7 +108,7 @@ export const formatDate = (value: string) => value ? new Intl.DateTimeFormat('es
 export const initials = (name: string) => name.trim().split(/\s+/).slice(0, 2).map(s => s[0]).join('').toUpperCase() || 'BR';
 
 const DB_NAME = 'berry-safety';
-function database(): Promise<IDBDatabase> {
+export function database(): Promise<IDBDatabase> {
   return new Promise((resolve, reject) => {
     const request = indexedDB.open(DB_NAME, 1);
     request.onupgradeneeded = () => request.result.createObjectStore('inspections', { keyPath: 'id' });
@@ -128,19 +130,27 @@ export async function persistInspection(inspection: Inspection): Promise<void> {
   const db = await database();
   return new Promise((resolve, reject) => {
     const tx = db.transaction('inspections', 'readwrite');
-    tx.objectStore('inspections').put(inspection);
+    const store = tx.objectStore('inspections');
+    const existing = store.get(inspection.id);
+    existing.onsuccess = () => {
+      if (existing.result?.delivery) { tx.abort(); return; }
+      store.put(inspection);
+    };
     tx.oncomplete = () => { db.close(); resolve(); };
     tx.onerror = () => { db.close(); reject(tx.error); };
-    tx.onabort = () => { db.close(); reject(tx.error); };
+    tx.onabort = () => { db.close(); reject(tx.error || new Error('No se puede sobrescribir un informe enviado.')); };
   });
 }
 export async function removeInspection(inspectionId: string): Promise<void> {
   const db = await database();
   return new Promise((resolve, reject) => {
     const tx = db.transaction('inspections', 'readwrite');
-    tx.objectStore('inspections').delete(inspectionId);
+    const store = tx.objectStore('inspections');
+    const existing = store.get(inspectionId);
+    existing.onsuccess = () => { if (existing.result?.delivery) tx.abort(); else store.delete(inspectionId); };
     tx.oncomplete = () => { db.close(); resolve(); };
     tx.onerror = () => { db.close(); reject(tx.error); };
+    tx.onabort = () => { db.close(); reject(tx.error || new Error('No se puede eliminar un informe enviado.')); };
   });
 }
 
