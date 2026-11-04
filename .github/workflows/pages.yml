@@ -28,11 +28,14 @@ jobs:
           cache: npm
       - name: Instalar dependencias
         run: npm ci --no-audit --no-fund
+      - name: Verificar la API de prueba de Make
+        run: npm run test:api
       - name: Verificar la referencia de numeración transaccional
         run: python3 -m unittest discover -s reference -p 'test_*.py' -v
       - name: Compilar para la ruta de GitHub Pages
         run: npm run build:pages
         env:
+          VITE_MAKE_TEST_API_URL: ${{ vars.VITE_MAKE_TEST_API_URL }}
           VITE_DEMO_ADMIN_EMAIL: ${{ vars.VITE_DEMO_ADMIN_EMAIL }}
           VITE_DEMO_ADMIN_NAME: ${{ vars.VITE_DEMO_ADMIN_NAME }}
           VITE_DEMO_INSPECTOR_EMAIL: ${{ vars.VITE_DEMO_INSPECTOR_EMAIL }}

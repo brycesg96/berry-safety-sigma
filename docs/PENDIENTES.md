@@ -55,6 +55,11 @@ Esta lista es la referencia de trabajo y se resumirá al cerrar cada avance. Se 
 
 - [x] El número del menú Mis inspecciones cuenta únicamente Inspecciones a revisar y se oculta cuando ese contador está en cero.
 
+- [x] Revisar arquitectura y preparar API servidor de prueba para Make, con secreto solo en servidor, clave de acceso, CORS, JSON ficticio, sin correos reales y con estados de aceptación/rechazo/recepción no confirmada.
+- [x] Administración → Integraciones, configuración de despliegue Render y pruebas sin afectar inspecciones existentes. [Guía y resultado real](MAKE.md).
+- [ ] Make devolvió HTTP 410 en la prueba real: verificar/reactivar el Custom webhook o actualizar la URL vigente en el secreto del servidor antes de repetir.
+- [ ] Crear el servicio API HTTPS en Render, cargar los secretos y conectar `VITE_MAKE_TEST_API_URL` para habilitar la prueba desde la web pública.
+
 ## Pendientes operativos, por orden de dependencia
 
 1. [ ] Elegir y conectar el sistema de automatización y la base de datos real. Confirmar alojamiento y credenciales mediante configuración segura, sin claves en el navegador.

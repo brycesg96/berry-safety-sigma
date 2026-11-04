@@ -6,6 +6,10 @@ Aplicación web adaptable a teléfono, tablet y laptop para registrar inspeccion
 
 Puedes revisar [las capturas reales de escritorio y teléfono](docs/vistas/README.md) directamente en este repositorio. Son vistas del diseño; la publicación interactiva requiere que GitHub Pages esté activado.
 
+## Integración de prueba con Make
+
+Se añade una API Node.js independiente en `server/` y Administración → Integraciones. Solo envía un JSON ficticio al webhook desde el servidor, con `send_email:false`; no modifica el flujo de inspecciones ni envía correos desde Berry. GitHub Pages mantiene la interfaz estática y necesita una API HTTPS externa para habilitar el botón. Consulta [configuración segura, despliegue en Render y resultado de la prueba](docs/MAKE.md).
+
 ## Desarrollo
 
 Requisitos: Node.js 22 o posterior y npm. En el entorno de desarrollo se validó con Node.js 24.

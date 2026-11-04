@@ -1,0 +1,9 @@
+.git
+node_modules
+dist
+dist-pages
+test-results
+playwright-report
+**/.env
+**/.env.*
+**/*.sqlite*

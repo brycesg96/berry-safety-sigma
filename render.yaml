@@ -1,0 +1,19 @@
+services:
+  - type: web
+    name: berry-safety-api
+    runtime: docker
+    plan: free
+    dockerfilePath: ./server/Dockerfile
+    dockerContext: .
+    healthCheckPath: /healthz
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: MAKE_WEBHOOK_URL
+        sync: false
+      - key: MAKE_TEST_API_TOKEN
+        generateValue: true
+      - key: MAKE_TEST_ENABLED
+        value: "false"
+      - key: BERRY_ALLOWED_ORIGINS
+        value: https://brycesg96.github.io
