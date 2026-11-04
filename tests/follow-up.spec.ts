@@ -41,6 +41,7 @@ async function openReceived(page: Page) {
 }
 async function openReview(page: Page) {
   await page.getByRole('button', { name: 'Mis inspecciones', exact: true }).click();
+  await expect(page.getByRole('button', { name: 'Mis inspecciones', exact: true }).locator('.nav-count')).toHaveText('1');
   await page.getByLabel('Filtrar por estado').selectOption('review');
   await page.getByRole('button', { name: 'Revisar informe', exact: true }).click();
 }
@@ -98,6 +99,7 @@ test('destinatario envía evidencias, autor pide ajustes y cierra solo al aproba
   await page.getByRole('button', { name: 'Mis inspecciones', exact: true }).click();
   await expect(page.locator('.list-stats > div').filter({ hasText: 'Inspecciones cerradas' }).locator('strong')).toHaveText('1');
   await expect(page.locator('.list-stats > div').filter({ hasText: 'Inspecciones a revisar' }).locator('strong')).toHaveText('0');
+  await expect(page.getByRole('button', { name: 'Mis inspecciones', exact: true }).locator('.nav-count')).toHaveCount(0);
   await page.getByLabel('Filtrar por estado').selectOption('closed');
   await expect(page.locator('.inspection-list-row')).toHaveCount(1);
   await expect(page.locator('.list-status')).toHaveText('Cerrada');

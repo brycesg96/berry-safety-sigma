@@ -53,6 +53,8 @@ Esta lista es la referencia de trabajo y se resumirá al cerrar cada avance. Se 
 
 - [x] No crear borradores al abrir una inspección vacía: se ignoran fecha/usuario automáticos y filas vacías. El guardado inicia con contenido ingresado; si se vacía un borrador en edición, se retira de la lista. Los registros anteriores no se eliminan de forma masiva.
 
+- [x] El número del menú Mis inspecciones cuenta únicamente Inspecciones a revisar y se oculta cuando ese contador está en cero.
+
 ## Pendientes operativos, por orden de dependencia
 
 1. [ ] Elegir y conectar el sistema de automatización y la base de datos real. Confirmar alojamiento y credenciales mediante configuración segura, sin claves en el navegador.
