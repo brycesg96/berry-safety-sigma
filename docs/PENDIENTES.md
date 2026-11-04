@@ -35,6 +35,8 @@ Esta lista es la referencia de trabajo y se resumirá al cerrar cada avance. Se 
 
 - [x] Inspecciones recibidas separadas mediante botones Pendientes y Cerradas. El número del menú cuenta solo las recibidas sin cerrar y desaparece al quedar en cero.
 
+- [x] Código compacto junto a Información general con ayuda emergente; DATOS DEL EMPLEADOR desplegable y contraído por defecto; OBJETIVO DE LA INSPECCIÓN INTERNA como sección con icono y divisores.
+
 ## Pendientes operativos, por orden de dependencia
 
 1. [ ] Elegir y conectar el sistema de automatización y la base de datos real. Confirmar alojamiento y credenciales mediante configuración segura, sin claves en el navegador.

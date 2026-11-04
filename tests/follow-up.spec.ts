@@ -14,7 +14,7 @@ async function createReport(page: Page) {
   await page.getByLabel('Área inspeccionada').fill('Taller - Armonía 2');
   await page.getByLabel('Hora de inspección').fill('07:30'); await page.getByLabel('AM o PM').selectOption('AM');
   await page.getByRole('radio', { name: 'Planeada', exact: true }).check();
-  await page.getByLabel('Objetivo de la inspección').fill('Verificar las condiciones de seguridad.');
+  await page.getByRole('textbox', { name: 'Objetivo de la inspección interna', exact: true }).fill('Verificar las condiciones de seguridad.');
   await page.getByRole('combobox', { name: /Nombre completo/ }).fill('Bryan');
   await page.getByRole('listbox').getByRole('option', { name: /bcespedes@hortifrut.com/ }).click();
   await page.getByRole('button', { name: 'Continuar', exact: true }).click();

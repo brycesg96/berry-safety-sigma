@@ -20,10 +20,13 @@ test('ubicación en el ejemplo, AM/PM requerido y conservación en revisión, re
   await expect(page.getByLabel('Área inspeccionada')).toHaveAttribute('placeholder', 'Ej. Taller de Maquinaria - Armonía 2');
   await expect(page.getByLabel('Hora de inspección')).toHaveValue('');
   await expect(page.getByLabel('AM o PM')).toHaveValue('');
-  await expect(page.getByLabel('Código de inspección')).toHaveValue(/^IH-\d{4}-001$/);
-  await expect(page.getByText(/El código definitivo aparecerá en Mis inspecciones/)).toBeVisible();
+  await expect(page.getByRole('textbox', { name: 'Código de inspección', exact: true })).toHaveValue(/^IH-\d{4}-001$/);
+  await expect(page.getByRole('tooltip')).toBeHidden();
+  await page.getByRole('button', { name: 'Información del código de inspección', exact: true }).hover();
+  await expect(page.getByRole('tooltip')).toContainText('El código definitivo aparecerá en Mis inspecciones');
+  await page.getByLabel('Área inspeccionada').click();
   await page.getByLabel('Área inspeccionada').fill('Taller de Maquinaria - Armonía 2');
-  await page.getByLabel('Objetivo de la inspección').fill('Verificar las condiciones de maquinaria.');
+  await page.getByRole('textbox', { name: 'Objetivo de la inspección interna', exact: true }).fill('Verificar las condiciones de maquinaria.');
   await page.getByRole('combobox', { name: /Nombre completo/ }).fill('Ana');
   await page.getByRole('listbox').getByRole('option', { name: /Ana Torres/ }).click();
   await page.getByRole('button', { name: 'Continuar', exact: true }).click();

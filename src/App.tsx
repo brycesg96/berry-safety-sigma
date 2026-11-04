@@ -8,6 +8,7 @@ import { GeneralSection } from './GeneralSection';
 import { EMPLOYER, OBJECTIVE_LIMIT } from './employer';
 import { pendingCodeLabel, confirmedInspectionCode } from './inspection-code';
 import { formatInspectionTime } from './inspection-time';
+import { InspectionCodeBadge } from './InspectionCodeBadge';
 import { PerformersSection } from './PerformersSection';
 import { FollowUp } from './FollowUp';
 import { deliverInspection, inspectionClosed, isRecipient, needsReview, workflowLabel } from './follow-up';
@@ -292,7 +293,7 @@ function WorkspaceApp({ initialAccounts }: { initialAccounts: DemoAccount[] }) {
           <Stepper step={draft.step} names={stepNames} onStep={goToStep} />
           <div className="content-layout"><div className="form-column">
             <div className="form-card">
-              <div className="form-card-heading"><div><span className="card-eyebrow">PASO {String(draft.step + 1).padStart(2, '0')} DE 05</span><h2>{['Información general', 'Registro de observaciones', 'Resumen de observaciones', 'Cierre de la inspección', 'Revisión final'][draft.step]}</h2><p>{stepDescriptions[draft.step][1]}</p></div><span className="heading-icon">{draft.step === 0 ? <ClipboardList size={25} /> : draft.step === 1 ? <Camera size={25} /> : draft.step === 4 ? <FileCheck2 size={25} /> : <FileText size={25} />}</span></div>
+              <div className="form-card-heading"><div><span className="card-eyebrow">PASO {String(draft.step + 1).padStart(2, '0')} DE 05</span><div className="form-heading-title-row"><h2>{['Información general', 'Registro de observaciones', 'Resumen de observaciones', 'Cierre de la inspección', 'Revisión final'][draft.step]}</h2>{draft.step === 0 && <InspectionCodeBadge draft={draft}/>}</div><p>{stepDescriptions[draft.step][1]}</p></div>{draft.step !== 0 && <span className="heading-icon">{draft.step === 1 ? <Camera size={25} /> : draft.step === 4 ? <FileCheck2 size={25} /> : <FileText size={25} />}</span>}</div>
 
               {draft.step === 0 && <GeneralSection draft={draft} errors={errors} patch={patch} />}
 

@@ -10,7 +10,7 @@ async function fillGeneral(page: Page) {
   await page.getByLabel('AM o PM').selectOption('AM');
   await page.getByRole('radio', { name: 'Planeada', exact: true }).check();
   await page.getByLabel('Fecha de inspección').fill('2026-11-03');
-  await page.getByLabel('Objetivo de la inspección').fill('Verificar las condiciones de almacenamiento y las rutas de evacuación.');
+  await page.getByRole('textbox', { name: 'Objetivo de la inspección interna', exact: true }).fill('Verificar las condiciones de almacenamiento y las rutas de evacuación.');
   await page.getByLabel(/Nombre completo/).fill('Ana Torres');
   await page.getByRole('listbox').getByRole('option', { name: /Ana Torres/ }).click();
 }

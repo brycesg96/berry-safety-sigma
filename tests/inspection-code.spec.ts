@@ -19,9 +19,13 @@ test('código no editable en dos navegadores; borradores no consumen correlativo
   try {
     for (const context of [first, second]) {
       const page = await context.newPage(); await page.goto('./');
-      await expect(page.getByLabel('Código de inspección')).toHaveAttribute('readonly', '');
-      await expect(page.getByLabel('Código de inspección')).toHaveValue(/^IH-\d{4}-001$/);
+      await expect(page.getByRole('textbox', { name: 'Código de inspección', exact: true })).toHaveAttribute('readonly', '');
+      await expect(page.getByRole('textbox', { name: 'Código de inspección', exact: true })).toHaveValue(/^IH-\d{4}-001$/);
+      const help = page.getByRole('button', { name: 'Información del código de inspección', exact: true });
+      await help.focus();
       await expect(page.getByText(/El código es tentativo y puede variar según quién envíe primero/)).toBeVisible();
+      await help.press('Escape');
+      await expect(page.getByRole('tooltip')).toBeHidden();
     }
   } finally { await first.close(); await second.close(); }
 });

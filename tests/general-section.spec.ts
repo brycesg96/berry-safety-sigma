@@ -3,17 +3,20 @@ import { mockDirectory, people } from './directory-fixture';
 
 test('empleador fijo, tres tipos, Otro con detalle y máximo 560', async ({ page }) => {
   await mockDirectory(page); await page.goto('./');
+  const disclosure = page.locator('.employer-disclosure');
+  await expect(disclosure).not.toHaveAttribute('open', '');
+  await disclosure.locator('summary').click();
   const employer = page.getByRole('region', { name: 'Datos del empleador' });
   await expect(employer.locator('input,textarea,select,[contenteditable=true]')).toHaveCount(0);
   for (const text of ['HORTIFRUT PERÚ S.A.C.', '20602822533', '> 500', 'CIIU: 0125']) await expect(employer).toContainText(text);
-  await expect(page.getByLabel('Código de inspección')).toHaveAttribute('readonly', '');
+  await expect(page.getByRole('textbox', { name: 'Código de inspección', exact: true })).toHaveAttribute('readonly', '');
   await expect(employer.getByText('Solo lectura')).toHaveCount(0);
   await expect(employer.locator('svg')).toHaveCount(0);
   await page.getByLabel('Área inspeccionada').fill('Taller');
   await page.getByLabel('Hora de inspección').fill('08:40');
   await page.getByLabel('AM o PM').selectOption('AM');
   await expect(page.getByLabel('Responsable de la inspección')).toHaveAttribute('readonly', '');
-  const objective = page.getByLabel('Objetivo de la inspección');
+  const objective = page.getByRole('textbox', { name: 'Objetivo de la inspección interna', exact: true });
   await expect(objective).toHaveAttribute('maxlength', '560');
   expect((await objective.boundingBox())!.height).toBeLessThanOrEqual(60);
   await expect(page.getByText('Se completa automáticamente al seleccionar a la persona.', { exact: true })).toHaveCount(0);
@@ -78,7 +81,7 @@ test('borrador anterior conserva el objetivo largo y solicita corregirlo', async
     await new Promise<void>((resolve, reject) => { tx.oncomplete = () => resolve(); tx.onerror = reject; tx.onabort = reject; }); db.close();
   });
   await page.reload();
-  await expect(page.getByLabel('Objetivo de la inspección')).toHaveValue('a'.repeat(800));
+  await expect(page.getByRole('textbox', { name: 'Objetivo de la inspección interna', exact: true })).toHaveValue('a'.repeat(800));
   await page.getByRole('button', { name: 'Continuar', exact: true }).click();
   await expect(page.getByText('El objetivo debe tener como máximo 560 caracteres.')).toBeVisible();
   await expect(page.getByRole('radio', { checked: true })).toHaveCount(0);
