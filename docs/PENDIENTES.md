@@ -20,6 +20,8 @@ Esta lista es la referencia de trabajo y se resumirá al cerrar cada avance. Se 
 - [x] Hora en 12 horas con selección AM/PM, ambas inicialmente vacías y obligatorias; migración de horas antiguas de 24 horas.
 - [x] Mis inspecciones muestra el espacio del código definitivo, pendiente hasta recibir un registro confirmado del servidor.
 
+- [x] Simplificar el mensaje inicial de observaciones y retirar «Las fotos son opcionales» y la opción de inspección sin observaciones. Se requiere al menos una observación para continuar; los campos de cada hallazgo se conservan.
+
 ## Pendientes operativos, por orden de dependencia
 
 1. [ ] Elegir y conectar el sistema de automatización y la base de datos real. Confirmar alojamiento y credenciales mediante configuración segura, sin claves en el navegador.

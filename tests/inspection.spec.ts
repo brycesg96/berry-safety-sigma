@@ -86,7 +86,7 @@ test('recorrido completo con evidencia, persistencia y un Excel válido', async 
   expect(errors).toEqual([]);
 });
 
-test('validación de campos y confirmación explícita sin hallazgos', async ({ page }) => {
+test('validación de campos y observación obligatoria', async ({ page }) => {
   await page.goto('./');
   await page.getByRole('button', { name: 'Continuar', exact: true }).click();
   await expect(page.getByText('Completa el área inspeccionada.')).toBeVisible();
@@ -99,10 +99,16 @@ test('validación de campos y confirmación explícita sin hallazgos', async ({ 
   await page.getByRole('listbox').getByRole('option', { name: /Ana Torres/ }).click();
   await page.getByRole('button', { name: 'Continuar', exact: true }).click();
   await page.getByRole('button', { name: 'Continuar', exact: true }).click();
-  await expect(page.getByText('Añade una observación o confirma que no se identificaron hallazgos.')).toBeVisible();
-  await page.getByRole('checkbox', { name: 'No se identificaron observaciones durante la inspección.' }).check();
+  await expect(page.getByText('Añade al menos una observación para continuar.')).toBeVisible();
+  await expect(page.getByRole('checkbox')).toHaveCount(0);
+  await expect(page.getByText('Las fotos son opcionales')).toHaveCount(0);
+  await expect(page.getByText('Añade tu primer hallazgo y acompáñalo con fotos.')).toBeVisible();
+  await page.getByRole('button', { name: 'Añadir observación', exact: true }).click();
+  await page.getByLabel('Descripción de la observación').fill('Ruta obstruida.');
+  await page.getByLabel('Medida correctiva').fill('Despejar la ruta.');
+  await page.getByLabel('Fecha de compromiso').fill('2026-11-06');
   await page.getByRole('button', { name: 'Continuar', exact: true }).click();
-  await expect(page.getByText('Confirmaste que no se identificaron hallazgos durante la inspección.')).toBeVisible();
+  await expect(page.locator('.review-observation')).toHaveCount(1);
   await page.getByRole('button', { name: 'Continuar', exact: true }).click();
   await page.getByRole('button', { name: 'Continuar', exact: true }).click();
   await expect(page.getByText('Añade las conclusiones de la inspección.')).toBeVisible();

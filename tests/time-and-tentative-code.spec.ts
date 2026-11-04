@@ -41,7 +41,10 @@ test('ubicación en el ejemplo, AM/PM requerido y conservación en revisión, re
   await page.reload();
   await expect(page.getByLabel('AM o PM')).toHaveValue('PM');
   await page.getByRole('button', { name: 'Continuar', exact: true }).click();
-  await page.getByRole('checkbox').check();
+  await page.getByRole('button', { name: 'Añadir observación', exact: true }).click();
+  await page.getByLabel('Descripción de la observación').fill('Falta señalización.');
+  await page.getByLabel('Medida correctiva').fill('Instalar señalización.');
+  await page.getByLabel('Fecha de compromiso').fill('2026-11-06');
   await page.getByRole('button', { name: 'Continuar', exact: true }).click();
   await page.getByRole('button', { name: 'Continuar', exact: true }).click();
   await page.getByLabel('Conclusiones').fill('Sin observaciones.');

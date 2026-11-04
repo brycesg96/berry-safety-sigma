@@ -32,7 +32,6 @@ export type Inspection = {
   objective: string;
   responsibles: Responsible[];
   observations: Observation[];
-  noFindings: boolean;
   conclusions: string;
   recommendations: string;
   inspector: string;
@@ -48,7 +47,7 @@ export const newObservation = (): Observation => ({ id: id(), description: '', c
 export const newInspection = (profile: Profile): Inspection => ({
   id: id(), ownerId: profile.accountId || 'demo-admin', company: EMPLOYER.name, ruc: EMPLOYER.ruc, facility: '', area: '', type: '', otherType: '', registrationNumber: '', inspectionTime: '', inspectionPeriod: '',
   date: new Date().toLocaleDateString('en-CA'), objective: '', responsibles: [newResponsible()],
-  observations: [], noFindings: false, conclusions: '', recommendations: '', inspector: profile.name,
+  observations: [], conclusions: '', recommendations: '', inspector: profile.name,
   inspectorEmail: profile.email, step: 0, updatedAt: new Date().toISOString(), status: 'draft',
 });
 
@@ -71,7 +70,7 @@ export function validateStep(d: Inspection, step: number): Record<string, string
       if (r.personId && d.responsibles.some(other => other.id !== r.id && other.personId === r.personId)) errors[`person-${r.id}`] = 'Esta persona ya está añadida.';
     });
   }
-  if (step === 1 && !d.observations.length && !d.noFindings) errors.observations = 'Añade una observación o confirma que no se identificaron hallazgos.';
+  if (step === 1 && !d.observations.length) errors.observations = 'Añade al menos una observación para continuar.';
   if (step === 1) d.observations.forEach(o => {
     if (!o.description.trim()) errors[`description-${o.id}`] = 'Describe la observación.';
     if (!o.correctiveAction.trim()) errors[`action-${o.id}`] = 'Indica una medida correctiva.';

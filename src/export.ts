@@ -41,7 +41,7 @@ export async function exportExcel(d: Inspection) {
   section('RESPONSABLES Y DESTINATARIOS');
   d.responsibles.forEach(r => line(r.name, r.email));
   section(`02 · OBSERVACIONES (${d.observations.length})`);
-  if (!d.observations.length) line('Resultado', 'No se identificaron observaciones durante la inspección.');
+  if (!d.observations.length) line('Resultado', 'Sin observaciones registradas.');
   for (const [index, o] of d.observations.entries()) {
     line(`Observación ${index + 1}`, o.description);
     line('Medida correctiva', o.correctiveAction);
