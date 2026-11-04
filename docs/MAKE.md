@@ -32,11 +32,19 @@ Se incluye `render.yaml` para un servicio Docker gratuito y `server/Dockerfile` 
 
 1. Crear un **Blueprint** en Render con este repositorio y revisar el servicio `berry-safety-api`. Alternativamente, crear un Web Service Docker con `server/Dockerfile` y contexto raíz.
 2. Guardar la URL vigente en el secreto `MAKE_WEBHOOK_URL`. El Blueprint genera `MAKE_TEST_API_TOKEN`; conservarlo en el gestor de secretos y usarlo para la prueba en Administración.
-3. Mantener el escenario de Make solo con Custom webhook durante la prueba. Antes de cualquier módulo de correo real, filtrar `send_email = true` y `mode != test`. El indicador por sí solo no desactiva módulos externos.
+3. En el escenario existente, colocar un filtro entre **Custom webhook** y **Microsoft 365 Email (Outlook) → Send an Email**, con ambas condiciones (AND): `send_email` igual al booleano `true` y `mode` distinto de `test`. Durante esta fase todos los ejemplos llevan `send_email:false` y `mode:test`, por lo que Outlook no debe ejecutarse. Alternativamente, desconectar temporalmente Outlook mientras se comprueba la recepción. El indicador por sí solo no desactiva módulos externos; no utilizar destinatarios reales ni campos de destinatario fijos en Outlook para esta prueba.
 4. Configurar `BERRY_ALLOWED_ORIGINS=https://brycesg96.github.io`. Cambiar `MAKE_TEST_ENABLED` a `true` cuando el webhook esté preparado. Render termina HTTPS delante del servidor HTTP del contenedor.
 5. Comprobar `https://<servicio>.onrender.com/healthz`; debe devolver `{"status":"ok"}`. El plan gratuito puede tardar en despertar tras inactividad; esperar a que el servicio esté listo antes de la prueba.
 6. En GitHub, **Settings → Secrets and variables → Actions → Variables**, crear `VITE_MAKE_TEST_API_URL` con `https://<servicio>.onrender.com/api/integrations/make/test` y volver a ejecutar `pages.yml`. Esta dirección es pública y no contiene la URL ni la clave de Make.
-7. Abrir **Administración → Integraciones**, introducir la clave de prueba de la API y pulsar **Enviar prueba a Make**. Mientras no exista el alojamiento y esa variable pública, la web muestra el apartado desconectado y el botón deshabilitado.
+7. Abrir **Administración → Integraciones**, introducir la clave de prueba de la API y pulsar **Probar conexión con Make**. Mientras no exista el alojamiento y esa variable pública, la web muestra el apartado desconectado y el botón deshabilitado.
+
+## Dónde introducir la URL
+
+**En Render:** abrir el servicio `berry-safety-api` → **Environment** → **Add Environment Variable**. Nombre: `MAKE_WEBHOOK_URL`; valor: la URL completa del Custom webhook. Guardar y desplegar de nuevo. No colocar esa URL en la configuración de GitHub Pages ni en un campo de la aplicación.
+
+**En desarrollo local:** copiar `server/.env.example` a `server/.env` y completar `MAKE_WEBHOOK_URL` allí, junto con la clave de API y el origen local permitido. El archivo está ignorado por Git; nunca subirlo al repositorio. Para probar, habilitar `MAKE_TEST_ENABLED=true` y arrancar la API y Vite.
+
+Para mapear el escenario en una fase posterior, el JSON incluye `destinatarios.para`, `destinatarios.cc`, `destinatarios.cco`, `asunto` y `cuerpo_html`; el cuerpo es HTML. En esta fase son datos ficticios y el filtro debe impedir el paso a Outlook. El resultado de la app es únicamente el acuse HTTP del webhook; revisar el historial de ejecución en Make para conocer el resultado de cada módulo.
 
 ## Desarrollo y pruebas
 
@@ -92,6 +100,6 @@ Fecha y año usan `America/Lima`. El número es un ejemplo sin reserva de correl
 
 Se ejecutó una única prueba desde la interfaz local, pasando por la API y usando la URL entregada únicamente desde la configuración privada del servidor. Make devolvió **HTTP 410 (Gone)**; la API informó rechazo y no presentó un éxito ficticio. No se confirma recepción correcta en el escenario. La prueba solicitó `send_email:false` y destinatarios ficticios; Berry no llamó a ningún servicio de correo.
 
-Después de que el usuario confirmara nuevamente la URL, se realizó una única prueba adicional a través de la API el 4 de noviembre de 2026 a las 19:59 UTC. Make respondió **HTTP 200**; la API devolvió `receipt:http_accepted`, con ID `728d0c02-883b-4ed9-bdc0-988f539ba7cf`. Se utilizaron datos ficticios y `send_email:false`. Esto confirma aceptación HTTP, no ejecución completa del escenario ni entrega de correo.
+Después de que el usuario confirmara nuevamente la URL, se realizó una única prueba adicional a través de la API el 4 de noviembre de 2026 a las 14:59 (hora de Lima). Make respondió **HTTP 200**; la API devolvió `receipt:http_accepted`, con ID `728d0c02-883b-4ed9-bdc0-988f539ba7cf`. Se utilizaron datos ficticios y `send_email:false`. Esto confirma aceptación HTTP, no ejecución completa del escenario ni entrega de correo.
 
 La prueba solo se habilitó en memoria para esa llamada; la configuración local permanece desactivada. El servidor temporal se cerró después de la prueba. La web pública todavía necesita el servicio Render y la variable pública de API descritos arriba.
