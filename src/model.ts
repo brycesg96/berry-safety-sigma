@@ -3,7 +3,7 @@ import { migrateInspectionTime, validInspectionTime } from './inspection-time';
 import type { InspectionPeriod } from './inspection-time';
 import type { Delivery } from './follow-up';
 import type { RegistrationReceipt } from './inspection-code';
-export type Responsible = { id: string; name: string; email: string; personId?: string };
+export type Responsible = { id: string; name: string; email: string; personId?: string; area?: string; jobTitle?: string };
 export type Evidence = { id: string; name: string; data: string };
 export type Observation = {
   id: string;
@@ -96,6 +96,8 @@ export function validateStep(d: Inspection, step: number): Record<string, string
     if (!d.recommendations.trim()) errors.recommendations = 'Añade las recomendaciones.';
     if (!d.inspector.trim()) errors.inspector = 'Indica quién realizó la inspección.';
     if (!emailValid(d.inspectorEmail)) errors.inspectorEmail = 'Completa el correo de tu cuenta en el perfil.';
+  }
+  if (step === 0 || step === 3) {
     const extra = d.additionalInspectors || [];
     if (extra.length > 2) errors.additionalInspectors = 'Se permiten hasta tres inspectores en total.';
     extra.forEach(p => {

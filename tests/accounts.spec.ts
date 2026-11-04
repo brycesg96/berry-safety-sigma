@@ -94,3 +94,31 @@ test('Microsoft permanece desactivado y el espacio de permisos queda visible al 
   await expect(page.getByText('Los permisos adicionales se definirán en próximos avances.')).toBeVisible();
   expect(externalRequests).toEqual([]);
 });
+
+test('área y cargo del perfil reemplazan la leyenda del directorio y se conservan al recargar', async ({ page }) => {
+  await page.goto('./');
+  await page.getByRole('combobox', { name: /Nombre completo/ }).fill('Bryan');
+  await page.getByRole('listbox').getByRole('option', { name: /bryx.96@gmail.com/ }).click();
+  await expect(page.getByText('Área y cargo por completar.', { exact: true })).toBeVisible();
+  await page.getByRole('button', { name: 'Mi perfil', exact: true }).click();
+  const profile = page.getByRole('dialog', { name: 'Tu perfil' });
+  await profile.getByLabel('Área').fill('Seguridad y Salud');
+  await profile.getByLabel('Cargo', { exact: true }).fill('Supervisor SST');
+  await page.getByRole('button', { name: 'Guardar perfil', exact: true }).click();
+  await expect(page.getByText('Seguridad y Salud — Supervisor SST', { exact: true })).toBeVisible();
+  await expect(page.getByText('Persona seleccionada del directorio.', { exact: true })).toHaveCount(0);
+  await page.getByRole('button', { name: 'Guardar y salir' }).click(); await page.reload();
+  await expect(page.getByText('Seguridad y Salud — Supervisor SST', { exact: true })).toBeVisible();
+  await page.getByRole('button', { name: 'Mi perfil', exact: true }).click();
+  await expect(profile.getByLabel('Cargo', { exact: true })).toHaveValue('Supervisor SST');
+  await profile.getByLabel('Cargo', { exact: true }).fill('');
+  await page.getByRole('button', { name: 'Guardar perfil', exact: true }).click();
+  const picker = page.locator('.responsible-row .picker-grid');
+  await expect(picker).toContainText('Seguridad y Salud');
+  await expect(picker).not.toContainText('Supervisor SST');
+  await expect(picker).not.toContainText('—');
+  await expect(page.getByLabel('Correo electrónico')).toHaveValue(adminEmail);
+  await expect(page.getByLabel('Correo electrónico')).toHaveAttribute('readonly', '');
+  await page.getByRole('combobox', { name: /Nombre completo/ }).fill('Otra persona');
+  await expect(picker).not.toContainText('Seguridad y Salud');
+});

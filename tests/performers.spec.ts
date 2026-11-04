@@ -38,8 +38,10 @@ test('hasta tres inspectores, autor de la cuenta bloqueado, selección sin dupli
   await add.click();
   await page.getByRole('button', { name: 'Continuar', exact: true }).click();
   await expect(page.getByText('Selecciona una persona del directorio.', { exact: true })).toBeVisible();
-  await extras.nth(1).getByRole('combobox').fill('Ana');
+  await page.locator('.general-inspectors .additional-inspector').nth(1).getByRole('combobox').fill('Ana');
   await page.getByRole('listbox').getByRole('option', { name: /Ana Torres/ }).click();
+  await page.getByRole('button', { name: '04 Cierre', exact: true }).click();
+  await expect(extras.nth(1).getByLabel('Correo del inspector')).toHaveValue('ana@example.com');
   await page.setViewportSize({ width: 390, height: 844 });
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   await expect.poll(async () => (await page.locator('.sidebar').boundingBox())!.x + (await page.locator('.sidebar').boundingBox())!.width).toBeLessThanOrEqual(1);

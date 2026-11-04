@@ -3,6 +3,7 @@ import { LoaderCircle, Mail, Search } from 'lucide-react';
 import { Field } from './components';
 import { searchDirectory } from './directory';
 import type { DirectoryPerson } from './directory';
+import { readAccounts } from './accounts';
 import type { Responsible } from './model';
 
 export function ResponsiblePicker({ value, onChange, error, excludedIds, excludedEmails = [], emailLabel = 'Correo electrónico' }: { value: Responsible; onChange: (changes: Partial<Responsible>) => void; error?: string; excludedIds: string[]; excludedEmails?: string[]; emailLabel?: string }) {
@@ -33,12 +34,14 @@ export function ResponsiblePicker({ value, onChange, error, excludedIds, exclude
   }, [value.name, searching, retry]);
   const available = people.filter(p => !excludedIds.includes(p.id) && !excludedEmails.some(email => email.trim().toLowerCase() === p.email.trim().toLowerCase()));
   const choose = (person: DirectoryPerson) => {
-    onChange({ personId: person.id, name: person.name, email: person.email });
+    onChange({ personId: person.id, name: person.name, email: person.email, area: person.area || '', jobTitle: person.jobTitle || '' });
     setOpen(false); setActive(-1);
   };
+  const currentPerson = value.personId ? readAccounts().find(a => a.id === value.personId || a.email.toLowerCase() === value.email.toLowerCase()) : undefined;
+  const selectedDetails = [currentPerson ? currentPerson.area : value.area, currentPerson ? currentPerson.jobTitle : value.jobTitle].map(text => text?.trim()).filter(Boolean).join(' — ');
   return <div className="field-grid picker-grid">
-    <Field label="Nombre completo" required error={error} hint={value.personId ? 'Persona seleccionada del directorio.' : 'Escribe al menos dos letras y selecciona una persona.'}>{props => <div className="person-picker" onBlur={event => { if (!event.currentTarget.contains(event.relatedTarget)) setOpen(false); }}>
-      <div className="input-icon"><Search size={16} /><input {...props} role="combobox" autoComplete="off" aria-autocomplete="list" aria-expanded={searching} aria-controls={searching ? listId : undefined} aria-activedescendant={active >= 0 && active < available.length ? `${listId}-${active}` : undefined} value={value.name} placeholder="Buscar persona por nombre" maxLength={250} onFocus={() => setOpen(true)} onChange={e => { onChange({ name: e.target.value, email: '', personId: undefined }); setOpen(true); setActive(-1); }} onKeyDown={event => {
+    <Field label="Nombre completo" required error={error} hint={value.personId ? selectedDetails || 'Área y cargo por completar.' : 'Escribe al menos dos letras y selecciona una persona.'}>{props => <div className="person-picker" onBlur={event => { if (!event.currentTarget.contains(event.relatedTarget)) setOpen(false); }}>
+      <div className="input-icon"><Search size={16} /><input {...props} role="combobox" autoComplete="off" aria-autocomplete="list" aria-expanded={searching} aria-controls={searching ? listId : undefined} aria-activedescendant={active >= 0 && active < available.length ? `${listId}-${active}` : undefined} value={value.name} placeholder="Buscar persona por nombre" maxLength={250} onFocus={() => setOpen(true)} onChange={e => { onChange({ name: e.target.value, email: '', personId: undefined, area: '', jobTitle: '' }); setOpen(true); setActive(-1); }} onKeyDown={event => {
         if (event.key === 'Escape') { setOpen(false); setActive(-1); return; }
         if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
           event.preventDefault(); setOpen(true);

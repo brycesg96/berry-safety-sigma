@@ -1,6 +1,6 @@
 /** Local test accounts only. These roles are NOT server-side access control. */
 export type AccountRole = 'admin' | 'inspector';
-export type DemoAccount = { id: string; name: string; email: string; area: string; role: AccountRole; enabled: boolean };
+export type DemoAccount = { id: string; name: string; email: string; area: string; jobTitle: string; role: AccountRole; enabled: boolean };
 const KEY = 'berry-demo-accounts-v1';
 const ACTIVE = 'berry-demo-active-account';
 export const ADMIN_ID = 'demo-admin';
@@ -12,8 +12,8 @@ function seeds(): DemoAccount[] {
   const inspectorEmail = accountEmail(import.meta.env.VITE_DEMO_INSPECTOR_EMAIL || 'bcespedes@hortifrut.com');
   if (!emailPattern.test(adminEmail) || !emailPattern.test(inspectorEmail) || adminEmail === inspectorEmail) throw new Error('Revisa los correos de las cuentas de prueba: deben ser válidos y distintos.');
   return [
-    { id: ADMIN_ID, name: import.meta.env.VITE_DEMO_ADMIN_NAME?.trim() || 'Bryan', email: adminEmail, area: '', role: 'admin', enabled: true },
-    { id: INSPECTOR_ID, name: import.meta.env.VITE_DEMO_INSPECTOR_NAME?.trim() || 'Bryan', email: inspectorEmail, area: '', role: 'inspector', enabled: true },
+    { id: ADMIN_ID, name: import.meta.env.VITE_DEMO_ADMIN_NAME?.trim() || 'Bryan', email: adminEmail, area: '', jobTitle: '', role: 'admin', enabled: true },
+    { id: INSPECTOR_ID, name: import.meta.env.VITE_DEMO_INSPECTOR_NAME?.trim() || 'Bryan', email: inspectorEmail, area: '', jobTitle: '', role: 'inspector', enabled: true },
   ];
 }
 function valid(value: unknown): value is DemoAccount {
@@ -26,10 +26,10 @@ export function readAccounts(): DemoAccount[] {
   try { const data: unknown = JSON.parse(localStorage.getItem(KEY) || '[]'); if (Array.isArray(data)) stored = data.filter(valid); } catch { /* Seeds remain available in memory. */ }
   const initial = seeds().map(seed => {
     const saved = stored.find(a => a.id === seed.id);
-    return { ...seed, ...(saved ? { name: saved.name, area: saved.area, enabled: saved.enabled } : {}), ...(seed.id === ADMIN_ID ? { enabled: true } : {}) };
+    return { ...seed, ...(saved ? { name: saved.name, area: saved.area, jobTitle: typeof saved.jobTitle === 'string' ? saved.jobTitle.trim() : '', enabled: saved.enabled } : {}), ...(seed.id === ADMIN_ID ? { enabled: true } : {}) };
   });
   const ids = new Set(initial.map(a => a.id)), emails = new Set(initial.map(a => a.email));
-  for (const a of stored) if (!ids.has(a.id) && !emails.has(accountEmail(a.email))) { initial.push({ ...a, email: accountEmail(a.email) }); ids.add(a.id); emails.add(accountEmail(a.email)); }
+  for (const a of stored) if (!ids.has(a.id) && !emails.has(accountEmail(a.email))) { initial.push({ ...a, jobTitle: typeof a.jobTitle === 'string' ? a.jobTitle.trim() : '', email: accountEmail(a.email) }); ids.add(a.id); emails.add(accountEmail(a.email)); }
   return initial;
 }
 function persist(accounts: DemoAccount[]) {
@@ -53,7 +53,7 @@ export function addAccount(actorId: string, values: { name: string; email: strin
   const name = values.name.trim(), email = accountEmail(values.email);
   if (!name || !emailPattern.test(email) || !['admin', 'inspector'].includes(values.role)) throw new Error('Completa el nombre, un correo válido y el rol.');
   if (accounts.some(a => accountEmail(a.email) === email)) throw new Error('Este correo ya tiene una cuenta. Puedes revisar o reactivar su acceso.');
-  return persist([...accounts, { id: crypto.randomUUID(), name, email, area: '', role: values.role, enabled: true }]);
+  return persist([...accounts, { id: crypto.randomUUID(), name, email, area: '', jobTitle: '', role: values.role, enabled: true }]);
 }
 export function editAccount(actorId: string, targetId: string, values: { name: string; role: AccountRole; enabled: boolean }) {
   const accounts = readAccounts(); requireAdministrator(accounts, actorId);
@@ -64,8 +64,8 @@ export function editAccount(actorId: string, targetId: string, values: { name: s
   if (targetId === actorId && (!values.enabled || values.role !== 'admin')) throw new Error('No puedes retirar tu propio acceso de administración durante esta sesión.');
   return persist(accounts.map(a => a.id === targetId ? { ...a, name: values.name.trim(), role: values.role, enabled: values.enabled } : a));
 }
-export function updateOwnProfile(accountId: string, name: string, area: string) {
+export function updateOwnProfile(accountId: string, name: string, area: string, jobTitle?: string) {
   const accounts = readAccounts();
   if (!name.trim() || !area.trim() || !accounts.some(a => a.id === accountId && a.enabled)) throw new Error('Completa tus nombres y apellidos y tu área.');
-  return persist(accounts.map(a => a.id === accountId ? { ...a, name: name.trim(), area: area.trim() } : a));
+  return persist(accounts.map(a => a.id === accountId ? { ...a, name: name.trim(), area: area.trim(), jobTitle: jobTitle === undefined ? a.jobTitle : jobTitle.trim() } : a));
 }
