@@ -1,15 +1,17 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { ArrowLeft, ArrowRight, ArrowUpRight, Building2, CalendarDays, Camera, Check, CheckCheck, ChevronRight, CircleCheck, ClipboardCheck, ClipboardList, Download, FileCheck2, FileSpreadsheet, FileText, HelpCircle, ImagePlus, Info, LayoutGrid, Leaf, ListFilter, LoaderCircle, LockKeyhole, Mail, Menu, MoreHorizontal, Pencil, Plus, Save, Search, Send, ShieldCheck, Settings2, Sparkles, Trash2, X } from 'lucide-react';
-import { Badge, Brand, Field, Modal, SectionTitle, Stepper } from './components';
+import { Badge, Brand, Field, Modal, Stepper } from './components';
 import type { Inspection, Observation } from './model';
 import { emailValid, formatDate, initials, loadInspections, newInspection, newObservation, setObservationClosingDate, persistInspection, preparePhoto, removeInspection, stepNames, validateStep } from './model';
 import { exportExcel } from './export';
 import { GeneralSection } from './GeneralSection';
-import { EMPLOYER, OBJECTIVE_LIMIT } from './employer';
+import { EMPLOYER } from './employer';
 import { pendingCodeLabel, confirmedInspectionCode } from './inspection-code';
 import { formatInspectionTime } from './inspection-time';
 import { InspectionCodeBadge } from './InspectionCodeBadge';
-import { PerformersSection } from './PerformersSection';
+import { ClosingSection } from './ClosingSection';
+import type { RegistrationDetails } from './registration';
+import { closingRemarksOf, registrationPeople } from './registration';
 import { FollowUp } from './FollowUp';
 import { deliverInspection, inspectionClosed, isRecipient, needsReview, workflowLabel } from './follow-up';
 import { Administration, MicrosoftAccess } from './Administration';
@@ -99,6 +101,23 @@ function WorkspaceApp({ initialAccounts }: { initialAccounts: DemoAccount[] }) {
     if (!loaded) return;
     setDraft(d => d.ownerId !== account.id || d.delivery || (d.inspector === account.name && d.inspectorEmail === account.email) ? d : { ...d, inspector: account.name, inspectorEmail: account.email, updatedAt: new Date().toISOString() });
   }, [loaded, account.id, account.name, account.email, draft.id]);
+
+  useEffect(() => {
+    if (!loaded || draft.step !== 3 || draft.delivery) return;
+    setDraft(d => {
+      const records = { ...d.registrationDetails }; let changed = false;
+      for (const person of registrationPeople(d)) {
+        if (!records[person.id]) {
+          const accountPerson = accounts.find(a => a.id === person.id || a.email.toLowerCase() === person.email.toLowerCase());
+          records[person.id] = { jobTitle: accountPerson?.jobTitle || person.jobTitle || '', date: d.date }; changed = true;
+        }
+      }
+      return changed ? { ...d, registrationDetails: records } : d;
+    });
+  }, [loaded, draft.id, draft.step, draft.additionalInspectors, accounts]);
+  const changeRegistrationDetails = (inspectionId: string, personId: string, data: RegistrationDetails) => {
+    setDraft(d => d.id === inspectionId ? { ...d, registrationDetails: { ...d.registrationDetails, [personId]: data }, updatedAt: new Date().toISOString(), status: 'draft' } : d);
+  };
 
   const save = useCallback(async (item: Inspection) => {
     if (item.delivery) return true;
@@ -259,7 +278,7 @@ function WorkspaceApp({ initialAccounts }: { initialAccounts: DemoAccount[] }) {
   const draftCount = inspections.filter(d => !d.delivery).length;
   const matches = (i: Inspection) => (filter === 'all' || (filter === 'draft' && !i.delivery) || (filter === 'pending' && i.delivery && !inspectionClosed(i) && !needsReview(i)) || (filter === 'review' && needsReview(i)) || (filter === 'closed' && inspectionClosed(i))) && `${i.company} ${i.facility} ${i.area}`.toLowerCase().includes(query.toLowerCase());
   const counts = { alta: draft.observations.filter(o => o.severity === 'alta').length, media: draft.observations.filter(o => o.severity === 'media').length, baja: draft.observations.filter(o => o.severity === 'baja').length };
-  const formField = (key: 'company' | 'ruc' | 'facility' | 'area' | 'date' | 'objective' | 'conclusions' | 'recommendations' , label: string, placeholder: string, required = true, type = 'text', textarea = false) => <Field label={label} required={required} error={errors[key]}>{props => textarea ? <textarea {...props} placeholder={placeholder} rows={key === 'objective' ? 3 : 5} value={draft[key]} onChange={e => patch(key, e.target.value)} maxLength={key === 'objective' ? OBJECTIVE_LIMIT : 5000} /> : <input {...props} type={type} placeholder={placeholder} value={draft[key]} onChange={e => patch(key, e.target.value)} maxLength={key === 'ruc' ? 11 : 250} inputMode={key === 'ruc' ? 'numeric' : undefined} />}</Field>;
+
 
   return <div className="app-shell">
     <a className="skip-link" href="#main-content">Ir al contenido</a>
@@ -317,12 +336,12 @@ function WorkspaceApp({ initialAccounts }: { initialAccounts: DemoAccount[] }) {
                 <button className="button button-outline full-width" onClick={() => goToStep(1)}><Plus size={17} />{draft.observations.length ? 'Añadir o editar observaciones' : 'Añadir una observación'}</button>
               </div>}
 
-              {draft.step === 3 && <div className="form-body"><SectionTitle icon={<FileText size={19} />} title="Conclusiones y recomendaciones" subtitle="Cierra la inspección con acciones claras para tu equipo." />{formField('conclusions', 'Conclusiones', '¿Cuál es el estado general de las instalaciones o actividades inspeccionadas?', true, 'text', true)}{formField('recommendations', 'Recomendaciones', 'Indica las mejoras y acciones de seguimiento que recomiendas.', true, 'text', true)}<div className="section-divider" /><PerformersSection draft={draft} errors={errors} onChange={people => patch('additionalInspectors', people)}/></div>}
+              {draft.step === 3 && <ClosingSection draft={draft} errors={errors} patch={patch} onRegistrationChange={(id, data) => changeRegistrationDetails(draft.id, id, data)}/>}
 
               {draft.step === 4 && <div className="form-body final-body"><div className="ready-banner"><span><CheckCheck size={27} /></span><div><h3>Una inspección. Un entorno más seguro.</h3><p>Revisa los últimos detalles antes de compartir tu informe.</p></div></div>
                 <div className="final-section"><div className="final-section-heading"><h3><Building2 size={18} />Datos de la inspección</h3><button className="text-button" onClick={() => goToStep(0)}><Pencil size={14} />Editar</button></div><dl className="details-grid"><div><dt>Empresa</dt><dd>{EMPLOYER.name}</dd></div><div><dt>RUC</dt><dd>{EMPLOYER.ruc}</dd></div><div><dt>Código de inspección</dt><dd>{confirmedInspectionCode(draft) || pendingCodeLabel()} · {confirmedInspectionCode(draft) ? 'Registrado' : 'Tentativo'}</dd></div><div><dt>Área</dt><dd>{draft.area}</dd></div><div><dt>Tipo</dt><dd>{draft.type || 'Por definir'}{draft.type === 'Otro' ? `: ${draft.otherType}` : ''}</dd></div><div><dt>Fecha y hora</dt><dd>{formatDate(draft.date)} · {formatInspectionTime(draft.inspectionTime, draft.inspectionPeriod)}</dd></div><div className="detail-full"><dt>Objetivo</dt><dd>{draft.objective}</dd></div></dl></div>
                 <div className="final-section"><div className="final-section-heading"><h3><ClipboardCheck size={18} />Observaciones registradas</h3><button className="text-button" onClick={() => goToStep(2)}>Ver detalle<ArrowRight size={14} /></button></div><div className="final-counts"><strong>{draft.observations.length} en total</strong>{(['alta', 'media', 'baja'] as const).map(s => <span key={s}><Badge severity={s} />{counts[s]}</span>)}</div></div>
-                <div className="final-section"><div className="final-section-heading"><h3><FileText size={18} />Cierre</h3><button className="text-button" onClick={() => goToStep(3)}><Pencil size={14} />Editar</button></div><div className="closing-text"><span>Conclusiones</span><p>{draft.conclusions}</p><span>Recomendaciones</span><p>{draft.recommendations}</p></div><div className="inspection-team">{[{ id: draft.ownerId, name: draft.inspector, email: draft.inspectorEmail }, ...draft.additionalInspectors].map(person => <div className="inspector-signature" key={person.id}><span className="avatar avatar-small">{initials(person.name)}</span><div><strong>{person.name}</strong><span>Realizó la inspección · {person.email}</span></div></div>)}</div></div>
+                <div className="final-section"><div className="final-section-heading"><h3><FileText size={18} />Cierre</h3><button className="text-button" onClick={() => goToStep(3)}><Pencil size={14} />Editar</button></div><div className="closing-text"><span>DESCRIPCIÓN DE LA CAUSA ANTE RESULTADOS DESFAVORABLES DE LA INSPECCIÓN</span><p>{draft.unfavorableCause || 'Sin indicar'}</p><span>CONCLUSIONES Y RECOMENDACIONES</span><p>{closingRemarksOf(draft)}</p><span>RESPONSABLE DEL REGISTRO</span></div><div className="inspection-team">{registrationPeople(draft).map(person => <div className="inspector-signature" key={person.id}><span className="avatar avatar-small">{initials(person.name)}</span><div><strong>{person.name}</strong><span>{person.email}{draft.registrationDetails?.[person.id]?.jobTitle ? ` · ${draft.registrationDetails[person.id].jobTitle}` : ''} · {formatDate(draft.registrationDetails?.[person.id]?.date ?? draft.date)}</span>{draft.registrationDetails?.[person.id]?.signature && <img className="registration-review-signature" src={draft.registrationDetails[person.id].signature!.data} alt={`Firma de ${person.name}`}/>}</div></div>)}</div></div>
                 <div className="final-section"><div className="final-section-heading"><h3><Mail size={18} />Destinatarios del informe</h3><button className="text-button" onClick={() => goToStep(0)}><Pencil size={14} />Editar</button></div><div className="recipient-list">{draft.responsibles.map(r => <div key={r.id}><span className="avatar avatar-small">{initials(r.name)}</span><span><strong>{r.name}</strong><small>{r.email}</small></span></div>)}</div></div>
                 <div className="export-panel"><div className="excel-icon"><FileSpreadsheet size={25} /></div><div><strong>Tu informe en Excel</strong><p>Copia de borrador, sin código definitivo.</p></div><button className="button button-primary" disabled={busy} onClick={() => void download()}>{busy ? <LoaderCircle className="spin" size={16} /> : <Download size={16} />}{busy ? 'Generando…' : 'Descargar Excel'}</button></div><div className="inline-note"><Info size={15} /><span>Puedes enviar la inspección a las cuentas destinatarias de este navegador. El correo y la sincronización entre dispositivos siguen pendientes.</span></div>
               </div>}

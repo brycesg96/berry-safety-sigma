@@ -1,6 +1,8 @@
 import { EMPLOYER, OBJECTIVE_LIMIT } from './employer';
 import { migrateInspectionTime, validInspectionTime } from './inspection-time';
 import type { InspectionPeriod } from './inspection-time';
+import { CLOSING_LIMIT, closingRemarksOf } from './registration';
+import type { RegistrationDetails } from './registration';
 import type { Delivery } from './follow-up';
 import type { RegistrationReceipt } from './inspection-code';
 export type Responsible = { id: string; name: string; email: string; personId?: string; area?: string; jobTitle?: string };
@@ -35,6 +37,9 @@ export type Inspection = {
   responsibles: Responsible[];
   observations: Observation[];
   defaultClosingDate: string;
+  unfavorableCause: string;
+  closingRemarks: string;
+  registrationDetails: Record<string, RegistrationDetails>;
   conclusions: string;
   recommendations: string;
   inspector: string;
@@ -51,7 +56,7 @@ export const newObservation = (closingDate = ''): Observation => ({ id: id(), de
 export const newInspection = (profile: Profile): Inspection => ({
   id: id(), ownerId: profile.accountId || 'demo-admin', company: EMPLOYER.name, ruc: EMPLOYER.ruc, facility: '', area: '', type: '', otherType: '', registrationNumber: '', inspectionTime: '', inspectionPeriod: '',
   date: new Date().toLocaleDateString('en-CA'), objective: '', responsibles: [newResponsible()],
-  observations: [], defaultClosingDate: '', conclusions: '', recommendations: '', inspector: profile.name,
+  observations: [], defaultClosingDate: '', unfavorableCause: '', closingRemarks: '', registrationDetails: {}, conclusions: '', recommendations: '', inspector: profile.name,
   inspectorEmail: profile.email, additionalInspectors: [], step: 0, updatedAt: new Date().toISOString(), status: 'draft',
 });
 
@@ -92,8 +97,9 @@ export function validateStep(d: Inspection, step: number): Record<string, string
     if (!o.dueDate) errors[`date-${o.id}`] = 'Selecciona una Fecha de Cierre.';
   });
   if (step === 3) {
-    if (!d.conclusions.trim()) errors.conclusions = 'Añade las conclusiones de la inspección.';
-    if (!d.recommendations.trim()) errors.recommendations = 'Añade las recomendaciones.';
+    if (!closingRemarksOf(d).trim()) errors.closingRemarks = 'Añade las conclusiones y recomendaciones.';
+    if (closingRemarksOf(d).length > CLOSING_LIMIT) errors.closingRemarks = `Se permiten hasta ${CLOSING_LIMIT} caracteres.`;
+    if ((d.unfavorableCause || '').length > CLOSING_LIMIT) errors.unfavorableCause = `Se permiten hasta ${CLOSING_LIMIT} caracteres.`;
     if (!d.inspector.trim()) errors.inspector = 'Indica quién realizó la inspección.';
     if (!emailValid(d.inspectorEmail)) errors.inspectorEmail = 'Completa el correo de tu cuenta en el perfil.';
   }
@@ -110,7 +116,7 @@ export function validateStep(d: Inspection, step: number): Record<string, string
 
 export function normalizeInspection(value: Inspection): Inspection {
   const type = ['Planeada', 'No planeada', 'Otro'].includes(value.type) ? value.type : '';
-  return { ...value, additionalInspectors: value.additionalInspectors || [], defaultClosingDate: value.defaultClosingDate ?? value.observations.find(o => o.dueDate)?.dueDate ?? '', ownerId: value.ownerId || 'demo-admin', type, otherType: value.otherType || '', registrationNumber: '', ...(value.registrationNumber ? { legacyRegistrationNumber: value.registrationNumber } : {}), ...migrateInspectionTime(value.inspectionTime || '', value.inspectionPeriod), ...(value.type && !type ? { legacyType: value.type } : {}) };
+  return { ...value, unfavorableCause: value.unfavorableCause || '', closingRemarks: closingRemarksOf(value), registrationDetails: value.registrationDetails || {}, additionalInspectors: value.additionalInspectors || [], defaultClosingDate: value.defaultClosingDate ?? value.observations.find(o => o.dueDate)?.dueDate ?? '', ownerId: value.ownerId || 'demo-admin', type, otherType: value.otherType || '', registrationNumber: '', ...(value.registrationNumber ? { legacyRegistrationNumber: value.registrationNumber } : {}), ...migrateInspectionTime(value.inspectionTime || '', value.inspectionPeriod), ...(value.type && !type ? { legacyType: value.type } : {}) };
 }
 
 export const formatDate = (value: string) => value ? new Intl.DateTimeFormat('es-PE', { day: '2-digit', month: 'short', year: 'numeric' }).format(new Date(`${value}T12:00:00`)) : 'Sin definir';

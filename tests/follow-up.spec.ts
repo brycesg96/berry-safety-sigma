@@ -27,8 +27,8 @@ async function createReport(page: Page) {
   }
   await page.getByRole('button', { name: 'Continuar', exact: true }).click();
   await page.getByRole('button', { name: 'Continuar', exact: true }).click();
-  await page.getByLabel('Conclusiones').fill('Dos condiciones por corregir.');
-  await page.getByLabel('Recomendaciones').fill('Verificar el levantamiento.');
+  await page.getByRole('textbox', { name: 'CONCLUSIONES Y RECOMENDACIONES', exact: true }).fill('Dos condiciones por corregir.');
+  await page.getByRole('textbox', { name: 'DESCRIPCIÓN DE LA CAUSA ANTE RESULTADOS DESFAVORABLES DE LA INSPECCIÓN', exact: true }).fill('Verificar el levantamiento.');
   await page.getByRole('button', { name: 'Continuar', exact: true }).click();
   await page.getByRole('button', { name: 'Enviar inspección', exact: true }).click();
   await expect(page.getByText('No se ha enviado ningún correo.')).toBeVisible();

@@ -51,8 +51,8 @@ test('recorrido completo con evidencia, persistencia y un Excel válido', async 
   await expect(page.locator('.review-observation')).toHaveCount(2);
   await expect(page.getByText('Retirar las cajas y señalizar la ruta de evacuación.')).toBeVisible();
   await page.getByRole('button', { name: 'Continuar', exact: true }).click();
-  await page.getByLabel(/Conclusiones/).fill('Se identificó una condición de criticidad alta que requiere atención inmediata.');
-  await page.getByLabel(/Recomendaciones/).fill('Verificar diariamente que la ruta de evacuación permanezca despejada.');
+  await page.getByRole('textbox', { name: 'CONCLUSIONES Y RECOMENDACIONES', exact: true }).fill('Se identificó una condición de criticidad alta que requiere atención inmediata.');
+  await page.getByRole('textbox', { name: 'DESCRIPCIÓN DE LA CAUSA ANTE RESULTADOS DESFAVORABLES DE LA INSPECCIÓN', exact: true }).fill('Verificar diariamente que la ruta de evacuación permanezca despejada.');
   await page.getByRole('button', { name: 'Continuar', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'Revisión final' })).toBeVisible();
   await expect(page.getByText('Ana Torres', { exact: true })).toBeVisible();
@@ -111,7 +111,7 @@ test('validación de campos y observación obligatoria', async ({ page }) => {
   await expect(page.locator('.review-observation')).toHaveCount(1);
   await page.getByRole('button', { name: 'Continuar', exact: true }).click();
   await page.getByRole('button', { name: 'Continuar', exact: true }).click();
-  await expect(page.getByText('Añade las conclusiones de la inspección.')).toBeVisible();
+  await expect(page.getByText('Añade las conclusiones y recomendaciones.')).toBeVisible();
 });
 
 test('móvil: menú, borradores, búsqueda y eliminación', async ({ page }) => {

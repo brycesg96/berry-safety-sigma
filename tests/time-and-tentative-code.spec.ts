@@ -50,8 +50,8 @@ test('ubicación en el ejemplo, AM/PM requerido y conservación en revisión, re
   await page.getByLabel('Fecha de Cierre').fill('2026-11-06');
   await page.getByRole('button', { name: 'Continuar', exact: true }).click();
   await page.getByRole('button', { name: 'Continuar', exact: true }).click();
-  await page.getByLabel('Conclusiones').fill('Sin observaciones.');
-  await page.getByLabel('Recomendaciones').fill('Mantener los controles.');
+  await page.getByRole('textbox', { name: 'CONCLUSIONES Y RECOMENDACIONES', exact: true }).fill('Sin observaciones.');
+  await page.getByRole('textbox', { name: 'DESCRIPCIÓN DE LA CAUSA ANTE RESULTADOS DESFAVORABLES DE LA INSPECCIÓN', exact: true }).fill('Mantener los controles.');
   await page.getByRole('button', { name: 'Continuar', exact: true }).click();
   await expect(page.getByText(/07:30 PM/)).toBeVisible();
   const event = page.waitForEvent('download');

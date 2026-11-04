@@ -1,6 +1,7 @@
 import type { Inspection } from './model';
 import { formatDate, validateStep } from './model';
 import { formatInspectionTime } from './inspection-time';
+import { closingRemarksOf, registrationPeople } from './registration';
 import { workflowLabel } from './follow-up';
 import { EMPLOYER } from './employer';
 
@@ -77,9 +78,14 @@ export async function exportExcel(d: Inspection) {
   }
   if (d.delivery) line('Estado de la inspección', workflowLabel(d));
   section('03 · CIERRE DE LA INSPECCIÓN');
-  line('Conclusiones', d.conclusions); line('Recomendaciones', d.recommendations);
-  for (const person of [{ name: d.inspector, email: d.inspectorEmail }, ...(d.additionalInspectors || [])]) {
-    line('Realizado por', person.name); line('Correo del inspector', person.email || 'No indicado');
+  line('DESCRIPCIÓN DE LA CAUSA ANTE RESULTADOS DESFAVORABLES DE LA INSPECCIÓN', d.unfavorableCause || 'Sin indicar');
+  line('CONCLUSIONES Y RECOMENDACIONES', closingRemarksOf(d));
+  section('RESPONSABLE DEL REGISTRO');
+  for (const person of registrationPeople(d)) {
+    line('Nombre', person.name); line('Correo del inspector', person.email || 'No indicado');
+    const details = d.registrationDetails?.[person.id];
+    line('Cargo', details?.jobTitle || person.jobTitle || 'Sin indicar'); line('Fecha', formatDate(details?.date ?? d.date));
+    if (details?.signature) { line('Firma', 'Firma adjunta'); await addPhoto(details.signature); } else line('Firma', 'Sin adjuntar');
   }
   sheet.addRow([]);
   line('Código', 'Sin código definitivo. Este archivo es una copia de borrador, no un envío registrado.');
