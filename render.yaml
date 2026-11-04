@@ -15,5 +15,7 @@ services:
         generateValue: true
       - key: MAKE_TEST_ENABLED
         value: "false"
+      - key: MAKE_REPORTS_ENABLED
+        value: "false"
       - key: BERRY_ALLOWED_ORIGINS
         value: https://brycesg96.github.io

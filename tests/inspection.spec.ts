@@ -59,6 +59,7 @@ test('recorrido completo con evidencia, persistencia y un Excel válido', async 
   const requestUrls: string[] = [];
   page.on('request', request => { if (request.method() === 'POST') requestUrls.push(request.url()); });
   await page.getByRole('button', { name: 'Enviar inspección', exact: true }).click();
+  await page.getByText('Compartir solo en este navegador', { exact: true }).click();
   await expect(page.getByText('No se ha enviado ningún correo.')).toBeVisible();
   await page.getByRole('button', { name: 'Cerrar ventana' }).click();
   const downloadEvent = page.waitForEvent('download');

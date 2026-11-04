@@ -31,6 +31,7 @@ async function createReport(page: Page) {
   await page.getByRole('textbox', { name: 'DESCRIPCIÓN DE LA CAUSA ANTE RESULTADOS DESFAVORABLES DE LA INSPECCIÓN', exact: true }).fill('Verificar el levantamiento.');
   await page.getByRole('button', { name: 'Continuar', exact: true }).click();
   await page.getByRole('button', { name: 'Enviar inspección', exact: true }).click();
+  await page.getByText('Compartir solo en este navegador', { exact: true }).click();
   await expect(page.getByText('No se ha enviado ningún correo.')).toBeVisible();
   await page.getByRole('button', { name: 'Enviar a destinatarios de prueba' }).click();
   await expect(page.getByRole('heading', { name: 'Taller - Armonía 2', exact: true })).toBeVisible();

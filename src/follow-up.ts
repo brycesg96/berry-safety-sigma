@@ -1,5 +1,5 @@
 import type { DemoAccount } from './accounts';
-import { readAccounts, accountEmail } from './accounts';
+import { readAccounts, accountEmail, inspectionCopies } from './accounts';
 import type { Evidence, Inspection } from './model';
 import { database, validateStep } from './model';
 
@@ -53,7 +53,7 @@ export async function deliverInspection(draft: Inspection, actorId: string): Pro
     const accounts = readAccounts();
     const recipients = draft.responsibles.map(r => accounts.find(a => a.enabled && accountEmail(a.email) === accountEmail(r.email)));
     if (!recipients.length || recipients.some(a => !a)) throw new Error('Todos los destinatarios deben tener una cuenta habilitada en Administración.');
-    return { ...draft, status: 'ready', updatedAt: new Date().toISOString(), delivery: { sentAt: new Date().toISOString(), recipientIds: [...new Set(recipients.map(a => a!.id))], revision: 1, corrections: {} } };
+    return { ...draft, emailCc: inspectionCopies(draft.responsibles, accounts), status: 'ready', updatedAt: new Date().toISOString(), delivery: { sentAt: new Date().toISOString(), recipientIds: [...new Set(recipients.map(a => a!.id))], revision: 1, corrections: {} } };
   });
 }
 export function saveCorrection(d: Inspection, observationId: string, actorId: string, correction: Correction, submit: boolean) {
@@ -83,5 +83,13 @@ export function reviewCorrection(d: Inspection, observationId: string, actorId: 
     if (!approve && !note.trim()) throw new Error('Indica qué debe corregir el responsable.');
     const reviewed: Correction = { ...correction, state: approve ? 'Ejecutado' : 'Pendiente', decision: approve ? 'approved' : 'changes', note: note.trim() };
     return { ...current, updatedAt: new Date().toISOString(), delivery: { ...delivery, revision: delivery.revision + 1, corrections: { ...delivery.corrections, [observationId]: reviewed } } };
+  });
+}
+
+export function saveEmailReceipt(d: Inspection, actorId: string, receipt: NonNullable<Inspection['emailDelivery']>) {
+  return changeStored(d.id, current => {
+    if (!current.delivery || current.ownerId !== actorId || receipt.requestId !== current.id) throw new Error('Solo el autor puede registrar el envío del informe.');
+    if (current.emailDelivery?.state === 'accepted' && receipt.state !== 'accepted') return current;
+    return { ...current, emailCc: current.emailDelivery ? current.emailCc ?? [] : inspectionCopies(current.responsibles), emailDelivery: receipt, updatedAt: new Date().toISOString() };
   });
 }

@@ -1,0 +1,60 @@
+import { test, expect } from '@playwright/test';
+import type { Page } from '@playwright/test';
+import ExcelJS from 'exceljs';
+async function prepare(page:Page) {
+ await page.route('**/api/people?*',r=>r.fulfill({json:{people:[]}}));
+ await page.goto('./');
+ await page.getByRole('button',{name:'Administración',exact:true}).click();
+ await page.getByRole('button',{name:'Editar cuenta bcespedes@hortifrut.com',exact:true}).click();
+ await page.getByLabel('Correos de jefes y gerentes (CC)').fill('JEFE@example.com, jefe@example.com, gerente@example.com, bcespedes@hortifrut.com');
+ await page.getByRole('button',{name:'Guardar cuenta',exact:true}).click();
+ await page.reload();await page.getByRole('button',{name:'Administración',exact:true}).click();
+ await expect(page.locator('.account-row').filter({hasText:'bcespedes@hortifrut.com'})).toContainText('jefe@example.com');
+ await page.getByRole('button',{name:'Nueva inspección',exact:true}).click();
+ await page.getByLabel('Área inspeccionada').fill('Taller - Armonía 2');
+ await page.getByLabel('Hora de inspección').fill('07:30');await page.getByLabel('AM o PM').selectOption('AM');
+ await page.getByRole('radio',{name:'Planeada',exact:true}).check();
+ await page.getByRole('textbox',{name:'Objetivo de la inspección interna',exact:true}).fill('Revisar condiciones seguras.');
+ await page.getByRole('combobox',{name:/Nombre completo/}).fill('Bryan');
+ await page.getByRole('listbox').getByRole('option',{name:/bcespedes@hortifrut.com/}).click();
+ await page.getByRole('button',{name:'Continuar',exact:true}).click();
+ await page.getByRole('button',{name:'Añadir observación',exact:true}).click();
+ await page.getByLabel('Descripción').fill('Falta señalización.');
+ await page.getByLabel('Acción a tomar').fill('Instalar señalización.');
+ await page.getByLabel('Fecha de Cierre').fill('2026-12-01');
+ await page.getByRole('button',{name:'Continuar',exact:true}).click();await page.getByRole('button',{name:'Continuar',exact:true}).click();
+ await page.getByRole('textbox',{name:'CONCLUSIONES Y RECOMENDACIONES',exact:true}).fill('Se requiere corregir el hallazgo.');
+ await page.getByRole('button',{name:'Continuar',exact:true}).click();
+ await page.getByRole('button',{name:'Enviar inspección',exact:true}).click();
+}
+test('envío de inspección adjunta Excel, responsables y CC de jefes; clave efímera y recibo guardado',async({page})=>{
+ let captured:any;
+ await page.route('**/api/inspections/send',async route=>{
+  const data=route.request().postDataJSON();
+  if(data.action==='inspection.check')return route.fulfill({json:{ok:true,enabled:true}});
+  captured=data;
+  await route.fulfill({json:{ok:true,receipt:'http_accepted',request_id:data.inspection.id,email_requested:true,upstream_status:200,outlook_status:'not_confirmed'}});
+ });
+ await prepare(page);
+ const dialog=page.getByRole('dialog');await expect(dialog).toContainText('jefe@example.com, gerente@example.com');
+ await dialog.getByLabel('Clave de API para enviar el informe').fill('ephemeral-key-do-not-store');
+ await dialog.getByRole('button',{name:'Enviar informe por correo',exact:true}).click();
+ await expect(page.getByText(/Make aceptó el informe \(HTTP 200\)/)).toBeVisible();
+ expect(captured.inspection.responsibles).toEqual([{name:'Bryan',email:'bcespedes@hortifrut.com'}]);
+ expect(captured.inspection.cc).toEqual(['jefe@example.com','gerente@example.com']);
+ const workbook=new ExcelJS.Workbook();await workbook.xlsx.load(Buffer.from(captured.attachment.contentBase64,'base64') as any);
+ expect(JSON.stringify(workbook.getWorksheet('Inspección SST')!.getSheetValues())).toContain('Falta señalización.');
+ expect(await page.evaluate(()=>JSON.stringify(localStorage))).not.toContain('ephemeral-key-do-not-store');
+ await page.reload();await page.getByRole('button',{name:'Mis inspecciones',exact:true}).click();await page.getByRole('button',{name:'Revisar informe',exact:true}).click();
+ await expect(page.getByText(/Make aceptó el informe \(HTTP 200\)/)).toBeVisible();
+ await expect(page.getByRole('button',{name:'Enviar informe por correo',exact:true})).toHaveCount(0);
+});
+test('servidor desactivado conserva el borrador y no registra ni envía el informe',async({page})=>{
+ let sends=0;
+ await page.route('**/api/inspections/send',r=>{if(r.request().postDataJSON().action==='inspection.send')sends++;return r.fulfill({status:503,json:{ok:false,code:'REPORTS_DISABLED'}});});
+ await prepare(page);await page.getByLabel('Clave de API para enviar el informe').fill('test-key');
+ await page.getByRole('button',{name:'Enviar informe por correo',exact:true}).click();
+ await expect(page.getByRole('alert')).toContainText('MAKE_REPORTS_ENABLED=true');expect(sends).toBe(0);
+ await page.getByRole('button',{name:'Cerrar ventana',exact:true}).click();await page.getByRole('button',{name:'Mis inspecciones',exact:true}).click();
+ await expect(page.getByRole('button',{name:'Continuar',exact:true})).toBeVisible();
+});

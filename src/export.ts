@@ -5,7 +5,7 @@ import { closingRemarksOf, registrationPeople } from './registration';
 import { workflowLabel } from './follow-up';
 import { EMPLOYER } from './employer';
 
-export async function exportExcel(d: Inspection) {
+export async function buildExcel(d: Inspection) {
   if (Object.keys(validateStep(d, 0)).length) throw new Error('Completa el primer apartado antes de exportar.');
   const { default: ExcelJS } = await import('exceljs');
   const book = new ExcelJS.Workbook();
@@ -93,11 +93,16 @@ export async function exportExcel(d: Inspection) {
   sheet.views = [{ state: 'frozen', ySplit: 3 }];
   sheet.pageSetup = { paperSize: 9, orientation: 'portrait', fitToPage: true, fitToWidth: 1, fitToHeight: 0 };
   const buffer = await book.xlsx.writeBuffer();
-  const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+  return { bytes: new Uint8Array(buffer), name: `Inspeccion-${d.area.replace(/[^\p{L}\p{N}]+/gu, '-').slice(0, 60)}-${d.date}.xlsx` };
+}
+
+export async function exportExcel(d: Inspection) {
+  const file = await buildExcel(d);
+  const blob = new Blob([file.bytes as BlobPart], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
   const url = URL.createObjectURL(blob);
   const anchor = document.createElement('a');
   anchor.href = url;
-  anchor.download = `Inspeccion-${d.area.replace(/[^\p{L}\p{N}]+/gu, '-').slice(0, 60)}-${d.date}.xlsx`;
+  anchor.download = file.name;
   anchor.click();
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 }

@@ -86,7 +86,7 @@ La API construye el cuerpo completo; el navegador solo envía `{"action":"make.t
 }
 ```
 
-Fecha y año usan `America/Lima`. El número es un ejemplo sin reserva de correlativo. `.invalid` no corresponde a buzones reales. No se genera ni adjunta un Excel real en esta fase.
+Fecha y año usan `America/Lima`. El número es un ejemplo sin reserva de correlativo. `.invalid` no corresponde a buzones reales. La prueba de conexión añade ahora un Excel ficticio válido para configurar el mapeo de adjuntos; no es una inspección registrada.
 
 ## Interpretar la respuesta
 
@@ -107,3 +107,7 @@ La prueba solo se habilitó en memoria para esa llamada; la configuración local
 ## Backend Render verificado
 
 El 4 de noviembre de 2026 se comprobó `https://berry-safety-api.onrender.com/healthz`: HTTP 200 y `{"status":"ok"}`. El preflight OPTIONS de la ruta de prueba devolvió HTTP 204 y autorizó el origen `https://brycesg96.github.io`, POST y los encabezados de autenticación y prueba. La publicación web queda configurada para ese endpoint público. Estas comprobaciones no ejecutan Make, no prueban los secretos y no confirman el estado de `MAKE_TEST_ENABLED`; la prueba real del escenario con Outlook sigue pendiente de su filtro y habilitación.
+
+## Envíos reales de inspecciones
+
+El flujo añadido para Enviar inspección y las copias de jefes/gerentes se describe en [Envío de informes](ENVIO_INFORMES.md). Mantiene una habilitación independiente y requiere mapear destinatarios y adjuntos en Make antes de utilizarlo.

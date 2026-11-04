@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs';
 import { createHash, randomUUID, timingSafeEqual } from 'node:crypto';
 
 export const MAKE_TEST_PATH = '/api/integrations/make/test';
@@ -21,7 +22,7 @@ export function loadConfig(env) {
   if (enabled && !origins.size) throw new Error('Configura BERRY_ALLOWED_ORIGINS antes de habilitar la prueba.');
   return { enabled, token, webhook: webhook?.href, origins };
 }
-const secureEqual = (a, b) => timingSafeEqual(createHash('sha256').update(a).digest(), createHash('sha256').update(b).digest());
+export const secureEqual = (a, b) => timingSafeEqual(createHash('sha256').update(a).digest(), createHash('sha256').update(b).digest());
 export function buildSample(requestId, now = new Date()) {
   const date = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Lima', year: 'numeric', month: '2-digit', day: '2-digit' }).format(now);
   const number = `IH-${date.slice(0, 4)}-001`;
@@ -31,21 +32,23 @@ export function buildSample(requestId, now = new Date()) {
     fundo: 'Fundo de prueba - Armonía 2', area: 'Taller de Maquinaria',
     inspector: { nombre: 'Ana de Prueba', correo: 'inspector@example.invalid', area: 'Seguridad y Salud', cargo: 'Inspector SST' },
     responsable: { nombre: 'Juan de Prueba', correo: 'responsable@example.invalid', area: 'Mantenimiento', cargo: 'Supervisor' },
+    outlook: { para: [{ address: 'responsable@example.invalid', name: 'Juan de Prueba' }], cc: [{ address: 'supervisor@example.invalid', name: '' }], cco: [] },
+    adjuntos: [{ nombre: 'EJEMPLO-NO-ES-INFORME.xlsx', tipo: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', contenido_base64: readFileSync(new URL('./fixtures/example.xlsx', import.meta.url)).toString('base64') }],
     destinatarios: { para: ['responsable@example.invalid'], cc: ['supervisor@example.invalid'], cco: ['auditoria@example.invalid'] },
     asunto: `[PRUEBA — NO ENVIAR CORREO] Inspección ${number}`,
     cuerpo_html: `<h2>Inspección de prueba — Berry Safety / BR Sigma</h2><p>Este mensaje contiene datos ficticios. No enviar correo.</p><table><tr><th>Número de ejemplo</th><td>${number}</td></tr><tr><th>Fecha</th><td>${date}</td></tr><tr><th>Fundo</th><td>Fundo de prueba - Armonía 2</td></tr><tr><th>Área</th><td>Taller de Maquinaria</td></tr></table><p>No se ha reservado ningún código ni registrado una inspección real.</p>`,
   };
 }
-function reply(res, status, data, cors = {}) {
+export function reply(res, status, data, cors = {}) {
   res.writeHead(status, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff', ...cors });
   res.end(JSON.stringify(data));
 }
-async function bodyOf(req) {
+export async function bodyOf(req, limit = 4096) {
   return new Promise((resolve, reject) => {
     let bytes = 0, done = false; let chunks = [];
     req.on('data', chunk => {
       if (done) return; bytes += chunk.length;
-      if (bytes > 4096) { done = true; chunks = []; reject(new Error('BODY_TOO_LARGE')); return; }
+      if (bytes > limit) { done = true; chunks = []; reject(new Error('BODY_TOO_LARGE')); return; }
       chunks.push(chunk);
     });
     req.on('end', () => { if (done) return; done = true; try { resolve(JSON.parse(Buffer.concat(chunks).toString('utf8'))); } catch { reject(new Error('INVALID_JSON')); } });

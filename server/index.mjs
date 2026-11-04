@@ -1,9 +1,12 @@
 import { createServer } from 'node:http';
 import { pathToFileURL } from 'node:url';
+import { createReportHandler, REPORT_PATH } from './make-report.mjs';
 import { createMakeTestHandler } from './make-test.mjs';
 export function createApi(options = {}) {
-  const handler = createMakeTestHandler(options);
-  return createServer({ requestTimeout: 15000, headersTimeout: 5000, keepAliveTimeout: 5000, maxHeaderSize: 8192 }, (req, res) => {
+  const testHandler = createMakeTestHandler(options);
+  const reportHandler = createReportHandler(options);
+  const handler = (req, res) => req.url === REPORT_PATH ? reportHandler(req, res) : testHandler(req, res);
+  return createServer({ requestTimeout: 60000, headersTimeout: 5000, keepAliveTimeout: 5000, maxHeaderSize: 8192 }, (req, res) => {
     handler(req, res).catch(() => { if (!res.headersSent) { res.writeHead(500, { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' }); res.end(JSON.stringify({ ok: false, code: 'INTERNAL_ERROR', message: 'No se pudo completar la prueba.' })); } else res.end(); });
   });
 }

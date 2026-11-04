@@ -29,6 +29,8 @@ export type Inspection = {
   registrationNumber: string;
   serverRegistration?: RegistrationReceipt;
   delivery?: Delivery;
+  emailCc?: string[];
+  emailDelivery?: { state: 'pending' | 'accepted' | 'rejected' | 'unconfirmed'; requestId: string; updatedAt: string; upstreamStatus?: number; message?: string };
   legacyRegistrationNumber?: string;
   inspectionTime: string;
   inspectionPeriod: InspectionPeriod;

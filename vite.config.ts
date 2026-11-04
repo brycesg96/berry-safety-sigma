@@ -9,5 +9,5 @@ export default defineConfig(({ mode }) => {
     try { url = new URL(endpoint, 'http://localhost'); } catch { throw new Error('VITE_MAKE_TEST_API_URL debe ser una URL válida de la API de Berry.'); }
     if (url.pathname !== '/api/integrations/make/test' || /(^|\.)make\.com$/i.test(url.hostname) || url.username || url.password || url.search || url.hash) throw new Error('VITE_MAKE_TEST_API_URL debe apuntar a la API de Berry, nunca al webhook de Make.');
   }
-  return { plugins: [react()], server: { proxy: { '/api/integrations/make/test': { target: 'http://127.0.0.1:8787', changeOrigin: false } } } };
+  return { plugins: [react()], server: { proxy: { '/api/inspections/send': { target: 'http://127.0.0.1:8787', changeOrigin: false }, '/api/integrations/make/test': { target: 'http://127.0.0.1:8787', changeOrigin: false } } } };
 });

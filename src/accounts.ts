@@ -1,6 +1,6 @@
 /** Local test accounts only. These roles are NOT server-side access control. */
 export type AccountRole = 'admin' | 'inspector';
-export type DemoAccount = { id: string; name: string; email: string; area: string; jobTitle: string; role: AccountRole; enabled: boolean };
+export type DemoAccount = { id: string; name: string; email: string; area: string; jobTitle: string; role: AccountRole; enabled: boolean; supervisorEmails?: string[] };
 const KEY = 'berry-demo-accounts-v1';
 const ACTIVE = 'berry-demo-active-account';
 export const ADMIN_ID = 'demo-admin';
@@ -21,12 +21,21 @@ function valid(value: unknown): value is DemoAccount {
   const a = value as DemoAccount;
   return typeof a.id === 'string' && !!a.id && typeof a.name === 'string' && !!a.name.trim() && typeof a.email === 'string' && emailPattern.test(a.email) && typeof a.area === 'string' && ['admin', 'inspector'].includes(a.role) && typeof a.enabled === 'boolean';
 }
+export function supervisorEmails(values: string | string[] = []): string[] {
+  const emails = [...new Set((Array.isArray(values) ? values : values.split(/[;,\n]+/)).map(accountEmail).filter(Boolean))];
+  if (emails.length > 50 || emails.some(email => !emailPattern.test(email))) throw new Error('Añade correos válidos de jefes o gerentes, separados por coma. Máximo 50.');
+  return emails;
+}
+export function inspectionCopies(recipients: { email: string }[], accounts = readAccounts()): string[] {
+  const direct = new Set(recipients.map(p => accountEmail(p.email)));
+  return [...new Set(recipients.flatMap(p => accounts.find(a => a.enabled && accountEmail(a.email) === accountEmail(p.email))?.supervisorEmails || []).filter((email): email is string => typeof email === 'string').map(accountEmail))].filter(email => emailPattern.test(email) && !direct.has(email));
+}
 export function readAccounts(): DemoAccount[] {
   let stored: DemoAccount[] = [];
   try { const data: unknown = JSON.parse(localStorage.getItem(KEY) || '[]'); if (Array.isArray(data)) stored = data.filter(valid); } catch { /* Seeds remain available in memory. */ }
   const initial = seeds().map(seed => {
     const saved = stored.find(a => a.id === seed.id);
-    return { ...seed, ...(saved ? { name: saved.name, area: saved.area, jobTitle: typeof saved.jobTitle === 'string' ? saved.jobTitle.trim() : '', enabled: saved.enabled } : {}), ...(seed.id === ADMIN_ID ? { enabled: true } : {}) };
+    return { ...seed, ...(saved ? { name: saved.name, area: saved.area, jobTitle: typeof saved.jobTitle === 'string' ? saved.jobTitle.trim() : '', enabled: saved.enabled, supervisorEmails: Array.isArray(saved.supervisorEmails) ? saved.supervisorEmails.filter(v => typeof v === 'string' && emailPattern.test(v)) : [] } : {}), ...(seed.id === ADMIN_ID ? { enabled: true } : {}) };
   });
   const ids = new Set(initial.map(a => a.id)), emails = new Set(initial.map(a => a.email));
   for (const a of stored) if (!ids.has(a.id) && !emails.has(accountEmail(a.email))) { initial.push({ ...a, jobTitle: typeof a.jobTitle === 'string' ? a.jobTitle.trim() : '', email: accountEmail(a.email) }); ids.add(a.id); emails.add(accountEmail(a.email)); }
@@ -48,21 +57,21 @@ export function selectTestAccount(id: string) {
 function requireAdministrator(accounts: DemoAccount[], actorId: string) {
   if (!accounts.some(a => a.id === actorId && a.enabled && a.role === 'admin')) throw new Error('Esta función requiere la cuenta administradora.');
 }
-export function addAccount(actorId: string, values: { name: string; email: string; role: AccountRole }) {
+export function addAccount(actorId: string, values: { name: string; email: string; role: AccountRole; supervisorEmails?: string[] }) {
   const accounts = readAccounts(); requireAdministrator(accounts, actorId);
   const name = values.name.trim(), email = accountEmail(values.email);
   if (!name || !emailPattern.test(email) || !['admin', 'inspector'].includes(values.role)) throw new Error('Completa el nombre, un correo válido y el rol.');
   if (accounts.some(a => accountEmail(a.email) === email)) throw new Error('Este correo ya tiene una cuenta. Puedes revisar o reactivar su acceso.');
-  return persist([...accounts, { id: crypto.randomUUID(), name, email, area: '', jobTitle: '', role: values.role, enabled: true }]);
+  return persist([...accounts, { id: crypto.randomUUID(), name, email, area: '', jobTitle: '', role: values.role, enabled: true, supervisorEmails: supervisorEmails(values.supervisorEmails) }]);
 }
-export function editAccount(actorId: string, targetId: string, values: { name: string; role: AccountRole; enabled: boolean }) {
+export function editAccount(actorId: string, targetId: string, values: { name: string; role: AccountRole; enabled: boolean; supervisorEmails?: string[] }) {
   const accounts = readAccounts(); requireAdministrator(accounts, actorId);
   const target = accounts.find(a => a.id === targetId);
   if (!target || !values.name.trim() || !['admin', 'inspector'].includes(values.role)) throw new Error('Completa el nombre y un rol válido.');
   if (targetId === ADMIN_ID && (values.role !== 'admin' || !values.enabled)) throw new Error('La cuenta administradora inicial se configura desde el entorno.');
   if (targetId === INSPECTOR_ID && values.role !== 'inspector') throw new Error('La cuenta de inspecciones inicial conserva su rol.');
   if (targetId === actorId && (!values.enabled || values.role !== 'admin')) throw new Error('No puedes retirar tu propio acceso de administración durante esta sesión.');
-  return persist(accounts.map(a => a.id === targetId ? { ...a, name: values.name.trim(), role: values.role, enabled: values.enabled } : a));
+  return persist(accounts.map(a => a.id === targetId ? { ...a, name: values.name.trim(), role: values.role, enabled: values.enabled, supervisorEmails: values.supervisorEmails === undefined ? a.supervisorEmails : supervisorEmails(values.supervisorEmails) } : a));
 }
 export function updateOwnProfile(accountId: string, name: string, area: string, jobTitle?: string) {
   const accounts = readAccounts();

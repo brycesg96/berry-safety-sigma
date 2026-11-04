@@ -62,3 +62,5 @@ npm test
 El servidor de pruebas configura un endpoint relativo interceptado por Playwright con datos ficticios, sin consultar ni publicar directorios reales. Las pruebas de Playwright ejecutan el recorrido completo, validación, evidencias y persistencia tras recargar, lectura del Excel generado (incluidas las imágenes), menú móvil, búsqueda, eliminación y comprobación de desbordamiento a cinco tamaños de pantalla.
 
 Por defecto usan Chromium en `/usr/bin/chromium`. En otro equipo se puede indicar `CHROMIUM_PATH=/ruta/a/chromium npm test`, o ajustar la configuración para un navegador instalado por Playwright. El servidor de desarrollo se inicia automáticamente si no está ejecutándose. Las capturas de validación se escriben en `/tmp/berry-desktop.png`, `/tmp/berry-mobile.png` y `/tmp/berry-mobile-menu.png`.
+
+El flujo de envío de inspecciones con Excel y copias automáticas de jefes/gerentes se describe en [Envío de informes](docs/ENVIO_INFORMES.md). Requiere completar el mapeo de Make y habilitar los informes en Render; las pruebas de conexión siguen sin enviar correo.

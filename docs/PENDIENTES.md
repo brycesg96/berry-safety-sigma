@@ -59,9 +59,13 @@ Esta lista es la referencia de trabajo y se resumirá al cerrar cada avance. Se 
 - [x] Administración → Integraciones, configuración de despliegue Render y pruebas sin afectar inspecciones existentes. [Guía y resultado real](MAKE.md).
 - [x] Webhook confirmado: tras el rechazo HTTP 410 inicial, una nueva prueba autorizada el 4 de noviembre de 2026 recibió HTTP 200 de Make, con datos ficticios y `send_email:false`. Confirma aceptación HTTP, no ejecución completa del escenario ni entrega de correo.
 - [x] Botón temporal «Probar conexión con Make» y guía de configuración segura de `MAKE_WEBHOOK_URL`, adaptados al escenario con Outlook y filtro para excluir pruebas.
-- [ ] Confirmar el filtro de Make antes de Outlook (`send_email = true` Y `mode != test`) antes de repetir una prueba real con el escenario actualizado.
+- [x] Filtro de Make comprobado por captura: webhook procesó una solicitud, cero datos pasaron a Outlook.
 - [x] Backend Render creado en `https://berry-safety-api.onrender.com`: health HTTP 200 y CORS HTTP 204 verificados; endpoint público configurado para la publicación de Pages.
-- [ ] Confirmar filtro de Outlook y secretos en Render; habilitar `MAKE_TEST_ENABLED=true` y comprobar la prueba autenticada desde la web pública. Health y CORS no verifican los secretos ni el envío.
+- [x] Prueba autenticada desde la web pública aceptada por Make (HTTP 200), mostrada por el usuario.
+- [x] Conectar Enviar inspección con API, correo general, Excel provisional adjunto y recibo de aceptación separado del resultado de Outlook.
+- [x] Asociar correos de jefes/gerentes a cuentas y añadirlos en CC de los responsables, con validación y deduplicación. Asociaciones locales de prueba.
+- [ ] En Make: reconocer los campos nuevos y mapear Para, CC y adjunto base64; retirar destinatario fijo de prueba. Después habilitar `MAKE_REPORTS_ENABLED=true` en Render y probar recepción real del Excel. [Guía](ENVIO_INFORMES.md).
+- [ ] Journal persistente/compartido para deduplicación entre despliegues y réplicas, y devolución autenticada del resultado de Outlook a la app.
 
 ## Pendientes operativos, por orden de dependencia
 
