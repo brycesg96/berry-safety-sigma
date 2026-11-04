@@ -67,3 +67,31 @@
 @media(max-width:600px){.followup-card{padding:18px 14px}.followup-original,.followup-context{grid-template-columns:1fr}.followup-card .observation-heading h2{font-size:12px}.followup-actions>.button{flex:1}.review-actions{padding:12px}.list-stats div>div>span{max-width:none}.followup-card .observation-heading .list-status{margin:0}.page-heading:has(+.notice){flex-wrap:wrap}}
 
 .performers-section .primary-inspector input[readonly]{background:#f7f9f4}.performers-section .responsible-row{align-items:flex-start}.performers-section .responsible-number{display:grid;margin-top:27px}.performers-section .delete-button{margin-top:29px}.performers-section .primary-inspector .field-grid{flex:1;min-width:0}.performers-section .responsible-heading{gap:12px}.inspection-team .inspector-signature+.inspector-signature{margin-top:14px}@media(max-width:600px){.performers-section .responsible-number{margin-top:0}.performers-section .delete-button{margin-top:0}.performers-section .responsible-heading{flex-wrap:wrap}.performers-section .responsible-heading>.text-button{margin-bottom:16px}.performers-section .primary-inspector .field:first-child>label{padding-right:25px}}
+
+/* Use the same compact text-and-evidence layout as observation entry. */
+.followup-card{container-type:inline-size;padding:18px 20px;margin:16px 0}
+.followup-card .observation-heading{margin-bottom:14px}
+.followup-original-layout,.correction-layout{display:grid;grid-template-columns:minmax(0,1fr);gap:14px}
+.followup-original,.followup-original-side,.correction-texts,.correction-details{min-width:0}
+.followup-original{grid-template-columns:minmax(0,1fr);gap:10px;align-content:start}
+.followup-planned-date{font-size:12px;line-height:1.6}
+.followup-planned-date strong{display:block;font-size:10px;color:#79916d;margin-bottom:4px}
+.followup-card .followup-evidence{margin:8px 0;gap:8px}
+.followup-card .followup-evidence img{width:88px;height:78px}
+.correction-form{margin-top:16px;padding-top:16px}
+.correction-form h3{margin-bottom:12px;font-size:13px}
+.correction-form .notice{padding:8px 12px;margin-bottom:12px;line-height:1.6;font-size:11px}
+.correction-form .field{margin-bottom:12px;gap:6px}
+.correction-form .field>label{font-size:11px}
+.correction-form textarea{height:80px;min-height:72px;resize:vertical}
+.correction-texts>.field:last-child{margin-bottom:0}
+.correction-metadata{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.correction-metadata .field-hint{font-size:9px;line-height:1.5}
+.correction-form .evidence-label{margin-bottom:6px}
+.correction-form .followup-actions{margin-top:10px}
+.correction-form>.inline-note{margin-top:10px}
+.correction-form .review-actions{padding:12px;margin-top:12px}
+.followup-context{margin:16px 0;gap:10px 16px;font-size:11px;line-height:1.6;overflow-wrap:anywhere}
+@container(min-width:650px){.followup-original-layout,.correction-layout{grid-template-columns:minmax(0,1.25fr) minmax(0,1fr);gap:20px}}
+@media(min-width:1200px){.followup-context{grid-template-columns:repeat(4,minmax(0,1fr))}}
+@media(max-width:600px){.followup-card{padding:16px 14px}.correction-metadata{gap:10px}.correction-form textarea{height:76px;min-height:72px}.correction-form .followup-actions{justify-content:stretch}.correction-form .field>label{font-size:10px}}

@@ -31,6 +31,8 @@ Esta lista es la referencia de trabajo y se resumirá al cerrar cada avance. Se 
 
 - [x] Realizado por admite hasta tres personas: usuario autor con nombre/correo bloqueados y hasta dos inspectores adicionales del directorio, sin duplicados. Se conservan en el borrador, la revisión, el seguimiento y la descarga provisional del Excel. Los datos del autor se actualizan desde su perfil en los borradores; los informes enviados conservan su autor original.
 
+- [x] Vista de levantamiento más compacta: textos y responsable junto a fecha, estado y evidencias; márgenes y cuadros reducidos, con distribución vertical en teléfonos.
+
 ## Pendientes operativos, por orden de dependencia
 
 1. [ ] Elegir y conectar el sistema de automatización y la base de datos real. Confirmar alojamiento y credenciales mediante configuración segura, sin claves en el navegador.
