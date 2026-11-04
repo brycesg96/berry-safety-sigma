@@ -1,4 +1,5 @@
-export type Responsible = { id: string; name: string; email: string };
+import { EMPLOYER, OBJECTIVE_LIMIT } from './employer';
+export type Responsible = { id: string; name: string; email: string; personId?: string };
 export type Evidence = { id: string; name: string; data: string };
 export type Observation = {
   id: string;
@@ -15,7 +16,11 @@ export type Inspection = {
   ruc: string;
   facility: string;
   area: string;
-  type: 'Instalaciones' | 'Actividades y tareas';
+  type: '' | 'Planeada' | 'No planeada' | 'Otro';
+  otherType: string;
+  registrationNumber: string;
+  inspectionTime: string;
+  legacyType?: string;
   date: string;
   objective: string;
   responsibles: Responsible[];
@@ -34,7 +39,7 @@ export const id = () => crypto.randomUUID();
 export const newResponsible = (): Responsible => ({ id: id(), name: '', email: '' });
 export const newObservation = (): Observation => ({ id: id(), description: '', correctiveAction: '', severity: 'media', dueDate: '', photos: [] });
 export const newInspection = (profile: Profile): Inspection => ({
-  id: id(), company: '', ruc: '', facility: '', area: '', type: 'Instalaciones',
+  id: id(), company: EMPLOYER.name, ruc: EMPLOYER.ruc, facility: '', area: '', type: '', otherType: '', registrationNumber: '', inspectionTime: '',
   date: new Date().toLocaleDateString('en-CA'), objective: '', responsibles: [newResponsible()],
   observations: [], noFindings: false, conclusions: '', recommendations: '', inspector: profile.name,
   inspectorEmail: profile.email, step: 0, updatedAt: new Date().toISOString(), status: 'draft',
@@ -45,14 +50,16 @@ export const emailValid = (email: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e
 export function validateStep(d: Inspection, step: number): Record<string, string> {
   const errors: Record<string, string> = {};
   if (step === 0) {
-    for (const [key, label] of [['company', 'la razón social'], ['facility', 'la instalación'], ['area', 'el área'], ['date', 'la fecha'], ['objective', 'el objetivo']] as const) {
+    for (const [key, label] of [['registrationNumber', 'el número de registro / año'], ['area', 'el área inspeccionada'], ['date', 'la fecha'], ['inspectionTime', 'la hora de inspección'], ['inspector', 'el responsable de la inspección'], ['objective', 'el objetivo']] as const) {
       if (!d[key].trim()) errors[key] = `Completa ${label}.`;
     }
-    if (d.ruc && !/^\d{11}$/.test(d.ruc)) errors.ruc = 'El RUC debe tener 11 dígitos.';
+    if (!['Planeada', 'No planeada', 'Otro'].includes(d.type)) errors.type = 'Selecciona un tipo de inspección.';
+    if (d.type === 'Otro' && !d.otherType.trim()) errors.otherType = 'Detalla el otro tipo de inspección.';
+    if (d.objective.length > OBJECTIVE_LIMIT) errors.objective = `El objetivo debe tener como máximo ${OBJECTIVE_LIMIT} caracteres.`;
     if (!d.responsibles.length) errors.responsibles = 'Añade al menos un responsable.';
     d.responsibles.forEach(r => {
-      if (!r.name.trim()) errors[`name-${r.id}`] = 'Escribe el nombre del responsable.';
-      if (!emailValid(r.email)) errors[`email-${r.id}`] = 'Escribe un correo válido.';
+      if (!r.personId || !r.name.trim() || !emailValid(r.email)) errors[`person-${r.id}`] = 'Selecciona una persona del directorio.';
+      if (r.personId && d.responsibles.some(other => other.id !== r.id && other.personId === r.personId)) errors[`person-${r.id}`] = 'Esta persona ya está añadida.';
     });
   }
   if (step === 1 && !d.observations.length && !d.noFindings) errors.observations = 'Añade una observación o confirma que no se identificaron hallazgos.';
@@ -68,6 +75,11 @@ export function validateStep(d: Inspection, step: number): Record<string, string
     if (d.inspectorEmail && !emailValid(d.inspectorEmail)) errors.inspectorEmail = 'Escribe un correo válido.';
   }
   return errors;
+}
+
+export function normalizeInspection(value: Inspection): Inspection {
+  const type = ['Planeada', 'No planeada', 'Otro'].includes(value.type) ? value.type : '';
+  return { ...value, type, otherType: value.otherType || '', registrationNumber: value.registrationNumber || '', inspectionTime: value.inspectionTime || '', ...(value.type && !type ? { legacyType: value.type } : {}) };
 }
 
 export const formatDate = (value: string) => value ? new Intl.DateTimeFormat('es-PE', { day: '2-digit', month: 'short', year: 'numeric' }).format(new Date(`${value}T12:00:00`)) : 'Sin definir';
@@ -87,7 +99,7 @@ export async function loadInspections(): Promise<Inspection[]> {
   return new Promise((resolve, reject) => {
     const tx = db.transaction('inspections', 'readonly');
     const request = tx.objectStore('inspections').getAll();
-    request.onsuccess = () => resolve((request.result as Inspection[]).sort((a, b) => b.updatedAt.localeCompare(a.updatedAt)));
+    request.onsuccess = () => resolve((request.result as Inspection[]).map(normalizeInspection).sort((a, b) => b.updatedAt.localeCompare(a.updatedAt)));
     request.onerror = () => reject(request.error);
     tx.oncomplete = () => db.close();
   });

@@ -1,7 +1,9 @@
 import type { Inspection } from './model';
-import { formatDate } from './model';
+import { formatDate, validateStep } from './model';
+import { EMPLOYER } from './employer';
 
 export async function exportExcel(d: Inspection) {
+  if (Object.keys(validateStep(d, 0)).length) throw new Error('Completa el primer apartado antes de exportar.');
   const { default: ExcelJS } = await import('exceljs');
   const book = new ExcelJS.Workbook();
   book.creator = d.inspector;
@@ -29,9 +31,11 @@ export async function exportExcel(d: Inspection) {
     row.height = Math.max(24, Math.ceil(value.length / 95) * 18);
   };
   section('01 · DATOS GENERALES');
-  line('Razón social', d.company); line('RUC', d.ruc || 'No indicado');
-  line('Instalación', d.facility); line('Área', d.area);
-  line('Tipo de inspección', d.type); line('Fecha de inspección', formatDate(d.date));
+  line('Razón social', EMPLOYER.name); line('RUC', EMPLOYER.ruc);
+  line('Domicilio', EMPLOYER.address); line('Actividad económica', EMPLOYER.activity); line('Trabajadores', EMPLOYER.workers);
+  line('N.º de registro / año', d.registrationNumber); line('Responsable de la inspección', d.inspector);
+  line('Área inspeccionada', d.area);
+  line('Tipo de inspección', d.type === 'Otro' ? `Otro: ${d.otherType}` : d.type); line('Fecha de inspección', formatDate(d.date)); line('Hora de inspección', d.inspectionTime);
   line('Objetivo', d.objective);
   section('RESPONSABLES Y DESTINATARIOS');
   d.responsibles.forEach(r => line(r.name, r.email));
@@ -66,7 +70,7 @@ export async function exportExcel(d: Inspection) {
   const url = URL.createObjectURL(blob);
   const anchor = document.createElement('a');
   anchor.href = url;
-  anchor.download = `Inspeccion-${d.facility.replace(/[^\p{L}\p{N}]+/gu, '-').slice(0, 60)}-${d.date}.xlsx`;
+  anchor.download = `Inspeccion-${d.area.replace(/[^\p{L}\p{N}]+/gu, '-').slice(0, 60)}-${d.date}.xlsx`;
   anchor.click();
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 }

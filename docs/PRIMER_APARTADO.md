@@ -1,0 +1,53 @@
+# Primer apartado: datos de la inspección
+
+Esta actualización se limita al primer apartado. Los pasos posteriores y la exportación genérica existente continúan como base para las siguientes revisiones; no se afirma que se haya recuperado la adaptación anterior del Excel completo.
+
+## Información fija
+
+El bloque de empleador muestra razón social, RUC, domicilio, actividad económica y número de trabajadores del formato recibido. No contiene entradas editables. La revisión y la exportación toman estos valores desde `src/employer.ts`, nunca desde los datos editables del borrador.
+
+Los valores de empresa guardados en borradores antiguos no se borran, pero no reemplazan el bloque fijo al revisar o exportar.
+
+## Información editable
+
+- Número de registro / año, área inspeccionada, fecha, responsable de la inspección y hora.
+- Tipo: Planeada, No planeada u Otro. Se selecciona una opción. Otro habilita un campo de detalle obligatorio; al cambiar de opción se conserva el texto, pero no se exporta mientras Otro no esté seleccionado.
+- Objetivo de hasta 560 caracteres, con contador y validación antes de continuar y antes de exportar. Los objetivos antiguos más largos se conservan completos para que la persona los revise, sin recortes automáticos.
+
+## Responsables
+
+El usuario escribe al menos dos letras del nombre y selecciona un resultado del directorio de cuentas habilitadas por el administrador. Se guarda el identificador de la persona junto a la instantánea de su nombre y correo. El correo aparece automáticamente y es de solo lectura.
+
+Editar el nombre después de seleccionar una persona borra la selección y el correo anterior. Escribir un nombre sin seleccionar un resultado no habilita la continuación. Los homónimos se distinguen por sus correos y sus identificadores. Las personas ya añadidas no vuelven a ofrecerse en otra fila.
+
+### Conexión pendiente
+
+La app actual no tiene servicio de cuentas ni directorio real. No se incluyen nombres o correos ficticios en el producto ni se convierten correos introducidos manualmente en identidades verificadas.
+
+El buscador se conecta mediante la variable de compilación no secreta `VITE_DIRECTORY_URL`. Ejemplo de configuración para un backend que sirva el directorio en el mismo dominio:
+
+```bash
+VITE_DIRECTORY_URL=/api/people npm run build:pages
+```
+
+El frontend realiza un GET a ese endpoint con `search=<texto>`, acepta JSON y usa las credenciales de sesión mediante cookies. Si el backend está en otro dominio, necesita HTTPS y CORS configurado para el origen de la app y sus credenciales. Nunca poner tokens o secretos en variables `VITE_*`.
+
+Contrato de respuesta:
+
+```json
+{
+  "people": [
+    { "id": "identificador-estable", "name": "Nombre completo de la cuenta", "email": "correo-asignado-a-la-cuenta" }
+  ]
+}
+```
+
+Los datos del ejemplo describen el contrato y no son una lista de usuarios. El servicio debe autenticar la sesión, devolver únicamente cuentas activas y autorizadas de la empresa, buscar por nombre y revalidar identificadores y correos en el servidor al guardar o enviar la inspección. La selección y el almacenamiento local del frontend no sustituyen esas comprobaciones.
+
+Sin endpoint configurado se muestra un aviso de directorio no conectado. Ante error, hay una opción de reintento; si no hay coincidencias, se informa sin permitir escribir un correo alternativo. En las pruebas se intercepta la API con identidades ficticias que solo existen en `tests/directory-fixture.ts`.
+
+## Persistencia y publicación
+
+Los borradores siguen en IndexedDB. Se añaden los nuevos campos al cargar borradores anteriores sin descartar sus textos o fotografías. El tipo antiguo de inspección se conserva como referencia en `legacyType` y se pide elegir uno de los tres tipos nuevos.
+
+Esta actualización no publica la web ni modifica la configuración de GitHub Pages. Para usar el selector con personas reales sigue siendo necesario conectar el servicio de cuentas del administrador.
