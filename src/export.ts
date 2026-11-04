@@ -78,7 +78,9 @@ export async function exportExcel(d: Inspection) {
   if (d.delivery) line('Estado de la inspección', workflowLabel(d));
   section('03 · CIERRE DE LA INSPECCIÓN');
   line('Conclusiones', d.conclusions); line('Recomendaciones', d.recommendations);
-  line('Realizado por', d.inspector); line('Correo del inspector', d.inspectorEmail || 'No indicado');
+  for (const person of [{ name: d.inspector, email: d.inspectorEmail }, ...(d.additionalInspectors || [])]) {
+    line('Realizado por', person.name); line('Correo del inspector', person.email || 'No indicado');
+  }
   sheet.addRow([]);
   line('Código', 'Sin código definitivo. Este archivo es una copia de borrador, no un envío registrado.');
   line('Formato', 'Informe provisional. Pendiente de adaptar a la plantilla oficial de la empresa.');

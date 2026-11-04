@@ -39,6 +39,7 @@ export type Inspection = {
   recommendations: string;
   inspector: string;
   inspectorEmail: string;
+  additionalInspectors: Responsible[];
   step: number;
   updatedAt: string;
   status: 'draft' | 'ready';
@@ -51,7 +52,7 @@ export const newInspection = (profile: Profile): Inspection => ({
   id: id(), ownerId: profile.accountId || 'demo-admin', company: EMPLOYER.name, ruc: EMPLOYER.ruc, facility: '', area: '', type: '', otherType: '', registrationNumber: '', inspectionTime: '', inspectionPeriod: '',
   date: new Date().toLocaleDateString('en-CA'), objective: '', responsibles: [newResponsible()],
   observations: [], defaultClosingDate: '', conclusions: '', recommendations: '', inspector: profile.name,
-  inspectorEmail: profile.email, step: 0, updatedAt: new Date().toISOString(), status: 'draft',
+  inspectorEmail: profile.email, additionalInspectors: [], step: 0, updatedAt: new Date().toISOString(), status: 'draft',
 });
 
 // The first closing date is shared once; later edits belong only to that observation.
@@ -94,14 +95,20 @@ export function validateStep(d: Inspection, step: number): Record<string, string
     if (!d.conclusions.trim()) errors.conclusions = 'Añade las conclusiones de la inspección.';
     if (!d.recommendations.trim()) errors.recommendations = 'Añade las recomendaciones.';
     if (!d.inspector.trim()) errors.inspector = 'Indica quién realizó la inspección.';
-    if (d.inspectorEmail && !emailValid(d.inspectorEmail)) errors.inspectorEmail = 'Escribe un correo válido.';
+    if (!emailValid(d.inspectorEmail)) errors.inspectorEmail = 'Completa el correo de tu cuenta en el perfil.';
+    const extra = d.additionalInspectors || [];
+    if (extra.length > 2) errors.additionalInspectors = 'Se permiten hasta tres inspectores en total.';
+    extra.forEach(p => {
+      if (!p.personId || !p.name.trim() || !emailValid(p.email)) errors[`inspector-${p.id}`] = 'Selecciona una persona del directorio.';
+      if (p.personId === d.ownerId || p.email.trim().toLowerCase() === d.inspectorEmail.trim().toLowerCase() || extra.some(other => other.id !== p.id && (other.personId && other.personId === p.personId || other.email && other.email.trim().toLowerCase() === p.email.trim().toLowerCase()))) errors[`inspector-${p.id}`] = 'Esta persona ya está añadida como inspector.';
+    });
   }
   return errors;
 }
 
 export function normalizeInspection(value: Inspection): Inspection {
   const type = ['Planeada', 'No planeada', 'Otro'].includes(value.type) ? value.type : '';
-  return { ...value, defaultClosingDate: value.defaultClosingDate ?? value.observations.find(o => o.dueDate)?.dueDate ?? '', ownerId: value.ownerId || 'demo-admin', type, otherType: value.otherType || '', registrationNumber: '', ...(value.registrationNumber ? { legacyRegistrationNumber: value.registrationNumber } : {}), ...migrateInspectionTime(value.inspectionTime || '', value.inspectionPeriod), ...(value.type && !type ? { legacyType: value.type } : {}) };
+  return { ...value, additionalInspectors: value.additionalInspectors || [], defaultClosingDate: value.defaultClosingDate ?? value.observations.find(o => o.dueDate)?.dueDate ?? '', ownerId: value.ownerId || 'demo-admin', type, otherType: value.otherType || '', registrationNumber: '', ...(value.registrationNumber ? { legacyRegistrationNumber: value.registrationNumber } : {}), ...migrateInspectionTime(value.inspectionTime || '', value.inspectionPeriod), ...(value.type && !type ? { legacyType: value.type } : {}) };
 }
 
 export const formatDate = (value: string) => value ? new Intl.DateTimeFormat('es-PE', { day: '2-digit', month: 'short', year: 'numeric' }).format(new Date(`${value}T12:00:00`)) : 'Sin definir';

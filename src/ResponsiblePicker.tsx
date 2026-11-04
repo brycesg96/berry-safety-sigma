@@ -5,7 +5,7 @@ import { searchDirectory } from './directory';
 import type { DirectoryPerson } from './directory';
 import type { Responsible } from './model';
 
-export function ResponsiblePicker({ value, onChange, error, excludedIds }: { value: Responsible; onChange: (changes: Partial<Responsible>) => void; error?: string; excludedIds: string[] }) {
+export function ResponsiblePicker({ value, onChange, error, excludedIds, excludedEmails = [], emailLabel = 'Correo electrónico' }: { value: Responsible; onChange: (changes: Partial<Responsible>) => void; error?: string; excludedIds: string[]; excludedEmails?: string[]; emailLabel?: string }) {
   const listId = useId();
   const [open, setOpen] = useState(false);
   const [active, setActive] = useState(-1);
@@ -31,7 +31,7 @@ export function ResponsiblePicker({ value, onChange, error, excludedIds }: { val
     }, 250);
     return () => { clearTimeout(timer); controller.abort(); };
   }, [value.name, searching, retry]);
-  const available = people.filter(p => !excludedIds.includes(p.id));
+  const available = people.filter(p => !excludedIds.includes(p.id) && !excludedEmails.some(email => email.trim().toLowerCase() === p.email.trim().toLowerCase()));
   const choose = (person: DirectoryPerson) => {
     onChange({ personId: person.id, name: person.name, email: person.email });
     setOpen(false); setActive(-1);
@@ -54,6 +54,6 @@ export function ResponsiblePicker({ value, onChange, error, excludedIds }: { val
         {state === 'error' && <p role="alert">No se pudo consultar el directorio. <button type="button" className="text-button" onMouseDown={e => e.preventDefault()} onClick={() => setRetry(n => n + 1)}>Reintentar</button></p>}
       </div>}
     </div>}</Field>
-    <Field label="Correo electrónico">{props => <div className="input-icon"><Mail size={16} /><input {...props} type="email" value={value.email} readOnly aria-readonly="true" placeholder="Se completa al seleccionar" /></div>}</Field>
+    <Field label={emailLabel}>{props => <div className="input-icon"><Mail size={16} /><input {...props} type="email" value={value.email} readOnly aria-readonly="true" placeholder="Se completa al seleccionar" /></div>}</Field>
   </div>;
 }

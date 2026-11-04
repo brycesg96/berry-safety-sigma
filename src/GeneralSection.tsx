@@ -14,7 +14,7 @@ export function EmployerDetails() {
 
 export function GeneralSection({ draft, errors, patch }: { draft: Inspection; errors: Record<string, string>; patch: <K extends keyof Inspection>(key: K, value: Inspection[K]) => void }) {
   const periodId = useId();
-  const field = (key: 'area' | 'date' | 'inspector' | 'otherType', label: string, placeholder: string, type = 'text') => <Field label={label} required error={errors[key]}>{props => <input {...props} value={draft[key]} type={type} maxLength={250} placeholder={placeholder} onChange={e => patch(key, e.target.value)} />}</Field>;
+  const field = (key: 'area' | 'date' | 'inspector' | 'otherType', label: string, placeholder: string, type = 'text') => <Field label={label} required error={errors[key]}>{props => <input {...props} value={draft[key]} type={type} maxLength={250} placeholder={placeholder} readOnly={key === 'inspector'} onChange={e => patch(key, e.target.value)} />}</Field>;
   return <div className="form-body">
     <Field label="Código de inspección" hint={confirmedInspectionCode(draft) ? 'Código definitivo del informe registrado.' : 'El código es tentativo y puede variar según quién envíe primero un informe. El código definitivo aparecerá en Mis inspecciones.'}>{props => <input {...props} value={confirmedInspectionCode(draft) || pendingCodeLabel()} readOnly />}</Field>
     <SectionTitle icon={<Building2 size={19} />} title="Datos del empleador" />

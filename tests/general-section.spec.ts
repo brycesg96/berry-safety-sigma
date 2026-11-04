@@ -12,7 +12,7 @@ test('empleador fijo, tres tipos, Otro con detalle y máximo 560', async ({ page
   await page.getByLabel('Área inspeccionada').fill('Taller');
   await page.getByLabel('Hora de inspección').fill('08:40');
   await page.getByLabel('AM o PM').selectOption('AM');
-  await page.getByLabel('Responsable de la inspección').fill('Brian Torres');
+  await expect(page.getByLabel('Responsable de la inspección')).toHaveAttribute('readonly', '');
   const objective = page.getByLabel('Objetivo de la inspección');
   await expect(objective).toHaveAttribute('maxlength', '560');
   expect((await objective.boundingBox())!.height).toBeLessThanOrEqual(60);

@@ -10,6 +10,8 @@ El modelo tipado de `src/model.ts` mantiene los datos de una inspección: datos 
 
 El progreso del asistente indica la posición del recorrido, no una evaluación de cumplimiento normativo ni del riesgo total de la instalación. La criticidad de cada hallazgo la selecciona el inspector.
 
+El apartado Realizado por admite al usuario autor y hasta dos inspectores adicionales seleccionados del directorio. El autor toma su nombre y correo del perfil sin edición en el formulario; los correos adicionales se completan al seleccionar a cada persona y tampoco son editables. Los inspectores adicionales no se convierten automáticamente en destinatarios ni revisores.
+
 ## Seguimiento de inspecciones
 
 El flujo de prueba incorpora Inspecciones recibidas, levantamientos con evidencias, revisión del autor y cierre cuando todos los hallazgos quedan en Ejecutado. Los informes se comparten entre cuentas únicamente dentro del mismo navegador; no se envía correo. Descargar el Excel no cierra una inspección. Consulta [la guía de prueba](SEGUIMIENTO.md).
