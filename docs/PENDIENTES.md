@@ -70,6 +70,8 @@ Esta lista es la referencia de trabajo y se resumirá al cerrar cada avance. Se 
 - [x] Prototipo global sin claves ni activación de envíos en ningún navegador, PC o teléfono. Retirado el bloqueo del botón de envío; el backend conserva la configuración privada de Make, validación, límites y deduplicación. La autorización de ocho horas queda sustituida por petición del propietario.
 - [ ] Journal persistente/compartido para deduplicación entre despliegues y réplicas, y devolución autenticada del resultado de Outlook a la app.
 
+- [x] Navegación del asistente desde «SEGURIDAD Y SALUD EN EL TRABAJO» al cambiar de paso; Editar en el resumen abre y enfoca la observación elegida, sin buscarla manualmente.
+
 ## Pendientes operativos, por orden de dependencia
 
 1. [ ] Elegir y conectar el sistema de automatización y la base de datos real. Confirmar alojamiento y credenciales mediante configuración segura, sin claves en el navegador.

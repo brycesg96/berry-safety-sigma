@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { ArrowLeft, ArrowRight, ArrowUpRight, Building2, CalendarDays, Camera, Check, CheckCheck, ChevronRight, CircleCheck, ClipboardCheck, ClipboardList, Download, FileCheck2, FileSpreadsheet, FileText, HelpCircle, ImagePlus, Info, LayoutGrid, Leaf, ListFilter, LoaderCircle, LockKeyhole, Mail, Menu, MoreHorizontal, Pencil, Plus, Save, Search, Send, ShieldCheck, Settings2, Sparkles, Trash2, X } from 'lucide-react';
 import { Badge, Brand, Field, Modal, Stepper } from './components';
 import { PhotoViewer } from './PhotoViewer';
@@ -69,6 +69,22 @@ function WorkspaceApp({ initialAccounts }: { initialAccounts: DemoAccount[] }) {
   const [query, setQuery] = useState('');
   const [filter, setFilter] = useState('all');
   const contentRef = useRef<HTMLDivElement>(null);
+  const editorStartRef = useRef<HTMLDivElement>(null);
+  const observationRefs = useRef(new Map<string, HTMLElement>());
+  const pendingEditorScroll = useRef<{ observationId?: string } | null>(null);
+
+  // Wait for the destination step to render before choosing its scroll position.
+  useLayoutEffect(() => {
+    const destination = pendingEditorScroll.current;
+    if (!destination || view !== 'editor') return;
+    pendingEditorScroll.current = null;
+    const observation = destination.observationId ? observationRefs.current.get(destination.observationId) : null;
+    const anchor = observation || editorStartRef.current;
+    if (!anchor) return;
+    const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    anchor.scrollIntoView({ block: 'start', behavior: reducedMotion ? 'instant' : 'smooth' });
+    observation?.querySelector<HTMLTextAreaElement>('textarea')?.focus({ preventScroll: true });
+  });
   const sidebarRef = useRef<HTMLElement>(null);
 
   useEffect(() => {
@@ -193,7 +209,7 @@ function WorkspaceApp({ initialAccounts }: { initialAccounts: DemoAccount[] }) {
     setErrors(e => Object.fromEntries(Object.entries(e).filter(([key]) => !key.startsWith('date-'))));
   };
   const top = () => window.scrollTo({ top: 0, behavior: 'smooth' });
-  const goToStep = (target: number) => {
+  const goToStep = (target: number, observationId?: string) => {
     if (target > draft.step) {
       for (let i = 0; i < target; i++) {
         const found = validateStep(draft, i);
@@ -204,7 +220,8 @@ function WorkspaceApp({ initialAccounts }: { initialAccounts: DemoAccount[] }) {
         }
       }
     }
-    setErrors({}); patch('step', target); top();
+    pendingEditorScroll.current = { observationId };
+    setErrors({}); patch('step', target);
   };
   const startNew = async () => {
     if (!await save(draft)) { setToast('No pudimos guardar tu inspección. Descarga el informe antes de salir.'); return; }
@@ -318,7 +335,7 @@ function WorkspaceApp({ initialAccounts }: { initialAccounts: DemoAccount[] }) {
           <div className="received-filters" role="group" aria-label="Estado de las inspecciones recibidas">{([['pending', 'Pendientes'], ['closed', 'Cerradas']] as const).map(([value, label]) => <button key={value} type="button" aria-label={label} aria-pressed={receivedFilter === value} onClick={() => setReceivedFilter(value)}>{label}</button>)}</div>
           <div className="list-card inspection-list">{visibleReceived.length === 0 ? <div className="empty-list"><Mail size={32}/><h3>{received.length === 0 ? 'No tienes inspecciones recibidas' : receivedFilter === 'pending' ? 'No tienes inspecciones pendientes' : 'No tienes inspecciones cerradas'}</h3><p>{receivedFilter === 'closed' ? 'Las inspecciones con todos sus hallazgos ejecutados aparecerán aquí.' : 'Los informes pendientes asignados a tu cuenta aparecerán aquí.'}</p></div> : visibleReceived.map(item => <div className="inspection-list-row" key={item.id}><div className="list-building"><ClipboardCheck size={23}/></div><div className="inspection-list-info"><strong>{item.area}</strong><span>{item.inspector} · {formatDate(item.date)}</span><small>{item.observations.length} observaciones · {workflowLabel(item)}</small></div><button className="button button-outline" onClick={() => openFollowUp(item, 'received')}>Revisar inspección<ArrowRight size={15}/></button></div>)}</div>
         </> : view === 'editor' ? <>
-          <div className="page-heading"><div><div className="eyebrow"><span />SEGURIDAD Y SALUD EN EL TRABAJO</div><div className="title-row"><h1>Nueva inspección</h1><span className="draft-badge"><span />Borrador</span></div><p>{stepDescriptions[draft.step][0]}</p></div><button className="button button-outline save-exit" onClick={() => void showList()}><Save size={16} />Guardar y salir</button></div>
+          <div className="page-heading"><div><div className="eyebrow inspection-start" ref={editorStartRef}><span />SEGURIDAD Y SALUD EN EL TRABAJO</div><div className="title-row"><h1>Nueva inspección</h1><span className="draft-badge"><span />Borrador</span></div><p>{stepDescriptions[draft.step][0]}</p></div><button className="button button-outline save-exit" onClick={() => void showList()}><Save size={16} />Guardar y salir</button></div>
           <Stepper step={draft.step} names={stepNames} onStep={goToStep} />
           <div className="content-layout"><div className="form-column">
             <div className="form-card">
@@ -328,7 +345,7 @@ function WorkspaceApp({ initialAccounts }: { initialAccounts: DemoAccount[] }) {
 
               {draft.step === 1 && <div className="form-body observation-body">
                 <div className="observation-intro"><span className="subtle-label">{draft.observations.length} {draft.observations.length === 1 ? 'observación registrada' : 'observaciones registradas'}</span></div>
-                {draft.observations.map((o, i) => <section key={o.id} className="observation-card"><div className="observation-heading"><span className="observation-index">{String(i + 1).padStart(2, '0')}</span><h3>Observación {i + 1}</h3><Badge severity={o.severity} /><button className="icon-button delete-button" aria-label={`Eliminar observación ${i + 1}`} onClick={() => { patch('observations', draft.observations.filter(item => item.id !== o.id)); }}><Trash2 size={17} /></button></div>
+                {draft.observations.map((o, i) => <section key={o.id} className="observation-card" ref={element => { if (element) observationRefs.current.set(o.id, element); else observationRefs.current.delete(o.id); }}><div className="observation-heading"><span className="observation-index">{String(i + 1).padStart(2, '0')}</span><h3>Observación {i + 1}</h3><Badge severity={o.severity} /><button className="icon-button delete-button" aria-label={`Eliminar observación ${i + 1}`} onClick={() => { patch('observations', draft.observations.filter(item => item.id !== o.id)); }}><Trash2 size={17} /></button></div>
                   <div className="observation-layout"><div className="observation-texts"><Field label="Descripción" required error={errors[`description-${o.id}`]}>{props => <textarea {...props} rows={3} maxLength={5000} placeholder="Describe la condición o el acto identificado. Sé concreto: qué sucede y dónde." value={o.description} onChange={e => changeObservation(o.id, { description: e.target.value })} />}</Field>
                   <Field label="Acción a tomar" required error={errors[`action-${o.id}`]}>{props => <textarea {...props} rows={2} maxLength={5000} placeholder="¿Qué acción se debe realizar para corregirlo?" value={o.correctiveAction} onChange={e => changeObservation(o.id, { correctiveAction: e.target.value })} />}</Field>
                   </div><div className="observation-details"><fieldset className="field"><legend>Nivel de riesgo<span className="required">*</span></legend><div className="severity-options">{(['baja', 'media', 'alta'] as const).map(s => <button type="button" key={s} aria-pressed={o.severity === s} className={`severity-choice severity-${s} ${o.severity === s ? 'chosen' : ''}`} onClick={() => changeObservation(o.id, { severity: s })}><span />{s === 'alta' ? 'Alta' : s === 'media' ? 'Media' : 'Baja'}{o.severity === s && <Check size={12} />}</button>)}</div></fieldset><Field label="Fecha de Cierre" required error={errors[`date-${o.id}`]}>{props => <input {...props} type="date" value={o.dueDate} onChange={e => changeClosingDate(o.id, e.target.value)} />}</Field>
@@ -342,7 +359,7 @@ function WorkspaceApp({ initialAccounts }: { initialAccounts: DemoAccount[] }) {
               </div>}
 
               {draft.step === 2 && <div className="form-body summary-body"><div className="summary-stats"><div><strong>{draft.observations.length.toString().padStart(2, '0')}</strong><span>Observaciones</span></div>{(['alta', 'media', 'baja'] as const).map(s => <div key={s}><strong className={`count-${s}`}>{counts[s].toString().padStart(2, '0')}</strong><Badge severity={s} /></div>)}</div>
-                {!draft.observations.length ? <div className="success-note"><CircleCheck size={22} /><div><strong>Sin observaciones registradas</strong><p>Añade una observación para continuar con el informe.</p></div></div> : <div className="review-observations-grid">{draft.observations.map((o, i) => <div className="review-observation" key={o.id}><div className="review-observation-top"><span className="observation-index">{String(i + 1).padStart(2, '0')}</span><Badge severity={o.severity} /><button className="text-button" onClick={() => goToStep(1)}><Pencil size={14} />Editar</button></div><h3>{o.description}</h3><p><span>Acción a tomar</span>{o.correctiveAction}</p><div className="review-meta"><CalendarDays size={15} />Fecha de Cierre: {formatDate(o.dueDate)}<span /><Camera size={15} />{o.photos.length} {o.photos.length === 1 ? 'foto' : 'fotos'}</div>{o.photos.length > 0 && <div className="review-photos">{o.photos.map(p => <button key={p.id} aria-label={`Ver evidencia ${p.name}`} onClick={() => setPreviewPhoto(p)}><img src={p.data} alt={p.name} /></button>)}</div>}</div>)}</div>}
+                {!draft.observations.length ? <div className="success-note"><CircleCheck size={22} /><div><strong>Sin observaciones registradas</strong><p>Añade una observación para continuar con el informe.</p></div></div> : <div className="review-observations-grid">{draft.observations.map((o, i) => <div className="review-observation" key={o.id}><div className="review-observation-top"><span className="observation-index">{String(i + 1).padStart(2, '0')}</span><Badge severity={o.severity} /><button className="text-button" aria-label={`Editar observación ${i + 1}`} onClick={() => goToStep(1, o.id)}><Pencil size={14} />Editar</button></div><h3>{o.description}</h3><p><span>Acción a tomar</span>{o.correctiveAction}</p><div className="review-meta"><CalendarDays size={15} />Fecha de Cierre: {formatDate(o.dueDate)}<span /><Camera size={15} />{o.photos.length} {o.photos.length === 1 ? 'foto' : 'fotos'}</div>{o.photos.length > 0 && <div className="review-photos">{o.photos.map(p => <button key={p.id} aria-label={`Ver evidencia ${p.name}`} onClick={() => setPreviewPhoto(p)}><img src={p.data} alt={p.name} /></button>)}</div>}</div>)}</div>}
                 <button className="button button-outline full-width" onClick={() => goToStep(1)}><Plus size={17} />{draft.observations.length ? 'Añadir o editar observaciones' : 'Añadir una observación'}</button>
               </div>}
 
