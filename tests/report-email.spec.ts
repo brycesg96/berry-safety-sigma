@@ -1,7 +1,9 @@
 import { test, expect } from '@playwright/test';
 import type { Page } from '@playwright/test';
 import ExcelJS from 'exceljs';
+import { mockMailSession, enableMailSession, fixtureSession } from './mail-session-fixture';
 async function prepare(page:Page) {
+ await mockMailSession(page);
  await page.route('**/api/people?*',r=>r.fulfill({json:{people:[]}}));
  await page.goto('./');
  await page.getByRole('button',{name:'Administración',exact:true}).click();
@@ -10,6 +12,7 @@ async function prepare(page:Page) {
  await page.getByRole('button',{name:'Guardar cuenta',exact:true}).click();
  await page.reload();await page.getByRole('button',{name:'Administración',exact:true}).click();
  await expect(page.locator('.account-row').filter({hasText:'bcespedes@hortifrut.com'})).toContainText('jefe@example.com');
+ await enableMailSession(page,'ephemeral-key-do-not-store');
  await page.getByRole('button',{name:'Nueva inspección',exact:true}).click();
  await page.getByLabel('Área inspeccionada').fill('Taller - Armonía 2');
  await page.getByLabel('Hora de inspección').fill('07:30');await page.getByLabel('AM o PM').selectOption('AM');
@@ -32,12 +35,13 @@ test('envío de inspección adjunta Excel, responsables y CC de jefes; clave ef�
  await page.route('**/api/inspections/send',async route=>{
   const data=route.request().postDataJSON();
   if(data.action==='inspection.check')return route.fulfill({json:{ok:true,enabled:true}});
+  expect(route.request().headers().authorization).toBe(`Bearer ${fixtureSession}`);
   captured=data;
   await route.fulfill({json:{ok:true,receipt:'http_accepted',request_id:data.inspection.id,email_requested:true,upstream_status:200,outlook_status:'not_confirmed'}});
  });
  await prepare(page);
  const dialog=page.getByRole('dialog');await expect(dialog).toContainText('jefe@example.com, gerente@example.com');
- await dialog.getByLabel('Clave de API para enviar el informe').fill('ephemeral-key-do-not-store');
+ await expect(dialog.getByRole('textbox')).toHaveCount(0);
  await dialog.getByRole('button',{name:'Enviar informe por correo',exact:true}).click();
  await expect(page.getByText(/Make aceptó el informe \(HTTP 200\)/)).toBeVisible();
  expect(captured.inspection.responsibles).toEqual([{name:'Bryan',email:'bcespedes@hortifrut.com'}]);
@@ -52,9 +56,24 @@ test('envío de inspección adjunta Excel, responsables y CC de jefes; clave ef�
 test('servidor desactivado conserva el borrador y no registra ni envía el informe',async({page})=>{
  let sends=0;
  await page.route('**/api/inspections/send',r=>{if(r.request().postDataJSON().action==='inspection.send')sends++;return r.fulfill({status:503,json:{ok:false,code:'REPORTS_DISABLED'}});});
- await prepare(page);await page.getByLabel('Clave de API para enviar el informe').fill('test-key');
+ await prepare(page);
  await page.getByRole('button',{name:'Enviar informe por correo',exact:true}).click();
  await expect(page.getByRole('alert')).toContainText('MAKE_REPORTS_ENABLED=true');expect(sends).toBe(0);
  await page.getByRole('button',{name:'Cerrar ventana',exact:true}).click();await page.getByRole('button',{name:'Mis inspecciones',exact:true}).click();
  await expect(page.getByRole('button',{name:'Continuar',exact:true})).toBeVisible();
+});
+
+test('sesión vencida se retira y conserva el borrador sin pedir clave dentro del informe',async({page})=>{
+ let sends=0;
+ await page.route('**/api/inspections/send',route=>{if(route.request().postDataJSON().action==='inspection.send')sends++;return route.fulfill({status:401,json:{ok:false,code:'UNAUTHORIZED'}});});
+ await prepare(page);
+ await page.getByRole('button',{name:'Enviar informe por correo',exact:true}).click();
+ await expect(page.getByRole('alert')).toContainText('La sesión de envíos terminó');
+ await expect(page.getByRole('dialog').getByRole('textbox')).toHaveCount(0);
+ await expect(page.getByRole('button',{name:'Enviar informe por correo',exact:true})).toBeDisabled();
+ expect(sends).toBe(0);
+ await page.getByRole('button',{name:'Cerrar ventana',exact:true}).click();
+ await page.getByRole('button',{name:'Administración',exact:true}).click();
+ await page.getByRole('button',{name:'Integraciones',exact:true}).click();
+ await expect(page.getByLabel('Clave de configuración')).toHaveValue('');
 });

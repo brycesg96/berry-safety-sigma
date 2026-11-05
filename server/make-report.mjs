@@ -1,5 +1,6 @@
+import { authorizedMail } from './session-token.mjs';
 import { createHash } from 'node:crypto';
-import { loadConfig, reply, bodyOf, secureEqual } from './make-test.mjs';
+import { loadConfig, reply, bodyOf } from './make-test.mjs';
 import { openReportRegistry } from './report-registry.mjs';
 export const REPORT_PATH = '/api/inspections/send';
 export const MAX_EXCEL_BYTES = 3 * 1024 * 1024;
@@ -51,7 +52,7 @@ export function createReportHandler({ env=process.env, fetchImpl=fetch, now=()=>
     for(const [key,v] of unauthorized)if(v.expires<=time)unauthorized.delete(key);
     if((unauthorized.get(ip)?.count || 0)>=10)return fail(429,'RATE_LIMITED','Espera un minuto antes de repetir.');
     const auth=req.headers.authorization || '';
-    if(!auth.startsWith('Bearer ') || !secureEqual(auth.slice(7),config.token)){
+    if(!authorizedMail(auth,config.token,origin,time)){
       const v=unauthorized.get(ip);unauthorized.set(ip,{count:(v?.count||0)+1,expires:v?.expires||time+60000});
       if(unauthorized.size>1000)unauthorized.delete(unauthorized.keys().next().value);
       return fail(401,'UNAUTHORIZED','La clave de API no es válida.');

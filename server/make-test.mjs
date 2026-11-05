@@ -1,3 +1,4 @@
+import { authorizedMail } from './session-token.mjs';
 import { readFileSync } from 'node:fs';
 import { createHash, randomUUID, timingSafeEqual } from 'node:crypto';
 
@@ -76,7 +77,7 @@ export function createMakeTestHandler({ env = process.env, fetchImpl = fetch, no
     const ip = req.socket.remoteAddress || 'unknown';
     if ((unauthorized.get(ip)?.count || 0) >= 10) { fail(429, 'RATE_LIMITED', 'Demasiados intentos. Espera un minuto antes de repetir.'); return; }
     const authorization = req.headers.authorization || '';
-    if (!authorization.startsWith('Bearer ') || !secureEqual(authorization.slice(7), config.token)) {
+    if (!authorizedMail(authorization, config.token, origin, time)) {
       const entry = unauthorized.get(ip); unauthorized.set(ip, { count: (entry?.count || 0) + 1, expires: entry?.expires || time + 60000 });
       if (unauthorized.size > 1000) unauthorized.delete(unauthorized.keys().next().value);
       fail(401, 'UNAUTHORIZED', 'La clave de prueba no es válida.'); return;

@@ -22,7 +22,7 @@ Administración → Integraciones → API HTTPS de Berry → Custom webhook de M
 | `BERRY_ALLOWED_ORIGINS` | Servidor | Orígenes exactos autorizados, separados por coma y sin ruta; para Pages: `https://brycesg96.github.io`. |
 | `VITE_MAKE_TEST_API_URL` | Variable pública de compilación de la web | URL del endpoint de Berry, por ejemplo `https://mi-api.example/api/integrations/make/test`. **No es la URL de Make.** |
 
-La URL y clave del webhook no se introducen en la pantalla. El administrador introduce la clave de prueba de la API cuando necesita usar el botón; se mantiene en memoria durante esa pantalla y no se guarda en localStorage/sessionStorage ni se incluye en la compilación. Los roles locales no constituyen autenticación real: la API exige su propia clave. Antes de utilizar datos reales deberá conectarse Microsoft y autorización en servidor.
+La URL y clave del webhook no se introducen en la pantalla. El administrador introduce la clave de configuración una vez en Activación de envíos; se intercambia por una sesión temporal firmada de ocho horas. La clave original no se guarda ni se incluye en la compilación. Solo el token temporal se conserva en sessionStorage de la pestaña para las recargas. Los roles locales no constituyen autenticación real: la API exige su propia clave. Antes de utilizar datos reales deberá conectarse Microsoft y autorización en servidor.
 
 `server/.env.example` contiene solo nombres y ejemplos vacíos. El archivo local `server/.env` es privado, con permisos 600, y está excluido de Git y Docker. No se publica con GitHub Pages. Los secretos de GitHub Actions tampoco crean un servidor ni sirven como variables de ejecución de Pages.
 
@@ -36,7 +36,7 @@ Se incluye `render.yaml` para un servicio Docker gratuito y `server/Dockerfile` 
 4. Configurar `BERRY_ALLOWED_ORIGINS=https://brycesg96.github.io`. Cambiar `MAKE_TEST_ENABLED` a `true` cuando el webhook esté preparado. Render termina HTTPS delante del servidor HTTP del contenedor.
 5. Comprobar `https://<servicio>.onrender.com/healthz`; debe devolver `{"status":"ok"}`. El plan gratuito puede tardar en despertar tras inactividad; esperar a que el servicio esté listo antes de la prueba.
 6. La publicación de Pages ya utiliza `https://berry-safety-api.onrender.com/api/integrations/make/test` como API pública predeterminada. Para cambiar de alojamiento, en GitHub → **Settings → Secrets and variables → Actions → Variables**, crear `VITE_MAKE_TEST_API_URL` con el nuevo endpoint y volver a ejecutar `pages.yml`. Esta dirección es pública y no contiene la URL ni la clave de Make.
-7. Abrir **Administración → Integraciones**, introducir la clave de prueba de la API y pulsar **Probar conexión con Make**. Mientras no exista el alojamiento y esa variable pública, la web muestra el apartado desconectado y el botón deshabilitado.
+7. Abrir **Administración → Integraciones**, activar los envíos una vez y pulsar **Probar conexión con Make**. Mientras no exista el alojamiento y esa variable pública, la web muestra el apartado desconectado y el botón deshabilitado.
 
 ## Dónde introducir la URL
 

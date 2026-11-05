@@ -10,7 +10,7 @@ La web llama al backend Node por HTTPS: `POST /api/inspections/send`. La URL pri
 
 El asunto indica área y fecha. El cuerpo avisa que se ha compartido un informe de inspección, pide revisar el Excel adjunto y muestra área, fecha e inspector. Las observaciones detalladas están en el Excel, no en el mensaje.
 
-## Configuración que falta en Make
+## Configuración en Make
 
 Mantener el filtro **send_email igual al booleano true AND mode distinto de test**. Los informes reales llevan `mode:inspection` y `send_email:true`; las pruebas de conexión continúan con `mode:test` y `send_email:false`.
 
@@ -26,12 +26,12 @@ El botón de prueba de conexión no envía correos y no convierte las direccione
 ## Configuración en Render y uso
 
 - `MAKE_WEBHOOK_URL`: secreto ya configurado. Nunca colocar en `VITE_*`.
-- `MAKE_TEST_API_TOKEN`: clave compartida que se introduce en el formulario de envío. Se mantiene solo en la memoria de esa pantalla, no en localStorage, IndexedDB ni el bundle.
+- `MAKE_TEST_API_TOKEN`: clave de configuración del servidor. Se introduce una vez en **Administración → Integraciones → Activación de envíos**; la API la intercambia por una sesión firmada de ocho horas. La clave original se borra del formulario y no se guarda en localStorage, sessionStorage, IndexedDB ni el bundle.
 - `MAKE_REPORTS_ENABLED=true`: añadir esta variable en Environment si aún no existe; habilitar únicamente después de configurar Outlook como arriba. Por defecto false. `MAKE_TEST_ENABLED` sigue siendo independiente.
 - `BERRY_ALLOWED_ORIGINS=https://brycesg96.github.io`.
 - `REPORT_REGISTRY_PATH`: por defecto `/tmp/berry-report-receipts.sqlite`; para persistencia operativa requiere una base compartida o un disco persistente.
 
-Completar la inspección, pulsar Enviar inspección, comprobar Para/CC, introducir la clave y pulsar **Enviar informe por correo**. Primero se consulta la habilitación sin llamar Make. Si está desactivada o la clave es incorrecta, se conserva el borrador. El Excel admite hasta **3 MB**; el JSON hasta 5 MB. La API limita nuevos informes a cinco por minuto. Los fallos de autenticación se limitan también.
+Primero activar los envíos una vez en Administración → Integraciones. Después, completar la inspección, pulsar Enviar inspección, comprobar Para/CC y pulsar **Enviar informe por correo**, sin introducir claves en cada informe. Primero se consulta la habilitación sin llamar Make. Si está desactivada o la clave es incorrecta, se conserva el borrador. El Excel admite hasta **3 MB**; el JSON hasta 5 MB. La API limita nuevos informes a cinco por minuto. Los fallos de autenticación se limitan también.
 
 Se conserva la opción secundaria **Compartir solo en este navegador** para revisar el flujo local sin enviar correos. El seguimiento de levantamientos todavía se almacena en IndexedDB y no se sincroniza entre dispositivos.
 
@@ -49,8 +49,18 @@ Un journal SQLite reclama el ID **antes** de llamar Make. Conserva el hash de me
 
 ## Acceso en esta fase
 
-Las cuentas, asociaciones y perfiles siguen siendo locales de prueba. La API exige la clave compartida; los roles del navegador no constituyen autenticación Microsoft ni autorización del servidor. El poseedor de la clave puede solicitar envíos a direcciones validadas. Antes de habilitar el uso operativo multiusuario, conectar identidades Microsoft, directorio y asociaciones autoritativas en servidor; entonces ya no se pedirá esta clave compartida a los usuarios.
+Las cuentas, asociaciones y perfiles siguen siendo locales de prueba. La API exige una sesión temporal firmada o la clave compartida de configuración (compatibilidad con clientes anteriores); los roles del navegador no constituyen autenticación Microsoft ni autorización del servidor. El poseedor de la clave puede solicitar envíos a direcciones validadas. Antes de habilitar el uso operativo multiusuario, conectar identidades Microsoft, directorio y asociaciones autoritativas en servidor; entonces ya no se pedirá esta clave compartida a los usuarios.
 
 ## Captura de campos nuevos verificada
 
 El 4 de noviembre de 2026 a las 18:07 (Lima), el usuario confirmó el webhook esperando nuevos valores. Se envió una sola prueba ficticia a través de la API local con `outlook` y `adjuntos`; Make respondió HTTP 200 al ID `07e6e0d3-9092-4533-8236-f1b80ab3d560`, con `send_email:false`. Falta confirmar en la pantalla de Make los campos detectados y mapearlos en Outlook. Esto no fue un envío de correo real.
+
+## Sesión de envíos para las pruebas
+
+`POST /api/mail/session` comprueba la clave de configuración en servidor y devuelve un token firmado con HMAC-SHA256, vinculado al origen permitido y con caducidad de ocho horas. La activación no llama Make ni Outlook. La clave original solo viaja por HTTPS para activar la sesión, se borra del campo al terminar y nunca se persiste en el cliente.
+
+El token temporal se guarda en sessionStorage de la pestaña para sobrevivir a recargas. Si sessionStorage no está disponible, se mantiene en memoria y la recarga requiere reactivar. La sesión sirve para varias inspecciones y para las pruebas de Make. Al expirar o ante HTTP 401 se deshabilita localmente; se reactiva desde Administración → Integraciones. No se renueva automáticamente usando otro token temporal.
+
+**Desactivar en esta pestaña** elimina la sesión del cliente; una copia del token que ya existiera conserva su validez hasta caducar. Rotar `MAKE_TEST_API_TOKEN` en Render invalida también todas las sesiones emitidas con la clave anterior. No se utiliza una clave pública embebida ni se abre la API anónimamente.
+
+La habilitación se comparte entre las cuentas locales de prueba de esa pestaña: no identifica a una persona ni reemplaza el inicio de sesión Microsoft o los permisos del servidor. Sigue pendiente sustituirla por autenticación real antes del uso operativo multiusuario. No cambian los controles de deduplicación ni el estado pendiente de confirmación de Outlook.

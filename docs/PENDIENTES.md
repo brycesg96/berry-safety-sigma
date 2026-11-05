@@ -65,7 +65,9 @@ Esta lista es la referencia de trabajo y se resumirá al cerrar cada avance. Se 
 - [x] Conectar Enviar inspección con API, correo general, Excel provisional adjunto y recibo de aceptación separado del resultado de Outlook.
 - [x] Asociar correos de jefes/gerentes a cuentas y añadirlos en CC de los responsables, con validación y deduplicación. Asociaciones locales de prueba.
 - [x] Ejemplo con campos de Outlook y Excel ficticio enviado al webhook que esperaba datos: HTTP 200, sin solicitar correo.
-- [ ] En Make: confirmar los campos detectados y mapear Para, CC y adjunto base64; retirar destinatario fijo de prueba. Después habilitar `MAKE_REPORTS_ENABLED=true` en Render y probar recepción real del Excel. [Guía](ENVIO_INFORMES.md).
+- [x] Campos de Make mapeados (Para, CC y adjunto) y `MAKE_REPORTS_ENABLED=true` en Render. El usuario mostró una ejecución con webhook, filtro y Outlook completados. [Guía](ENVIO_INFORMES.md).
+- [ ] Confirmar en el buzón receptor que el Excel llegó y se abre correctamente; probar las copias reales a jefes/gerentes.
+- [x] Quitar la clave de cada informe: activación única en Administración → Integraciones con sesión firmada de ocho horas, conservada al recargar la pestaña; clave original no persistida.
 - [ ] Journal persistente/compartido para deduplicación entre despliegues y réplicas, y devolución autenticada del resultado de Outlook a la app.
 
 ## Pendientes operativos, por orden de dependencia
