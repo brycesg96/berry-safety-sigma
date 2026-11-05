@@ -64,3 +64,19 @@ for (const viewport of [{ width: 1366, height: 900 }, { width: 390, height: 844 
     await atStart(start);
   });
 }
+
+test('un resumen corto también deja el encabezado arriba en una pantalla alta', async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 1400 });
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  await general(page);
+  const start = page.getByText('SEGURIDAD Y SALUD EN EL TRABAJO', { exact: true });
+  await page.getByRole('button', { name: 'Continuar', exact: true }).click();
+  await page.getByRole('button', { name: 'Añadir observación', exact: true }).click();
+  await page.getByLabel('Descripción').fill('Un único hallazgo breve.');
+  await page.getByLabel('Acción a tomar').fill('Corregir condición.');
+  await page.getByLabel('Fecha de Cierre').fill('2026-12-01');
+  await page.getByRole('button', { name: 'Continuar', exact: true }).click();
+  await atStart(start);
+  await page.getByRole('button', { name: 'Continuar', exact: true }).click();
+  await atStart(start);
+});

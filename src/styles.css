@@ -135,3 +135,4 @@
 
 .report-send-form{display:grid;gap:14px;margin:18px 0}.report-send-form p{margin:0;overflow-wrap:anywhere}.local-delivery-option{margin-top:20px;border-top:1px solid var(--border,#dce5dc);padding-top:16px}.local-delivery-option summary{cursor:pointer;font-size:13px}.local-delivery-option p{font-size:13px;margin:12px 0}.account-row-person small{font-size:11px;color:#78897b;overflow-wrap:anywhere}
 .inspection-start,.observation-card{scroll-margin-top:16px}
+.inspection-editor{min-height:calc(100vh - 16px)}
