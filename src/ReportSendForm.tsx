@@ -1,27 +1,26 @@
 import { useRef, useState } from 'react';
 import { Info, LoaderCircle, Send } from 'lucide-react';
-import { mailEndpoint, storeMailSession, useMailSession } from './mail-session';
+import { mailEndpoint } from './mail-api';
 import type { Inspection } from './model';
 import { inspectionCopies } from './accounts';
 import { buildExcel } from './export';
 import { saveEmailReceipt } from './follow-up';
 export function ReportSendForm({ inspection, actorId, onPrepare, onChange, onBusyChange }: { inspection: Inspection; actorId: string; onPrepare: () => Promise<Inspection>; onChange: (d: Inspection) => void; onBusyChange?: (busy: boolean) => void }) {
-  const session=useMailSession();
   const [busy,setBusy]=useState(false), [error,setError]=useState('');
   const lock=useRef(false), api=mailEndpoint('/api/inspections/send'), receipt=inspection.emailDelivery;
   const cc=receipt ? inspection.emailCc ?? inspectionCopies(inspection.responsibles) : inspectionCopies(inspection.responsibles);
   const accepted=receipt?.state==='accepted';
   async function submit() {
-    if(lock.current || !api || !session || accepted || cc.length>50 || inspection.responsibles.length>50)return;
+    if(lock.current || !api || accepted || cc.length>50 || inspection.responsibles.length>50)return;
     lock.current=true;setBusy(true);onBusyChange?.(true);setError('');let frozen:Inspection|null=null;
     const request = async (body: unknown) => {
-      const response=await fetch(api,{method:'POST',headers:{'Content-Type':'application/json',Authorization:`Bearer ${session!.token}`,'Idempotency-Key':inspection.id},body:JSON.stringify(body),signal:AbortSignal.timeout(60000),credentials:'omit',redirect:'error',cache:'no-store'});
-      const data=await response.json();if(response.status===401)storeMailSession(null);return {response,data};
+      const response=await fetch(api,{method:'POST',headers:{'Content-Type':'application/json','Idempotency-Key':inspection.id},body:JSON.stringify(body),signal:AbortSignal.timeout(60000),credentials:'omit',redirect:'error',cache:'no-store'});
+      const data=await response.json();return {response,data};
     };
     try {
       const check=await request({action:'inspection.check'});
       if(!check.response.ok || check.data.enabled!==true) {
-        const messages:Record<string,string>={REPORTS_DISABLED:'Falta habilitar MAKE_REPORTS_ENABLED=true en Render, después de mapear Para, CC y el adjunto en Make.',UNAUTHORIZED:'La sesión de envíos terminó. Actívala de nuevo en Administración → Integraciones.',ORIGIN_NOT_ALLOWED:'Render no permite la conexión desde esta web.',RATE_LIMITED:'Espera un minuto antes de repetir.'};
+        const messages:Record<string,string>={REPORTS_DISABLED:'Falta habilitar MAKE_REPORTS_ENABLED=true en Render, después de mapear Para, CC y el adjunto en Make.',UNAUTHORIZED:'Render aún utiliza la versión que pide autorización. Actualiza el backend con Manual Deploy → Deploy latest commit para habilitar el prototipo sin claves.',ORIGIN_NOT_ALLOWED:'Render no permite la conexión desde esta web.',RATE_LIMITED:'Espera un minuto antes de repetir.'};
         throw new Error(messages[check.data.code] || 'No se pudo comprobar el servicio. El informe conserva su estado actual.');
       }
       const file=await buildExcel(inspection);
@@ -46,8 +45,8 @@ export function ReportSendForm({ inspection, actorId, onPrepare, onChange, onBus
     <p className="local-admin-note">El Excel utiliza el formato provisional actual. El código definitivo y la sincronización de levantamientos entre dispositivos siguen pendientes.</p>
     {accepted?<p className="notice" role="status">Make aceptó el informe (HTTP {receipt.upstreamStatus}). La recepción del correo por Outlook aún no está confirmada.</p>:<>
       {receipt && <p className="notice" role="status">{receipt.state==='pending'?'Hay un intento pendiente. Revisa Make antes de repetir.':receipt.message || 'Recepción no confirmada.'} Se conserva el mismo ID para consultar el intento, sin reenvíos automáticos.</p>}
-      {!api?<p className="notice">Falta conectar el backend de correo.</p>:!session?<p className="notice">Activa los envíos una sola vez en Administración → Integraciones. Después podrás enviar varios informes sin introducir la clave aquí.</p>:null}
-      <button type="button" className="button button-primary full-width" disabled={busy || !api || !session || cc.length>50 || inspection.responsibles.length>50} onClick={()=>void submit()}>{busy?<LoaderCircle className="spin" size={16}/>:<Send size={16}/>} {receipt?'Revisar recepción en Make':'Enviar informe por correo'}</button>
+      {!api?<p className="notice">Falta conectar el backend de correo.</p>:null}
+      <button type="button" className="button button-primary full-width" disabled={busy || !api || cc.length>50 || inspection.responsibles.length>50} onClick={()=>void submit()}>{busy?<LoaderCircle className="spin" size={16}/>:<Send size={16}/>} {receipt?'Revisar recepción en Make':'Enviar informe por correo'}</button>
     </>}
     {(cc.length>50 || inspection.responsibles.length>50) && <p className="notice notice-error" role="alert">Se permiten hasta 50 destinatarios Para y 50 en CC por informe. Ajusta las asociaciones antes de enviar.</p>}
     {error && <p className="notice notice-error" role="alert"><Info size={16}/>{error}</p>}

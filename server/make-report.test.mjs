@@ -8,7 +8,7 @@ import { createApi } from './index.mjs';
 import { reportPayload, REPORT_PATH } from './make-report.mjs';
 import { openReportRegistry } from './report-registry.mjs';
 const token='report-test-only-'.repeat(4);
-const env={MAKE_REPORTS_ENABLED:'true',MAKE_WEBHOOK_URL:'https://hook.us2.make.com/fictitious',MAKE_TEST_API_TOKEN:token,BERRY_ALLOWED_ORIGINS:'https://berry.example',NODE_ENV:'production'};
+const env={BERRY_PROTOTYPE_MODE:'false',MAKE_REPORTS_ENABLED:'true',MAKE_WEBHOOK_URL:'https://hook.us2.make.com/fictitious',MAKE_TEST_API_TOKEN:token,BERRY_ALLOWED_ORIGINS:'https://berry.example',NODE_ENV:'production'};
 const body=(id=randomUUID())=>({action:'inspection.send',inspection:{id,date:'2026-11-04',area:'Taller <Armonía>',facility:'Armonía 2',objective:'Verificar seguridad',inspector:{name:'Ana',email:'ana@example.com'},responsibles:[{name:'Persona Uno',email:'UNO@example.com'},{name:'Persona Dos',email:'dos@example.com'},{name:'Duplicado',email:'uno@example.com'}],cc:['jefe@example.com','JEFE@example.com','uno@example.com','gerente@example.com'],observationCount:2},attachment:{contentBase64:readFileSync(new URL('./fixtures/example.xlsx',import.meta.url)).toString('base64')}});
 async function api(t,options={}){
  const calls=[],registry=options.reportRegistry || openReportRegistry(':memory:');
@@ -56,4 +56,17 @@ test('journal en disco evita reenviar después de reiniciar y conserva intentos 
  assert.equal((await second.send(input)).data.receipt,'unconfirmed');assert.equal(second.calls.length,0);
  const orphan=body();two.claim(orphan.inspection.id,reportPayload(orphan).hash);
  assert.equal((await second.send(orphan)).data.receipt,'unconfirmed');assert.equal(second.calls.length,0);
+});
+
+test('prototipo global habilita envíos sin clave desde el origen de la app, manteniendo límites y deduplicación',async t=>{
+ const defaults={...env};delete defaults.BERRY_PROTOTYPE_MODE;
+ const automatic=await api(t,{env:defaults});assert.equal((await automatic.send({action:'inspection.check'},{Authorization:''})).status,200);
+ const {send,calls}=await api(t,{env:{...env,BERRY_PROTOTYPE_MODE:'true'}});
+ assert.equal((await send({action:'inspection.check'},{Authorization:''})).data.enabled,true);
+ const input=body();assert.equal((await send(input,{Authorization:''})).status,200);assert.equal(calls.length,1);
+ assert.equal((await send(input,{Authorization:''})).status,200);assert.equal(calls.length,1);
+ assert.equal((await send(body(),{Authorization:'',Origin:'https://evil.example'})).status,403);
+ assert.equal((await send(body(),{Authorization:'',Origin:''})).status,403);
+ for(let i=0;i<4;i++)assert.equal((await send(body(),{Authorization:''})).status,200);
+ assert.equal((await send(body(),{Authorization:''})).status,429);
 });

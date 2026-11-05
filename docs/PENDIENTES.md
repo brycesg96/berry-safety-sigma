@@ -67,7 +67,7 @@ Esta lista es la referencia de trabajo y se resumirá al cerrar cada avance. Se 
 - [x] Ejemplo con campos de Outlook y Excel ficticio enviado al webhook que esperaba datos: HTTP 200, sin solicitar correo.
 - [x] Campos de Make mapeados (Para, CC y adjunto) y `MAKE_REPORTS_ENABLED=true` en Render. El usuario mostró una ejecución con webhook, filtro y Outlook completados. [Guía](ENVIO_INFORMES.md).
 - [ ] Confirmar en el buzón receptor que el Excel llegó y se abre correctamente; probar las copias reales a jefes/gerentes.
-- [x] Quitar la clave de cada informe: activación única en Administración → Integraciones con sesión firmada de ocho horas, conservada al recargar la pestaña; clave original no persistida.
+- [x] Prototipo global sin claves ni activación de envíos en ningún navegador, PC o teléfono. Retirado el bloqueo del botón de envío; el backend conserva la configuración privada de Make, validación, límites y deduplicación. La autorización de ocho horas queda sustituida por petición del propietario.
 - [ ] Journal persistente/compartido para deduplicación entre despliegues y réplicas, y devolución autenticada del resultado de Outlook a la app.
 
 ## Pendientes operativos, por orden de dependencia

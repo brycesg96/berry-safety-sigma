@@ -60,6 +60,7 @@ export async function bodyOf(req, limit = 4096) {
 /** No URL, token, provider response body or inspection data is written to logs. */
 export function createMakeTestHandler({ env = process.env, fetchImpl = fetch, now = () => new Date(), timeoutMs = 10000 } = {}) {
   const config = loadConfig(env);
+  const prototype = env.BERRY_PROTOTYPE_MODE !== 'false';
   const requests = new Map(); const unauthorized = new Map(); let attempts = [];
   return async function handle(req, res) {
     const origin = req.headers.origin;
@@ -67,7 +68,7 @@ export function createMakeTestHandler({ env = process.env, fetchImpl = fetch, no
     const fail = (status, code, message) => reply(res, status, { ok: false, code, message }, cors);
     if (req.url === '/healthz' && req.method === 'GET') { reply(res, 200, { status: 'ok' }); return; }
     if (req.url !== MAKE_TEST_PATH) { fail(404, 'NOT_FOUND', 'Ruta no disponible.'); return; }
-    if (origin && !config.origins.has(origin)) { fail(403, 'ORIGIN_NOT_ALLOWED', 'Origen de la aplicación no permitido.'); return; }
+    if ((prototype && !origin) || origin && !config.origins.has(origin)) { fail(403, 'ORIGIN_NOT_ALLOWED', 'Origen de la aplicación no permitido.'); return; }
     if (req.method === 'OPTIONS') { res.writeHead(204, { ...cors, 'Cache-Control': 'no-store' }); res.end(); return; }
     if (req.method !== 'POST') { fail(405, 'METHOD_NOT_ALLOWED', 'Esta ruta solo acepta POST.'); return; }
     if (!config.enabled) { fail(503, 'TEST_DISABLED', 'La prueba de Make está desactivada en el servidor.'); return; }
@@ -77,7 +78,7 @@ export function createMakeTestHandler({ env = process.env, fetchImpl = fetch, no
     const ip = req.socket.remoteAddress || 'unknown';
     if ((unauthorized.get(ip)?.count || 0) >= 10) { fail(429, 'RATE_LIMITED', 'Demasiados intentos. Espera un minuto antes de repetir.'); return; }
     const authorization = req.headers.authorization || '';
-    if (!authorizedMail(authorization, config.token, origin, time)) {
+    if (!prototype && !authorizedMail(authorization, config.token, origin, time)) {
       const entry = unauthorized.get(ip); unauthorized.set(ip, { count: (entry?.count || 0) + 1, expires: entry?.expires || time + 60000 });
       if (unauthorized.size > 1000) unauthorized.delete(unauthorized.keys().next().value);
       fail(401, 'UNAUTHORIZED', 'La clave de prueba no es válida.'); return;

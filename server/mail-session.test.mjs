@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { createApi } from './index.mjs';
 import { authorizedMail, issueMailSession, SESSION_MS } from './session-token.mjs';
 const key='test-configuration-only-'.repeat(3), origin='https://berry.example';
-const env={MAKE_TEST_API_TOKEN:key,MAKE_TEST_ENABLED:'true',MAKE_REPORTS_ENABLED:'true',MAKE_WEBHOOK_URL:'https://hook.us2.make.com/fictitious',BERRY_ALLOWED_ORIGINS:origin,NODE_ENV:'production'};
+const env={BERRY_PROTOTYPE_MODE:'false',MAKE_TEST_API_TOKEN:key,MAKE_TEST_ENABLED:'true',MAKE_REPORTS_ENABLED:'true',MAKE_WEBHOOK_URL:'https://hook.us2.make.com/fictitious',BERRY_ALLOWED_ORIGINS:origin,NODE_ENV:'production'};
 test('token de sesión: firma, caducidad, origen y rotación de clave',()=>{
  const time=Date.now(),session=issueMailSession(key,origin,time);
  assert.ok(!session.token.includes(key));assert.equal(session.expiresAt,time+SESSION_MS);

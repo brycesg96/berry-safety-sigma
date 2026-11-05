@@ -38,13 +38,14 @@ export function reportPayload(input) {
 }
 export function createReportHandler({ env=process.env, fetchImpl=fetch, now=()=>new Date(), timeoutMs=10000, reportRegistry } = {}) {
   const config=loadConfig({...env,MAKE_TEST_ENABLED:env.MAKE_REPORTS_ENABLED});
+  const prototype=env.BERRY_PROTOTYPE_MODE!=='false';
   let registry=reportRegistry; const pending=new Map(); let attempts=[]; const unauthorized=new Map();
   const unconfirmed=id=>({status:502,body:{ok:false,receipt:'unconfirmed',request_id:id,code:'REPORT_UNCONFIRMED',message:'Recepción no confirmada. Revisa Make antes de cualquier reenvío. No se reenvió automáticamente.'}});
   return async (req,res)=>{
     const origin=req.headers.origin;
     const cors=origin && config.origins.has(origin)?{'Access-Control-Allow-Origin':origin,Vary:'Origin','Access-Control-Allow-Methods':'POST, OPTIONS','Access-Control-Allow-Headers':'Authorization, Content-Type, Idempotency-Key'}:{};
     const fail=(status,code,message)=>reply(res,status,{ok:false,code,message},cors);
-    if(origin && !config.origins.has(origin))return fail(403,'ORIGIN_NOT_ALLOWED','Origen no permitido.');
+    if((prototype && !origin) || origin && !config.origins.has(origin))return fail(403,'ORIGIN_NOT_ALLOWED','Origen no permitido.');
     if(req.method==='OPTIONS'){res.writeHead(204,cors);res.end();return;}
     if(req.method!=='POST')return fail(405,'METHOD_NOT_ALLOWED','Solo POST.');
     if(!config.enabled)return fail(503,'REPORTS_DISABLED','Activa MAKE_REPORTS_ENABLED en Render después de configurar destinatarios y adjunto en Make.');
@@ -52,7 +53,7 @@ export function createReportHandler({ env=process.env, fetchImpl=fetch, now=()=>
     for(const [key,v] of unauthorized)if(v.expires<=time)unauthorized.delete(key);
     if((unauthorized.get(ip)?.count || 0)>=10)return fail(429,'RATE_LIMITED','Espera un minuto antes de repetir.');
     const auth=req.headers.authorization || '';
-    if(!authorizedMail(auth,config.token,origin,time)){
+    if(!prototype && !authorizedMail(auth,config.token,origin,time)){
       const v=unauthorized.get(ip);unauthorized.set(ip,{count:(v?.count||0)+1,expires:v?.expires||time+60000});
       if(unauthorized.size>1000)unauthorized.delete(unauthorized.keys().next().value);
       return fail(401,'UNAUTHORIZED','La clave de API no es válida.');

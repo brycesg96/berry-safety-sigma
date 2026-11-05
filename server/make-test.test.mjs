@@ -5,7 +5,7 @@ import { createApi } from './index.mjs';
 import { buildSample, loadConfig, MAKE_TEST_PATH } from './make-test.mjs';
 const token = 'test-only-key-'.repeat(4);
 const webhook = 'https://hook.us2.make.com/fictitious-test-endpoint';
-const env = { MAKE_TEST_ENABLED: 'true', MAKE_TEST_API_TOKEN: token, MAKE_WEBHOOK_URL: webhook, BERRY_ALLOWED_ORIGINS: 'https://berry.example', NODE_ENV: 'production' };
+const env = { BERRY_PROTOTYPE_MODE: 'false', MAKE_TEST_ENABLED: 'true', MAKE_TEST_API_TOKEN: token, MAKE_WEBHOOK_URL: webhook, BERRY_ALLOWED_ORIGINS: 'https://berry.example', NODE_ENV: 'production' };
 async function api(t, options = {}) {
   const calls = [];
   const server = createApi({ env, fetchImpl: async (...args) => { calls.push(args); return new Response('Accepted', { status: 200 }); }, ...options });
@@ -78,4 +78,12 @@ test('las pruebas nuevas se limitan a cinco por minuto', async t => {
 test('fecha de Perú y cambio de año sin reservar correlativos', () => {
   assert.equal(buildSample('sample', new Date('2027-01-01T04:59:59Z')).numero, 'IH-2026-001');
   assert.equal(buildSample('sample', new Date('2027-01-01T05:00:00Z')).numero, 'IH-2027-001');
+});
+
+test('prototipo permite probar sin clave, exige origen permitido y continúa sin solicitar correo',async t=>{
+ const {send,calls}=await api(t,{env:{...env,BERRY_PROTOTYPE_MODE:'true'}});
+ assert.equal((await send({authorization:''})).status,200);
+ assert.equal(JSON.parse(calls[0][1].body).send_email,false);
+ assert.equal((await send({authorization:'',origin:'https://evil.example'})).status,403);
+ assert.equal((await send({authorization:'',origin:''})).status,403);
 });

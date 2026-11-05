@@ -26,12 +26,13 @@ El botón de prueba de conexión no envía correos y no convierte las direccione
 ## Configuración en Render y uso
 
 - `MAKE_WEBHOOK_URL`: secreto ya configurado. Nunca colocar en `VITE_*`.
-- `MAKE_TEST_API_TOKEN`: clave de configuración del servidor. Se introduce una vez en **Administración → Integraciones → Activación de envíos**; la API la intercambia por una sesión firmada de ocho horas. La clave original se borra del formulario y no se guarda en localStorage, sessionStorage, IndexedDB ni el bundle.
+- `MAKE_TEST_API_TOKEN`: configuración privada que se conserva en Render para los clientes antiguos y el modo autenticado. El modo prototipo global no pide esta clave al usuario ni la incluye en el navegador.
+- `BERRY_PROTOTYPE_MODE`: el valor predeterminado del proyecto es `true`, por petición del propietario para la presentación. Cualquier dispositivo que abra la web puede enviar sin activación local. Poner `false` restaura la exigencia de credenciales del servidor; la autenticación real para producción sigue pendiente.
 - `MAKE_REPORTS_ENABLED=true`: añadir esta variable en Environment si aún no existe; habilitar únicamente después de configurar Outlook como arriba. Por defecto false. `MAKE_TEST_ENABLED` sigue siendo independiente.
 - `BERRY_ALLOWED_ORIGINS=https://brycesg96.github.io`.
 - `REPORT_REGISTRY_PATH`: por defecto `/tmp/berry-report-receipts.sqlite`; para persistencia operativa requiere una base compartida o un disco persistente.
 
-Primero activar los envíos una vez en Administración → Integraciones. Después, completar la inspección, pulsar Enviar inspección, comprobar Para/CC y pulsar **Enviar informe por correo**, sin introducir claves en cada informe. Primero se consulta la habilitación sin llamar Make. Si está desactivada o la clave es incorrecta, se conserva el borrador. El Excel admite hasta **3 MB**; el JSON hasta 5 MB. La API limita nuevos informes a cinco por minuto. Los fallos de autenticación se limitan también.
+Completar la inspección, pulsar Enviar inspección, comprobar Para/CC y pulsar **Enviar informe por correo**. No se pide clave ni activación, tampoco al cambiar de navegador, PC o teléfono. Primero se consulta la habilitación sin llamar Make. Si está desactivada o la clave es incorrecta, se conserva el borrador. El Excel admite hasta **3 MB**; el JSON hasta 5 MB. La API limita nuevos informes a cinco por minuto. Los fallos de autenticación se limitan también.
 
 Se conserva la opción secundaria **Compartir solo en este navegador** para revisar el flujo local sin enviar correos. El seguimiento de levantamientos todavía se almacena en IndexedDB y no se sincroniza entre dispositivos.
 
@@ -47,20 +48,12 @@ Un journal SQLite reclama el ID **antes** de llamar Make. Conserva el hash de me
 - **Rechazado / recepción no confirmada:** consultar la ejecución en Make antes de cualquier reenvío. No hay reintentos automáticos.
 - **Resultado de Outlook:** revisar el módulo en Make y el buzón receptor. Falta implementar un retorno autenticado o consulta de estados para mostrar la confirmación de Outlook en la app.
 
-## Acceso en esta fase
+## Acceso global para la presentación
 
-Las cuentas, asociaciones y perfiles siguen siendo locales de prueba. La API exige una sesión temporal firmada o la clave compartida de configuración (compatibilidad con clientes anteriores); los roles del navegador no constituyen autenticación Microsoft ni autorización del servidor. El poseedor de la clave puede solicitar envíos a direcciones validadas. Antes de habilitar el uso operativo multiusuario, conectar identidades Microsoft, directorio y asociaciones autoritativas en servidor; entonces ya no se pedirá esta clave compartida a los usuarios.
+Por petición expresa del propietario, el proyecto funciona como **prototipo global sin autenticación de envíos**: no depende de una sesión, del navegador, de una cuenta Microsoft ni de un token público embebido. No se publican la URL de Make ni la clave privada de Render. La app llama al backend sin Authorization y el backend llama al webhook configurado en el servidor.
 
-## Captura de campos nuevos verificada
+Cualquier persona que abra la web del prototipo puede utilizar este envío. Se conserva la validación de datos y adjuntos, el límite de cinco informes nuevos por minuto y la deduplicación por ID. Se exige el origen web permitido; CORS no constituye autenticación y no evita clientes externos que construyan solicitudes con ese origen. Las cuentas y asociaciones siguen siendo locales de prueba.
 
-El 4 de noviembre de 2026 a las 18:07 (Lima), el usuario confirmó el webhook esperando nuevos valores. Se envió una sola prueba ficticia a través de la API local con `outlook` y `adjuntos`; Make respondió HTTP 200 al ID `07e6e0d3-9092-4533-8236-f1b80ab3d560`, con `send_email:false`. Falta confirmar en la pantalla de Make los campos detectados y mapearlos en Outlook. Esto no fue un envío de correo real.
+Los interruptores globales `MAKE_REPORTS_ENABLED` y `MAKE_TEST_ENABLED` siguen funcionando independientemente. `BERRY_PROTOTYPE_MODE=false` desactiva el acceso global y restaura la autorización del servidor para los clientes autenticados anteriores. Antes del uso operativo multiusuario, sustituir el acceso del prototipo por Microsoft y autorización real en servidor.
 
-## Sesión de envíos para las pruebas
-
-`POST /api/mail/session` comprueba la clave de configuración en servidor y devuelve un token firmado con HMAC-SHA256, vinculado al origen permitido y con caducidad de ocho horas. La activación no llama Make ni Outlook. La clave original solo viaja por HTTPS para activar la sesión, se borra del campo al terminar y nunca se persiste en el cliente.
-
-El token temporal se guarda en sessionStorage de la pestaña para sobrevivir a recargas. Si sessionStorage no está disponible, se mantiene en memoria y la recarga requiere reactivar. La sesión sirve para varias inspecciones y para las pruebas de Make. Al expirar o ante HTTP 401 se deshabilita localmente; se reactiva desde Administración → Integraciones. No se renueva automáticamente usando otro token temporal.
-
-**Desactivar en esta pestaña** elimina la sesión del cliente; una copia del token que ya existiera conserva su validez hasta caducar. Rotar `MAKE_TEST_API_TOKEN` en Render invalida también todas las sesiones emitidas con la clave anterior. No se utiliza una clave pública embebida ni se abre la API anónimamente.
-
-La habilitación se comparte entre las cuentas locales de prueba de esa pestaña: no identifica a una persona ni reemplaza el inicio de sesión Microsoft o los permisos del servidor. Sigue pendiente sustituirla por autenticación real antes del uso operativo multiusuario. No cambian los controles de deduplicación ni el estado pendiente de confirmación de Outlook.
+La API de sesiones anterior se conserva por compatibilidad durante el despliegue, pero la web nueva no la utiliza ni guarda credenciales o tokens de correo en el navegador. El bloqueo de activación que deshabilitaba Enviar informe por correo fue retirado completamente.
