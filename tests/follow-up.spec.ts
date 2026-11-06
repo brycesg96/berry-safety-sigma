@@ -94,9 +94,9 @@ test('destinatario envía evidencias, autor pide ajustes y cierra solo al aproba
   const downloadEvent = page.waitForEvent('download');
   await page.getByRole('button', { name: 'Descargar Excel', exact: true }).click();
   const workbook = new ExcelJS.Workbook(); await workbook.xlsx.readFile((await (await downloadEvent).path())!);
-  const content = JSON.stringify(workbook.getWorksheet('Inspección SST')!.getSheetValues());
+  const content = JSON.stringify(workbook.getWorksheet('V.01')!.getSheetValues());
   expect(content).toContain('LEVANTAMIENTO DE RESULTADOS DE LA INSPECCIÓN'); expect(content).toContain('Ejecutado');
-  expect(workbook.getWorksheet('Inspección SST')!.getImages()).toHaveLength(2);
+  expect(workbook.getWorksheet('V.01')!.getImages()).toHaveLength(3); // Logo and two correction photos.
   await page.getByRole('button', { name: 'Mis inspecciones', exact: true }).click();
   await expect(page.locator('.list-stats > div').filter({ hasText: 'Inspecciones cerradas' }).locator('strong')).toHaveText('1');
   await expect(page.locator('.list-stats > div').filter({ hasText: 'Inspecciones a revisar' }).locator('strong')).toHaveText('0');

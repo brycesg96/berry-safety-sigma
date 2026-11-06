@@ -6,6 +6,8 @@ import { CLOSING_LIMIT, closingRemarksOf } from './registration';
 import type { RegistrationDetails } from './registration';
 import type { Delivery } from './follow-up';
 import type { RegistrationReceipt } from './inspection-code';
+import { lastInspectionTexts } from './inspection-texts';
+import type { InspectionTexts } from './inspection-texts';
 export type Responsible = { id: string; name: string; email: string; personId?: string; area?: string; jobTitle?: string };
 export type Evidence = { id: string; name: string; data: string; originalData?: string; editState?: PhotoEdit };
 export type Observation = {
@@ -38,6 +40,7 @@ export type Inspection = {
   date: string;
   initialInspectionDate?: string;
   objective: string;
+  initialReportTexts?: InspectionTexts;
   responsibles: Responsible[];
   observations: Observation[];
   defaultClosingDate: string;
@@ -59,10 +62,11 @@ export const newResponsible = (): Responsible => ({ id: id(), name: '', email: '
 export const newObservation = (closingDate = ''): Observation => ({ id: id(), description: '', correctiveAction: '', severity: 'media', dueDate: closingDate, photos: [] });
 export const newInspection = (profile: Profile): Inspection => {
   const date = new Date().toLocaleDateString('en-CA');
+  const texts = lastInspectionTexts();
   return ({
   id: id(), ownerId: profile.accountId || 'demo-admin', company: EMPLOYER.name, ruc: EMPLOYER.ruc, facility: '', area: '', type: '', otherType: '', registrationNumber: '', inspectionTime: '', inspectionPeriod: '',
-  date, initialInspectionDate: date, objective: '', responsibles: [newResponsible()],
-  observations: [], defaultClosingDate: '', unfavorableCause: '', closingRemarks: '', registrationDetails: {}, conclusions: '', recommendations: '', inspector: profile.name,
+  date, initialInspectionDate: date, ...texts, initialReportTexts: { ...texts }, responsibles: [newResponsible()],
+  observations: [], defaultClosingDate: '', registrationDetails: {}, conclusions: '', recommendations: '', inspector: profile.name,
   inspectorEmail: profile.email, additionalInspectors: [], step: 0, updatedAt: new Date().toISOString(), status: 'draft',
 });
 };
@@ -70,8 +74,9 @@ export const newInspection = (profile: Profile): Inspection => {
 /** Ignore generated defaults and empty rows when deciding whether a draft exists. */
 export function hasInspectionContent(d: Inspection): boolean {
   if (d.delivery || d.serverRegistration || d.status === 'ready') return true;
-  const text = [d.area, d.facility, d.objective, d.inspectionTime, d.type, d.otherType, d.unfavorableCause, d.closingRemarks, d.conclusions, d.recommendations, d.registrationNumber, d.legacyRegistrationNumber];
+  const text = [d.area, d.facility, d.inspectionTime, d.type, d.otherType, d.conclusions, d.recommendations, d.registrationNumber, d.legacyRegistrationNumber];
   if (text.some(value => value?.trim())) return true;
+  if ((['objective', 'unfavorableCause', 'closingRemarks'] as const).some(key => (d[key] || '').trim() !== (d.initialReportTexts?.[key] || '').trim())) return true;
   if (d.inspectionPeriod || (d.date && d.initialInspectionDate && d.date !== d.initialInspectionDate)) return true;
   if ((d.company?.trim() && d.company !== EMPLOYER.name) || (d.ruc?.trim() && d.ruc !== EMPLOYER.ruc)) return true;
   if ([...(d.responsibles || []), ...(d.additionalInspectors || [])].some(p => p.personId || p.name?.trim() || p.email?.trim())) return true;

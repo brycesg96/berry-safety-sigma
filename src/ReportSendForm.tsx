@@ -5,6 +5,7 @@ import type { Inspection } from './model';
 import { inspectionCopies } from './accounts';
 import { buildExcel } from './export';
 import { saveEmailReceipt } from './follow-up';
+import { rememberInspectionTexts } from './inspection-texts';
 export function ReportSendForm({ inspection, actorId, onPrepare, onChange, onBusyChange }: { inspection: Inspection; actorId: string; onPrepare: () => Promise<Inspection>; onChange: (d: Inspection) => void; onBusyChange?: (busy: boolean) => void }) {
   const [busy,setBusy]=useState(false), [error,setError]=useState('');
   const lock=useRef(false), api=mailEndpoint('/api/inspections/send'), receipt=inspection.emailDelivery;
@@ -28,11 +29,12 @@ export function ReportSendForm({ inspection, actorId, onPrepare, onChange, onBus
       let binary='';for(let i=0;i<file.bytes.length;i+=32768)binary+=String.fromCharCode(...file.bytes.subarray(i,i+32768));
       frozen=await onPrepare();
       frozen=await saveEmailReceipt(frozen,actorId,{state:'pending',requestId:frozen.id,updatedAt:new Date().toISOString()});
-      const {response,data}=await request({action:'inspection.send',inspection:{id:frozen.id,date:frozen.date,area:frozen.area,facility:frozen.facility,objective:frozen.objective,inspector:{name:frozen.inspector,email:frozen.inspectorEmail},responsibles:frozen.responsibles.map(p=>({name:p.name,email:p.email})),cc:frozen.emailCc || cc,observationCount:frozen.observations.length},attachment:{contentBase64:btoa(binary)}});
+      const {response,data}=await request({action:'inspection.send',inspection:{id:frozen.id,date:frozen.date,area:frozen.area,facility:frozen.facility,objective:frozen.objective,unfavorableCause:frozen.unfavorableCause || '',closingRemarks:frozen.closingRemarks || '',inspector:{name:frozen.inspector,email:frozen.inspectorEmail},responsibles:frozen.responsibles.map(p=>({name:p.name,email:p.email})),cc:frozen.emailCc || cc,observationCount:frozen.observations.length},attachment:{contentBase64:btoa(binary)}});
       const success=response.ok && data.ok===true && data.receipt==='http_accepted' && data.request_id===frozen.id && data.email_requested===true && Number.isInteger(data.upstream_status) && data.upstream_status>=200 && data.upstream_status<300;
       const state=success?'accepted':data.receipt==='rejected'?'rejected':'unconfirmed';
       const message=success?'Make aceptó el informe y el Excel. Resultado de Outlook pendiente de confirmación.':data.code==='REPORT_CHANGED'?'La API tiene otro intento de esta inspección. Revisa Make antes de enviar otra versión.':'No se confirmó la recepción correcta. Revisa el historial de Make antes de reenviar.';
       frozen=await saveEmailReceipt(frozen,actorId,{state,requestId:frozen.id,updatedAt:new Date().toISOString(),upstreamStatus:data.upstream_status,message});
+      if(success)rememberInspectionTexts(frozen,data.submitted_at || frozen.emailDelivery!.updatedAt);
       onChange(frozen);if(!success)setError(message);
     } catch(e) {
       const message=e instanceof Error?e.message:'No se pudo completar el envío.';setError(message);
@@ -42,7 +44,7 @@ export function ReportSendForm({ inspection, actorId, onPrepare, onChange, onBus
   return <div className="report-send-form">
     <p>Se enviará un mensaje general y el informe Excel adjunto a todos los responsables seleccionados.</p>
     <p><strong>CC · Jefes y gerentes:</strong> {cc.length?cc.join(', '):'Sin correos asociados'}</p>
-    <p className="local-admin-note">El Excel utiliza el formato provisional actual. El código definitivo y la sincronización de levantamientos entre dispositivos siguen pendientes.</p>
+    <p className="local-admin-note">El Excel utiliza la plantilla de inspecciones internas. El código definitivo y la sincronización de levantamientos entre dispositivos siguen pendientes.</p>
     {accepted?<p className="notice" role="status">Make aceptó el informe (HTTP {receipt.upstreamStatus}). La recepción del correo por Outlook aún no está confirmada.</p>:<>
       {receipt && <p className="notice" role="status">{receipt.state==='pending'?'Hay un intento pendiente. Revisa Make antes de repetir.':receipt.message || 'Recepción no confirmada.'} Se conserva el mismo ID para consultar el intento, sin reenvíos automáticos.</p>}
       {!api?<p className="notice">Falta conectar el backend de correo.</p>:null}

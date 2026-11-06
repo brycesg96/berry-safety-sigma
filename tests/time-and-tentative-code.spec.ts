@@ -57,7 +57,7 @@ test('ubicación en el ejemplo, AM/PM requerido y conservación en revisión, re
   const event = page.waitForEvent('download');
   await page.getByRole('button', { name: 'Descargar Excel', exact: true }).click();
   const book = new ExcelJS.Workbook(); await book.xlsx.readFile((await (await event).path())!);
-  expect(JSON.stringify(book.getWorksheet('Inspección SST')!.getSheetValues())).toContain('07:30 PM');
+  expect(JSON.stringify(book.getWorksheet('V.01')!.getSheetValues())).toContain('07:30 PM');
 });
 
 test('Mis inspecciones distingue un código tentativo de un recibo definitivo', async ({ page }) => {

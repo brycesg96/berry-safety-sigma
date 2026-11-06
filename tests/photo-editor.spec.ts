@@ -27,6 +27,12 @@ async function prepareEditor(page: Page) {
   await page.getByLabel('Añadir fotos a observación 1').setInputFiles({ name: 'evidencia.png', mimeType: 'image/png', buffer: Buffer.from(data, 'base64') });
   await expect(page.locator('.photo-thumb')).toHaveCount(1);
   await page.getByRole('button', { name: 'Ver foto 1 de observación 1', exact: true }).click();
+  const editButton = (await page.getByRole('button', { name: 'Editar imagen', exact: true }).boundingBox())!;
+  const stage = (await page.locator('.photo-viewer-stage').boundingBox())!;
+  expect(editButton.y).toBeGreaterThanOrEqual(stage.y);
+  expect(editButton.y + editButton.height).toBeLessThanOrEqual(stage.y + stage.height);
+  expect(editButton.x + editButton.width).toBeLessThanOrEqual(stage.x + stage.width);
+  await page.getByRole('dialog').screenshot({ path: 'test-results/photo-viewer-compact.png' });
   await page.getByRole('button', { name: 'Editar imagen', exact: true }).click();
   await expect(page.getByRole('img', { name: 'Lienzo de edición', exact: true })).toBeVisible();
 }
@@ -80,8 +86,21 @@ test('edición con color, grosor, tamaño, recorte, persistencia y exportación 
   await page.getByRole('button', { name: 'Continuar', exact: true }).click();
   const event = page.waitForEvent('download'); await page.getByRole('button', { name: 'Descargar Excel', exact: true }).click();
   const book = new ExcelJS.Workbook(); await book.xlsx.readFile((await (await event).path())!);
-  const media = book.model.media!; expect(media).toHaveLength(1);
-  expect(Buffer.from(media[0].buffer!).toString('base64')).toBe(saved.data.split(',')[1]);
+  const media = book.model.media!; expect(media).toHaveLength(2);
+  const exported = Buffer.from(media.find(image => image.extension === 'jpeg')!.buffer!).toString('base64');
+  const difference = await page.evaluate(async ({ exported, edited, original }) => {
+    async function pixels(source: string) {
+      const image = new Image(); image.src = source; await image.decode();
+      const canvas = document.createElement('canvas'); canvas.width = canvas.height = 64;
+      const ctx = canvas.getContext('2d')!; ctx.drawImage(image, 0, 0, 64, 64);
+      return ctx.getImageData(0, 0, 64, 64).data;
+    }
+    const [actual, final, raw] = await Promise.all([pixels(`data:image/jpeg;base64,${exported}`), pixels(edited), pixels(original)]);
+    const distance = (other: Uint8ClampedArray) => actual.reduce((sum, value, i) => sum + Math.abs(value - other[i]), 0) / actual.length;
+    return { edited: distance(final), original: distance(raw) };
+  }, { exported, edited: saved.data, original: saved.originalData });
+  expect(difference.edited).toBeLessThan(8);
+  expect(difference.original).toBeGreaterThan(difference.edited + 2);
   expect(errors).toEqual([]);
 });
 

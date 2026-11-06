@@ -2,6 +2,7 @@ import { authorizedMail } from './session-token.mjs';
 import { createHash } from 'node:crypto';
 import { loadConfig, reply, bodyOf } from './make-test.mjs';
 import { openReportRegistry } from './report-registry.mjs';
+import { reportFilename } from '../shared/report-filename.mjs';
 export const REPORT_PATH = '/api/inspections/send';
 export const MAX_EXCEL_BYTES = 3 * 1024 * 1024;
 const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -24,6 +25,10 @@ export function reportPayload(input) {
   const buffer=Buffer.from(base64,'base64');
   if (buffer.length < 4 || buffer.length > MAX_EXCEL_BYTES || buffer.subarray(0,4).toString('hex') !== '504b0304') throw new Error('INVALID_ATTACHMENT');
   const metadata = {id:d.id,date,area,facility,objective,inspector,responsibles:people,cc,observationCount:d.observationCount};
+  // Older clients omit these fields and must not erase shared defaults.
+  const texts = d.unfavorableCause !== undefined && d.closingRemarks !== undefined
+    ? { objective, unfavorableCause: text(d.unfavorableCause,1200,false), closingRemarks: text(d.closingRemarks,1200,false) } : undefined;
+  if (texts) Object.assign(metadata,{texts});
   const payload = {
     schema_version:'1.1',source:'Berry Safety / BR Sigma',request_id:d.id,inspection_id:d.id,
     mode:'inspection',send_email:true,es_ejemplo:false,codigo_reservado:false,numero:'SIN CÓDIGO DEFINITIVO',
@@ -31,10 +36,10 @@ export function reportPayload(input) {
     destinatarios:{para:people.map(p=>p.address),cc,cco:[]},
     outlook:{para:people,cc:cc.map(address=>({address,name:''})),cco:[]},
     asunto:`Informe de inspección de seguridad - ${area.replace(/[\r\n]+/g,' ')} - ${date}`,
-    cuerpo_html:`<p>Estimado equipo:</p><p>Se ha compartido con ustedes un informe de inspección de seguridad y salud en el trabajo. Encontrarán el informe Excel adjunto para su revisión y seguimiento.</p><p><strong>Área e instalación:</strong> ${escape(area)}<br><strong>Fecha:</strong> ${escape(date)}<br><strong>Inspector:</strong> ${escape(inspector.nombre)}</p><p>Por favor, revisen los hallazgos y las acciones a tomar indicadas en el documento.</p><p>Berry Safety / BR Sigma</p><p><small>Formato Excel provisional. Código definitivo pendiente de registro central.</small></p>`,
-    adjuntos:[{nombre:`Inspeccion-${date}-${d.id.slice(0,8)}.xlsx`,tipo:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',contenido_base64:base64}],
+    cuerpo_html:`<p>Estimado equipo:</p><p>Se ha compartido con ustedes un informe de inspección de seguridad y salud en el trabajo. Encontrarán el informe Excel adjunto para su revisión y seguimiento.</p><p><strong>Área e instalación:</strong> ${escape(area)}<br><strong>Fecha:</strong> ${escape(date)}<br><strong>Inspector:</strong> ${escape(inspector.nombre)}</p><p>Por favor, revisen los hallazgos y las acciones a tomar indicadas en el documento.</p><p>Berry Safety / BR Sigma</p><p><small>Código definitivo pendiente de registro central.</small></p>`,
+    adjuntos:[{nombre:reportFilename(area,date),tipo:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',contenido_base64:base64}],
   };
-  return {payload, hash:createHash('sha256').update(JSON.stringify(metadata)).digest('hex')};
+  return {payload, texts, hash:createHash('sha256').update(JSON.stringify(metadata)).digest('hex')};
 }
 export function createReportHandler({ env=process.env, fetchImpl=fetch, now=()=>new Date(), timeoutMs=10000, reportRegistry } = {}) {
   const config=loadConfig({...env,MAKE_TEST_ENABLED:env.MAKE_REPORTS_ENABLED});
@@ -61,6 +66,10 @@ export function createReportHandler({ env=process.env, fetchImpl=fetch, now=()=>
     if((req.headers['content-type']||'').split(';')[0].trim()!=='application/json')return fail(415,'JSON_REQUIRED','Se requiere JSON.');
     let data;try{data=await bodyOf(req,5*1024*1024);}catch{return fail(400,'INVALID_BODY','JSON inválido o demasiado grande. El Excel admite hasta 3 MB.');}
     if(data?.action==='inspection.check' && Object.keys(data).length===1)return reply(res,200,{ok:true,enabled:true},cors);
+    if(data?.action==='inspection.defaults' && Object.keys(data).length===1){
+      registry ||= openReportRegistry(env.REPORT_REGISTRY_PATH);
+      return reply(res,200,{ok:true,defaults:registry.defaults()},cors);
+    }
     let report;try{report=reportPayload(data);}catch{return fail(400,'INVALID_REPORT','Revisa los datos, los destinatarios y el Excel (máximo 3 MB).');}
     const id=report.payload.inspection_id;
     if(req.headers['idempotency-key']!==id)return fail(400,'REQUEST_ID_REQUIRED','El ID debe coincidir con la inspección.');
@@ -82,7 +91,7 @@ export function createReportHandler({ env=process.env, fetchImpl=fetch, now=()=>
         await upstream.body?.cancel();
         result=upstream.ok?{status:200,body:{ok:true,receipt:'http_accepted',request_id:id,upstream_status:upstream.status,submitted_at:now().toISOString(),email_requested:true,outlook_status:'not_confirmed'}}:{status:502,body:{ok:false,receipt:'rejected',code:'MAKE_REJECTED',request_id:id,upstream_status:upstream.status}};
       }catch{result=unconfirmed(id);}
-      registry.finish(id,result);return result;
+      registry.finish(id,result,report.texts,result.status===200?result.body.submitted_at:undefined);return result;
     })();
     pending.set(id,work);
     try{const result=await work;reply(res,result.status,result.body,cors);}finally{pending.delete(id);}

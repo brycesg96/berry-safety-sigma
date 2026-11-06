@@ -1,6 +1,8 @@
 import { test, expect } from '@playwright/test';
 import type { Page } from '@playwright/test';
 import ExcelJS from 'exceljs';
+import { readFile } from 'node:fs/promises';
+import { reportFilename } from '../shared/report-filename.mjs';
 async function prepare(page:Page) {
  await page.route('**/api/people?*',r=>r.fulfill({json:{people:[]}}));
  await page.goto('./');
@@ -31,6 +33,7 @@ test('envío sin claves adjunta Excel, responsables y CC de jefes y conserva el 
  let captured:any;
  await page.route('**/api/inspections/send',async route=>{
   const data=route.request().postDataJSON();
+  if(data.action==='inspection.defaults')return route.fulfill({json:{ok:true,defaults:null}});
   if(data.action==='inspection.check')return route.fulfill({json:{ok:true,enabled:true}});
   expect(route.request().headers().authorization).toBeUndefined();
   captured=data;
@@ -44,7 +47,12 @@ test('envío sin claves adjunta Excel, responsables y CC de jefes y conserva el 
  expect(captured.inspection.responsibles).toEqual([{name:'Bryan',email:'bcespedes@hortifrut.com'}]);
  expect(captured.inspection.cc).toEqual(['jefe@example.com','gerente@example.com']);
  const workbook=new ExcelJS.Workbook();await workbook.xlsx.load(Buffer.from(captured.attachment.contentBase64,'base64') as any);
- expect(JSON.stringify(workbook.getWorksheet('Inspección SST')!.getSheetValues())).toContain('Falta señalización.');
+ expect(JSON.stringify(workbook.getWorksheet('V.01')!.getSheetValues())).toContain('Falta señalización.');
+ const downloadEvent=page.waitForEvent('download');
+ await page.getByRole('button',{name:'Descargar Excel',exact:true}).click();
+ const download=await downloadEvent;
+ expect(download.suggestedFilename()).toBe(reportFilename(captured.inspection.area,captured.inspection.date));
+ expect(await readFile((await download.path())!)).toEqual(Buffer.from(captured.attachment.contentBase64,'base64'));
  expect(await page.evaluate(()=>JSON.stringify(sessionStorage))).not.toContain('berry-mail-session');
  await page.reload();await page.getByRole('button',{name:'Mis inspecciones',exact:true}).click();await page.getByRole('button',{name:'Revisar informe',exact:true}).click();
  await expect(page.getByText(/Make aceptó el informe \(HTTP 200\)/)).toBeVisible();

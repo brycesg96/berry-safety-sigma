@@ -26,7 +26,7 @@ test('informe: Para y CC deduplicados, HTML general escapado y XLSX real adjunto
  assert.deepEqual(p.destinatarios,{para:['uno@example.com','dos@example.com'],cc:['jefe@example.com','gerente@example.com'],cco:[]});
  assert.deepEqual(p.outlook.para,[{address:'uno@example.com',name:'Persona Uno'},{address:'dos@example.com',name:'Persona Dos'}]);
  assert.ok(p.cuerpo_html.includes('Taller &lt;Armonía&gt;'));assert.ok(p.cuerpo_html.includes('Excel adjunto'));
- assert.equal(p.adjuntos[0].contenido_base64,input.attachment.contentBase64);assert.ok(p.adjuntos[0].nombre.endsWith('.xlsx'));
+ assert.equal(p.adjuntos[0].contenido_base64,input.attachment.contentBase64);assert.equal(p.adjuntos[0].nombre,'REG_INS_TALLER ARMONÍA_04.11.2026.xlsx');
  assert.ok(!JSON.stringify(result.data).includes(env.MAKE_WEBHOOK_URL));assert.equal(calls[0].request.headers.Authorization,undefined);
 });
 test('informe desactivado o sin clave nunca llama Make; check habilitado solo consulta configuración',async t=>{
@@ -69,4 +69,37 @@ test('prototipo global habilita envíos sin clave desde el origen de la app, man
  assert.equal((await send(body(),{Authorization:'',Origin:''})).status,403);
  for(let i=0;i<4;i++)assert.equal((await send(body(),{Authorization:''})).status,200);
  assert.equal((await send(body(),{Authorization:''})).status,429);
+});
+
+test('los tres textos se comparten solo tras un envío aceptado, sin llamar Make al consultarlos',async t=>{
+ const {send,calls}=await api(t,{env:{...env,BERRY_PROTOTYPE_MODE:'true'}});
+ const read=()=>send({action:'inspection.defaults'},{Authorization:''});
+ assert.equal((await read()).data.defaults,null); assert.equal(calls.length,0);
+ const input=body();Object.assign(input.inspection,{unfavorableCause:'Falta de controles preventivos.',closingRemarks:'Revisar semanalmente.'});
+ assert.equal((await send(input,{Authorization:''})).status,200);
+ const first=(await read()).data.defaults;
+ assert.deepEqual(first.texts,{objective:input.inspection.objective,unfavorableCause:'Falta de controles preventivos.',closingRemarks:'Revisar semanalmente.'});
+ assert.equal(calls.length,1);
+ const next=body();Object.assign(next.inspection,{objective:'Nuevo objetivo',unfavorableCause:'',closingRemarks:'Nuevas recomendaciones'});
+ assert.equal((await send(next,{Authorization:''})).status,200);
+ assert.equal((await read()).data.defaults.texts.unfavorableCause,'');
+ assert.equal((await read()).data.defaults.texts.objective,'Nuevo objetivo');
+ // An idempotent replay and an old client cannot restore or erase old texts.
+ await send(input,{Authorization:''}); await send(body(),{Authorization:''});
+ assert.equal((await read()).data.defaults.texts.closingRemarks,'Nuevas recomendaciones');
+ assert.equal(calls.length,3);
+});
+
+test('texto compartido permanece al reabrir la base; rechazo de Make no lo reemplaza',async t=>{
+ const directory=mkdtempSync(join(tmpdir(),'berry-texts-'));t.after(()=>rmSync(directory,{recursive:true,force:true}));const path=join(directory,'reports.sqlite');
+ const registry=openReportRegistry(path), first=await api(t,{reportRegistry:registry});
+ const input=body();Object.assign(input.inspection,{unfavorableCause:'Causa guardada',closingRemarks:'Recomendación guardada'});
+ await first.send(input); registry.close();
+ const reopened=openReportRegistry(path);t.after(()=>reopened.close());
+ const second=await api(t,{reportRegistry:reopened,fetchImpl:async()=>new Response('Rejected',{status:403})});
+ const failed=body();Object.assign(failed.inspection,{unfavorableCause:'No guardar',closingRemarks:'No guardar'});
+ assert.equal((await second.send(failed)).status,502);
+ assert.equal((await second.send({action:'inspection.defaults'})).data.defaults.texts.closingRemarks,'Recomendación guardada');
+ const invalid=body();Object.assign(invalid.inspection,{unfavorableCause:'x'.repeat(1201),closingRemarks:''});
+ assert.equal((await second.send(invalid)).status,400);
 });

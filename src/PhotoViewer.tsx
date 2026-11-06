@@ -12,7 +12,7 @@ export function PhotoViewer({ photo, onClose, onSave }: { photo: Evidence; onClo
   const [editing, setEditing] = useState(false); const [saving, setSaving] = useState(false);
   return <Modal title={editing ? 'Editar evidencia fotográfica' : 'Evidencia fotográfica'} wide onClose={() => { if (!saving) onClose(); }}>
     {editing && onSave ? <PhotoEditor photo={photo} saving={saving} onCancel={() => setEditing(false)} onSave={async updated => { setSaving(true); try { await onSave(updated); setEditing(false); } finally { setSaving(false); } }}/>
-      : <>{onSave && <div className="photo-viewer-tools"><button type="button" className="button button-outline" onClick={() => setEditing(true)}><Pencil size={16}/>Editar imagen</button></div>}<img className="photo-full" src={photo.data} alt={photo.name}/><p className="photo-caption">{photo.name}</p></>}
+      : <><div className="photo-viewer-stage"><img className="photo-full" src={photo.data} alt={photo.name}/>{onSave && <button type="button" className="icon-button photo-viewer-edit" aria-label="Editar imagen" title="Editar imagen" onClick={() => setEditing(true)}><Pencil size={18}/></button>}</div><p className="photo-caption">{photo.name}</p></>}
   </Modal>;
 }
 function PhotoEditor({ photo, saving, onCancel, onSave }: { photo: Evidence; saving: boolean; onCancel: () => void; onSave: (photo: Evidence) => Promise<void> }) {

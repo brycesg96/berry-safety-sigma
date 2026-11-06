@@ -6,6 +6,7 @@ import type { Evidence, Inspection, Observation } from './model';
 import { emailValid, formatDate, initials, hasInspectionContent, loadInspections, newInspection, newObservation, setObservationClosingDate, persistInspection, preparePhoto, removeInspection, stepNames, validateStep } from './model';
 import { ReportSendForm } from './ReportSendForm';
 import { exportExcel } from './export';
+import { applyInspectionTexts, refreshInspectionTexts, rememberInspectionTexts } from './inspection-texts';
 import { GeneralSection } from './GeneralSection';
 import { EMPLOYER } from './employer';
 import { pendingCodeLabel, confirmedInspectionCode } from './inspection-code';
@@ -110,9 +111,14 @@ function WorkspaceApp({ initialAccounts }: { initialAccounts: DemoAccount[] }) {
     setProfileForm({ name: account.name, email: account.email, area: account.area, jobTitle: account.jobTitle, accountId: account.id });
     loadInspections().then(items => {
       if (!active) return;
+      for (const item of items) if (item.emailDelivery?.state === 'accepted') rememberInspectionTexts({ objective: item.objective, unfavorableCause: item.unfavorableCause || '', closingRemarks: closingRemarksOf(item) }, item.emailDelivery.updatedAt);
       const owned = items.filter(item => item.ownerId === account.id);
       owned.filter(hasInspectionContent).forEach(item => startedDraftIds.current.add(item.id));
-      setInspections(owned); setReceived(items.filter(item => isRecipient(item, account.id))); setDraft(owned.find(i => !i.delivery) || newInspection(profile)); setFollowUp(null); setLoaded(true);
+      const existing = owned.find(i => !i.delivery), next = existing || newInspection(profile);
+      setInspections(owned); setReceived(items.filter(item => isRecipient(item, account.id))); setDraft(next); setFollowUp(null); setLoaded(true);
+      void refreshInspectionTexts().then(texts => {
+        if (active && !existing) setDraft(current => current.id === next.id ? applyInspectionTexts(current, texts) : current);
+      });
     }).catch(() => { if (active) { setInspections([]); setDraft(newInspection(profile)); setStorageError(true); setLoaded(true); } });
     return () => { active = false; };
   }, [account.id]);
@@ -225,7 +231,9 @@ function WorkspaceApp({ initialAccounts }: { initialAccounts: DemoAccount[] }) {
   };
   const startNew = async () => {
     if (!await save(draft)) { setToast('No pudimos guardar tu inspección. Descarga el informe antes de salir.'); return; }
-    setDraft(newInspection(profile)); setErrors({}); setView('editor'); setMenuOpen(false); top();
+    const next = newInspection(profile);
+    setDraft(next); setErrors({}); setView('editor'); setMenuOpen(false); top();
+    void refreshInspectionTexts().then(texts => setDraft(current => current.id === next.id ? applyInspectionTexts(current, texts) : current));
   };
   const refreshInspections = async () => {
     const items = await loadInspections();
@@ -254,6 +262,7 @@ function WorkspaceApp({ initialAccounts }: { initialAccounts: DemoAccount[] }) {
     try {
       if (!await save(draft)) throw new Error('No se pudo guardar el informe antes del envío.');
       const sent = await deliverInspection(draft, account.id);
+      rememberInspectionTexts(sent);
       setDraft(sent); setModal(null); await refreshInspections(); openFollowUp(sent, 'list');
       setToast('Inspección disponible en la cuenta destinataria de este navegador. No se envió correo.');
     } catch (error) { setToast(error instanceof Error ? error.message : 'No se pudo enviar la inspección.'); }
@@ -395,7 +404,7 @@ function WorkspaceApp({ initialAccounts }: { initialAccounts: DemoAccount[] }) {
     </div>
 
     {toast && <div className="toast" role="status"><Info size={18} /><span>{toast}</span><button aria-label="Cerrar aviso" onClick={() => setToast('')}><X size={16} /></button></div>}
-    {modal === 'help' && <Modal title="Una inspección, paso a paso" onClose={() => setModal(null)}><p className="modal-description">Lo importante es lo que observas. Berry te ayuda a darle forma.</p><ol className="help-steps">{['Define la empresa, la instalación, el objetivo y los responsables.', 'Añade tus observaciones, fotos y medidas correctivas. Selecciona el nivel de riesgo y la Fecha de Cierre. La primera fecha se aplica a todas; después puedes ajustarlas por separado.', 'Revisa el resumen de los hallazgos.', 'Completa las conclusiones, recomendaciones y los datos del inspector.', 'Revisa los destinatarios y descarga el informe Excel.'].map((text, i) => <li key={text}><span>{i + 1}</span><div><strong>{stepNames[i]}</strong><p>{text}</p></div></li>)}</ol><div className="notice"><Info size={19} /><p>Los borradores se guardan automáticamente en este navegador. El envío por correo y la plantilla oficial se incorporarán en una siguiente etapa.</p></div><button className="button button-primary full-width" onClick={() => setModal(null)}>Entendido<Check size={16} /></button></Modal>}
+    {modal === 'help' && <Modal title="Una inspección, paso a paso" onClose={() => setModal(null)}><p className="modal-description">Lo importante es lo que observas. Berry te ayuda a darle forma.</p><ol className="help-steps">{['Define la empresa, la instalación, el objetivo y los responsables.', 'Añade tus observaciones, fotos y medidas correctivas. Selecciona el nivel de riesgo y la Fecha de Cierre. La primera fecha se aplica a todas; después puedes ajustarlas por separado.', 'Revisa el resumen de los hallazgos.', 'Completa las conclusiones, recomendaciones y los datos del inspector.', 'Revisa los destinatarios y descarga el informe Excel.'].map((text, i) => <li key={text}><span>{i + 1}</span><div><strong>{stepNames[i]}</strong><p>{text}</p></div></li>)}</ol><div className="notice"><Info size={19} /><p>Los borradores se guardan automáticamente en este navegador. El Excel utiliza la plantilla de inspecciones internas. La recepción del correo se confirma en el buzón destinatario.</p></div><button className="button button-primary full-width" onClick={() => setModal(null)}>Entendido<Check size={16} /></button></Modal>}
     {modal === 'profile' && <Modal title="Tu perfil" onClose={() => setModal(null)}><div className="profile-modal-avatar">{initials(profileForm.name)}</div><Field label="Cuenta de prueba" hint="Cambia de cuenta sin iniciar sesión mientras Microsoft está desactivado.">{props => <select {...props} value={account.id} disabled={!loaded || busy || photoBusy !== null} onChange={e => void switchAccount(e.target.value)}>{accounts.filter(a => a.enabled).map(a => <option key={a.id} value={a.id}>{a.name} — {a.email} ({a.role === 'admin' ? 'Administrador' : 'Inspecciones'})</option>)}</select>}</Field><form onSubmit={e => { e.preventDefault(); saveProfile(); }}><Field label="Nombres y apellidos" required>{props => <input {...props} autoComplete="name" placeholder="Nombres y apellidos completos" value={profileForm.name} maxLength={250} onChange={e => setProfileForm(p => ({ ...p, name: e.target.value }))}/>}</Field><Field label="Área" required>{props => <input {...props} placeholder="Área a la que perteneces" value={profileForm.area} maxLength={250} onChange={e => setProfileForm(p => ({ ...p, area: e.target.value }))}/>}</Field><Field label="Cargo">{props => <input {...props} placeholder="Puesto o cargo que desempeñas" value={profileForm.jobTitle} maxLength={250} onChange={e => setProfileForm(p => ({ ...p, jobTitle: e.target.value }))}/>}</Field><Field label="Correo de tu cuenta">{props => <input {...props} type="email" value={profileForm.email} readOnly/>}</Field>{profileError && <p className="error-message" role="alert">{profileError}</p>}<button type="submit" className="button button-primary full-width">Guardar perfil<Check size={16}/></button></form><MicrosoftAccess/></Modal>}
     {modal === 'send' && <Modal title="Enviar inspección" onClose={() => !busy && setModal(null)}><div className="send-illustration"><Mail size={34}/></div><h3 className="centered">Enviar informe a los responsables</h3><div className="send-recipients">{draft.responsibles.map(r => <div key={r.id}><Mail size={16}/><span><strong>{r.name}</strong><small>{r.email}</small></span></div>)}</div><ReportSendForm inspection={draft} actorId={account.id} onBusyChange={setBusy} onPrepare={async () => { if (!await save(draft)) throw new Error('No se pudo guardar el informe.'); return deliverInspection(draft, account.id); }} onChange={sent => { if (activeIdRef.current !== sent.ownerId) return; setDraft(sent); setModal(null); void refreshInspections(); openFollowUp(sent, 'list'); setToast(sent.emailDelivery?.state === 'accepted' ? 'Make aceptó el informe y el Excel. Confirma Outlook en el historial de Make.' : 'Recepción no confirmada. Revisa el estado del envío.'); }}/><details className="local-delivery-option"><summary>Compartir solo en este navegador</summary><p>Disponible en las cuentas destinatarias de este navegador. Esta opción no envía correo.</p><button className="button button-outline full-width" disabled={busy} onClick={() => void sendInspection()}>{busy ? <LoaderCircle className="spin" size={16}/> : <Send size={16}/>}Enviar a destinatarios de prueba</button><p className="send-status"><Info size={14}/>No se ha enviado ningún correo.</p></details></Modal>}
     {previewPhoto && <PhotoViewer photo={previewPhoto} onClose={() => setPreviewPhoto(null)} onSave={!draft.delivery && draft.observations.some(o => o.photos.some(p => p.id === previewPhoto.id)) ? async photo => {

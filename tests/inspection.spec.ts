@@ -65,21 +65,21 @@ test('recorrido completo con evidencia, persistencia y un Excel válido', async 
   const downloadEvent = page.waitForEvent('download');
   await page.getByRole('button', { name: 'Descargar Excel', exact: true }).click();
   const download = await downloadEvent;
-  expect(download.suggestedFilename()).toMatch(/^Inspeccion-.*\.xlsx$/);
+  expect(download.suggestedFilename()).toBe('REG_INS_ALMACÉN Y DESPACHO_03.11.2026.xlsx');
   const book = new ExcelJS.Workbook();
   await book.xlsx.readFile((await download.path())!);
-  const sheet = book.getWorksheet('Inspección SST')!;
+  const sheet = book.getWorksheet('V.01')!;
   const content = JSON.stringify(sheet.getSheetValues());
   expect(content).toContain('HORTIFRUT PERÚ S.A.C.');
-  expect(content).toContain('BORRADOR — pendiente de registro');
+  expect(content).toContain('PENDIENTE DE REGISTRO');
   expect(content).toContain('07:30');
   expect(content).toContain('Ruta de evacuación obstruida');
-  expect(content).toContain('ana@example.com');
-  expect(content).toContain('jose@example.com');
+  expect(content).toContain('Ana Torres');
+  expect(content).toContain('José Rojas');
   expect(content).toContain('ALTA');
   expect(content).toContain('Falta de identificación en un estante.');
   expect(content).toContain('BAJA');
-  expect(sheet.getImages()).toHaveLength(1);
+  expect(sheet.getImages()).toHaveLength(2); // Logo and evidence.
   expect(requestUrls).toEqual([]);
   await page.getByRole('button', { name: 'Guardar y salir' }).click();
   await expect(page.locator('.inspection-list-row')).toHaveCount(1);

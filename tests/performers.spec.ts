@@ -70,12 +70,12 @@ test('hasta tres inspectores, autor de la cuenta bloqueado, selección sin dupli
   const downloadEvent = page.waitForEvent('download');
   await page.getByRole('button', { name: 'Descargar Excel', exact: true }).click();
   const workbook = new ExcelJS.Workbook(); await workbook.xlsx.readFile((await (await downloadEvent).path())!);
-  const content = JSON.stringify(workbook.getWorksheet('Inspección SST')!.getSheetValues());
-  for (const text of ['Brian Céspedes', 'bryx.96@gmail.com', 'Ana Torres', 'ana@example.com', 'José Rojas', 'jose@example.com']) expect(content).toContain(text);
+  const content = JSON.stringify(workbook.getWorksheet('V.01')!.getSheetValues());
+  for (const text of ['Brian Céspedes', 'Ana Torres', 'José Rojas']) expect(content).toContain(text);
   expect(content).not.toContain('Nombre manual antiguo');
   expect(content).toContain('Supervisor SST');
   expect(content).toContain('Falta de controles preventivos.');
   expect(content).toContain('Conclusiones y recomendaciones finales.');
   expect(content).toContain('RESPONSABLE DEL REGISTRO');
-  expect(workbook.getWorksheet('Inspección SST')!.getImages()).toHaveLength(1);
+  expect(workbook.getWorksheet('V.01')!.getImages()).toHaveLength(2); // Logo and signature.
 });

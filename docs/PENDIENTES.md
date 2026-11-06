@@ -72,13 +72,20 @@ Esta lista es la referencia de trabajo y se resumirá al cerrar cada avance. Se 
 
 - [x] Navegación del asistente desde «SEGURIDAD Y SALUD EN EL TRABAJO» al cambiar de paso; Editar en el resumen abre y enfoca la observación elegida, sin buscarla manualmente.
 
+- [x] Recibida y revisada la nueva plantilla original `REGISTRO DE INSPECCIONES INTERNAS.xlsx`: dos hojas, medidas, estilos, imágenes y configuración de impresión identificados. [Referencia](PLANTILLA_EXCEL.md).
+- [x] Recibida y leída la copia con instrucciones rojas; registrado el mapeo para explicarlo al usuario. Aclaración posterior: acomodar fotos pequeñas dentro del recuadro y conservar anchos y alturas originales, sin imponer 550 píxeles. [Mapeo](PLANTILLA_EXCEL.md).
+- [x] Sustituir el exportador genérico por el llenado de la plantilla: datos en sus celdas, fotografías pequeñas en sus recuadros, firmas transparentes y registros adicionales que desplazan el cierre. Nombre solicitado: `REG_INS_ÁREA EN MAYÚSCULAS_DD.MM.AAAA.xlsx`, todavía modificable. La descarga y el adjunto utilizan el mismo generador y los mismos bytes para una inspección sin cambios.
+- [x] Precargar objetivo, causa ante resultados desfavorables y conclusiones/recomendaciones de la última inspección enviada, conservando la edición libre. Los envíos aceptados actualizan una copia compartida en la API; no sobrescribe borradores existentes ni lo escrito mientras llega la respuesta. La precarga sola no crea borradores vacíos. La copia local permite continuar cuando falla la consulta.
+- [x] Visor de evidencias compacto: botón de edición con lápiz en la esquina superior derecha de la imagen, con nombre accesible y área táctil de 44 píxeles.
+- [ ] Actualizar el backend Render para activar el nombre nuevo del adjunto y la consulta de textos compartidos. El almacenamiento SQLite actual requiere un volumen persistente o una base compartida para sobrevivir a la sustitución de la instancia de Render; las copias locales no sustituyen esa persistencia entre dispositivos.
+
 ## Pendientes operativos, por orden de dependencia
 
 1. [ ] Elegir y conectar el sistema de automatización y la base de datos real. Confirmar alojamiento y credenciales mediante configuración segura, sin claves en el navegador.
 2. [ ] Microsoft real: registrar la aplicación, conectar el inicio de sesión y aplicar en el servidor la lista de cuentas habilitadas. Las altas y perfiles actuales son locales de prueba; completar el perfil en el primer ingreso autenticado sigue pendiente.
 3. [ ] Sincronizar cuentas, perfiles y directorio con la base de datos real entre dispositivos. Las dos cuentas solicitadas ya aparecen en la demostración, pero no representan identidades verificadas por Microsoft.
 4. [ ] Integrar el registro de envío autenticado: validar los datos, asignar el código una sola vez, generar el Excel con ese código y guardar ambos en la misma operación. La referencia transaccional está probada; el servicio real sigue pendiente.
-5. [ ] Recuperar e incorporar la exportación sobre el Excel proporcionado y revisar los apartados segundo y tercero. El código actual conserva todavía el exportador genérico provisional; no se debe confundir con la adaptación completa anterior.
+5. [x] Incorporar la exportación sobre el Excel proporcionado, con las instrucciones rojas revisadas y medidas originales. [Referencia y mapeo](PLANTILLA_EXCEL.md).
 6. [ ] Conectar almacenamiento compartido y evidencias para retomar inspecciones entre dispositivos. Los borradores actuales permanecen en cada navegador.
 7. [ ] Conectar el envío de correo y el seguimiento de entrega, con reintentos sin duplicados. Aceptar y registrar una inspección no significa que el correo ya fue entregado.
 8. [ ] Conectar entregas y levantamientos al backend autenticado: permisos por destinatario y revisor, auditoría y versiones, avisos, sincronización entre dispositivos y resolución de concurrencia del servidor. El flujo actual es una demostración en el mismo navegador.

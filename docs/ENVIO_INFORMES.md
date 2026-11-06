@@ -57,3 +57,15 @@ Cualquier persona que abra la web del prototipo puede utilizar este envío. Se c
 Los interruptores globales `MAKE_REPORTS_ENABLED` y `MAKE_TEST_ENABLED` siguen funcionando independientemente. `BERRY_PROTOTYPE_MODE=false` desactiva el acceso global y restaura la autorización del servidor para los clientes autenticados anteriores. Antes del uso operativo multiusuario, sustituir el acceso del prototipo por Microsoft y autorización real en servidor.
 
 La API de sesiones anterior se conserva por compatibilidad durante el despliegue, pero la web nueva no la utiliza ni guarda credenciales o tokens de correo en el navegador. El bloqueo de activación que deshabilitaba Enviar informe por correo fue retirado completamente.
+
+## Plantilla y textos reutilizables (6 de noviembre de 2026)
+
+El Excel usa el formato entregado por el propietario, con su hoja de valoración, tamaños y ajustes de impresión. Descarga y adjunto usan el mismo generador. El nombre se deriva tanto en navegador como en API con `shared/report-filename.mjs`: `REG_INS_ÁREA EN MAYÚSCULAS_DD.MM.AAAA.xlsx`, tomando la fecha de inspección. El Dockerfile incluye esa carpeta compartida.
+
+La consulta de solo lectura `POST /api/inspections/send` con `{ "action": "inspection.defaults" }` devuelve `defaults: null` o `{ "texts": { "objective": "...", "unfavorableCause": "...", "closingRemarks": "..." }, "acceptedAt": "..." }`. Aplica las restricciones de origen y modo del prototipo; no llama al webhook ni consume intentos de envío.
+
+Los clientes nuevos incluyen `unfavorableCause` y `closingRemarks` en `inspection`. Solo un informe aceptado por Make actualiza esos tres textos y su recibo en una transacción SQLite. Una consulta, un rechazo, un reintento de un ID ya recibido o un cliente anterior que omita los campos no sustituyen los textos. La aceptación de Make sigue sin confirmar entrega a Outlook.
+
+Una inspección nueva recibe esos textos como contenido editable. Los borradores existentes se conservan, y una respuesta tardía no reemplaza campos que la persona ya haya cambiado. Las precargas sin otras modificaciones no generan borradores vacíos. Los clientes conservan una copia de los últimos textos conocidos para trabajar sin conexión; la opción de compartir solo en este navegador actualiza únicamente esa copia local.
+
+Para probar la consulta global y el nombre del adjunto, actualizar Render con el último commit; no hay variables nuevas. El SQLite del prototipo vive por defecto en `/tmp`: conserva los textos entre peticiones, usuarios, equipos y reinicios del proceso mientras el archivo siga disponible, pero Render puede eliminarlo al sustituir la instancia. La persistencia garantizada entre despliegues requiere conectar el almacenamiento compartido pendiente.
