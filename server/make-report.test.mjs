@@ -25,9 +25,27 @@ test('informe: Para y CC deduplicados, HTML general escapado y XLSX real adjunto
  assert.equal(p.mode,'inspection');assert.equal(p.send_email,true);assert.equal(p.codigo_reservado,false);
  assert.deepEqual(p.destinatarios,{para:['uno@example.com','dos@example.com'],cc:['jefe@example.com','gerente@example.com'],cco:[]});
  assert.deepEqual(p.outlook.para,[{address:'uno@example.com',name:'Persona Uno'},{address:'dos@example.com',name:'Persona Dos'}]);
- assert.ok(p.cuerpo_html.includes('Taller &lt;Armonía&gt;'));assert.ok(p.cuerpo_html.includes('Excel adjunto'));
+ assert.ok(p.cuerpo_html.includes('Taller &lt;Armonía&gt; / Armonía 2'));assert.ok(p.cuerpo_html.includes('Excel adjunto'));
+ assert.ok(p.cuerpo_html.includes('<strong>Compañero SIGMA:</strong> Ana'));assert.ok(p.cuerpo_html.includes('04.11.2026'));
  assert.equal(p.adjuntos[0].contenido_base64,input.attachment.contentBase64);assert.equal(p.adjuntos[0].nombre,'REG_INS_TALLER ARMONÍA_04.11.2026.xlsx');
  assert.ok(!JSON.stringify(result.data).includes(env.MAKE_WEBHOOK_URL));assert.equal(calls[0].request.headers.Authorization,undefined);
+});
+test('el cuerpo menciona los tres compañeros SIGMA sin convertirlos en destinatarios y rechaza equipos inválidos',async t=>{
+ const {send,calls}=await api(t);const input=body();
+ input.inspection.inspectors=[input.inspection.inspector,{name:'Luis <SST>',email:'luis@example.com'},{name:'María & José',email:'maria@example.com'}];
+ assert.equal((await send(input)).status,200);
+ const p=JSON.parse(calls[0].request.body);
+ assert.ok(p.cuerpo_html.includes('<strong>Compañeros SIGMA:</strong> Ana, Luis &lt;SST&gt; y María &amp; José'));
+ assert.deepEqual(p.destinatarios.para,['uno@example.com','dos@example.com']);
+ assert.equal(p.inspectores.length,3);
+ const duplicated=body();duplicated.inspection.inspectors=[duplicated.inspection.inspector,duplicated.inspection.inspector];
+ assert.equal((await send(duplicated)).status,400);
+ const excessive=body();excessive.inspection.inspectors=[excessive.inspection.inspector,...Array.from({length:3},(_,i)=>({name:'Extra',email:`extra${i}@example.com`}))];
+ assert.equal((await send(excessive)).status,400);
+ const invalid=body();invalid.inspection.inspectors=[invalid.inspection.inspector,{name:'Extra',email:'invalid'}];
+ assert.equal((await send(invalid)).status,400);
+ const changed=structuredClone(input);changed.inspection.inspectors[1].name='Otro nombre';
+ assert.equal((await send(changed)).status,409);assert.equal(calls.length,1);
 });
 test('informe desactivado o sin clave nunca llama Make; check habilitado solo consulta configuración',async t=>{
  const disabled=await api(t,{env:{...env,MAKE_REPORTS_ENABLED:'false'}});assert.equal((await disabled.send()).status,503);assert.equal(disabled.calls.length,0);

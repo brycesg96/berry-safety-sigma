@@ -15,6 +15,13 @@ export function reportPayload(input) {
   const date = text(d.date, 10); if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || new Date(`${date}T12:00:00Z`).toISOString().slice(0,10) !== date) throw new Error('INVALID_REPORT');
   const area = text(d.area, 500), facility = text(d.facility || '', 500, false), objective = text(d.objective, 560);
   const inspector = { nombre: text(d.inspector?.name, 250), correo: email(d.inspector?.email) };
+  let team = [inspector];
+  if (d.inspectors !== undefined) {
+    if (!Array.isArray(d.inspectors) || d.inspectors.length < 1 || d.inspectors.length > 3) throw new Error('INVALID_REPORT');
+    team = d.inspectors.map(p => ({ nombre: text(p?.name,250), correo: email(p?.email) }));
+    if (team[0].correo !== inspector.correo || team[0].nombre !== inspector.nombre || new Set(team.map(p => p.correo)).size !== team.length) throw new Error('INVALID_REPORT');
+  }
+  const companionNames = new Intl.ListFormat('es', { style:'long', type:'conjunction' }).format(team.map(p => p.nombre));
   if (!Array.isArray(d.responsibles) || !d.responsibles.length || d.responsibles.length > 50 || !Array.isArray(d.cc) || d.cc.length > 50) throw new Error('INVALID_REPORT');
   const seen = new Set(); const people = [];
   for (const p of d.responsibles) { const address=email(p.email); const name=text(p.name,250); if (!seen.has(address)) {seen.add(address);people.push({address,name});} }
@@ -25,6 +32,7 @@ export function reportPayload(input) {
   const buffer=Buffer.from(base64,'base64');
   if (buffer.length < 4 || buffer.length > MAX_EXCEL_BYTES || buffer.subarray(0,4).toString('hex') !== '504b0304') throw new Error('INVALID_ATTACHMENT');
   const metadata = {id:d.id,date,area,facility,objective,inspector,responsibles:people,cc,observationCount:d.observationCount};
+  if (d.inspectors !== undefined) Object.assign(metadata,{inspectors:team});
   // Older clients omit these fields and must not erase shared defaults.
   const texts = d.unfavorableCause !== undefined && d.closingRemarks !== undefined
     ? { objective, unfavorableCause: text(d.unfavorableCause,1200,false), closingRemarks: text(d.closingRemarks,1200,false) } : undefined;
@@ -32,11 +40,11 @@ export function reportPayload(input) {
   const payload = {
     schema_version:'1.1',source:'Berry Safety / BR Sigma',request_id:d.id,inspection_id:d.id,
     mode:'inspection',send_email:true,es_ejemplo:false,codigo_reservado:false,numero:'SIN CÓDIGO DEFINITIVO',
-    fecha:date,fundo:facility,area,inspector,responsables:people.map(p=>({nombre:p.name,correo:p.address})),
+    fecha:date,fundo:facility,area,inspector,inspectores:team,responsables:people.map(p=>({nombre:p.name,correo:p.address})),
     destinatarios:{para:people.map(p=>p.address),cc,cco:[]},
     outlook:{para:people,cc:cc.map(address=>({address,name:''})),cco:[]},
     asunto:`Informe de inspección de seguridad - ${area.replace(/[\r\n]+/g,' ')} - ${date}`,
-    cuerpo_html:`<p>Estimado equipo:</p><p>Se ha compartido con ustedes un informe de inspección de seguridad y salud en el trabajo. Encontrarán el informe Excel adjunto para su revisión y seguimiento.</p><p><strong>Área e instalación:</strong> ${escape(area)}<br><strong>Fecha:</strong> ${escape(date)}<br><strong>Inspector:</strong> ${escape(inspector.nombre)}</p><p>Por favor, revisen los hallazgos y las acciones a tomar indicadas en el documento.</p><p>Berry Safety / BR Sigma</p><p><small>Código definitivo pendiente de registro central.</small></p>`,
+    cuerpo_html:`<p>Se ha registrado una inspección de seguridad y salud en el trabajo correspondiente a:</p><p><strong>Área e instalación:</strong> ${[area,facility].filter(Boolean).map(escape).join(' / ')}<br><strong>Fecha de inspección:</strong> ${date.split('-').reverse().join('.')}<br><strong>${team.length === 1 ? 'Compañero SIGMA' : 'Compañeros SIGMA'}:</strong> ${escape(companionNames)}</p><p>Encontrarán el registro de la inspección en el <strong>archivo Excel adjunto</strong>. Por favor, revisen los hallazgos y gestionen las acciones propuestas para su atención y seguimiento.</p><p><strong>Berry Safety</strong></p>`,
     adjuntos:[{nombre:reportFilename(area,date),tipo:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',contenido_base64:base64}],
   };
   return {payload, texts, hash:createHash('sha256').update(JSON.stringify(metadata)).digest('hex')};

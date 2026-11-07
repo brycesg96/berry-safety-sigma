@@ -58,6 +58,26 @@ Los interruptores globales `MAKE_REPORTS_ENABLED` y `MAKE_TEST_ENABLED` siguen f
 
 La API de sesiones anterior se conserva por compatibilidad durante el despliegue, pero la web nueva no la utiliza ni guarda credenciales o tokens de correo en el navegador. El bloqueo de activación que deshabilitaba Enviar informe por correo fue retirado completamente.
 
+## Cuerpo del correo acordado
+
+Se ha registrado una inspección de seguridad y salud en el trabajo correspondiente a:
+
+**Área e instalación:** [Área] / [Instalación]
+
+**Fecha de inspección:** [DD.MM.AAAA]
+
+**Compañeros SIGMA:** [Nombre 1], [Nombre 2] y [Nombre 3]
+
+Encontrarán el registro de la inspección en el **archivo Excel adjunto**. Por favor, revisen los hallazgos y gestionen las acciones propuestas para su atención y seguimiento.
+
+**Berry Safety**
+
+Estos valores se rellenan automáticamente. Con una sola persona se usa «Compañero SIGMA»; con dos o tres, «Compañeros SIGMA». Se utiliza el mismo equipo del apartado Realizado por, incluido el autor, y esos participantes no se añaden automáticamente como destinatarios. `inspection.inspectors` admite de una a tres personas distintas, empezando por el autor; los clientes anteriores que omiten el campo conservan la mención del inspector principal.
+
+Si la inspección no tiene una instalación separada, se muestra solo el área y se omite la barra. El HTML conserva el escape de los datos de área, instalación y compañeros. El cuerpo ya no incluye saludo, «BR Sigma» ni el aviso de código pendiente. Make sigue usando `cuerpo_html`, sin modificar el mapeo. La nueva redacción requiere desplegar la última versión del backend en Render.
+
+El asunto se conserva: `Informe de inspección de seguridad - [Área] - [AAAA-MM-DD]`.
+
 ## Plantilla y textos reutilizables (6 de noviembre de 2026)
 
 El Excel usa el formato entregado por el propietario, con su hoja de valoración, tamaños y ajustes de impresión. Descarga y adjunto usan el mismo generador. El nombre se deriva tanto en navegador como en API con `shared/report-filename.mjs`: `REG_INS_ÁREA EN MAYÚSCULAS_DD.MM.AAAA.xlsx`, tomando la fecha de inspección. El Dockerfile incluye esa carpeta compartida.

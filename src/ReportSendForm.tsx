@@ -6,6 +6,7 @@ import { inspectionCopies } from './accounts';
 import { buildExcel } from './export';
 import { saveEmailReceipt } from './follow-up';
 import { rememberInspectionTexts } from './inspection-texts';
+import { registrationPeople } from './registration';
 export function ReportSendForm({ inspection, actorId, onPrepare, onChange, onBusyChange }: { inspection: Inspection; actorId: string; onPrepare: () => Promise<Inspection>; onChange: (d: Inspection) => void; onBusyChange?: (busy: boolean) => void }) {
   const [busy,setBusy]=useState(false), [error,setError]=useState('');
   const lock=useRef(false), api=mailEndpoint('/api/inspections/send'), receipt=inspection.emailDelivery;
@@ -29,7 +30,7 @@ export function ReportSendForm({ inspection, actorId, onPrepare, onChange, onBus
       let binary='';for(let i=0;i<file.bytes.length;i+=32768)binary+=String.fromCharCode(...file.bytes.subarray(i,i+32768));
       frozen=await onPrepare();
       frozen=await saveEmailReceipt(frozen,actorId,{state:'pending',requestId:frozen.id,updatedAt:new Date().toISOString()});
-      const {response,data}=await request({action:'inspection.send',inspection:{id:frozen.id,date:frozen.date,area:frozen.area,facility:frozen.facility,objective:frozen.objective,unfavorableCause:frozen.unfavorableCause || '',closingRemarks:frozen.closingRemarks || '',inspector:{name:frozen.inspector,email:frozen.inspectorEmail},responsibles:frozen.responsibles.map(p=>({name:p.name,email:p.email})),cc:frozen.emailCc || cc,observationCount:frozen.observations.length},attachment:{contentBase64:btoa(binary)}});
+      const {response,data}=await request({action:'inspection.send',inspection:{id:frozen.id,date:frozen.date,area:frozen.area,facility:frozen.facility,objective:frozen.objective,unfavorableCause:frozen.unfavorableCause || '',closingRemarks:frozen.closingRemarks || '',inspector:{name:frozen.inspector,email:frozen.inspectorEmail},inspectors:registrationPeople(frozen).map(p=>({name:p.name,email:p.email})),responsibles:frozen.responsibles.map(p=>({name:p.name,email:p.email})),cc:frozen.emailCc || cc,observationCount:frozen.observations.length},attachment:{contentBase64:btoa(binary)}});
       const success=response.ok && data.ok===true && data.receipt==='http_accepted' && data.request_id===frozen.id && data.email_requested===true && Number.isInteger(data.upstream_status) && data.upstream_status>=200 && data.upstream_status<300;
       const state=success?'accepted':data.receipt==='rejected'?'rejected':'unconfirmed';
       const message=success?'Make aceptó el informe y el Excel. Resultado de Outlook pendiente de confirmación.':data.code==='REPORT_CHANGED'?'La API tiene otro intento de esta inspección. Revisa Make antes de enviar otra versión.':'No se confirmó la recepción correcta. Revisa el historial de Make antes de reenviar.';

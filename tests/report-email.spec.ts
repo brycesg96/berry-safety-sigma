@@ -3,7 +3,7 @@ import type { Page } from '@playwright/test';
 import ExcelJS from 'exceljs';
 import { readFile } from 'node:fs/promises';
 import { reportFilename } from '../shared/report-filename.mjs';
-async function prepare(page:Page) {
+async function prepare(page:Page, withTeam=false) {
  await page.route('**/api/people?*',r=>r.fulfill({json:{people:[]}}));
  await page.goto('./');
  await page.getByRole('button',{name:'Administración',exact:true}).click();
@@ -27,6 +27,15 @@ async function prepare(page:Page) {
  await page.getByRole('button',{name:'Continuar',exact:true}).click();await page.getByRole('button',{name:'Continuar',exact:true}).click();
  await page.getByRole('textbox',{name:'CONCLUSIONES Y RECOMENDACIONES',exact:true}).fill('Se requiere corregir el hallazgo.');
  await page.getByRole('button',{name:'Continuar',exact:true}).click();
+ if(withTeam){
+  await page.getByRole('button',{name:'Guardar y salir',exact:true}).click();
+  await page.evaluate(async()=>{
+   const {loadInspections,persistInspection}=await import('/src/model.ts');
+   const draft=(await loadInspections()).find(d=>d.area==='Taller - Armonía 2')!;
+   await persistInspection({...draft,additionalInspectors:[{id:'ana',personId:'ana',name:'Ana Torres',email:'ana@example.com'},{id:'jose',personId:'jose',name:'José Rojas',email:'jose@example.com'}]});
+  });
+  await page.reload();
+ }
  await page.getByRole('button',{name:'Enviar inspección',exact:true}).click();
 }
 test('envío sin claves adjunta Excel, responsables y CC de jefes y conserva el recibo',async({page})=>{
@@ -39,13 +48,14 @@ test('envío sin claves adjunta Excel, responsables y CC de jefes y conserva el 
   captured=data;
   await route.fulfill({json:{ok:true,receipt:'http_accepted',request_id:data.inspection.id,email_requested:true,upstream_status:200,outlook_status:'not_confirmed'}});
  });
- await prepare(page);
+ await prepare(page,true);
  const dialog=page.getByRole('dialog');await expect(dialog).toContainText('jefe@example.com, gerente@example.com');
  await expect(dialog.getByRole('textbox')).toHaveCount(0);
  await dialog.getByRole('button',{name:'Enviar informe por correo',exact:true}).click();
  await expect(page.getByText(/Make aceptó el informe \(HTTP 200\)/)).toBeVisible();
  expect(captured.inspection.responsibles).toEqual([{name:'Bryan',email:'bcespedes@hortifrut.com'}]);
  expect(captured.inspection.cc).toEqual(['jefe@example.com','gerente@example.com']);
+ expect(captured.inspection.inspectors).toEqual([captured.inspection.inspector,{name:'Ana Torres',email:'ana@example.com'},{name:'José Rojas',email:'jose@example.com'}]);
  const workbook=new ExcelJS.Workbook();await workbook.xlsx.load(Buffer.from(captured.attachment.contentBase64,'base64') as any);
  expect(JSON.stringify(workbook.getWorksheet('V.01')!.getSheetValues())).toContain('Falta señalización.');
  const downloadEvent=page.waitForEvent('download');
