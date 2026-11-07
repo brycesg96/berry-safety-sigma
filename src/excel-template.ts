@@ -260,7 +260,7 @@ export async function fillInspectionTemplate(d: Inspection): Promise<Uint8Array>
     if (!Object.hasOwn(RISK_LABELS, observation.severity)) throw new Error('Selecciona un nivel de riesgo válido para cada observación.');
     form.text(`E${row}`, RISK_LABELS[observation.severity]);
     form.text(`F${row}`, observation.correctiveAction);
-    form.text(`G${row}`, correction?.responsibleName || d.responsibles[0]?.name || '');
+    form.text(`G${row}`, correction?.responsibleName ?? d.responsibles[0]?.name ?? '');
     form.text(`I${row}`, correction?.state || 'Pendiente');
     form.text(`J${row}`, printedDate(correction?.date || observation.dueDate));
     await form.pictures(observation.photos, row, 3);

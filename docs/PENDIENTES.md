@@ -26,6 +26,7 @@ Esta lista es la referencia de trabajo y se resumirá al cerrar cada avance. Se 
 - [x] La primera Fecha de Cierre se comparte una sola vez con todas las observaciones y se conserva como fecha inicial para nuevas observaciones. Los cambios posteriores son individuales y persisten al recargar. Los borradores antiguos conservan sus fechas.
 
 - [x] Inspecciones recibidas después de Mis inspecciones: entrega local entre las cuentas destinatarias, levantamientos con acción, responsable, Estado y Fecha de Cierre, fotos separadas y guardado de avances.
+- [x] Responsable inicial del levantamiento consistente entre autor y destinatario: se toma del primer responsable seleccionado para recibir el informe, no de la cuenta que lo consulta. Se conserva el nombre guardado al registrar avances y el Excel muestra el mismo valor.
 - [x] Revisión por el autor, solicitud de ajustes y cierre solo al quedar todos los estados aprobados en Ejecutado. Contadores/filtros Inspecciones a revisar e Inspecciones cerradas. Descargar un informe no lo cierra.
 - [x] Protección local contra sobrescritura o eliminación del informe enviado y rechazo de revisiones obsoletas. Exportación provisional con datos y evidencias del levantamiento. [Guía de prueba y límites](SEGUIMIENTO.md).
 

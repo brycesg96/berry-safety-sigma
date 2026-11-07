@@ -36,7 +36,7 @@ export function FollowUp({ inspection, actor, onChange, onBack }: { inspection: 
 }
 function CorrectionForm({ inspection, observationId, actor, owner, recipient, onChange, onPreview }: { inspection: Inspection; observationId: string; actor: DemoAccount; owner: boolean; recipient: boolean; onChange: (d: Inspection) => void; onPreview: (p: { data: string; name: string }) => void }) {
   const saved = inspection.delivery?.corrections[observationId];
-  const [value, setValue] = useState<Correction>(() => saved || blankCorrection(inspection, observationId, actor));
+  const [value, setValue] = useState<Correction>(() => saved || blankCorrection(inspection, observationId));
   const savedSnapshot = JSON.stringify(saved);
   useEffect(() => { if (saved) setValue(saved); }, [savedSnapshot]);
   const [note, setNote] = useState(''); const [message, setMessage] = useState(''); const [error, setError] = useState(''); const [busy, setBusy] = useState(false);

@@ -15,7 +15,7 @@ async function createReport(page: Page) {
   await page.getByLabel('Hora de inspección').fill('07:30'); await page.getByLabel('AM o PM').selectOption('AM');
   await page.getByRole('radio', { name: 'Planeada', exact: true }).check();
   await page.getByRole('textbox', { name: 'Objetivo de la inspección interna', exact: true }).fill('Verificar las condiciones de seguridad.');
-  await page.getByRole('combobox', { name: /Nombre completo/ }).fill('Bryan');
+  await page.getByRole('combobox', { name: /Nombre completo/ }).fill('bcespedes@hortifrut.com');
   await page.getByRole('listbox').getByRole('option', { name: /bcespedes@hortifrut.com/ }).click();
   await page.getByRole('button', { name: 'Continuar', exact: true }).click();
   for (let i = 0; i < 2; i++) {
@@ -127,6 +127,44 @@ test('destinatario envía evidencias, autor pide ajustes y cierra solo al aproba
   expect(errors).toEqual([]);
 });
 
+test('autor y destinatario ven al mismo responsable antes de guardar y tras registrar el levantamiento', async ({ page }) => {
+  test.setTimeout(60000);
+  await page.goto('./');
+  await page.evaluate(async () => {
+    const { updateOwnProfile } = await import('/src/accounts.ts');
+    updateOwnProfile('demo-admin', 'Autora de inspección', 'Seguridad');
+    updateOwnProfile('demo-inspector', 'Responsable destinataria', 'Taller');
+  });
+  await createReport(page);
+  const cards = page.locator('.followup-card');
+  const name = 'Apellidos y nombres del responsable del levantamiento';
+  await expect(page.locator('.followup-context')).toContainText('Autora de inspección');
+  for (let index = 0; index < 2; index++) {
+    await expect(cards.nth(index).getByLabel(name)).toHaveValue('Responsable destinataria');
+    await expect(cards.nth(index).getByLabel(name)).toHaveAttribute('readonly', '');
+  }
+  await switchTo(page, 'demo-inspector'); await openReceived(page);
+  await expect(cards.first().getByLabel(name)).toHaveValue('Responsable destinataria');
+  await cards.first().getByLabel(name).fill('Responsable del levantamiento confirmado');
+  await cards.first().getByRole('button', { name: 'Guardar avance', exact: true }).click();
+  await expect(cards.first().getByText('Avance guardado.', { exact: true })).toBeVisible();
+  await switchTo(page, 'demo-admin');
+  await page.getByRole('button', { name: 'Mis inspecciones', exact: true }).click();
+  await page.getByRole('button', { name: 'Revisar informe', exact: true }).click();
+  await expect(cards.first().getByLabel(name)).toHaveValue('Responsable del levantamiento confirmado');
+  await expect(cards.nth(1).getByLabel(name)).toHaveValue('Responsable destinataria');
+  const downloadEvent = page.waitForEvent('download');
+  await page.getByRole('button', { name: 'Descargar Excel', exact: true }).click();
+  const book = new ExcelJS.Workbook(); await book.xlsx.readFile((await (await downloadEvent).path())!);
+  expect(book.getWorksheet('V.01')!.getCell('G20').value).toBe('Responsable del levantamiento confirmado');
+  expect(book.getWorksheet('V.01')!.getCell('G21').value).toBe('Responsable destinataria');
+  await page.reload();
+  await page.getByRole('button', { name: 'Mis inspecciones', exact: true }).click();
+  await page.getByRole('button', { name: 'Revisar informe', exact: true }).click();
+  await expect(cards.first().getByLabel(name)).toHaveValue('Responsable del levantamiento confirmado');
+  await expect(cards.nth(1).getByLabel(name)).toHaveValue('Responsable destinataria');
+});
+
 test('permisos, versiones concurrentes y protección del informe enviado', async ({ page }) => {
   await createReport(page);
   const result = await page.evaluate(async () => {
@@ -135,7 +173,7 @@ test('permisos, versiones concurrentes y protección del informe enviado', async
     const { blankCorrection, saveCorrection, reviewCorrection, inspectionClosed } = await import('/src/follow-up.ts');
     const report = (await loadInspections()).find((d: any) => d.delivery)!;
     const actor = readAccounts().find((a: any) => a.id === 'demo-inspector')!;
-    const correction = blankCorrection(report, report.observations[0].id, actor);
+    const correction = blankCorrection(report, report.observations[0].id);
     const reject = async (fn: () => Promise<unknown>) => { try { await fn(); return false; } catch { return true; } };
     const outsiderBlocked = await reject(() => saveCorrection(report, report.observations[0].id, 'outsider', correction, false));
     const updated = await saveCorrection(report, report.observations[0].id, actor.id, correction, false);

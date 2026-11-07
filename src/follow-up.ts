@@ -1,4 +1,3 @@
-import type { DemoAccount } from './accounts';
 import { readAccounts, accountEmail, inspectionCopies } from './accounts';
 import type { Evidence, Inspection } from './model';
 import { database, validateStep } from './model';
@@ -19,7 +18,11 @@ export const inspectionClosed = (d: Inspection) => Boolean(d.delivery && d.obser
 export const needsReview = (d: Inspection) => Boolean(d.delivery && !inspectionClosed(d) && Object.values(d.delivery.corrections).some(c => c.decision === 'review'));
 export const workflowLabel = (d: Inspection) => inspectionClosed(d) ? 'Cerrada' : needsReview(d) ? 'A revisar' : d.delivery ? 'En levantamiento' : d.status === 'ready' ? 'Sin enviar' : 'Borrador';
 export const isRecipient = (d: Inspection, actorId: string) => Boolean(d.delivery?.recipientIds.includes(actorId));
-export const blankCorrection = (d: Inspection, observationId: string, actor: DemoAccount): Correction => ({ actorId: actor.id, responsibleName: actor.name, action: '', date: d.observations.find(o => o.id === observationId)?.dueDate || '', photos: [], proposedState: 'Ejecutado', state: 'Pendiente', decision: 'draft', note: '' });
+// The initial responsible belongs to the report, not to the person viewing it.
+export function blankCorrection(d: Inspection, observationId: string): Correction {
+  const responsible = d.responsibles[0];
+  return { actorId: d.delivery?.recipientIds[0] ?? responsible?.personId ?? '', responsibleName: responsible?.name ?? '', action: '', date: d.observations.find(o => o.id === observationId)?.dueDate || '', photos: [], proposedState: 'Ejecutado', state: 'Pendiente', decision: 'draft', note: '' };
+}
 
 // Browser-only demo. The server must enforce these rules with authenticated identities later.
 async function changeStored(id: string, mutate: (current: Inspection) => Inspection): Promise<Inspection> {
