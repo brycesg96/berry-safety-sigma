@@ -1,4 +1,4 @@
-import type JSZip from 'jszip';
+import JSZip from 'jszip';
 import type { Evidence, Inspection } from './model';
 import { formatInspectionTime } from './inspection-time';
 import { closingRemarksOf, registrationPeople } from './registration';
@@ -222,7 +222,6 @@ class InspectionForm {
 }
 
 export async function fillInspectionTemplate(d: Inspection): Promise<Uint8Array> {
-  const { default: JSZip } = await import('jszip');
   template ||= fetch(`${import.meta.env.BASE_URL}templates/inspection.xlsx`).then(response => {
     if (!response.ok) throw new Error('No se pudo descargar la plantilla de Excel.');
     return response.arrayBuffer();

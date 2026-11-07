@@ -7,6 +7,7 @@ on:
 
 permissions:
   contents: read
+  actions: read
   pages: write
   id-token: write
 
@@ -30,6 +31,8 @@ jobs:
         run: npm ci --no-audit --no-fund
       - name: Verificar la API de prueba de Make
         run: npm run test:api
+      - name: Verificar la conservación de archivos para pestañas abiertas
+        run: node --test scripts/retain-pages-assets.test.mjs
       - name: Verificar la referencia de numeración transaccional
         run: python3 -m unittest discover -s reference -p 'test_*.py' -v
       - name: Compilar para la ruta de GitHub Pages
@@ -42,10 +45,16 @@ jobs:
           VITE_DEMO_INSPECTOR_NAME: ${{ vars.VITE_DEMO_INSPECTOR_NAME }}
       - name: Configurar GitHub Pages
         uses: actions/configure-pages@v5
+      - name: Conservar archivos recientes para las pestañas abiertas
+        run: node scripts/retain-pages-assets.mjs dist-pages
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
       - name: Preparar los archivos de publicación
         uses: actions/upload-pages-artifact@v3
         with:
           path: dist-pages
+          retention-days: 7
 
   deploy:
     name: Publicar la web
