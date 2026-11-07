@@ -8,20 +8,23 @@ export type Correction = {
   action: string;
   date: string;
   photos: Evidence[];
-  proposedState: 'Pendiente' | 'Ejecutado';
+  proposedState: 'Pendiente' | 'Ejecutado'; // Legacy field, kept in sync with state when saving.
   state: 'Pendiente' | 'Ejecutado';
   decision: 'draft' | 'review' | 'approved' | 'changes';
   note: string;
 };
 export type Delivery = { sentAt: string; recipientIds: string[]; revision: number; corrections: Record<string, Correction> };
-export const inspectionClosed = (d: Inspection) => Boolean(d.delivery && d.observations.length && d.observations.every(o => d.delivery?.corrections[o.id]?.state === 'Ejecutado'));
+export const inspectionClosed = (d: Inspection) => Boolean(d.delivery && d.observations.length && d.observations.every(o => {
+  const correction = d.delivery?.corrections[o.id];
+  return correction?.decision === 'approved' && correction.state === 'Ejecutado';
+}));
 export const needsReview = (d: Inspection) => Boolean(d.delivery && !inspectionClosed(d) && Object.values(d.delivery.corrections).some(c => c.decision === 'review'));
 export const workflowLabel = (d: Inspection) => inspectionClosed(d) ? 'Cerrada' : needsReview(d) ? 'A revisar' : d.delivery ? 'En levantamiento' : d.status === 'ready' ? 'Sin enviar' : 'Borrador';
 export const isRecipient = (d: Inspection, actorId: string) => Boolean(d.delivery?.recipientIds.includes(actorId));
 // The initial responsible belongs to the report, not to the person viewing it.
 export function blankCorrection(d: Inspection, observationId: string): Correction {
   const responsible = d.responsibles[0];
-  return { actorId: d.delivery?.recipientIds[0] ?? responsible?.personId ?? '', responsibleName: responsible?.name ?? '', action: '', date: d.observations.find(o => o.id === observationId)?.dueDate || '', photos: [], proposedState: 'Ejecutado', state: 'Pendiente', decision: 'draft', note: '' };
+  return { actorId: d.delivery?.recipientIds[0] ?? responsible?.personId ?? '', responsibleName: responsible?.name ?? '', action: '', date: d.observations.find(o => o.id === observationId)?.dueDate || '', photos: [], proposedState: 'Pendiente', state: 'Pendiente', decision: 'draft', note: '' };
 }
 
 // Browser-only demo. The server must enforce these rules with authenticated identities later.
@@ -67,11 +70,25 @@ export function saveCorrection(d: Inspection, observationId: string, actorId: st
     if (delivery.revision !== d.delivery?.revision) throw new Error('La inspección cambió en otra sesión. Vuelve a abrirla antes de guardar.');
     const previous = delivery.corrections[observationId];
     if (previous?.decision === 'approved' || previous?.decision === 'review' || inspectionClosed(current)) throw new Error('Este levantamiento ya fue enviado a revisión.');
-    if (!['Pendiente', 'Ejecutado'].includes(correction.proposedState)) throw new Error('Selecciona un estado válido.');
+    if (!['Pendiente', 'Ejecutado'].includes(correction.state)) throw new Error('Selecciona un estado válido.');
     if (correction.photos.length > 8) throw new Error('Puedes adjuntar hasta 8 evidencias.');
     if (submit && (!correction.action.trim() || !correction.responsibleName.trim() || !correction.date)) throw new Error('Completa la acción, los nombres del responsable y la Fecha de Cierre.');
-    if (submit && correction.proposedState === 'Ejecutado' && !correction.photos.length) throw new Error('Adjunta al menos una evidencia del levantamiento para proponer Ejecutado.');
-    const saved: Correction = { ...correction, actorId, state: 'Pendiente', decision: submit ? 'review' : 'draft', note: previous?.note || '' };
+    if (submit && correction.state === 'Ejecutado' && !correction.photos.length) throw new Error('Adjunta al menos una evidencia del levantamiento para enviar en Ejecutado.');
+    const saved: Correction = { ...correction, actorId, proposedState: correction.state, decision: submit ? 'review' : 'draft', note: previous?.note || '' };
+    return { ...current, updatedAt: new Date().toISOString(), delivery: { ...delivery, revision: delivery.revision + 1, corrections: { ...delivery.corrections, [observationId]: saved } } };
+  });
+}
+export function saveCorrectionState(d: Inspection, observationId: string, actorId: string, state: Correction['state']) {
+  return changeStored(d.id, current => {
+    const delivery = current.delivery;
+    if (!delivery || (current.ownerId !== actorId && !isRecipient(current, actorId))) throw new Error('Esta inspección no está asignada a tu cuenta.');
+    if (!current.observations.some(o => o.id === observationId)) throw new Error('No se encontró la observación.');
+    if (delivery.revision !== d.delivery?.revision) throw new Error('La inspección cambió en otra sesión. Vuelve a abrirla antes de guardar.');
+    if (inspectionClosed(current)) throw new Error('La inspección está cerrada.');
+    if (!['Pendiente', 'Ejecutado'].includes(state)) throw new Error('Selecciona un estado válido.');
+    const previous = delivery.corrections[observationId] || blankCorrection(current, observationId);
+    // A changed approved finding needs another review; changing a status never grants approval.
+    const saved: Correction = { ...previous, state, proposedState: state, decision: previous.decision === 'approved' && previous.state !== state ? 'review' : previous.decision };
     return { ...current, updatedAt: new Date().toISOString(), delivery: { ...delivery, revision: delivery.revision + 1, corrections: { ...delivery.corrections, [observationId]: saved } } };
   });
 }
@@ -80,11 +97,12 @@ export function reviewCorrection(d: Inspection, observationId: string, actorId: 
     const delivery = current.delivery;
     if (!delivery || current.ownerId !== actorId) throw new Error('Solo el autor puede revisar los levantamientos.');
     if (delivery.revision !== d.delivery?.revision) throw new Error('La inspección cambió en otra sesión. Vuelve a abrirla antes de revisar.');
+    if (inspectionClosed(current)) throw new Error('La inspección está cerrada.');
     const correction = delivery.corrections[observationId];
     if (!correction || correction.decision !== 'review') throw new Error('El levantamiento no está pendiente de revisión.');
-    if (approve && correction.proposedState !== 'Ejecutado') throw new Error('El responsable debe proponer Ejecutado y adjuntar evidencias antes de aprobar.');
     if (!approve && !note.trim()) throw new Error('Indica qué debe corregir el responsable.');
-    const reviewed: Correction = { ...correction, state: approve ? 'Ejecutado' : 'Pendiente', decision: approve ? 'approved' : 'changes', note: note.trim() };
+    const state = approve ? 'Ejecutado' : 'Pendiente';
+    const reviewed: Correction = { ...correction, state, proposedState: state, decision: approve ? 'approved' : 'changes', note: note.trim() };
     return { ...current, updatedAt: new Date().toISOString(), delivery: { ...delivery, revision: delivery.revision + 1, corrections: { ...delivery.corrections, [observationId]: reviewed } } };
   });
 }

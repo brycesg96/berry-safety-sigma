@@ -28,6 +28,7 @@ Esta lista es la referencia de trabajo y se resumirá al cerrar cada avance. Se 
 - [x] Inspecciones recibidas después de Mis inspecciones: entrega local entre las cuentas destinatarias, levantamientos con acción, responsable, Estado y Fecha de Cierre, fotos separadas y guardado de avances.
 - [x] Responsable inicial del levantamiento consistente entre autor y destinatario: se toma del primer responsable seleccionado para recibir el informe, no de la cuenta que lo consulta. Se conserva el nombre guardado al registrar avances y el Excel muestra el mismo valor.
 - [x] Revisión por el autor, solicitud de ajustes y cierre solo al quedar todos los estados aprobados en Ejecutado. Contadores/filtros Inspecciones a revisar e Inspecciones cerradas. Descargar un informe no lo cierra.
+- [x] Selector Estado editable por el autor y los destinatarios hasta el cierre completo, incluso durante la revisión o después de una aprobación individual. Aprobar establece Ejecutado; solicitar ajustes establece Pendiente. El cierre exige todos los hallazgos aprobados en Ejecutado, no basta con cambiar los selectores. Cambiar un aprobado a Pendiente lo devuelve a revisión; Guardar estado conserva los demás datos del levantamiento.
 - [x] Protección local contra sobrescritura o eliminación del informe enviado y rechazo de revisiones obsoletas. Exportación provisional con datos y evidencias del levantamiento. [Guía de prueba y límites](SEGUIMIENTO.md).
 
 - [x] Realizado por admite hasta tres personas: usuario autor con nombre/correo bloqueados y hasta dos inspectores adicionales del directorio, sin duplicados. Se conservan en el borrador, la revisión, el seguimiento y la descarga provisional del Excel. Los datos del autor se actualizan desde su perfil en los borradores; los informes enviados conservan su autor original.
@@ -56,6 +57,7 @@ Esta lista es la referencia de trabajo y se resumirá al cerrar cada avance. Se 
 - [x] No crear borradores al abrir una inspección vacía: se ignoran fecha/usuario automáticos y filas vacías. El guardado inicia con contenido ingresado; si se vacía un borrador en edición, se retira de la lista. Los registros anteriores no se eliminan de forma masiva.
 
 - [x] El número del menú Mis inspecciones cuenta únicamente Inspecciones a revisar y se oculta cuando ese contador está en cero.
+- [x] Mis inspecciones muestra área inspeccionada, responsables, áreas de los responsables y fecha/hora con cantidad de observaciones. La búsqueda admite instalación, área inspeccionada, nombres/correos de responsables y sus áreas, sin distinguir mayúsculas ni tildes, junto con los filtros de estado. Se conserva el código del informe.
 
 - [x] Revisar arquitectura y preparar API servidor de prueba para Make, con secreto solo en servidor, clave de acceso, CORS, JSON ficticio, sin correos reales y con estados de aceptación/rechazo/recepción no confirmada.
 - [x] Administración → Integraciones, configuración de despliegue Render y pruebas sin afectar inspecciones existentes. [Guía y resultado real](MAKE.md).
@@ -89,6 +91,8 @@ Esta lista es la referencia de trabajo y se resumirá al cerrar cada avance. Se 
 - [ ] Actualizar el backend Render para activar el nombre nuevo del adjunto y la consulta de textos compartidos. El almacenamiento SQLite actual requiere un volumen persistente o una base compartida para sobrevivir a la sustitución de la instancia de Render; las copias locales no sustituyen esa persistencia entre dispositivos.
 
 ## Pendientes operativos, por orden de dependencia
+
+El propietario creó su cuenta de Supabase y pidió iniciar la integración al día siguiente, manteniendo el plan gratuito. Deben conservarse borradores, documentos enviados, evidencias y trazabilidad completa entre autores y destinatarios desde distintos dispositivos. [Alcance acordado y orden de trabajo](SUPABASE.md). La cuenta creada todavía no conecta la app ni sustituye el almacenamiento local.
 
 1. [ ] Elegir y conectar el sistema de automatización y la base de datos real. Confirmar alojamiento y credenciales mediante configuración segura, sin claves en el navegador.
 2. [ ] Microsoft real: registrar la aplicación, conectar el inicio de sesión y aplicar en el servidor la lista de cuentas habilitadas. Las altas y perfiles actuales son locales de prueba; completar el perfil en el primer ingreso autenticado sigue pendiente.
