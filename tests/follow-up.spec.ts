@@ -53,9 +53,14 @@ test('destinatario envía evidencias, autor pide ajustes y cierra solo al aproba
   await page.getByRole('button', { name: 'Inspecciones recibidas', exact: true }).click();
   await expect(page.getByText('No tienes inspecciones recibidas')).toBeVisible();
   await createReport(page);
+  const breadcrumb = page.getByRole('navigation', { name: 'Ruta de navegación' });
+  await expect(breadcrumb.locator('li')).toHaveText(['Espacio de trabajo', 'Mis inspecciones', 'En levantamiento']);
+  await expect(page.getByRole('button', { name: 'Mis inspecciones', exact: true })).toHaveClass(/active/);
+  await expect(page.getByRole('button', { name: 'Descargar PDF', exact: true })).toHaveCount(0);
   await switchTo(page, 'demo-inspector');
   await expect(page.getByRole('button', { name: 'Inspecciones recibidas', exact: true }).locator('.nav-count')).toHaveText('1');
   await openReceived(page);
+  await expect(breadcrumb.locator('li')).toHaveText(['Espacio de trabajo', 'Inspecciones recibidas', 'Pendientes']);
   const cards = page.locator('.followup-card');
   await expect(cards.nth(0).getByLabel('Estado', { exact: true })).toHaveValue('Pendiente');
   await cards.nth(0).getByLabel('Estado', { exact: true }).selectOption('Ejecutado');
@@ -76,6 +81,10 @@ test('destinatario envía evidencias, autor pide ajustes y cierra solo al aproba
   await page.reload(); await openReceived(page);
   await expect(cards.nth(0).getByLabel('Acción realizada')).toHaveValue('Corrección 1 realizada');
   await switchTo(page, 'demo-admin'); await openReview(page);
+  await expect(breadcrumb.locator('li')).toHaveText(['Espacio de trabajo', 'Mis inspecciones', 'Inspecciones a revisar']);
+  await page.getByRole('button', { name: 'Volver a Mis inspecciones', exact: true }).click();
+  await expect(page.getByLabel('Filtrar por estado')).toHaveValue('review');
+  await page.getByRole('button', { name: 'Revisar informe', exact: true }).click();
   await cards.nth(0).getByLabel('Estado', { exact: true }).selectOption('Pendiente');
   await cards.nth(0).getByRole('button', { name: 'Guardar estado', exact: true }).click();
   await expect(cards.nth(0).getByText('Estado guardado.', { exact: true })).toBeVisible();
@@ -116,6 +125,8 @@ test('destinatario envía evidencias, autor pide ajustes y cierra solo al aproba
   await cards.nth(0).getByRole('button', { name: 'Aprobar levantamiento' }).click();
   await cards.nth(1).getByRole('button', { name: 'Aprobar levantamiento' }).click();
   await expect(page.getByText('Inspección cerrada: todos los estados están en Ejecutado.')).toBeVisible();
+  await expect(breadcrumb.locator('li')).toHaveText(['Espacio de trabajo', 'Mis inspecciones', 'Inspecciones cerradas']);
+  await expect(page.getByRole('button', { name: 'Descargar PDF', exact: true })).toBeEnabled();
   for (let i = 0; i < 2; i++) await expect(cards.nth(i).getByLabel('Estado', { exact: true })).toBeDisabled();
   const closedGuards = await page.evaluate(async () => {
     const { loadInspections } = await import('/src/model.ts');
@@ -161,6 +172,11 @@ test('destinatario envía evidencias, autor pide ajustes y cierra solo al aproba
   await expect(page.getByRole('button', { name: 'Cerradas', exact: true })).toHaveAttribute('aria-pressed', 'true');
   await expect(page.locator('.inspection-list-row')).toHaveCount(1);
   await expect(page.locator('.inspection-list-info')).toContainText('Cerrada');
+  await page.getByRole('button', { name: 'Revisar inspección', exact: true }).click();
+  await expect(breadcrumb.locator('li')).toHaveText(['Espacio de trabajo', 'Inspecciones recibidas', 'Cerradas']);
+  await expect(page.getByRole('button', { name: 'Inspecciones recibidas', exact: true })).toHaveClass(/active/);
+  await page.getByRole('button', { name: 'Volver a Inspecciones recibidas', exact: true }).click();
+  await expect(page.getByRole('button', { name: 'Cerradas', exact: true })).toHaveAttribute('aria-pressed', 'true');
   await page.getByRole('button', { name: 'Revisar inspección', exact: true }).click();
   await expect(cards.nth(0).getByLabel('Estado', { exact: true })).toBeDisabled();
   await expect(cards.nth(1).getByLabel('Estado', { exact: true })).toBeDisabled();

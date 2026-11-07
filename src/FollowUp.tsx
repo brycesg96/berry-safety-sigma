@@ -8,6 +8,7 @@ import type { Correction } from './follow-up';
 import { blankCorrection, inspectionClosed, isRecipient, reviewCorrection, saveCorrection, saveCorrectionState, workflowLabel } from './follow-up';
 import { closingRemarksOf } from './registration';
 import { exportExcel } from './export';
+import { exportPdf } from './pdf';
 import { confirmedInspectionCode } from './inspection-code';
 
 export function FollowUp({ inspection, actor, onChange, onBack }: { inspection: Inspection; actor: DemoAccount; onChange: (d: Inspection) => void; onBack: () => void }) {
@@ -15,11 +16,18 @@ export function FollowUp({ inspection, actor, onChange, onBack }: { inspection: 
   const [preview, setPreview] = useState<{ data: string; name: string } | null>(null);
   const owner = inspection.ownerId === actor.id;
   const recipient = isRecipient(inspection, actor.id);
+  const closed = inspectionClosed(inspection);
+  async function download(format: 'excel' | 'pdf') {
+    setBusy(true); setError('');
+    try { await (format === 'pdf' ? exportPdf(inspection) : exportExcel(inspection)); }
+    catch { setError(`No se pudo descargar el ${format === 'pdf' ? 'PDF' : 'Excel'}. Vuelve a intentarlo.`); }
+    finally { setBusy(false); }
+  }
   if (!owner && !recipient) return <p role="alert">No tienes esta inspección asignada.</p>;
   return <>
     <button className="button button-back" onClick={onBack}><ArrowLeft size={17}/>Volver</button>
-    <div className="page-heading"><div><div className="eyebrow">SEGUIMIENTO DE HALLAZGOS</div><h1>{inspection.area}</h1><p>{workflowLabel(inspection)} · {confirmedInspectionCode(inspection) || 'Código definitivo pendiente'} · {formatDate(inspection.date)}</p></div><button className="button button-outline" disabled={busy} onClick={async () => { setBusy(true); setError(''); try { await exportExcel(inspection); } catch { setError('No se pudo descargar el informe.'); } finally { setBusy(false); } }}><Download size={16}/>Descargar Excel</button></div>
-    <div className="notice"><p><strong>{inspectionClosed(inspection) ? 'Inspección cerrada: todos los estados están en Ejecutado.' : 'Levantamiento de resultados de la inspección'}</strong><br/>{owner ? 'Revisa las evidencias y aprueba cada levantamiento o solicita ajustes.' : 'Registra la acción realizada y sus evidencias. El autor revisará el levantamiento.'}</p></div>
+    <div className="page-heading followup-heading"><div><div className="eyebrow">SEGUIMIENTO DE HALLAZGOS</div><h1>{inspection.area}</h1><p>{workflowLabel(inspection)} · {confirmedInspectionCode(inspection) || 'Código definitivo pendiente'} · {formatDate(inspection.date)}</p></div><div className="followup-downloads"><button className="button button-outline" disabled={busy} onClick={() => void download('excel')}><Download size={16}/>Descargar Excel</button>{closed && <button className="button button-outline" disabled={busy} onClick={() => void download('pdf')}><Download size={16}/>Descargar PDF</button>}</div></div>
+    <div className="notice"><p><strong>{closed ? 'Inspección cerrada: todos los estados están en Ejecutado.' : 'Levantamiento de resultados de la inspección'}</strong><br/>{closed ? 'Puedes descargar el registro final en Excel o PDF.' : owner ? 'Revisa las evidencias y aprueba cada levantamiento o solicita ajustes.' : 'Registra la acción realizada y sus evidencias. El autor revisará el levantamiento.'}</p></div>
     <div className="followup-context"><p><strong>Objetivo</strong> {inspection.objective}</p><div><strong>RESPONSABLE DE LA INSPECCIÓN</strong>{[{ id: inspection.ownerId, name: inspection.inspector, email: inspection.inspectorEmail }, ...(inspection.additionalInspectors || [])].map(p => <p key={p.id}>{p.name} · {p.email}</p>)}</div><p><strong>Descripción de la causa</strong> {inspection.unfavorableCause || 'Sin indicar'}</p><p><strong>Conclusiones y recomendaciones</strong> {closingRemarksOf(inspection)}</p></div>
     {error && <p className="notice notice-error" role="alert">{error}</p>}
     {inspection.observations.map((o, i) => <section className="followup-card" key={o.id}>
