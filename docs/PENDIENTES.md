@@ -51,6 +51,7 @@ Esta lista es la referencia de trabajo y se resumirá al cerrar cada avance. Se 
 - [x] Cierre con descripción de causas primero y conclusiones/recomendaciones en un solo campo, ambos compactos y con máximo 1200 caracteres. Migración de textos antiguos sin recortes.
 - [x] RESPONSABLE DEL REGISTRO con nombre, cargo, fecha y firma adjunta por imagen para hasta tres personas, conservados en revisión y exportación provisional. Firma y cargo no se inventan; la firma no se genera automáticamente.
 - [x] Cargo del responsable del registro y de los inspectores adicionales de solo lectura, con candado y obtenido de su perfil. Los borradores actualizan el cargo si cambia el perfil, incluso si antes se escribió manualmente, conservando fecha y firma. Un cargo vacío en el perfil queda vacío; los informes enviados conservan el cargo registrado en el envío.
+- [x] Etiqueta Responsable de la inspección unificada en el cierre, la revisión y el seguimiento, coincidiendo con el primer paso. El encabezado del Excel conserva el texto de la plantilla proporcionada.
 
 - [x] RESULTADO DE LA INSPECCIÓN con etiquetas Descripción, Acción a tomar y Nivel de riesgo.
 - [x] Editor básico de evidencias del borrador: recorte, flechas y círculos, selección de color/grosor, movimiento, tamaño con puntos y botones, deshacer y restaurar original. Guarda imagen editada y conserva original y marcas para reabrir; los informes enviados siguen sin edición.

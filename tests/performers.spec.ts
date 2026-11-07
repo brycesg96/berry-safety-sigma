@@ -17,7 +17,7 @@ test('hasta tres inspectores, autor de la cuenta bloqueado, selección sin dupli
     await persistInspection({ ...d, additionalInspectors: undefined, closingRemarks: undefined, area: 'Taller - Armonía 2', date: '2026-11-04', inspectionTime: '07:30', inspectionPeriod: 'AM', type: 'Planeada', objective: 'Verificar la seguridad.', responsibles: [{ id: 'recipient', personId: 'test-ana', name: 'Ana Torres', email: 'ana@example.com' }], observations: [{ ...newObservation(), description: 'Hallazgo', correctiveAction: 'Corregir hallazgo', dueDate: '2026-11-15' }], registrationDetails: { 'demo-admin': { jobTitle: 'Cargo manual antiguo', initialJobTitle: 'Cargo manual antiguo', date: '2026-11-04' } }, conclusions: 'Requiere seguimiento.', recommendations: 'Verificar corrección.', step: 3, updatedAt: '2099-01-01T00:00:00Z' });
   });
   await page.reload();
-  const section = page.getByRole('region', { name: 'RESPONSABLE DEL REGISTRO', exact: true });
+  const section = page.getByRole('region', { name: 'RESPONSABLE DE LA INSPECCIÓN', exact: true });
   const primary = section.locator('.primary-inspector');
   await expect(primary.getByLabel('Nombre completo')).toHaveValue('Brian Céspedes');
   await expect(primary.getByLabel('Correo del inspector')).toHaveValue('bryx.96@gmail.com');
