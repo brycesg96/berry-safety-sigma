@@ -51,6 +51,7 @@ El menú lateral se convierte en un panel desplegable en móvil. Incluye perfil 
 - El Excel utiliza la plantilla oficial proporcionada y conserva sus medidas, formatos y fotografías. El código definitivo sigue pendiente del registro central.
 - El envío de correo utiliza Render, Make y Outlook. La aceptación de Make no confirma por sí sola la entrega al buzón. La opción secundaria de compartir localmente no envía correo.
 - El espacio de pruebas conserva perfiles y roles locales. La ruta `?acceso=cuenta` permite entrar con una cuenta habilitada de Supabase y guardar su nombre, área y cargo con permisos del servidor. Las inspecciones siguen en IndexedDB; entrar con contraseña todavía no sincroniza ni importa los informes locales. [Etapas y estado de la conexión](docs/SUPABASE.md).
+- Administración del portal incluye creación y consulta de usuarios con contraseña temporal y cambio obligatorio al primer ingreso. Requiere ejecutar la segunda migración y configurar una clave privada **solo en Render**, sin cambios de plan. [Activación única](docs/USUARIOS.md).
 - Los registros cerrados admiten descarga directa en PDF con el formato de impresión de la hoja V.01, además de Excel. [Formato y validación](docs/PDF.md).
 
 ## Pruebas

@@ -1,19 +1,22 @@
 import { supabaseClient } from './supabase';
+import { mailEndpoint } from './mail-api';
 
-const columns = 'id,email,full_name,area,job_title,role,enabled';
+const columns = '*';
 export type CloudProfile = {
   id: string; email: string; full_name: string; area: string; job_title: string;
   role: 'admin' | 'inspector'; enabled: boolean;
+  must_change_password?: boolean;
+  supervisor_emails?: string[];
 };
 
 function profileRow(value: unknown, userId: string): CloudProfile {
   const row = value as CloudProfile | null;
-  if (!row || row.id !== userId || typeof row.email !== 'string' ||
+  if (!row || typeof row.id !== 'string' || !row.id || row.id !== userId || typeof row.email !== 'string' ||
       !['full_name', 'area', 'job_title'].every(key => typeof (row as unknown as Record<string, unknown>)[key] === 'string') ||
-      !['admin', 'inspector'].includes(row.role) || typeof row.enabled !== 'boolean') {
+      !['admin', 'inspector'].includes(row.role) || typeof row.enabled !== 'boolean' || row.must_change_password !== undefined && typeof row.must_change_password !== 'boolean') {
     throw new Error('No pudimos consultar tu perfil. Comprueba que tu cuenta esté habilitada.');
   }
-  return row;
+  return { ...row, must_change_password: row.must_change_password === true };
 }
 
 export async function loadCloudProfile(expectedUserId: string, isCurrent: () => boolean): Promise<CloudProfile> {
@@ -41,4 +44,33 @@ export async function saveCloudProfile(userId: string, values: { full_name: stri
   const result = profileRow(data, userId);
   if (!result.enabled) throw new Error('Tu cuenta está pendiente de habilitación.');
   return result;
+}
+
+async function accountRequest(path: string, options: { method?: string; body?: unknown; requestId?: string } = {}) {
+  const endpoint = mailEndpoint(path);
+  if (!endpoint) throw new Error('La gestión de usuarios aún no está configurada.');
+  const { data: { session } } = await supabaseClient().auth.getSession();
+  if (!session) throw new Error('Vuelve a iniciar sesión para continuar.');
+  let response: Response;
+  try {
+    response = await fetch(endpoint, { method: options.method || 'GET', headers: { Authorization: `Bearer ${session.access_token}`, 'Content-Type': 'application/json', ...(options.requestId ? { 'Idempotency-Key': options.requestId } : {}) }, ...(options.body === undefined ? {} : { body: JSON.stringify(options.body) }), signal: AbortSignal.timeout(55000), cache: 'no-store', redirect: 'error' });
+  } catch { throw new Error('No pudimos confirmar la operación. Conserva los datos y vuelve a intentarlo.'); }
+  const result = await response.json().catch(() => null);
+  if (!response.ok || !result?.ok) {
+    if (response.status === 404) throw new Error('Falta actualizar el servidor de gestión de usuarios.');
+    throw new Error(result?.message || 'No pudimos completar la operación.');
+  }
+  return result;
+}
+export async function cloudAccounts(): Promise<CloudProfile[]> {
+  const result = await accountRequest('/api/accounts');
+  if (!Array.isArray(result.accounts)) throw new Error('No pudimos consultar las cuentas.');
+  return result.accounts.map((row: CloudProfile) => profileRow(row, row.id));
+}
+export async function createCloudAccount(input: { full_name: string; email: string; area: string; job_title: string; role: string; supervisor_emails: string[] }, requestId: string): Promise<CloudProfile> {
+  const result = await accountRequest('/api/accounts', { method: 'POST', body: input, requestId });
+  return profileRow(result.account, result.account?.id);
+}
+export async function changeCloudPassword(password: string) {
+  await accountRequest('/api/accounts/password', { method: 'POST', body: { password } });
 }

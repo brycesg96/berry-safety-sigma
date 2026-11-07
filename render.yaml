@@ -9,6 +9,10 @@ services:
     envVars:
       - key: NODE_ENV
         value: production
+      - key: SUPABASE_URL
+        value: https://rwacygoxhkxxxkvushmb.supabase.co
+      - key: SUPABASE_SECRET_KEY
+        sync: false
       - key: MAKE_WEBHOOK_URL
         sync: false
       - key: MAKE_TEST_API_TOKEN

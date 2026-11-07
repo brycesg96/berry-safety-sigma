@@ -68,8 +68,16 @@ El script otorga explícitamente los permisos necesarios y habilita RLS en las s
 
 El siguiente paso funcional es conectar borradores y archivos privados, destinatarios, envíos, levantamientos y revisión a operaciones autenticadas y versionadas. Después se incorporará la importación de los datos locales por identidad verificada.
 
+### Segunda etapa preparada: altas y contraseña temporal
+
+El propietario solicitó que la administración cree cuentas desde la app, con contraseña temporal `0123456789` y cambio obligatorio al primer ingreso. La implementación incluye formulario y listado de cuentas reales en Administración del portal, rutas protegidas de la API de Render y [la segunda migración](../supabase/migrations/202611070002_accounts.sql).
+
+La segunda migración conserva las cuentas existentes. Las nuevas tienen `must_change_password: true` y no pueden leer informes o archivos, editar perfiles ni administrar cuentas hasta completar el cambio. Solo el servidor puede finalizarlo; el navegador no puede quitar el requisito. Se conservan las identidades del actor en auditoría, los reintentos de alta no duplican usuarios ni restablecen contraseñas y el cambio invalida JWT anteriores.
+
+**Pendiente de activación:** ejecutar el script 2 en SQL Editor y configurar `SUPABASE_URL` y `SUPABASE_SECRET_KEY` directamente en Render, desplegando el último código de su API. La clave privada no se coloca en Pages, `VITE_` ni el chat. No se ha recibido ni utilizado una clave privada del proyecto ni creado cuentas reales desde las herramientas. [Pasos completos y límites de esta entrega](USUARIOS.md).
+
 ### Verificaciones
 
-`npm run test:supabase` ejecuta siete comprobaciones con PostgreSQL embebido mediante PGlite. Simula únicamente los contratos mínimos de las tablas/plataforma Auth y Storage: el SQL de Berry, RLS, permisos y triggers se ejecutan de verdad. Prueba separación entre autores/destinatarios, cuentas pendientes, rechazo de autoasignación de administrador, archivos privados, auditoría y repetición del script sin pérdida de datos. Estas pruebas no crean usuarios ni informes en el proyecto real.
+`npm run test:supabase` ejecuta diez comprobaciones con PostgreSQL embebido mediante PGlite. Simula únicamente los contratos mínimos de las tablas/plataforma Auth y Storage: el SQL de Berry, RLS, permisos y triggers se ejecutan de verdad. Prueba separación entre autores/destinatarios, cuentas pendientes, rechazo de autoasignación de administrador, archivos privados, auditoría, reintentos, cambio de contraseña y conservación de las cuentas. Estas pruebas no crean usuarios ni informes en el proyecto real.
 
 `tests/supabase-foundation.spec.ts` comprueba el cliente con una API interceptada: abrir el espacio de pruebas no inicia sesión ni cambia su almacenamiento; una consulta explícita reconoce que la estructura sigue sin estar lista para sincronizar. `tests/cloud-access.spec.ts` comprueba el acceso, el perfil, el aislamiento de cuentas locales, fallos de guardado, sesiones entre pestañas y consulta desde un segundo contexto móvil con Auth/API interceptados. Estas pruebas no crean cuentas reales ni envían correo. La ejecución en SQL Editor real está verificada; el inicio de sesión del propietario y la prueba completa de inspecciones con dos dispositivos deben confirmarse al completar cada etapa.

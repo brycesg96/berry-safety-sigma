@@ -24,7 +24,18 @@
 .cloud-profile-heading .account-enabled { font-size: 10px; }
 .cloud-logout { display: flex; align-items: center; justify-content: center; gap: 8px; font-size: 12px; color: #63825b; min-height: 44px; width: 100%; margin-top: 20px; padding-top: 14px; border-top: 1px solid #edf0e8; }
 .cloud-access-entry { margin-top: 22px; }
+.cloud-account-admin-main { width: min(100%, 1040px); }
+.cloud-administration .form-card { margin-bottom: 25px; }
+.cloud-administration select { width: 100%; min-height: 44px; border: 1px solid #e0e6dc; border-radius: 6px; padding: 10px; background: white; }
+.cloud-administration .field input { min-height: 44px; }
+.cloud-administration .cloud-password .icon-button { height: 42px; }
+.cloud-administration .cloud-loading { margin: 20px; }
+.cloud-refresh { margin: 16px 24px; }
 @media (max-width: 600px) {
+  .cloud-administration .field-grid { grid-template-columns: 1fr; gap: 0; }
+  .cloud-administration .field input, .cloud-administration .field textarea, .cloud-administration select { font-size: 16px; }
+  .cloud-administration .form-body { padding: 24px 20px; }
+  .cloud-administration .button { min-height: 44px; }
   .cloud-account-header { padding: 21px 18px; gap: 15px; flex-wrap: wrap; }
   .cloud-account-header .brand > div:last-child > span { font-size: 29px; }
   .cloud-return { font-size: 11px; }

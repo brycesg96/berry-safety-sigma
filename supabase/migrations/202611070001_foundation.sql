@@ -3,6 +3,13 @@
 -- siguientes pasos. Este script no importa, borra ni envía inspecciones.
 begin;
 
+-- Do not roll back the access checks installed by a later migration.
+do $$ begin
+  if exists(select 1 from information_schema.columns where table_schema = 'public' and table_name = 'berry_profiles' and column_name = 'must_change_password') then
+    raise exception 'Ya está instalada la etapa de usuarios. No repita el script inicial; use la migración correspondiente.' using errcode = '55000';
+  end if;
+end; $$;
+
 create schema if not exists berry_private;
 revoke all on schema berry_private from public;
 grant usage on schema berry_private to authenticated;

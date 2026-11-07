@@ -103,6 +103,8 @@ El propietario creó la organización Free Berry Safety y el proyecto `berry-saf
 - [x] Acceso mediante correo/contraseña de Supabase, sesión persistente y cierre de sesión, con identidad validada por Auth y rol/habilitación del perfil del servidor.
 - [x] Perfil propio conectado: nombre, área y cargo; correo de solo lectura. El portal y los registros del espacio de pruebas no se mezclan; entrar desde el editor guarda su borrador local antes de cambiar de vista.
 - [ ] Confirmar el inicio de sesión del propietario desde la web publicada y desactivar el registro público si el piloto utilizará altas manuales.
+- [x] Preparar altas reales desde el portal de cuenta: formulario y lista, API con JWT verificado y rol administrador del servidor, identificación de solicitudes y auditoría. Contraseña temporal `0123456789` de solo lectura y cambio obligatorio sin permisos de datos hasta finalizarlo en servidor. Los reintentos conservan identidad y contraseña personal ya establecida.
+- [ ] Activar la segunda migración y configurar la clave privada de Auth en Render una sola vez; desplegar su API y comprobar un alta real y el cambio de contraseña desde otro dispositivo. [Configuración y límites](USUARIOS.md). No se ha configurado ni solicitado una clave privada por chat.
 
 1. [ ] Elegir y conectar el sistema de automatización y la base de datos real. Confirmar alojamiento y credenciales mediante configuración segura, sin claves en el navegador.
 2. [ ] Microsoft real: registrar la aplicación, conectar el inicio de sesión y aplicar en el servidor la lista de cuentas habilitadas. Las altas y perfiles actuales son locales de prueba; completar el perfil en el primer ingreso autenticado sigue pendiente.

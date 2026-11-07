@@ -4,7 +4,7 @@ import type { BrowserContext, Page } from '@playwright/test';
 const origin = 'https://rwacygoxhkxxxkvushmb.supabase.co';
 const id = '30000000-0000-4000-8000-000000000001';
 const email = 'cuenta@example.invalid';
-type Profile = { id: string; email: string; full_name: string; area: string; job_title: string; role: string; enabled: boolean };
+type Profile = { id: string; email: string; full_name: string; area: string; job_title: string; role: string; enabled: boolean; must_change_password?: boolean };
 const initialProfile = (): Profile => ({ id, email, full_name: '', area: '', job_title: '', role: 'admin', enabled: true });
 const user = { id, aud: 'authenticated', role: 'authenticated', email, email_confirmed_at: new Date().toISOString(), app_metadata: { provider: 'email', providers: ['email'] }, user_metadata: { role: 'admin', enabled: true }, identities: [], created_at: new Date().toISOString() };
 function session() {
@@ -167,4 +167,70 @@ test('el acceso interno guarda el borrador local, conserva la confirmación de s
   await expect(page.getByLabel('Área inspeccionada')).toHaveValue('Borrador que debe conservarse');
   await page.reload();
   await expect(page.getByLabel('Área inspeccionada')).toHaveValue('Borrador que debe conservarse');
+});
+
+test('el primer ingreso exige una contraseña personal, rechaza la temporal y vuelve al acceso tras actualizar', async ({ page, context }) => {
+  const state = await mock(context, { ...initialProfile(), must_change_password: true });
+  const passwords: string[] = [];
+  await page.route('**/api/accounts/password', async route => {
+    expect(route.request().headers().authorization).toMatch(/^Bearer ey/);
+    const body = route.request().postDataJSON();
+    expect(Object.keys(body)).toEqual(['password']); passwords.push(body.password);
+    state.profile.must_change_password = false;
+    await route.fulfill({ json: { ok: true } });
+  });
+  await login(page);
+  await expect(page.getByRole('heading', { name: 'Actualiza tu contraseña', exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Administración', exact: true })).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Espacio de pruebas', exact: true })).toHaveCount(0);
+  await expect(page.getByLabel('Nombres y apellidos')).toHaveCount(0);
+  await page.getByLabel(/^Nueva contraseña/).fill('0123456789');
+  await page.getByLabel(/^Repite la nueva contraseña/).fill('0123456789');
+  await page.getByRole('button', { name: 'Actualizar contraseña', exact: true }).click();
+  await expect(page.getByRole('alert')).toContainText('distinta de la temporal'); expect(passwords).toEqual([]);
+  await page.getByLabel(/^Nueva contraseña/).fill('MiNueva!Clave47');
+  await page.getByRole('button', { name: 'Actualizar contraseña', exact: true }).click();
+  await expect(page.getByRole('alert')).toContainText('no coinciden'); expect(passwords).toEqual([]);
+  await page.getByLabel(/^Repite la nueva contraseña/).fill('MiNueva!Clave47');
+  await page.getByRole('button', { name: 'Actualizar contraseña', exact: true }).click();
+  await expect(page.getByRole('heading', { name: 'Inicia sesión', exact: true })).toBeVisible();
+  await expect(page.getByRole('status')).toContainText('Contraseña actualizada.');
+  expect(passwords).toEqual(['MiNueva!Clave47']);
+  expect(await page.evaluate(() => JSON.stringify({ ...localStorage, ...sessionStorage }))).not.toContain('MiNueva!Clave47');
+});
+
+test('el administrador crea usuarios reales sin añadir cuentas locales y conserva el ID al reintentar', async ({ page, context }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await mock(context, { ...initialProfile(), full_name: 'Admin', area: 'Seguridad', must_change_password: false });
+  const calls: { id: string; body: Record<string, unknown> }[] = [];
+  let fail = true;
+  await page.route('**/api/accounts', async route => {
+    expect(route.request().headers().authorization).toMatch(/^Bearer ey/);
+    if (route.request().method() === 'GET') return route.fulfill({ json: { ok: true, accounts: [] } });
+    const body = route.request().postDataJSON(); calls.push({ id: route.request().headers()['idempotency-key'], body });
+    expect(Object.keys(body)).not.toContain('password');
+    if (fail) return route.fulfill({ status: 503, json: { ok: false, message: 'No se confirmó el alta. Reintenta.' } });
+    await route.fulfill({ json: { ok: true, account: { id: '30000000-0000-4000-8000-000000000002', ...body, enabled: true, must_change_password: true } } });
+  });
+  await login(page);
+  await page.getByRole('button', { name: 'Administración', exact: true }).click();
+  await expect(page.getByRole('heading', { name: 'Administración', exact: true })).toBeVisible();
+  await page.getByLabel('Nombres y apellidos').fill('Persona de Prueba');
+  await page.getByLabel(/^Correo del usuario/).fill('persona@example.invalid');
+  await page.getByLabel(/^Área/).fill('Mantenimiento');
+  await page.getByLabel('Cargo', { exact: true }).fill('Supervisor');
+  await page.getByRole('button', { name: 'Mostrar contraseña temporal', exact: true }).click();
+  await expect(page.getByLabel('Contraseña temporal', { exact: true })).toHaveValue('0123456789');
+  await expect(page.getByLabel('Contraseña temporal', { exact: true })).toHaveAttribute('readonly', '');
+  await page.getByRole('button', { name: 'Crear usuario', exact: true }).click();
+  await expect(page.getByRole('alert')).toContainText('No se confirmó el alta.');
+  await expect(page.getByLabel(/^Correo del usuario/)).toHaveValue('persona@example.invalid');
+  fail = false;
+  await page.getByRole('button', { name: 'Crear usuario', exact: true }).click();
+  await expect(page.getByRole('status')).toContainText('Cuenta creada para persona@example.invalid');
+  expect(calls).toHaveLength(2); expect(calls[0].id).toBe(calls[1].id);
+  await expect(page.locator('.account-row')).toContainText('Persona de Prueba');
+  await expect(page.locator('.account-row')).toContainText('Contraseña temporal');
+  expect(await page.evaluate(() => localStorage.getItem('berry-demo-accounts-v1'))).toBeNull();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
 });
