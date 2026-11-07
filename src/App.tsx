@@ -20,6 +20,7 @@ import { deliverInspection, inspectionClosed, isRecipient, needsReview, workflow
 import { Administration, MicrosoftAccess } from './Administration';
 import { readAccounts, activeAccountId, selectTestAccount, updateOwnProfile, accountEmail } from './accounts';
 import type { DemoAccount } from './accounts';
+import { useExitConfirmation } from './useExitConfirmation';
 
 const stepDescriptions = [
   ['El primer paso para un entorno más seguro.', 'Cuéntanos dónde se realizará la inspección y quiénes serán los responsables.'],
@@ -44,6 +45,7 @@ export default function App() {
 }
 
 function WorkspaceApp({ initialAccounts }: { initialAccounts: DemoAccount[] }) {
+  const exit = useExitConfirmation();
   const [accounts, setAccounts] = useState(initialAccounts);
   const [activeId, setActiveId] = useState(() => activeAccountId(initialAccounts));
   const account = accounts.find(a => a.id === activeId && a.enabled) || accounts[0];
@@ -203,14 +205,6 @@ function WorkspaceApp({ initialAccounts }: { initialAccounts: DemoAccount[] }) {
     document.addEventListener('keydown', keydown);
     return () => { document.removeEventListener('keydown', keydown); document.body.style.overflow = overflow; previous?.focus(); };
   }, [menuOpen]);
-
-  useEffect(() => {
-    const handler = (event: BeforeUnloadEvent) => {
-      if (saveState === 'saving' || saveState === 'error') event.preventDefault();
-    };
-    window.addEventListener('beforeunload', handler);
-    return () => window.removeEventListener('beforeunload', handler);
-  }, [saveState]);
 
   const patch = <K extends keyof Inspection>(key: K, value: Inspection[K]) => {
     setDraft(d => ({ ...d, [key]: value, status: 'draft', updatedAt: new Date().toISOString() }));
@@ -425,5 +419,6 @@ function WorkspaceApp({ initialAccounts }: { initialAccounts: DemoAccount[] }) {
       setDraft(updated); setPreviewPhoto(photo);
     } : undefined}/>}
     {deleteTarget && <Modal title="Eliminar inspección" onClose={() => setDeleteTarget(null)}><p className="modal-description">Se eliminará «{deleteTarget.area || deleteTarget.facility || 'Inspección sin título'}» y sus fotografías de este navegador. Esta acción no se puede deshacer.</p><div className="modal-actions"><button className="button button-outline" onClick={() => setDeleteTarget(null)}>Conservar inspección</button><button className="button button-danger" onClick={async () => { try { await removeInspection(deleteTarget.id); setInspections(items => items.filter(i => i.id !== deleteTarget.id)); if (draft.id === deleteTarget.id) setDraft(newInspection(profile)); setDeleteTarget(null); setToast('Inspección eliminada.'); } catch { setToast('No pudimos eliminar la inspección. Inténtalo de nuevo.'); } }}><Trash2 size={16} />Eliminar</button></div></Modal>}
+    {exit.requested && <Modal title="¿Estás seguro de salir?" onClose={exit.cancel}><p className="modal-description">{busy || photoBusy ? 'Hay un envío o archivo en proceso. Si sales ahora, su resultado podría quedar sin confirmar.' : 'Los cambios que no hayas guardado podrían perderse.'}</p><div className="modal-actions"><button type="button" className="button button-outline" onClick={exit.cancel}>Seguir en la aplicación</button><button type="button" className="button button-danger" onClick={exit.leave}>Salir</button></div></Modal>}
   </div>;
 }
