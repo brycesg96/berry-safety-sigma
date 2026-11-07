@@ -35,6 +35,8 @@ jobs:
         run: node --test scripts/retain-pages-assets.test.mjs
       - name: Verificar la referencia de numeración transaccional
         run: python3 -m unittest discover -s reference -p 'test_*.py' -v
+      - name: Verificar estructura y permisos de Supabase
+        run: npm run test:supabase
       - name: Compilar para la ruta de GitHub Pages
         run: npm run build:pages
         env:
@@ -43,6 +45,8 @@ jobs:
           VITE_DEMO_ADMIN_NAME: ${{ vars.VITE_DEMO_ADMIN_NAME }}
           VITE_DEMO_INSPECTOR_EMAIL: ${{ vars.VITE_DEMO_INSPECTOR_EMAIL }}
           VITE_DEMO_INSPECTOR_NAME: ${{ vars.VITE_DEMO_INSPECTOR_NAME }}
+          VITE_SUPABASE_URL: ${{ vars.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_PUBLISHABLE_KEY: ${{ vars.VITE_SUPABASE_PUBLISHABLE_KEY }}
       - name: Configurar GitHub Pages
         uses: actions/configure-pages@v5
       - name: Conservar archivos recientes para las pestañas abiertas

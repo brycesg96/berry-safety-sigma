@@ -98,7 +98,7 @@ Esta lista es la referencia de trabajo y se resumirá al cerrar cada avance. Se 
 
 ## Pendientes operativos, por orden de dependencia
 
-El propietario creó su cuenta de Supabase y pidió iniciar la integración al día siguiente, manteniendo el plan gratuito. Deben conservarse borradores, documentos enviados, evidencias y trazabilidad completa entre autores y destinatarios desde distintos dispositivos. [Alcance acordado y orden de trabajo](SUPABASE.md). La cuenta creada todavía no conecta la app ni sustituye el almacenamiento local.
+El propietario creó la organización Free Berry Safety y el proyecto `berry-safety`. La conexión pública se verificó con HTTP 200. Están preparados el cliente, la configuración y el script inicial de siete tablas, dos buckets privados y permisos RLS; siete comprobaciones PostgreSQL y la prueba del cliente pasaron. Falta ejecutar el script desde SQL Editor, configurar las cuentas y conectar escrituras, documentos e importación. Deben conservarse borradores, documentos enviados, evidencias y trazabilidad completa entre autores y destinatarios desde distintos dispositivos. [Alcance y estado real](SUPABASE.md). El almacenamiento de la app sigue siendo local durante esta etapa.
 
 1. [ ] Elegir y conectar el sistema de automatización y la base de datos real. Confirmar alojamiento y credenciales mediante configuración segura, sin claves en el navegador.
 2. [ ] Microsoft real: registrar la aplicación, conectar el inicio de sesión y aplicar en el servidor la lista de cuentas habilitadas. Las altas y perfiles actuales son locales de prueba; completar el perfil en el primer ingreso autenticado sigue pendiente.

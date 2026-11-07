@@ -65,4 +65,6 @@ Por defecto usan Chromium en `/usr/bin/chromium`. En otro equipo se puede indica
 
 Las pruebas de PDF necesitan `pdftotext`, `pdfinfo` y `pdfimages` (Poppler) para comprobar los archivos con un lector independiente. Las del corrector ortográfico verifican los atributos nativos y el idioma; las líneas rojas y sugerencias requieren que el navegador del usuario tenga activada la revisión en español.
 
+`npm run test:supabase` verifica la estructura inicial, RLS y permisos con PostgreSQL embebido y datos ficticios, sin modificar el proyecto real. El [estado de la integración y el primer paso en SQL Editor](docs/SUPABASE.md) distinguen la configuración preparada de la sincronización todavía pendiente.
+
 El flujo de envío de inspecciones con Excel y copias automáticas de jefes/gerentes se describe en [Envío de informes](docs/ENVIO_INFORMES.md). Requiere completar el mapeo de Make y habilitar los informes en Render; las pruebas de conexión siguen sin enviar correo.
