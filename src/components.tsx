@@ -1,6 +1,6 @@
 import { useEffect, useId, useRef } from 'react';
 import type { ReactNode } from 'react';
-import { X, ShieldCheck, Check, ChevronDown } from 'lucide-react';
+import { X, ShieldCheck, Check, ChevronDown, LockKeyhole } from 'lucide-react';
 
 export function Brand({ dark = false }: { dark?: boolean }) {
   return <div className={`brand ${dark ? 'brand-dark' : ''}`}><div className="brand-symbol"><ShieldCheck size={25} strokeWidth={1.6} /></div><div><span>berry<span className="brand-dot">.</span></span><small>SAFETY WORKSPACE</small></div></div>;
@@ -8,6 +8,9 @@ export function Brand({ dark = false }: { dark?: boolean }) {
 export function Field({ label, required, error, hint, children, className = '' }: { label: string; required?: boolean; error?: string; hint?: string; children: (props: { id: string; 'aria-invalid': boolean; 'aria-required'?: boolean; 'aria-describedby'?: string }) => ReactNode; className?: string }) {
   const id = useId();
   return <div className={`field ${className} ${error ? 'field-error' : ''}`}><label htmlFor={id}>{label}{required && <span className="required" aria-hidden="true">*</span>}</label>{children({ id, 'aria-invalid': !!error, 'aria-required': required || undefined, 'aria-describedby': error || hint ? `${id}-hint` : undefined })}{(error || hint) && <span id={`${id}-hint`} className={error ? 'error-message' : 'field-hint'}>{error || hint}</span>}</div>;
+}
+export function LockedEmailField({ label, value, required, error }: { label: string; value: string; required?: boolean; error?: string }) {
+  return <Field label={label} required={required} error={error}>{props => <div className="input-icon locked-email-control"><LockKeyhole size={16} aria-hidden="true"/><input {...props} type="email" value={value} readOnly aria-readonly="true" title="Correo del responsable. No se puede editar." placeholder="Se completa al seleccionar"/></div>}</Field>;
 }
 export function SectionTitle({ icon, title, subtitle }: { icon: ReactNode; title: string; subtitle?: string }) {
   return <div className="section-title"><div className="section-icon">{icon}</div><div><h3>{title}</h3>{subtitle && <p>{subtitle}</p>}</div></div>;

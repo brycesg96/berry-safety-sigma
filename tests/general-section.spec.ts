@@ -58,7 +58,9 @@ test('selección por teclado, homónimos, correo automático y limpieza al cambi
 
 test('directorio vacío o caído no permite inventar un destinatario', async ({ page }) => {
   await page.route('**/api/people?*', route => route.fulfill({ json: { people: [] } }));
-  await page.goto('./'); await page.getByRole('combobox', { name: /Nombre completo/ }).fill('Persona');
+  await page.goto('./');
+  await expect(page.getByRole('button', { name: 'Continuar', exact: true })).toBeEnabled();
+  await page.getByRole('combobox', { name: /Nombre completo/ }).fill('Persona');
   await expect(page.getByText('No hay personas disponibles con ese nombre.')).toBeVisible();
   await page.unroute('**/api/people?*');
   await page.route('**/api/people?*', route => route.fulfill({ status: 503, body: 'Unavailable' }));

@@ -1,6 +1,6 @@
 import { useEffect, useId, useState } from 'react';
-import { LoaderCircle, Mail, Search } from 'lucide-react';
-import { Field } from './components';
+import { LoaderCircle, Search } from 'lucide-react';
+import { Field, LockedEmailField } from './components';
 import { searchDirectory } from './directory';
 import type { DirectoryPerson } from './directory';
 import { readAccounts } from './accounts';
@@ -57,6 +57,6 @@ export function ResponsiblePicker({ value, onChange, error, excludedIds, exclude
         {state === 'error' && <p role="alert">No se pudo consultar el directorio. <button type="button" className="text-button" onMouseDown={e => e.preventDefault()} onClick={() => setRetry(n => n + 1)}>Reintentar</button></p>}
       </div>}
     </div>}</Field>
-    <Field label={emailLabel}>{props => <div className="input-icon"><Mail size={16} /><input {...props} type="email" value={value.email} readOnly aria-readonly="true" placeholder="Se completa al seleccionar" /></div>}</Field>
+    <LockedEmailField label={emailLabel} value={value.email}/>
   </div>;
 }

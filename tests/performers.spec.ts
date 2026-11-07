@@ -18,6 +18,9 @@ test('hasta tres inspectores, autor de la cuenta bloqueado, selección sin dupli
   await expect(primary.getByLabel('Correo del inspector')).toHaveValue('bryx.96@gmail.com');
   await expect(primary.getByLabel('Nombre completo')).toHaveAttribute('readonly', '');
   await expect(primary.getByLabel('Correo del inspector')).toHaveAttribute('readonly', '');
+  await primary.getByLabel('Correo del inspector').focus();
+  await page.keyboard.press('ControlOrMeta+A'); await page.keyboard.insertText('cambio-no-permitido@example.com');
+  await expect(primary.getByLabel('Correo del inspector')).toHaveValue('bryx.96@gmail.com');
   await expect(primary.getByRole('button')).toHaveCount(0);
   const add = section.getByRole('button', { name: 'Añadir inspector', exact: true });
   await add.click();
@@ -26,6 +29,9 @@ test('hasta tres inspectores, autor de la cuenta bloqueado, selección sin dupli
   await page.getByRole('listbox').getByRole('option', { name: /Ana Torres/ }).click();
   await expect(extras.nth(0).getByLabel('Correo del inspector')).toHaveValue('ana@example.com');
   await expect(extras.nth(0).getByLabel('Correo del inspector')).toHaveAttribute('readonly', '');
+  await extras.nth(0).getByLabel('Correo del inspector').focus();
+  await page.keyboard.press('ControlOrMeta+A'); await page.keyboard.insertText('cambio-no-permitido@example.com');
+  await expect(extras.nth(0).getByLabel('Correo del inspector')).toHaveValue('ana@example.com');
   await add.click(); await expect(add).toHaveCount(0);
   await extras.nth(1).getByRole('combobox').fill('Ana');
   await expect(page.getByText('No hay personas disponibles con ese nombre.')).toBeVisible();
