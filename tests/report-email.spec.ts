@@ -52,7 +52,7 @@ test('envío sin claves adjunta Excel, responsables y CC de jefes y conserva el 
  const dialog=page.getByRole('dialog');await expect(dialog).toContainText('jefe@example.com, gerente@example.com');
  await expect(dialog.getByRole('textbox')).toHaveCount(0);
  await dialog.getByRole('button',{name:'Enviar informe por correo',exact:true}).click();
- await expect(page.getByText(/Make aceptó el informe \(HTTP 200\)/)).toBeVisible();
+ await expect(page.getByRole('heading',{name:'Taller - Armonía 2',exact:true})).toBeVisible();
  expect(captured.inspection.responsibles).toEqual([{name:'Bryan',email:'bcespedes@hortifrut.com'}]);
  expect(captured.inspection.cc).toEqual(['jefe@example.com','gerente@example.com']);
  expect(captured.inspection.inspectors).toEqual([captured.inspection.inspector,{name:'Ana Torres',email:'ana@example.com'},{name:'José Rojas',email:'jose@example.com'}]);
@@ -65,7 +65,13 @@ test('envío sin claves adjunta Excel, responsables y CC de jefes y conserva el 
  expect(await readFile((await download.path())!)).toEqual(Buffer.from(captured.attachment.contentBase64,'base64'));
  expect(await page.evaluate(()=>JSON.stringify(sessionStorage))).not.toContain('berry-mail-session');
  await page.reload();await page.getByRole('button',{name:'Mis inspecciones',exact:true}).click();await page.getByRole('button',{name:'Revisar informe',exact:true}).click();
- await expect(page.getByText(/Make aceptó el informe \(HTTP 200\)/)).toBeVisible();
+ await expect(page.getByRole('heading',{name:'Taller - Armonía 2',exact:true})).toBeVisible();
+ const receipt=await page.evaluate(async()=>{
+  const {loadInspections}=await import('/src/model.ts');
+  return (await loadInspections()).find(d=>d.delivery)?.emailDelivery;
+ });
+ expect(receipt).toMatchObject({state:'accepted',requestId:captured.inspection.id,upstreamStatus:200});
+ await expect(page.getByRole('heading',{name:'Envío del informe por correo',exact:true})).toHaveCount(0);
  await expect(page.getByRole('button',{name:'Enviar informe por correo',exact:true})).toHaveCount(0);
 });
 test('servidor desactivado conserva el borrador y no registra ni envía el informe',async({page})=>{

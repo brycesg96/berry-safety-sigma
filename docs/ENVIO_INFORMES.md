@@ -44,7 +44,7 @@ Se conserva la opción secundaria **Compartir solo en este navegador** para revi
 
 ## Estado e idempotencia
 
-El informe se congela localmente antes de solicitar el envío y el resultado queda guardado en Mis inspecciones → Revisar informe. La API usa el UUID de la inspección como `request_id` e `Idempotency-Key`. Repetir ese ID consulta el intento previo: no genera otro POST a Make mientras exista su registro.
+El informe se congela localmente antes de solicitar el envío y el resultado queda guardado en los datos de la inspección. La vista de seguimiento no muestra el bloque de correo, CC ni los detalles de Make: está dedicada al registro y revisión de levantamientos. El formulario de envío permanece en Enviar inspección. La API usa el UUID de la inspección como `request_id` e `Idempotency-Key`. Repetir ese ID consulta el intento previo: no genera otro POST a Make mientras exista su registro.
 
 Un journal SQLite reclama el ID **antes** de llamar Make. Conserva el hash de metadatos y el recibo; no guarda token, URL privada, Excel ni informe completo. Dos solicitudes iguales simultáneas llaman una sola vez a Make; cambios en los metadatos del mismo ID devuelven conflicto. El primer archivo es el que se envía: una copia regenerada del Excel no produce otro envío. Un intento ambiguo tras reinicio del proceso queda sin confirmar y no se reenvía automáticamente. Los rechazos de Make también quedan registrados; se revisan manualmente antes de plantear otro informe o una recuperación administrativa.
 

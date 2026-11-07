@@ -1,4 +1,3 @@
-import { ReportSendForm } from './ReportSendForm';
 import { useEffect, useState } from 'react';
 import { ArrowLeft, Camera, Check, Download, ImagePlus, LoaderCircle, Send, X } from 'lucide-react';
 import { Badge, Field, Modal } from './components';
@@ -20,8 +19,7 @@ export function FollowUp({ inspection, actor, onChange, onBack }: { inspection: 
   return <>
     <button className="button button-back" onClick={onBack}><ArrowLeft size={17}/>Volver</button>
     <div className="page-heading"><div><div className="eyebrow">SEGUIMIENTO DE HALLAZGOS</div><h1>{inspection.area}</h1><p>{workflowLabel(inspection)} · {confirmedInspectionCode(inspection) || 'Código definitivo pendiente'} · {formatDate(inspection.date)}</p></div><button className="button button-outline" disabled={busy} onClick={async () => { setBusy(true); setError(''); try { await exportExcel(inspection); } catch { setError('No se pudo descargar el informe.'); } finally { setBusy(false); } }}><Download size={16}/>Descargar Excel</button></div>
-    <div className="notice"><p><strong>{inspectionClosed(inspection) ? 'Inspección cerrada: todos los estados están en Ejecutado.' : 'Levantamiento de resultados de la inspección'}</strong><br/>{owner ? 'Revisa las evidencias y aprueba cada levantamiento o solicita ajustes.' : 'Registra la acción realizada y sus evidencias. El autor revisará el levantamiento.'} Los levantamientos se comparten solo entre cuentas de este navegador. El estado del envío por correo se muestra por separado.</p></div>
-    {owner && <section className="form-card"><div className="form-body"><h2>Envío del informe por correo</h2><ReportSendForm inspection={inspection} actorId={actor.id} onPrepare={async () => inspection} onChange={onChange}/></div></section>}
+    <div className="notice"><p><strong>{inspectionClosed(inspection) ? 'Inspección cerrada: todos los estados están en Ejecutado.' : 'Levantamiento de resultados de la inspección'}</strong><br/>{owner ? 'Revisa las evidencias y aprueba cada levantamiento o solicita ajustes.' : 'Registra la acción realizada y sus evidencias. El autor revisará el levantamiento.'}</p></div>
     <div className="followup-context"><p><strong>Objetivo</strong> {inspection.objective}</p><div><strong>RESPONSABLE DEL REGISTRO</strong>{[{ id: inspection.ownerId, name: inspection.inspector, email: inspection.inspectorEmail }, ...(inspection.additionalInspectors || [])].map(p => <p key={p.id}>{p.name} · {p.email}</p>)}</div><p><strong>Descripción de la causa</strong> {inspection.unfavorableCause || 'Sin indicar'}</p><p><strong>Conclusiones y recomendaciones</strong> {closingRemarksOf(inspection)}</p></div>
     {error && <p className="notice notice-error" role="alert">{error}</p>}
     {inspection.observations.map((o, i) => <section className="followup-card" key={o.id}>
