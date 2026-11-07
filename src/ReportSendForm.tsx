@@ -43,7 +43,7 @@ export function ReportSendForm({ inspection, actorId, onPrepare, onChange, onBus
     } finally {lock.current=false;setBusy(false);onBusyChange?.(false);}
   }
   return <div className="report-send-form">
-    <p>Se enviará un mensaje general y el informe Excel adjunto a todos los responsables seleccionados.</p>
+    <p>Las personas seleccionadas recibirán un correo con el mensaje y el informe de inspección en Excel adjunto.</p>
     <p><strong>CC · Jefes y gerentes:</strong> {cc.length?cc.join(', '):'Sin correos asociados'}</p>
     <p className="local-admin-note">El Excel utiliza la plantilla de inspecciones internas. El código definitivo y la sincronización de levantamientos entre dispositivos siguen pendientes.</p>
     {accepted?<p className="notice" role="status">Make aceptó el informe (HTTP {receipt.upstreamStatus}). La recepción del correo por Outlook aún no está confirmada.</p>:<>
