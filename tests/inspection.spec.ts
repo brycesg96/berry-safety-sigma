@@ -76,9 +76,9 @@ test('recorrido completo con evidencia, persistencia y un Excel válido', async 
   expect(content).toContain('Ruta de evacuación obstruida');
   expect(content).toContain('Ana Torres');
   expect(content).toContain('José Rojas');
-  expect(content).toContain('ALTA');
+  expect(sheet.getCell('E20').value).toBe('Alto');
   expect(content).toContain('Falta de identificación en un estante.');
-  expect(content).toContain('BAJA');
+  expect(sheet.getCell('E21').value).toBe('Bajo');
   expect(sheet.getImages()).toHaveLength(2); // Logo and evidence.
   expect(requestUrls).toEqual([]);
   await page.getByRole('button', { name: 'Guardar y salir' }).click();

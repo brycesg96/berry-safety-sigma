@@ -58,7 +58,7 @@ Cada observación ocupa un registro completo, comenzando en la fila 20, y conser
 | --- | --- |
 | A20:C20 | Descripción de la observación. |
 | D20 | Hasta ocho fotografías de esa observación, pequeñas y distribuidas dentro de su recuadro, sin deformación ni mezcla con otras observaciones. |
-| E20 | Nivel de riesgo registrado en el aplicativo. No se infiere un cálculo adicional de la matriz. |
+| E20 | Nivel de riesgo de la app escrito exactamente como una opción del desplegable original: baja → Bajo, media → Medio, alta → Alto. Se conservan sus fórmulas y colores originales, sin añadir cálculos de la matriz. |
 | F20 | Acción a tomar para esa observación. |
 | G20:H20 | Inicialmente, nombre del primer responsable seleccionado como destinatario en el aplicativo, según la nota roja. No escribir su dirección de correo en este campo. |
 | I20 | Pendiente en el informe inicial; estado guardado del levantamiento cuando se exporte una versión actualizada. |
@@ -89,6 +89,7 @@ Conservar los encabezados y el apartado ADJUNTAR. Todas estas secciones bajan ju
 - Nombre solicitado el 6 de noviembre, todavía modificable: `REG_INS_ÁREA INSPECCIONADA_DD.MM.AAAA.xlsx`. Se utiliza la fecha de inspección; el área va en mayúsculas y solo se sustituyen caracteres no válidos para nombres de archivo. Ejemplo: `REG_INS_TALLER DE MAQUINARIA_06.11.2026.xlsx`.
 - `src/excel-template.ts` rellena el paquete OOXML con JSZip y conserva sin reserializar la matriz, los ajustes binarios de impresora, el tema y el logotipo. Copia registros adicionales antes del cierre, conserva el borde inferior y extiende las combinaciones y el área de impresión.
 - Hasta ocho imágenes iniciales y ocho del levantamiento por observación, sin solaparse ni salir de sus recuadros. Se ajustan proporcionalmente y se reduce su resolución al tamaño de impresión. Las firmas se insertan como PNG transparente; la carga también admite GIF como imagen fija.
+- Los desplegables y las fórmulas de color de la plantilla se conservan. Al añadir observaciones, se amplían sus rangos para incluir los nuevos registros; las fórmulas y sus estilos no se sustituyen. Riesgo usa exactamente las opciones originales Bajo, Medio y Alto.
 - Sin registro central confirmado, B5 indica `PENDIENTE DE REGISTRO`; no se inventa un código definitivo.
 - El navegador y la API comparten `shared/report-filename.mjs`. El generador produce bytes reproducibles: una inspección sin cambios se descarga con los mismos bytes que su adjunto. Cambiar el nombre del adjunto en producción requiere actualizar el backend Render.
 - Pruebas: informes de una, cinco y siete observaciones; celdas generales, marcas de tipo, cierres desplazados, tamaños originales, ocho fotografías, firmas transparentes, hoja de valoración y partes de impresión conservadas, más recorrido de descarga/envío con comparación de bytes. No se envían correos reales en las pruebas.

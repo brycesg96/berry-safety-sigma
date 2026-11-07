@@ -22,7 +22,7 @@ async function build(page: Page, count: number, type = 'Planeada') {
       ctx.fillStyle = '#fff'; ctx.font = '28px Arial'; ctx.fillText(`Evidencia ${index + 1}`, 24, 65);
       return { id: `photo-${index}`, name: `ejemplo-${index + 1}.png`, data: canvas.toDataURL('image/png') };
     };
-    draft.observations = Array.from({ length: count }, (_, index) => ({ ...newObservation('2026-11-20'), id: `observation-${index}`, description: `Hallazgo de ejemplo ${index + 1}: revisar la condición señalada.`, correctiveAction: `Acción a tomar ${index + 1}: corregir y verificar.`, severity: index % 2 ? 'baja' : 'alta', photos: index === 0 ? Array.from({ length: 8 }, (_, i) => photo(i)) : [] }));
+    draft.observations = Array.from({ length: count }, (_, index) => ({ ...newObservation('2026-11-20'), id: `observation-${index}`, description: `Hallazgo de ejemplo ${index + 1}: revisar la condición señalada.`, correctiveAction: `Acción a tomar ${index + 1}: corregir y verificar.`, severity: (['alta', 'media', 'baja'] as const)[index % 3], photos: index === 0 ? Array.from({ length: 8 }, (_, i) => photo(i)) : [] }));
     const signature = document.createElement('canvas'); signature.width = 480; signature.height = 120;
     const ctx = signature.getContext('2d')!; ctx.strokeStyle = '#173c33'; ctx.lineWidth = 4;
     ctx.beginPath(); ctx.moveTo(20, 90); ctx.bezierCurveTo(40, 0, 100, 120, 220, 35); ctx.stroke();
@@ -52,6 +52,8 @@ for (const count of [1, 5, 7]) test(`plantilla original con ${count} observacion
   for (let i = 0; i < count; i++) {
     expect(form.getCell(`A${20 + i}`).value).toContain(`Hallazgo de ejemplo ${i + 1}:`);
     expect(form.getCell(`F${20 + i}`).value).toContain(`Acción a tomar ${i + 1}:`);
+    expect(form.getCell(`E${20 + i}`).value).toBe(['Alto', 'Medio', 'Bajo'][i % 3]);
+    expect(form.getCell(`E${20 + i}`).dataValidation).toMatchObject({ type: 'list', formulae: ['"Bajo,Medio,Alto"'] });
   }
   expect(form.getCell(`I${19 + count}`).value).toBe('Ejecutado');
   expect(form.getCell(`G${19 + count}`).value).toBe('Responsable que levantó el hallazgo');
@@ -69,6 +71,10 @@ for (const count of [1, 5, 7]) test(`plantilla original con ${count} observacion
   if (count < 5) expect(form.getCell(`A${20 + count}`).value).toBeNull();
   const original = new ExcelJS.Workbook(); await original.xlsx.readFile('public/templates/inspection.xlsx');
   const base = original.getWorksheet('V.01')!;
+  for (const existing of base.conditionalFormattings) {
+    const current = form.conditionalFormattings.find(format => format.ref === existing.ref.replace(/24/g, String(24 + extra)));
+    expect(current?.rules).toEqual(existing.rules); // Original color formulas and styles remain unchanged.
+  }
   expect(form.columns.map(c => c.width)).toEqual(base.columns.map(c => c.width));
   for (let row = 1; row <= 24; row++) expect(form.getRow(row).height).toBe(base.getRow(row).height);
   expect(form.pageSetup).toEqual({ ...base.pageSetup, printArea: `A1:L${36 + extra}` });

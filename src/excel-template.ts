@@ -13,6 +13,7 @@ const R = 'http://schemas.openxmlformats.org/officeDocument/2006/relationships';
 const P = 'http://schemas.openxmlformats.org/package/2006/relationships';
 const C = 'http://schemas.openxmlformats.org/package/2006/content-types';
 const EMU = 9525;
+const RISK_LABELS = { baja: 'Bajo', media: 'Medio', alta: 'Alto' } as const;
 const ENTRY_DATE = new Date('2026-01-01T00:00:00Z');
 let template: Promise<ArrayBuffer> | undefined;
 
@@ -91,6 +92,10 @@ class InspectionForm {
       for (const [left, right] of [['A', 'C'], ['G', 'H'], ['K', 'L']]) merges.appendChild(node(this.sheet, S, 'mergeCell', { ref: `${left}${rowNumber}:${right}${rowNumber}` }));
     }
     merges.setAttribute('count', String(elements(merges, S, 'mergeCell').length));
+    // Keep the template's existing dropdowns and color formulas on added rows.
+    for (const tag of ['conditionalFormatting', 'dataValidation']) {
+      for (const element of elements(this.sheet, S, tag)) element.setAttribute('sqref', shifted(element.getAttribute('sqref')!, extra));
+    }
     first(this.sheet, S, 'dimension').setAttribute('ref', `A1:P${36 + extra}`);
     this.indexCells();
   }
@@ -252,7 +257,8 @@ export async function fillInspectionTemplate(d: Inspection): Promise<Uint8Array>
     const row = 20 + index;
     const correction = d.delivery?.corrections[observation.id];
     form.text(`A${row}`, observation.description);
-    form.text(`E${row}`, observation.severity.toLocaleUpperCase('es-PE'));
+    if (!Object.hasOwn(RISK_LABELS, observation.severity)) throw new Error('Selecciona un nivel de riesgo válido para cada observación.');
+    form.text(`E${row}`, RISK_LABELS[observation.severity]);
     form.text(`F${row}`, observation.correctiveAction);
     form.text(`G${row}`, correction?.responsibleName || d.responsibles[0]?.name || '');
     form.text(`I${row}`, correction?.state || 'Pendiente');
