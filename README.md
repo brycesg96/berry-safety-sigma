@@ -50,7 +50,7 @@ El menú lateral se convierte en un panel desplegable en móvil. Incluye perfil 
 - La demostración incluye las cuentas Bryan `bryx.96@gmail.com` (administrador) y `bcespedes@hortifrut.com` (inspecciones). Las altas locales de Administración aparecen en el directorio de ese navegador. `VITE_DIRECTORY_URL` permite añadir un directorio remoto; Microsoft y la sincronización real siguen pendientes.
 - El Excel utiliza la plantilla oficial proporcionada y conserva sus medidas, formatos y fotografías. El código definitivo sigue pendiente del registro central.
 - El envío de correo utiliza Render, Make y Outlook. La aceptación de Make no confirma por sí sola la entrega al buzón. La opción secundaria de compartir localmente no envía correo.
-- El perfil y los roles son locales de prueba: no se ha implementado autenticación ni control de permisos en el servidor ni almacenamiento compartido. Esta versión sirve para probar el flujo y el diseño; la operación con varios usuarios requiere el backend descrito en [el alcance del producto](docs/PRODUCTO.md).
+- El espacio de pruebas conserva perfiles y roles locales. La ruta `?acceso=cuenta` permite entrar con una cuenta habilitada de Supabase y guardar su nombre, área y cargo con permisos del servidor. Las inspecciones siguen en IndexedDB; entrar con contraseña todavía no sincroniza ni importa los informes locales. [Etapas y estado de la conexión](docs/SUPABASE.md).
 - Los registros cerrados admiten descarga directa en PDF con el formato de impresión de la hoja V.01, además de Excel. [Formato y validación](docs/PDF.md).
 
 ## Pruebas
@@ -65,6 +65,6 @@ Por defecto usan Chromium en `/usr/bin/chromium`. En otro equipo se puede indica
 
 Las pruebas de PDF necesitan `pdftotext`, `pdfinfo` y `pdfimages` (Poppler) para comprobar los archivos con un lector independiente. Las del corrector ortográfico verifican los atributos nativos y el idioma; las líneas rojas y sugerencias requieren que el navegador del usuario tenga activada la revisión en español.
 
-`npm run test:supabase` verifica la estructura inicial, RLS y permisos con PostgreSQL embebido y datos ficticios, sin modificar el proyecto real. El [estado de la integración y el primer paso en SQL Editor](docs/SUPABASE.md) distinguen la configuración preparada de la sincronización todavía pendiente.
+`npm run test:supabase` verifica la estructura inicial, RLS y permisos con PostgreSQL embebido y datos ficticios, sin modificar el proyecto real. `npx playwright test tests/cloud-access.spec.ts` prueba el acceso y el perfil con respuestas de Auth/API interceptadas. El [estado de la integración](docs/SUPABASE.md) distingue el acceso y perfil conectados de la sincronización de inspecciones todavía pendiente.
 
 El flujo de envío de inspecciones con Excel y copias automáticas de jefes/gerentes se describe en [Envío de informes](docs/ENVIO_INFORMES.md). Requiere completar el mapeo de Make y habilitar los informes en Render; las pruebas de conexión siguen sin enviar correo.

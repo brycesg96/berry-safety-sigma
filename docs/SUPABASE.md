@@ -2,7 +2,9 @@
 
 ## Alcance solicitado el 7 de noviembre de 2026
 
-El propietario creó la organización Free Berry Safety y el proyecto `berry-safety`, disponible en `https://rwacygoxhkxxxkvushmb.supabase.co`. Proporcionó su clave pública Publishable. La consulta de configuración de Auth respondió HTTP 200 con esa clave. La configuración y el cliente están preparados; la información actual de inspecciones y cuentas continúa en cada navegador hasta completar autenticación, funciones de escritura e importación.
+El propietario creó la organización Free Berry Safety y el proyecto `berry-safety`, disponible en `https://rwacygoxhkxxxkvushmb.supabase.co`. Proporcionó su clave pública Publishable. El 7 de noviembre ejecutó la migración inicial desde SQL Editor: `berry_schema_status()` respondió HTTP 200 con versión `202611070001`, etapa `foundation` y `sync_ready: false`. Después creó y confirmó su primera cuenta de Auth y mostró el resultado de habilitarla como administradora.
+
+La ruta `?acceso=cuenta` conecta el inicio de sesión por correo/contraseña y el perfil propio con Supabase. Las inspecciones y las cuentas del espacio de pruebas continúan en cada navegador hasta completar funciones de escritura, archivos e importación. Entrar al portal de cuenta no cambia las identidades ni los informes de prueba.
 
 La prueba debe empezar en el plan Free, sin contratar servicios de pago ni cambiar de plan automáticamente. Referencia oficial consultada: [precios](https://supabase.com/pricing), 1 GB de archivos y 500 MB de base de datos. La duración deseada de la prueba es de aproximadamente dos meses. Controlar especialmente el volumen de fotos, sus originales, firmas y versiones de Excel; conservar información no debe depender de borrados automáticos silenciosos. Un proyecto Free puede pausarse tras una semana de inactividad.
 
@@ -34,11 +36,11 @@ Conservar las reglas actuales: el autor y los destinatarios pueden cambiar Pendi
 6. Preparar una importación revisable de los datos existentes en el navegador hacia las cuentas verificadas; no borrar las copias locales hasta confirmar la importación y su consulta desde otro dispositivo.
 7. Validar con sesiones de navegador independientes: crear un borrador en un equipo, retomarlo en otro, enviar a un destinatario, registrar y revisar un levantamiento, solicitar ajustes, aprobar y cerrar. Comprobar historial, documentos originales, permisos, guardados simultáneos, cortes de conexión y ausencia de duplicados.
 
-La creación de la cuenta o del proyecto de Supabase no sincroniza por sí sola la aplicación. Este documento registra el alcance acordado; la conexión y las verificaciones siguen pendientes.
+La creación de la cuenta o del proyecto de Supabase no sincroniza por sí sola las inspecciones. Este documento distingue el acceso y el perfil ya conectados del guardado y seguimiento de informes todavía pendientes.
 
 ## Primera etapa preparada: estructura y permisos
 
-- Cliente: `src/supabase.ts`, con los datos públicos del proyecto en `src/supabase-project.ts` y sustituciones opcionales mediante `VITE_SUPABASE_URL` y `VITE_SUPABASE_PUBLISHABLE_KEY`. Solo acepta una URL HTTPS del proyecto y una clave `sb_publishable_`. Se prepara bajo demanda, con una sesión propia de Berry; no sustituye todavía el selector local de cuentas. `.env.example` contiene los nombres de configuración sin ninguna contraseña ni clave privada.
+- Cliente: `src/supabase.ts`, con los datos públicos del proyecto en `src/supabase-project.ts` y sustituciones opcionales mediante `VITE_SUPABASE_URL` y `VITE_SUPABASE_PUBLISHABLE_KEY`. Solo acepta una URL HTTPS del proyecto y una clave `sb_publishable_`. Se prepara bajo demanda, con una sesión propia de Berry; no sustituye el selector de cuentas del espacio de pruebas. `.env.example` contiene los nombres de configuración sin ninguna contraseña ni clave privada.
 - Script para SQL Editor: [202611070001_foundation.sql](../supabase/migrations/202611070001_foundation.sql). Crea siete tablas `berry_*`: perfiles, inspecciones, destinatarios, levantamientos, documentos, auditoría y textos compartidos. Crea dos buckets privados: `berry-evidence` y `berry-documents`. No importa datos del navegador ni solicita correos.
 - Los perfiles nuevos quedan como inspector deshabilitado, incluso si la metadata del usuario intenta declarar que es administrador. La primera cuenta administradora se habilitará desde SQL Editor una vez creada y comprobada su identidad.
 - La API permite leer el perfil propio, el directorio habilitado y los registros asignados según las políticas. Solo nombre, área y cargo del perfil propio admiten edición directa. Las escrituras de informes, destinatarios, levantamientos, documentos e historial quedan cerradas hasta implementar las operaciones del servidor con las reglas del flujo.
@@ -48,16 +50,26 @@ La creación de la cuenta o del proyecto de Supabase no sincroniza por sí sola 
 
 El script otorga explícitamente los permisos necesarios y habilita RLS en las siete tablas; permite trabajar con **Automatically expose new tables** desmarcado. Se ejecuta en una transacción y se puede repetir sin borrar registros ni restablecer los perfiles existentes. La clave Publishable no permite ejecutar DDL; esta primera instalación requiere SQL Editor del propietario.
 
-### Próxima acción del propietario
+### Instalación realizada
 
-1. Abrir SQL Editor del proyecto y crear una consulta nueva.
-2. Copiar el script completo `supabase/migrations/202611070001_foundation.sql` y ejecutarlo con Run.
-3. Confirmar el resultado de éxito. Después se comprobará `berry_schema_status()` desde la conexión pública.
+1. El propietario copió el script completo `supabase/migrations/202611070001_foundation.sql` en SQL Editor y mostró «Success. No rows returned».
+2. La comprobación pública confirmó que la estructura está instalada; no creó usuarios ni informes.
+3. Creó una cuenta mediante Authentication → Users → Add user → Create new user, conservando su contraseña en privado y con el correo confirmado.
+4. SQL Editor habilitó únicamente ese perfil confirmado como administrador; el propietario mostró una fila con `admin` y `enabled: true`. Esta promoción no usa metadata editable ni una función pública de autoasignación.
 
-El siguiente paso será configurar el acceso de usuarios: revisar el registro público, crear la primera cuenta de Auth sin compartir su contraseña y asignarle el rol correcto desde SQL Editor. Después se conectarán las funciones de escritura, las pantallas y la migración de los datos locales.
+### Acceso y perfil
+
+- Abrir `https://brycesg96.github.io/berry-safety-sigma/?acceso=cuenta`, también disponible desde Tu perfil o Administración → Inicio de sesión → Iniciar sesión con correo en el espacio de pruebas.
+- `CloudAccess.tsx` usa Auth por correo/contraseña, restaura la sesión y permite cerrarla en el dispositivo. No incluye registro público, invitaciones, restablecimiento por correo ni Microsoft. Las contraseñas se envían únicamente a Auth, se vacían del formulario tras el intento y no se guardan en los perfiles o el almacenamiento de la app. El SDK conserva la sesión de Auth con su clave propia.
+- `cloud-account.ts` verifica la identidad con `auth.getUser()` y consulta exclusivamente su fila `berry_profiles`. Nombre, área y cargo se guardan en la base real mediante una lista explícita de columnas y RLS; correo, rol y habilitación no son editables. Una identidad autenticada sin perfil habilitado ve únicamente su estado de acceso y puede volver a comprobarlo o cerrar sesión.
+- Un fallo al guardar mantiene el texto para reintentar. La salida con cambios pendientes pide confirmación. El guardado no muestra éxito antes de la respuesta del servidor y las respuestas de otra sesión no repueblan el perfil después de salir.
+- El portal no carga, importa ni sobrescribe registros de IndexedDB. Entrar desde el espacio de pruebas guarda antes su borrador; al volver se conserva el flujo local y su selector. La confirmación de salida se mantiene entre ambas vistas.
+- Pendiente de configuración del propietario: en Authentication → Sign In / Providers, desactivar **Allow new users to sign up** si el piloto utilizará únicamente altas manuales. Las nuevas cuentas permanecen deshabilitadas por defecto aunque el registro público esté permitido. No se ha verificado este ajuste desde la cuenta del propietario.
+
+El siguiente paso funcional es conectar borradores y archivos privados, destinatarios, envíos, levantamientos y revisión a operaciones autenticadas y versionadas. Después se incorporará la importación de los datos locales por identidad verificada.
 
 ### Verificaciones
 
 `npm run test:supabase` ejecuta siete comprobaciones con PostgreSQL embebido mediante PGlite. Simula únicamente los contratos mínimos de las tablas/plataforma Auth y Storage: el SQL de Berry, RLS, permisos y triggers se ejecutan de verdad. Prueba separación entre autores/destinatarios, cuentas pendientes, rechazo de autoasignación de administrador, archivos privados, auditoría y repetición del script sin pérdida de datos. Estas pruebas no crean usuarios ni informes en el proyecto real.
 
-`tests/supabase-foundation.spec.ts` comprueba el cliente con una API interceptada: al abrir la app no inicia una sesión ni cambia el modo local; una consulta explícita reconoce que la estructura sigue sin estar lista para sincronizar. La ejecución en SQL Editor real y la prueba con dos dispositivos todavía están pendientes.
+`tests/supabase-foundation.spec.ts` comprueba el cliente con una API interceptada: abrir el espacio de pruebas no inicia sesión ni cambia su almacenamiento; una consulta explícita reconoce que la estructura sigue sin estar lista para sincronizar. `tests/cloud-access.spec.ts` comprueba el acceso, el perfil, el aislamiento de cuentas locales, fallos de guardado, sesiones entre pestañas y consulta desde un segundo contexto móvil con Auth/API interceptados. Estas pruebas no crean cuentas reales ni envían correo. La ejecución en SQL Editor real está verificada; el inicio de sesión del propietario y la prueba completa de inspecciones con dos dispositivos deben confirmarse al completar cada etapa.

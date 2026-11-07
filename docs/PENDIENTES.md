@@ -98,7 +98,11 @@ Esta lista es la referencia de trabajo y se resumirá al cerrar cada avance. Se 
 
 ## Pendientes operativos, por orden de dependencia
 
-El propietario creó la organización Free Berry Safety y el proyecto `berry-safety`. La conexión pública se verificó con HTTP 200. Están preparados el cliente, la configuración y el script inicial de siete tablas, dos buckets privados y permisos RLS; siete comprobaciones PostgreSQL y la prueba del cliente pasaron. Falta ejecutar el script desde SQL Editor, configurar las cuentas y conectar escrituras, documentos e importación. Deben conservarse borradores, documentos enviados, evidencias y trazabilidad completa entre autores y destinatarios desde distintos dispositivos. [Alcance y estado real](SUPABASE.md). El almacenamiento de la app sigue siendo local durante esta etapa.
+El propietario creó la organización Free Berry Safety y el proyecto `berry-safety`, ejecutó la migración inicial de siete tablas, dos buckets privados y RLS y habilitó su primera cuenta confirmada como administradora. La API pública confirmó versión `202611070001`, etapa `foundation`, `sync_ready: false`, HTTP 200. La ruta `?acceso=cuenta` conecta Auth y el perfil propio; las inspecciones del espacio de pruebas siguen locales. Faltan las escrituras de informes, documentos, seguimiento e importación para conservar borradores, documentos enviados, evidencias y trazabilidad entre dispositivos. [Alcance y estado real](SUPABASE.md).
+
+- [x] Acceso mediante correo/contraseña de Supabase, sesión persistente y cierre de sesión, con identidad validada por Auth y rol/habilitación del perfil del servidor.
+- [x] Perfil propio conectado: nombre, área y cargo; correo de solo lectura. El portal y los registros del espacio de pruebas no se mezclan; entrar desde el editor guarda su borrador local antes de cambiar de vista.
+- [ ] Confirmar el inicio de sesión del propietario desde la web publicada y desactivar el registro público si el piloto utilizará altas manuales.
 
 1. [ ] Elegir y conectar el sistema de automatización y la base de datos real. Confirmar alojamiento y credenciales mediante configuración segura, sin claves en el navegador.
 2. [ ] Microsoft real: registrar la aplicación, conectar el inicio de sesión y aplicar en el servidor la lista de cuentas habilitadas. Las altas y perfiles actuales son locales de prueba; completar el perfil en el primer ingreso autenticado sigue pendiente.

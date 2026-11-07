@@ -1,0 +1,35 @@
+.cloud-account-page { min-height: 100dvh; background: #f4f7f3; }
+.cloud-account-header { min-height: 102px; padding: 25px max(24px, calc((100vw - 1120px) / 2)); background: var(--sidebar); display: flex; align-items: center; justify-content: space-between; gap: 20px; }
+.cloud-return { display: flex; align-items: center; gap: 8px; color: #d2e5d9; min-height: 44px; font-size: 12px; }
+.cloud-return:hover { color: #fff; }
+.cloud-account-main { width: min(100%, 520px); margin: 0 auto; padding: 45px 24px 36px; }
+.cloud-account-card { padding: 32px; border: 1px solid #dfe8df; border-radius: 16px; background: #fff; box-shadow: 0 8px 30px #163c2810; }
+.cloud-account-icon { width: 55px; height: 55px; display: grid; place-items: center; border-radius: 16px; background: #eaf3e4; color: #628b56; margin-bottom: 24px; }
+.cloud-account-card h1 { font-size: 28px; line-height: 1.35; letter-spacing: -.8px; outline: none; }
+.cloud-account-intro { color: #738276; font-size: 13px; line-height: 1.8; margin: 10px 0 25px; }
+.cloud-account-card .field { margin-bottom: 20px; }
+.cloud-account-card .field > label { font-size: 13px; }
+.cloud-account-card .field input { height: 46px; font-size: 14px; }
+.cloud-account-card .button { min-height: 46px; font-size: 13px; }
+.cloud-password { position: relative; }
+.cloud-password input { padding-right: 49px; }
+.cloud-password .icon-button { position: absolute; top: 1px; right: 1px; height: 44px; width: 44px; }
+.cloud-account-hint { font-size: 11px; line-height: 1.8; color: #7c8c7a; margin-top: 21px; }
+.cloud-account-email { overflow-wrap: anywhere; font-size: 13px; margin-bottom: 20px; }
+.cloud-stage-note { font-size: 12px; color: #6b7f6b; line-height: 1.8; text-align: center; margin: 21px 8px 0; }
+.cloud-loading { display: flex; align-items: center; gap: 10px; font-size: 13px; color: #698263; margin-top: 20px; }
+.cloud-message { font-size: 12px; line-height: 1.8; margin: 12px 0 18px; }
+.cloud-saved { display: flex; align-items: center; gap: 7px; color: #4c7b43; font-size: 12px; margin: 13px 0 18px; }
+.cloud-profile-heading { display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
+.cloud-profile-heading .account-enabled { font-size: 10px; }
+.cloud-logout { display: flex; align-items: center; justify-content: center; gap: 8px; font-size: 12px; color: #63825b; min-height: 44px; width: 100%; margin-top: 20px; padding-top: 14px; border-top: 1px solid #edf0e8; }
+.cloud-access-entry { margin-top: 22px; }
+@media (max-width: 600px) {
+  .cloud-account-header { padding: 21px 18px; gap: 15px; flex-wrap: wrap; }
+  .cloud-account-header .brand > div:last-child > span { font-size: 29px; }
+  .cloud-return { font-size: 11px; }
+  .cloud-account-main { padding: 25px 15px 30px; }
+  .cloud-account-card { padding: 25px 22px; }
+  .cloud-account-card .field input { font-size: 16px; }
+  .cloud-account-card h1 { font-size: 25px; }
+}

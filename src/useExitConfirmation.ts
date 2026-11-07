@@ -12,6 +12,8 @@ export function useExitConfirmation() {
   const [requested, setRequested] = useState(false);
   const allowLeave = useRef(false);
   const current = useRef<Marker | undefined>(undefined);
+  const currentUrl = useRef(location.href);
+  currentUrl.current = location.href;
 
   useEffect(() => {
     const originalScrollRestoration = history.scrollRestoration;
@@ -30,7 +32,7 @@ export function useExitConfirmation() {
     const back = (event: PopStateEvent) => {
       const destination = marker(event.state);
       if (allowLeave.current || destination?.id !== base.id || destination.position !== 'base') return;
-      history.pushState({ ...event.state, [KEY]: guard }, '');
+      history.pushState({ ...event.state, [KEY]: guard }, '', currentUrl.current);
       setRequested(true);
     };
     const unload = (event: BeforeUnloadEvent) => {
@@ -67,3 +69,5 @@ export function useExitConfirmation() {
     },
   };
 }
+
+export type ExitConfirmation = ReturnType<typeof useExitConfirmation>;
