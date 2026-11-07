@@ -134,18 +134,23 @@ function WorkspaceApp({ initialAccounts }: { initialAccounts: DemoAccount[] }) {
   }, [loaded, account.id, account.name, account.email, draft.id]);
 
   useEffect(() => {
-    if (!loaded || draft.step !== 3 || draft.delivery) return;
+    if (!loaded || draft.delivery) return;
     setDraft(d => {
+      if (d.delivery || d.ownerId !== account.id) return d;
       const records = { ...d.registrationDetails }; let changed = false;
       for (const person of registrationPeople(d)) {
-        if (!records[person.id]) {
-          const accountPerson = accounts.find(a => a.id === person.id || a.email.toLowerCase() === person.email.toLowerCase());
-          records[person.id] = { jobTitle: accountPerson?.jobTitle || person.jobTitle || '', initialJobTitle: accountPerson?.jobTitle || person.jobTitle || '', date: d.date }; changed = true;
+        if (!person.personId) continue;
+        const previous = records[person.id];
+        if (!previous && d.step < 3) continue;
+        const accountPerson = accounts.find(a => a.id === person.id || accountEmail(a.email) === accountEmail(person.email));
+        const jobTitle = accountPerson ? accountPerson.jobTitle : person.jobTitle || '';
+        if (!previous || previous.jobTitle !== jobTitle || previous.initialJobTitle !== jobTitle) {
+          records[person.id] = { ...previous, jobTitle, initialJobTitle: jobTitle, date: previous?.date ?? d.date }; changed = true;
         }
       }
       return changed ? { ...d, registrationDetails: records } : d;
     });
-  }, [loaded, draft.id, draft.step, draft.additionalInspectors, accounts]);
+  }, [loaded, draft.id, draft.step, draft.delivery, draft.additionalInspectors, draft.registrationDetails, accounts, account.id]);
   const changeRegistrationDetails = (inspectionId: string, personId: string, data: RegistrationDetails) => {
     setDraft(d => d.id === inspectionId ? { ...d, registrationDetails: { ...d.registrationDetails, [personId]: data }, updatedAt: new Date().toISOString(), status: 'draft' } : d);
   };

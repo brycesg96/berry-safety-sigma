@@ -1,15 +1,20 @@
 import { test, expect } from '@playwright/test';
 import ExcelJS from 'exceljs';
-import { mockDirectory } from './directory-fixture';
+import { mockDirectory, people } from './directory-fixture';
 
 test('hasta tres inspectores, autor de la cuenta bloqueado, selección sin duplicados y exportación', async ({ page }) => {
-  await mockDirectory(page); await page.goto('./');
+  test.setTimeout(90000);
+  await mockDirectory(page, people.map(person => ({ ...person, jobTitle: person.id === 'test-ana' ? 'Jefa de Operaciones' : 'Inspector SIGMA' }))); await page.goto('./');
   await page.evaluate(async () => {
     const { newInspection, newObservation, persistInspection } = await import('/src/model.ts');
-    const { updateOwnProfile } = await import('/src/accounts.ts');
-    updateOwnProfile('demo-admin', 'Brian Céspedes', 'Seguridad');
+    const { updateOwnProfile, addAccount } = await import('/src/accounts.ts');
+    updateOwnProfile('demo-admin', 'Brian Céspedes', 'Seguridad', 'Supervisor inicial');
+    const accounts = addAccount('demo-admin', { name: 'Ana Torres', email: 'ana@example.com', role: 'inspector' });
+    updateOwnProfile(accounts.find(a => a.email === 'ana@example.com')!.id, 'Ana Torres', 'Operaciones', 'Jefa de Operaciones');
+    const withJose = addAccount('demo-admin', { name: 'José Rojas', email: 'jose@example.com', role: 'inspector' });
+    updateOwnProfile(withJose.find(a => a.email === 'jose@example.com')!.id, 'José Rojas', 'SIGMA', 'Inspector SIGMA');
     const d = newInspection({ name: 'Nombre manual antiguo', email: 'otro@example.com', accountId: 'demo-admin' });
-    await persistInspection({ ...d, additionalInspectors: undefined, closingRemarks: undefined, area: 'Taller - Armonía 2', date: '2026-11-04', inspectionTime: '07:30', inspectionPeriod: 'AM', type: 'Planeada', objective: 'Verificar la seguridad.', responsibles: [{ id: 'recipient', personId: 'test-ana', name: 'Ana Torres', email: 'ana@example.com' }], observations: [{ ...newObservation(), description: 'Hallazgo', correctiveAction: 'Corregir hallazgo', dueDate: '2026-11-15' }], conclusions: 'Requiere seguimiento.', recommendations: 'Verificar corrección.', step: 3, updatedAt: '2099-01-01T00:00:00Z' });
+    await persistInspection({ ...d, additionalInspectors: undefined, closingRemarks: undefined, area: 'Taller - Armonía 2', date: '2026-11-04', inspectionTime: '07:30', inspectionPeriod: 'AM', type: 'Planeada', objective: 'Verificar la seguridad.', responsibles: [{ id: 'recipient', personId: 'test-ana', name: 'Ana Torres', email: 'ana@example.com' }], observations: [{ ...newObservation(), description: 'Hallazgo', correctiveAction: 'Corregir hallazgo', dueDate: '2026-11-15' }], registrationDetails: { 'demo-admin': { jobTitle: 'Cargo manual antiguo', initialJobTitle: 'Cargo manual antiguo', date: '2026-11-04' } }, conclusions: 'Requiere seguimiento.', recommendations: 'Verificar corrección.', step: 3, updatedAt: '2099-01-01T00:00:00Z' });
   });
   await page.reload();
   const section = page.getByRole('region', { name: 'RESPONSABLE DEL REGISTRO', exact: true });
@@ -22,12 +27,20 @@ test('hasta tres inspectores, autor de la cuenta bloqueado, selección sin dupli
   await page.keyboard.press('ControlOrMeta+A'); await page.keyboard.insertText('cambio-no-permitido@example.com');
   await expect(primary.getByLabel('Correo del inspector')).toHaveValue('bryx.96@gmail.com');
   await expect(primary.getByRole('button')).toHaveCount(0);
+  const primaryJobTitle = section.locator('.registration-fields').first().getByLabel('Cargo', { exact: true });
+  await expect(primaryJobTitle).toHaveValue('Supervisor inicial');
+  await expect(primaryJobTitle).toHaveAttribute('readonly', '');
+  await primaryJobTitle.focus();
+  await page.keyboard.press('ControlOrMeta+A'); await page.keyboard.insertText('Cargo no permitido');
+  await expect(primaryJobTitle).toHaveValue('Supervisor inicial');
   const add = section.getByRole('button', { name: 'Añadir inspector', exact: true });
   await add.click();
   const extras = section.locator('.additional-inspector');
   await extras.nth(0).getByRole('combobox').fill('Ana');
   await page.getByRole('listbox').getByRole('option', { name: /Ana Torres/ }).click();
   await expect(extras.nth(0).getByLabel('Correo del inspector')).toHaveValue('ana@example.com');
+  await expect(section.locator('.inspector-entry').nth(0).getByLabel('Cargo', { exact: true })).toHaveValue('Jefa de Operaciones');
+  await expect(section.locator('.inspector-entry').nth(0).getByLabel('Cargo', { exact: true })).toHaveAttribute('readonly', '');
   await expect(extras.nth(0).getByLabel('Correo del inspector')).toHaveAttribute('readonly', '');
   await extras.nth(0).getByLabel('Correo del inspector').focus();
   await page.keyboard.press('ControlOrMeta+A'); await page.keyboard.insertText('cambio-no-permitido@example.com');
@@ -60,10 +73,18 @@ test('hasta tres inspectores, autor de la cuenta bloqueado, selección sin dupli
   await closing.press('End'); await closing.press('z');
   await expect(closing).toHaveValue('c'.repeat(1200));
   await closing.fill('Conclusiones y recomendaciones finales.');
-  await section.locator('.registration-fields').first().getByLabel('Cargo', { exact: true }).fill('Supervisor SST');
+  await expect(primaryJobTitle).toHaveValue('Supervisor inicial');
   await section.locator('.registration-fields').first().getByLabel('Fecha', { exact: true }).fill('2026-11-05');
   await section.getByLabel('Adjuntar firma', { exact: true }).first().setInputFiles({ name: 'firma.png', mimeType: 'image/png', buffer: Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=', 'base64') });
   await expect(section.locator('.signature-preview img')).toHaveCount(1);
+  for (const jobTitle of ['', 'Supervisor SST']) {
+    await page.getByRole('button', { name: 'Mi perfil', exact: true }).click();
+    await page.getByRole('dialog', { name: 'Tu perfil' }).getByLabel('Cargo', { exact: true }).fill(jobTitle);
+    await page.getByRole('button', { name: 'Guardar perfil', exact: true }).click();
+    await expect(primaryJobTitle).toHaveValue(jobTitle);
+    await expect(section.locator('.registration-fields').first().getByLabel('Fecha', { exact: true })).toHaveValue('2026-11-05');
+    await expect(section.locator('.signature-preview img')).toHaveCount(1);
+  }
   await page.getByRole('button', { name: 'Guardar y salir' }).click(); await page.reload();
   await expect(section.locator('.signature-preview img')).toHaveCount(1);
   await expect(section.locator('.registration-fields').first().getByLabel('Cargo', { exact: true })).toHaveValue('Supervisor SST');
@@ -79,9 +100,41 @@ test('hasta tres inspectores, autor de la cuenta bloqueado, selección sin dupli
   const content = JSON.stringify(workbook.getWorksheet('V.01')!.getSheetValues());
   for (const text of ['Brian Céspedes', 'Ana Torres', 'José Rojas']) expect(content).toContain(text);
   expect(content).not.toContain('Nombre manual antiguo');
+  expect(content).not.toContain('Cargo manual antiguo');
   expect(content).toContain('Supervisor SST');
+  expect(content).toContain('Jefa de Operaciones');
+  expect(content).toContain('Inspector SIGMA');
   expect(content).toContain('Falta de controles preventivos.');
   expect(content).toContain('Conclusiones y recomendaciones finales.');
   expect(content).toContain('RESPONSABLE DEL REGISTRO');
   expect(workbook.getWorksheet('V.01')!.getImages()).toHaveLength(2); // Logo and signature.
+  await page.evaluate(async () => {
+    const { updateOwnProfile, readAccounts } = await import('/src/accounts.ts');
+    updateOwnProfile(readAccounts().find(a => a.email === 'ana@example.com')!.id, 'Ana Torres', 'Operaciones', '');
+  });
+  await expect(page.locator('.inspection-team .inspector-signature').filter({ hasText: 'Ana Torres' })).not.toContainText('Jefa de Operaciones');
+  const emptyTitleDownload = page.waitForEvent('download');
+  await page.getByRole('button', { name: 'Descargar Excel', exact: true }).click();
+  const emptyTitleBook = new ExcelJS.Workbook(); await emptyTitleBook.xlsx.readFile((await (await emptyTitleDownload).path())!);
+  expect(emptyTitleBook.getWorksheet('V.01')!.getCell('E36').value).toBe('Cargo: ');
+  await page.evaluate(async () => {
+    const { updateOwnProfile, readAccounts } = await import('/src/accounts.ts');
+    updateOwnProfile(readAccounts().find(a => a.email === 'ana@example.com')!.id, 'Ana Torres', 'Operaciones', 'Jefa de Operaciones');
+  });
+  await expect(page.locator('.inspection-team .inspector-signature').filter({ hasText: 'Ana Torres' })).toContainText('Jefa de Operaciones');
+  await page.getByRole('button', { name: 'Enviar inspección', exact: true }).click();
+  await page.getByText('Compartir solo en este navegador', { exact: true }).click();
+  await page.getByRole('button', { name: 'Enviar a destinatarios de prueba', exact: true }).click();
+  await expect(page.getByRole('heading', { name: 'Taller - Armonía 2', exact: true })).toBeVisible();
+  await page.evaluate(async () => {
+    const { updateOwnProfile, readAccounts } = await import('/src/accounts.ts');
+    updateOwnProfile('demo-admin', 'Brian Céspedes', 'Seguridad', 'Nuevo cargo tras el envío');
+    updateOwnProfile(readAccounts().find(a => a.email === 'ana@example.com')!.id, 'Ana Torres', 'Operaciones', 'Otro cargo tras el envío');
+  });
+  const frozenDownload = page.waitForEvent('download');
+  await page.getByRole('button', { name: 'Descargar Excel', exact: true }).click();
+  const frozenWorkbook = new ExcelJS.Workbook(); await frozenWorkbook.xlsx.readFile((await (await frozenDownload).path())!);
+  const frozenContent = JSON.stringify(frozenWorkbook.getWorksheet('V.01')!.getSheetValues());
+  expect(frozenContent).toContain('Supervisor SST'); expect(frozenContent).toContain('Jefa de Operaciones');
+  expect(frozenContent).not.toContain('Nuevo cargo tras el envío'); expect(frozenContent).not.toContain('Otro cargo tras el envío');
 });

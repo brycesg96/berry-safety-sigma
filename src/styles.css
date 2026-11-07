@@ -139,5 +139,5 @@
 
 .photo-viewer-stage{position:relative}.photo-viewer-edit{position:absolute;top:10px;right:10px;width:44px;height:44px;border:1px solid #dce5d7;border-radius:8px;background:rgba(255,255,255,.96);box-shadow:0 2px 8px #173c3318;color:#3b654e}.photo-viewer-edit:hover{background:#edf5e8}.photo-viewer-edit:focus-visible{outline:3px solid #3d7056;outline-offset:2px}.photo-viewer-stage .photo-full{display:block}
 
-.input-icon.locked-email-control>svg{top:50%;transform:translateY(-50%);color:#7c9571}.locked-email-control input{padding-left:36px}
+.input-icon.locked-email-control>svg,.input-icon.locked-profile-control>svg{top:50%;transform:translateY(-50%);color:#7c9571}.locked-email-control input,.locked-profile-control input{padding-left:36px}.locked-profile-control input[readonly]{background:#f7f9f4}
 .inspection-list-info>.list-inspected-area,.inspection-list-info>.list-responsibles,.inspection-list-info>.list-responsible-areas{white-space:normal;overflow-wrap:anywhere;line-height:1.6}

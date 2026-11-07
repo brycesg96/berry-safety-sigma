@@ -97,6 +97,7 @@ test('Microsoft permanece desactivado y el espacio de permisos queda visible al 
 
 test('área y cargo del perfil reemplazan la leyenda del directorio y se conservan al recargar', async ({ page }) => {
   await page.goto('./');
+  await expect(page.getByRole('button', { name: 'Continuar', exact: true })).toBeEnabled();
   await page.getByRole('combobox', { name: /Nombre completo/ }).fill('Bryan');
   await page.getByRole('listbox').getByRole('option', { name: /bryx.96@gmail.com/ }).click();
   await expect(page.getByText('Área y cargo por completar.', { exact: true })).toBeVisible();
