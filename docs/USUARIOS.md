@@ -14,11 +14,11 @@ Hasta completar los pasos 1–4, la pantalla muestra el error de configuración 
 
 ## Uso desde la app
 
-El administrador introduce nombre, correo, área, puesto, los accesos independientes Administrador e Inspecciones y, si corresponde, correos de administradores en copia. Nombre y correo son obligatorios. La contraseña temporal solicitada es `0123456789`; se muestra de solo lectura con opción para verla. No se envían invitaciones por correo.
+El administrador introduce nombre, correo, área, puesto, los accesos Administrador e Inspecciones y, si corresponde, correos de administradores en copia. Nombre y correo son obligatorios. La contraseña temporal solicitada es `0123456789`; se muestra de solo lectura con opción para verla. No se envían invitaciones por correo.
 
 En el primer ingreso, el usuario solo puede actualizar esa contraseña o cerrar sesión. La nueva debe tener al menos diez caracteres, ser distinta de `0123456789` y confirmarse en un segundo campo. Tras el cambio se solicita iniciar sesión con la nueva contraseña. La cuenta inicial del propietario no recibe la contraseña temporal ni pierde su acceso.
 
-La lista muestra las cuentas reales y distingue las deshabilitadas y las que aún usan contraseña temporal. El paso 5 permite editar permisos, deshabilitar y eliminar cuentas de forma lógica. La pantalla presenta dos interruptores independientes: Administrador e Inspecciones; este último habilita realizar y recibir inspecciones al mismo tiempo. El detalle de activación, la recuperación del propietario y el reinicio solicitado están en [Reinicio del piloto](REINICIO_PILOTO.md).
+La lista muestra las cuentas reales y distingue las deshabilitadas y las que aún usan contraseña temporal. El paso 5 permite editar permisos, deshabilitar y eliminar cuentas de forma lógica. La pantalla presenta dos interruptores: Administrador e Inspecciones. Inspecciones habilita realizar y recibir; Administrador incluye esas funciones automáticamente, además de la gestión de cuentas y accesos. El detalle de activación, la recuperación del propietario y el reinicio solicitado están en [Reinicio del piloto](REINICIO_PILOTO.md).
 
 ## Permisos, reintentos y trazabilidad
 
@@ -52,3 +52,13 @@ El enlace habilita el formulario de contraseña solo después de verificar la se
 ## Entrada única de administración
 
 Administración → Usuarios → Administrar usuarios es la única gestión de altas. El formulario local paralelo se retiró; las cuentas históricas y sus informes se conservan. El enlace `?acceso=cuenta&seccion=usuarios` lleva a esta sección después del acceso, sujeto al rol real. [Interfaz y conservación de datos anteriores](ADMINISTRACION.md).
+
+## Desactivar y eliminar cuentas
+
+En Gestión de Cuentas, cada usuario tiene acciones separadas para **Desactivar/Reactivar** y **Eliminar**. Desactivar impide el acceso a datos y retira a la persona de los selectores de nuevas inspecciones. La cuenta permanece y se puede reactivar. El ingreso muestra «Cuenta inhabilitada» y los nombres/correos de los administradores actuales habilitados que ya actualizaron su contraseña. Los contactos se consultan al abrir esa pantalla y al recuperar el foco; no se mantienen como una lista fija.
+
+Eliminar retira el acceso y la cuenta de las listas, manteniendo su identidad para las inspecciones y documentos históricos. No elimina sus informes, sus levantamientos ni su autoría. La persona no vuelve a estar disponible como destinataria de nuevas inspecciones. Esta eliminación es lógica; no equivale al borrado excepcional del piloto.
+
+Un administrador puede eliminar a otro administrador. Debe quedar al menos uno habilitado y con contraseña personal; la base protege ese requisito incluso con solicitudes simultáneas. No se permite desactivar ni eliminar la propia cuenta desde esa misma sesión.
+
+El paso 5 incorpora una función autenticada limitada a los nombres y correos de contacto. Una cuenta inhabilitada con una sesión nueva puede consultarlos sin obtener permisos para inspecciones ni para el directorio general. No se publican contactos a visitantes anónimos ni a cuentas eliminadas.

@@ -116,7 +116,7 @@ test('hasta tres inspectores, autor de la cuenta bloqueado, selección sin dupli
   const emptyTitleDownload = page.waitForEvent('download');
   await page.getByRole('button', { name: 'Descargar Excel', exact: true }).click();
   const emptyTitleBook = new ExcelJS.Workbook(); await emptyTitleBook.xlsx.readFile((await (await emptyTitleDownload).path())!);
-  expect(emptyTitleBook.getWorksheet('V.01')!.getCell('E36').value).toBe('Puesto: ');
+  expect(emptyTitleBook.getWorksheet('V.01')!.getCell('E36').value).toBe('Cargo: ');
   await page.evaluate(async () => {
     const { updateOwnProfile, readAccounts } = await import('/src/accounts.ts');
     updateOwnProfile(readAccounts().find(a => a.email === 'ana@example.com')!.id, 'Ana Torres', 'Operaciones', 'Jefa de Operaciones');

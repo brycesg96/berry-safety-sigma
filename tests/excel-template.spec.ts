@@ -62,7 +62,7 @@ for (const count of [1, 5, 7]) test(`plantilla original con ${count} observacion
   expect(form.getCell(`A${26 + extra}`).value).toBe('Falta de mantenimiento preventivo.');
   expect(form.getCell(`A${29 + extra}`).value).toBe('Corregir los hallazgos y verificar las evidencias.');
   expect(form.getCell(`A${34 + extra}`).value).toBe('Nombre: Inspectora de ejemplo');
-  expect(form.getCell(`E${34 + extra}`).value).toBe('Puesto: Supervisora SST');
+  expect(form.getCell(`E${34 + extra}`).value).toBe('Cargo: Supervisora SST');
   expect(form.getCell(`A${36 + extra}`).value).toBe('Nombre: Tercer inspector');
   expect(form.getCell('A9').value).toBe('HORTIFRUT PERÚ S.A.C.');
   expect(form.getImages()).toHaveLength(18); // Logo, eight initial, eight correction, signature.

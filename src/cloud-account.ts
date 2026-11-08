@@ -93,3 +93,10 @@ export async function deleteCloudAdminInspection(inspection: AdminInspection) {
 export async function changeCloudPassword(password: string) {
   await accountRequest('/api/accounts/password', { method: 'POST', body: { password } });
 }
+
+export type AccountAdministrator = { id: string; full_name: string; email: string };
+export async function cloudAccountAdministrators(): Promise<AccountAdministrator[]> {
+  const { data, error } = await supabaseClient().rpc('berry_account_administrators');
+  if (error || !Array.isArray(data) || data.some(row => !row || typeof row.id !== 'string' || typeof row.full_name !== 'string' || typeof row.email !== 'string')) throw new Error('No pudimos consultar los contactos. Vuelve a intentarlo.');
+  return data.map(row => ({ id: row.id, full_name: row.full_name, email: row.email }));
+}

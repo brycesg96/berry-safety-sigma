@@ -12,6 +12,13 @@ alter table public.berry_profiles alter column can_create_inspections set defaul
 alter table public.berry_profiles alter column can_receive_inspections set default false;
 alter table public.berry_profiles add column if not exists deleted_at timestamptz;
 alter table public.berry_profiles add column if not exists access_revision bigint not null default 1;
+-- Administrador incluye realizar y recibir inspecciones.
+update public.berry_profiles set can_create_inspections=true,can_receive_inspections=true where role='admin' and deleted_at is null and (not can_create_inspections or not can_receive_inspections);
+do $$ begin
+ if not exists(select 1 from pg_constraint where conrelid='public.berry_profiles'::regclass and conname='berry_admin_includes_inspections') then
+  alter table public.berry_profiles add constraint berry_admin_includes_inspections check(role<>'admin' or not enabled or deleted_at is not null or (can_create_inspections and can_receive_inspections));
+ end if;
+end $$;
 alter table public.berry_inspections add column if not exists deleted_by_admin boolean not null default false;
 create table if not exists berry_private.retired_inspection_ids(id uuid primary key);
 alter table berry_private.retired_inspection_ids enable row level security;
@@ -21,6 +28,7 @@ insert into berry_private.admin_serialization values(true) on conflict do nothin
 alter table berry_private.admin_serialization enable row level security;
 revoke all on berry_private.admin_serialization from public,anon,authenticated;
 update berry_private.account_requests set input=jsonb_build_object('can_create_inspections',true,'can_receive_inspections',true)||input;
+update berry_private.account_requests set input=input||jsonb_build_object('can_create_inspections',true,'can_receive_inspections',true) where input->>'role'='admin';
 
 create or replace function berry_private.is_enabled()
 returns boolean language sql stable security definer set search_path='' as $$
@@ -43,6 +51,24 @@ returns jsonb language plpgsql stable security definer set search_path='' as $$ 
   perform berry_private.require_admin();
   return(select coalesce(jsonb_agg(to_jsonb(p)-'credentials_valid_after' order by p.created_at,p.id),'[]') from public.berry_profiles p where p.deleted_at is null);
 end $$;
+-- A freshly authenticated disabled account can contact current administrators;
+-- it receives no directory, inspection, or profile-management privileges.
+create or replace function public.berry_account_administrators()
+returns jsonb language plpgsql stable security definer set search_path='' as $$
+declare v_actor uuid:=(select auth.uid());
+begin
+  if v_actor is null or not exists(
+    select 1 from public.berry_profiles p join auth.users u on u.id=p.id
+    where p.id=v_actor and p.deleted_at is null and u.email_confirmed_at is not null
+      and (p.credentials_valid_after=0 or coalesce(((select auth.jwt())->>'iat')::bigint,0)>p.credentials_valid_after)
+  ) then raise exception 'ACCOUNT_NOT_ALLOWED' using errcode='42501';end if;
+  return(select coalesce(jsonb_agg(jsonb_build_object('id',p.id,'full_name',p.full_name,'email',p.email) order by lower(p.full_name),p.email),'[]')
+    from public.berry_profiles p join auth.users u on u.id=p.id
+    where p.role='admin' and p.enabled and p.deleted_at is null and not p.must_change_password and u.email_confirmed_at is not null);
+end $$;
+revoke all on function public.berry_account_administrators() from public,anon,authenticated;
+grant execute on function public.berry_account_administrators() to authenticated;
+
 create or replace function public.berry_prepare_account(p_request_id uuid, p_input jsonb)
 returns jsonb language plpgsql security definer set search_path = '' as $$
 declare
@@ -54,6 +80,7 @@ begin
   v_actor := berry_private.require_admin();
   p_input := jsonb_build_object('can_create_inspections',true,'can_receive_inspections',true)||p_input;
   if jsonb_typeof(p_input -> 'can_create_inspections') is distinct from 'boolean' or jsonb_typeof(p_input -> 'can_receive_inspections') is distinct from 'boolean' then raise exception 'INVALID_PERMISSIONS' using errcode='22023'; end if;
+  if p_input->>'role'='admin' then p_input:=p_input||jsonb_build_object('can_create_inspections',true,'can_receive_inspections',true); end if;
   if p_request_id is null or p_input is null or jsonb_typeof(p_input) <> 'object'
     or not (p_input ?& array['email', 'full_name', 'area', 'job_title', 'role', 'supervisor_emails', 'can_create_inspections', 'can_receive_inspections'])
     or (p_input - array['email', 'full_name', 'area', 'job_title', 'role', 'supervisor_emails', 'can_create_inspections', 'can_receive_inspections']) <> '{}'::jsonb
@@ -140,6 +167,7 @@ begin
       or jsonb_typeof(p_permissions->'can_receive_inspections') is distinct from 'boolean' or coalesce(p_permissions->>'role','') not in('admin','inspector') then raise exception 'INVALID_PERMISSIONS' using errcode='22023'; end if;
     v_enabled:=(p_permissions->>'enabled')::boolean;v_role:=p_permissions->>'role';
     v_create:=(p_permissions->>'can_create_inspections')::boolean;v_receive:=(p_permissions->>'can_receive_inspections')::boolean;
+    if v_role='admin' then v_create:=true;v_receive:=true;end if;
   end if;
   if p_id=v_actor and (not v_enabled or p_action='delete') then raise exception 'CANNOT_DISABLE_SELF' using errcode='22023'; end if;
   if v_target.role='admin' and v_target.enabled and not v_target.must_change_password and (not v_enabled or v_role<>'admin' or p_action='delete')

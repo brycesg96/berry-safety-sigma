@@ -4,7 +4,7 @@ import type { BrowserContext, Page } from '@playwright/test';
 const origin = 'https://rwacygoxhkxxxkvushmb.supabase.co';
 const id = '30000000-0000-4000-8000-000000000001';
 const email = 'cuenta@example.invalid';
-type Profile = { id: string; email: string; full_name: string; area: string; job_title: string; role: string; enabled: boolean; must_change_password?: boolean; can_create_inspections?: boolean; can_receive_inspections?: boolean; access_revision?: number };
+type Profile = { id: string; email: string; full_name: string; area: string; job_title: string; role: string; enabled: boolean; must_change_password?: boolean; can_create_inspections?: boolean; can_receive_inspections?: boolean; access_revision?: number; deleted_at?: string | null };
 const initialProfile = (): Profile => ({ id, email, full_name: '', area: '', job_title: '', role: 'admin', enabled: true, can_create_inspections: true, can_receive_inspections: true, access_revision: 1 });
 const user = { id, aud: 'authenticated', role: 'authenticated', email, email_confirmed_at: new Date().toISOString(), app_metadata: { provider: 'email', providers: ['email'] }, user_metadata: { role: 'admin', enabled: true }, identities: [], created_at: new Date().toISOString() };
 function session() {
@@ -12,7 +12,7 @@ function session() {
   return { access_token: `eyJhbGciOiJIUzI1NiJ9.${encoded}.signature`, token_type: 'bearer', expires_in: 3600, refresh_token: 'fictitious-refresh-token', user };
 }
 async function mock(context: BrowserContext, profile = initialProfile()) {
-  const state = { profile, loginAllowed: true, saveFails: false, loginBodies: [] as { email: string; password: string }[], updates: [] as Record<string, unknown>[], paths: [] as string[], delayUser: null as Promise<void> | null };
+  const state = { profile, administrators: [{ id: '30000000-0000-4000-8000-000000000009', full_name: 'Administradora vigente', email: 'admin-vigente@example.invalid' }], contactsFail: false, loginAllowed: true, saveFails: false, loginBodies: [] as { email: string; password: string }[], updates: [] as Record<string, unknown>[], paths: [] as string[], delayUser: null as Promise<void> | null };
   await context.route('**/api/people?*', route => route.fulfill({ json: { people: [] } }));
   await context.route('**/api/inspections/send', route => route.fulfill({ json: { ok: true, defaults: null } }));
   await context.route(`${origin}/**`, async route => {
@@ -21,6 +21,10 @@ async function mock(context: BrowserContext, profile = initialProfile()) {
     if (request.method() === 'OPTIONS') return route.fulfill({ status: 204, headers: { 'access-control-allow-origin': '*', 'access-control-allow-headers': '*', 'access-control-allow-methods': '*' } });
     expect(request.headers().apikey).toMatch(/^sb_publishable_/);
     if (url.pathname === '/rest/v1/rpc/berry_schema_status') return route.fulfill({ json: { schema_version: '202611070001', accounts_version: '202611070002', stage: 'accounts', sync_ready: false } });
+    if (url.pathname === '/rest/v1/rpc/berry_account_administrators') {
+      expect(request.headers().authorization).toMatch(/^Bearer ey/);
+      return route.fulfill({ status: state.contactsFail ? 503 : 200, json: state.contactsFail ? { message: 'unavailable' } : state.administrators });
+    }
     if (url.pathname === '/auth/v1/token') {
       state.loginBodies.push(request.postDataJSON());
       if (!state.loginAllowed) return route.fulfill({ status: 400, headers: { 'x-supabase-api-version': '2024-01-01' }, json: { code: 'invalid_credentials', msg: 'Invalid login credentials' } });
@@ -104,7 +108,7 @@ test('perfil y rol provienen de la cuenta del servidor; una cuenta pendiente no 
   const state = await mock(context, { ...initialProfile(), role: 'inspector', enabled: false });
   await page.addInitScript(() => localStorage.setItem('berry-demo-accounts-v1', JSON.stringify([{ id: 'demo-admin', name: 'Administrador local', email: 'admin@example.invalid', area: 'Local', jobTitle: 'Local', role: 'admin', enabled: true }])));
   await login(page);
-  await expect(page.getByRole('heading', { name: 'Cuenta pendiente de habilitación' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Cuenta inhabilitada' })).toBeVisible();
   await expect(page.getByLabel('Nombres y apellidos')).toHaveCount(0);
   state.profile.enabled = true;
   await page.getByRole('button', { name: 'Comprobar acceso', exact: true }).click();
@@ -250,8 +254,11 @@ test('el administrador crea usuarios reales sin añadir cuentas locales y conser
   await page.getByRole('switch', { name: 'Inspecciones', exact: true }).click();
   await expect(page.getByRole('switch', { name: 'Inspecciones', exact: true })).toBeChecked();
   await expect(page.getByRole('switch')).toHaveCount(2);
+  await page.getByRole('switch', { name: 'Inspecciones', exact: true }).click();
+  await expect(page.getByRole('switch', { name: 'Inspecciones', exact: true })).not.toBeChecked();
   await page.getByRole('switch', { name: 'Administrador', exact: true }).click();
   await expect(page.getByRole('switch', { name: 'Inspecciones', exact: true })).toBeChecked();
+  await expect(page.getByRole('switch', { name: 'Inspecciones', exact: true })).toBeDisabled();
   await page.getByRole('switch', { name: 'Administrador', exact: true }).click();
   await expect(page.getByRole('switch', { name: 'Administrador', exact: true })).not.toBeChecked();
   await page.getByRole('button', { name: 'Crear usuario', exact: true }).click();
@@ -320,7 +327,7 @@ test('Atrás cierra la sesión y vuelve al acceso; recordar cuenta conserva solo
   await expect(page.getByLabel(/^Correo electrónico/)).toHaveValue('');
 });
 
-test('Administrador e Inspecciones se activan por separado; el administrador deshabilita/elimina cuentas e inspecciones ajenas', async ({ page, context }) => {
+test('Administrador incluye realizar y recibir inspecciones; el administrador deshabilita/elimina cuentas e inspecciones ajenas', async ({ page, context }) => {
   const actor = { ...initialProfile(), full_name: 'Admin real', area: 'Seguridad', must_change_password: false };
   await mock(context, actor);
   let target = { ...actor, id: '30000000-0000-4000-8000-000000000002', email: 'otra@example.invalid', full_name: 'Otra persona', role: 'inspector', can_create_inspections: false, can_receive_inspections: true, access_revision: 1, deleted_at: null as string | null };
@@ -343,24 +350,48 @@ test('Administrador e Inspecciones se activan por separado; el administrador des
   await expect(dialog).toContainText('Actualmente solo puede recibir inspecciones.');
   await expect(dialog.getByRole('switch')).toHaveCount(2);
   await dialog.getByRole('switch', { name: 'Administrador', exact: true }).click();
-  await expect(dialog.getByRole('switch', { name: 'Inspecciones', exact: true })).not.toBeChecked();
-  await dialog.getByRole('switch', { name: 'Inspecciones', exact: true }).click();
-  await expect(dialog.getByRole('switch', { name: 'Inspecciones', exact: true })).toBeChecked();
-  await dialog.getByRole('switch', { name: 'Inspecciones', exact: true }).click();
   await expect(dialog.getByRole('switch', { name: 'Administrador', exact: true })).toBeChecked();
-  await dialog.getByRole('switch', { name: 'Inspecciones', exact: true }).click();
+  await expect(dialog.getByRole('switch', { name: 'Inspecciones', exact: true })).toBeChecked();
+  await expect(dialog.getByRole('switch', { name: 'Inspecciones', exact: true })).toBeDisabled();
+  await expect(dialog).toContainText('Incluido en Administrador');
   await dialog.getByRole('button', { name: 'Guardar accesos' }).click();
   await expect(page.getByRole('status')).toContainText('Accesos actualizados.');
   expect(changes[0].permissions).toEqual({ enabled: true, role: 'admin', can_create_inspections: true, can_receive_inspections: true });
-  await row.getByRole('button', { name: 'Deshabilitar', exact: true }).click();
-  await page.getByRole('dialog').getByRole('button', { name: 'Deshabilitar', exact: true }).click();
-  await expect(row).toContainText('Deshabilitada');
+  await row.getByRole('button', { name: 'Desactivar', exact: true }).click();
+  await page.getByRole('dialog').getByRole('button', { name: 'Desactivar', exact: true }).click();
+  await expect(row).toContainText('Inhabilitada');
+  await row.getByRole('button', { name: 'Reactivar', exact: true }).click();
+  await page.getByRole('dialog').getByRole('button', { name: 'Reactivar', exact: true }).click();
+  await expect(row).toContainText('Habilitada');
   await row.getByRole('button', { name: `Eliminar cuenta ${target.email}`, exact: true }).click();
   await page.getByRole('dialog').getByRole('button', { name: 'Eliminar', exact: true }).click();
-  await expect(row).toHaveCount(0); expect(changes[2].action).toBe('delete');
+  await expect(row).toHaveCount(0); expect(changes[3].action).toBe('delete');
   await page.getByRole('button', { name: 'Todas las inspecciones', exact: true }).click();
   await page.getByRole('button', { name: 'Eliminar inspección IH-2026-010', exact: true }).click();
   await expect(page.getByRole('dialog')).toContainText('Su número permanecerá reservado');
   await page.getByRole('dialog').getByRole('button', { name: 'Eliminar', exact: true }).click();
   await expect(page.getByRole('status')).toContainText('Su número permanece reservado'); expect(removed).toBe(true);
+});
+
+
+test('una cuenta inhabilitada ve los administradores vigentes y una eliminada no recupera acceso ni aparece como cuenta activa', async ({ page, context }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  const state = await mock(context, { ...initialProfile(), full_name: 'Persona inhabilitada', role: 'inspector', enabled: false });
+  await login(page);
+  await expect(page.getByRole('heading', { name: 'Cuenta inhabilitada', exact: true })).toBeVisible();
+  const contacts = page.getByRole('region', { name: 'Administradores de contacto' });
+  await expect(contacts).toContainText('Administradora vigente');
+  await expect(contacts.getByRole('link')).toHaveText('admin-vigente@example.invalid');
+  await expect(page.getByRole('button', { name: 'Entrar al espacio de trabajo' })).toHaveCount(0);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+  state.administrators = [{ id: '30000000-0000-4000-8000-000000000010', full_name: 'Administrador nuevo', email: 'admin-nuevo@example.invalid' }];
+  await page.evaluate(() => window.dispatchEvent(new Event('focus')));
+  await expect(contacts).toContainText('Administrador nuevo');
+  await expect(contacts).not.toContainText('Administradora vigente');
+  state.profile.deleted_at = '2026-11-08T12:00:00Z';
+  await page.getByRole('button', { name: 'Comprobar acceso', exact: true }).click();
+  await expect(page.getByRole('heading', { name: 'Cuenta eliminada', exact: true })).toBeVisible();
+  await expect(contacts).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Comprobar acceso', exact: true })).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Entrar al espacio de trabajo' })).toHaveCount(0);
 });

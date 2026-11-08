@@ -272,7 +272,7 @@ export async function fillInspectionTemplate(d: Inspection): Promise<Uint8Array>
     const row = 34 + extra + index;
     const details = d.registrationDetails?.[person.id];
     form.text(`A${row}`, `Nombre: ${person.name}`);
-    form.text(`E${row}`, `Puesto: ${details?.jobTitle ?? ('jobTitle' in person ? person.jobTitle : '') ?? ''}`);
+    form.text(`E${row}`, `Cargo: ${details?.jobTitle ?? ('jobTitle' in person ? person.jobTitle : '') ?? ''}`);
     form.text(`H${row}`, `Fecha: ${printedDate(details?.date || d.date)}`);
     for (const column of ['A', 'E', 'H']) form.wrap(`${column}${row}`);
     if (details?.signature) await form.pictures([details.signature], row, 9, 3, true);

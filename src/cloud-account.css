@@ -63,3 +63,10 @@
 
 .cloud-remember { display: flex; align-items: center; gap: 10px; margin: 0 0 24px; font-size: 14px; cursor: pointer; }
 .cloud-remember input { width: 18px; height: 18px; accent-color: var(--green, #276b52); }
+
+.account-support { margin: 20px 0 24px; padding: 18px; background: #f6f9f2; border: 1px solid #e2e8dc; border-radius: 10px; }
+.account-support h2 { font-size: 14px; margin: 0 0 12px; }
+.account-support ul { list-style: none; padding: 0; margin: 0; display: grid; gap: 14px; }
+.account-support li { display: grid; gap: 4px; font-size: 13px; overflow-wrap: anywhere; }
+.account-support a { color: #276b52; text-decoration: underline; }
+.account-support .cloud-loading, .account-support .cloud-account-hint { margin: 0; }

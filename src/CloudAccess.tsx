@@ -8,6 +8,7 @@ import { supabaseClient } from './supabase';
 import type { ExitConfirmation } from './useExitConfirmation';
 import './cloud-account.css';
 import { CloudAdministration } from './CloudAdministration';
+import { AccountSupport } from './AccountSupport';
 import { newPasswordError } from '../shared/account-rules.mjs';
 import { CloudWorkspace } from './CloudWorkspace';
 import { supabaseFoundationStatus } from './supabase';
@@ -214,10 +215,10 @@ export function CloudAccess({ exit, onReturn, onSessionChange, initialSection = 
         </> : profileLoading || !ownProfile && !profileError ? <>
           <h1 ref={heading} tabIndex={-1}>Tu cuenta</h1><p className="cloud-loading" role="status"><LoaderCircle size={18} className="spin"/>Consultando tu perfil…</p>
         </> : ownProfile && !ownProfile.enabled ? <>
-          <h1 ref={heading} tabIndex={-1}>{ownProfile.deleted_at ? 'Cuenta eliminada' : 'Cuenta pendiente de habilitación'}</h1>
-          <p className="cloud-account-intro">Tu cuenta no tiene acceso habilitado. Consulta con el administrador para continuar.</p>
+          <h1 ref={heading} tabIndex={-1}>{ownProfile.deleted_at ? 'Cuenta eliminada' : 'Cuenta inhabilitada'}</h1>
+          <p className="cloud-account-intro">{ownProfile.deleted_at ? 'Esta cuenta fue retirada y ya no puede acceder a la aplicación.' : 'Tu cuenta se encuentra inhabilitada. Contacta a un administrador para solicitar su reactivación.'}</p>
           <p className="cloud-account-email">{ownProfile.email}</p>
-          <button type="button" className="button button-primary full-width" disabled={!!busy} onClick={() => setRetry(value => value + 1)}>Comprobar acceso</button>
+          <>{!ownProfile.deleted_at && <><AccountSupport key={ownProfile.id} accountId={ownProfile.id}/><button type="button" className="button button-primary full-width" disabled={!!busy} onClick={() => setRetry(value => value + 1)}>Comprobar acceso</button></>}</>
         </> : ownProfile?.must_change_password || passwordRecovery && ownProfile?.enabled ? <>
           <h1 ref={heading} tabIndex={-1}>{passwordRecovery ? 'Crea una nueva contraseña' : 'Actualiza tu contraseña'}</h1>
           <p className="cloud-account-intro">{passwordRecovery ? 'Elige una contraseña personal para volver a entrar a tu cuenta.' : 'Estás usando una contraseña temporal. Crea una contraseña personal para continuar.'}</p>
