@@ -129,6 +129,13 @@ class InspectionForm {
     cell.setAttribute('s', style);
   }
 
+  enlargeSignatureRow(row: number) {
+    const element = elements(this.data, S, 'row').find(value => value.getAttribute('r') === String(row));
+    if (!element) throw new Error('No se encontró la fila de la firma.');
+    element.setAttribute('ht', String(Number(element.getAttribute('ht') || 15) * 3));
+    element.setAttribute('customHeight', '1');
+  }
+
   private height(row: number): number {
     const value = elements(this.data, S, 'row').find(r => r.getAttribute('r') === String(row));
     return Number(value?.getAttribute('ht') || 15) * 96 / 72;
@@ -191,6 +198,7 @@ class InspectionForm {
     let anchorColumn = column, offset = x;
     while (anchorColumn < column + 2 && offset >= this.widths[anchorColumn]) offset -= this.widths[anchorColumn++];
     const document = this.drawing;
+    // Drawing anchors are floating pictures above the sheet, never cell values.
     const anchor = node(document, D, 'xdr:oneCellAnchor');
     const from = node(document, D, 'xdr:from');
     for (const [tag, value] of [['col', anchorColumn], ['colOff', Math.round(offset * EMU)], ['row', row - 1], ['rowOff', Math.round(y * EMU)]] as const) from.appendChild(node(document, D, `xdr:${tag}`, {}, String(value)));
@@ -268,6 +276,7 @@ export async function fillInspectionTemplate(d: Inspection): Promise<Uint8Array>
   }
   form.text(`A${26 + extra}`, d.unfavorableCause || '');
   form.text(`A${29 + extra}`, closingRemarksOf(d));
+  for (let index = 0; index < people.length; index++) form.enlargeSignatureRow(34 + extra + index);
   for (const [index, person] of people.entries()) {
     const row = 34 + extra + index;
     const details = d.registrationDetails?.[person.id];

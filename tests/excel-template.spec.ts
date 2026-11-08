@@ -76,6 +76,9 @@ for (const count of [1, 5, 7]) test(`plantilla original con ${count} observacion
     expect(current?.rules).toEqual(existing.rules); // Original color formulas and styles remain unchanged.
   }
   expect(form.columns.map(c => c.width)).toEqual(base.columns.map(c => c.width));
+  for (const row of [34,35,36]) expect(form.getRow(row + extra).height).toBeCloseTo(base.getRow(row).height! * 3, 3);
+  const signatureImage = form.getImages().find(image => image.range.tl.nativeRow === 33 + extra)!;
+  expect(signatureImage.range.ext!.height).toBeGreaterThan(35);
   for (let row = 1; row <= 24; row++) expect(form.getRow(row).height).toBe(base.getRow(row).height);
   expect(form.pageSetup).toEqual({ ...base.pageSetup, printArea: `A1:L${36 + extra}` });
   expect(form.model.merges).toContain(`A${26 + extra}:L${27 + extra}`);

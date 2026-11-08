@@ -3,6 +3,7 @@ import { jsPDF } from 'jspdf';
 import type { Inspection } from './model';
 import { inspectionClosed } from './follow-up';
 import { buildExcel } from './export';
+import { registrationPeople } from './registration';
 
 const S = 'http://schemas.openxmlformats.org/spreadsheetml/2006/main';
 const D = 'http://schemas.openxmlformats.org/drawingml/2006/spreadsheetDrawing';
@@ -63,7 +64,8 @@ export async function buildPdf(inspection: Inspection) {
     pdf.addFont(`Report-${style}.ttf`, 'Report', style);
   }
   pdf.setProperties({ title: `Registro de inspección - ${inspection.area}`, subject: 'Inspección cerrada', creator: 'Berry Safety', author: inspection.inspector });
-  const lastRow = 36 + Math.max(0, inspection.observations.length - 5);
+  // Closed PDFs omit unused signer rows; the XLSX keeps the original form.
+  const lastRow = 33 + Math.max(0, inspection.observations.length - 5) + registrationPeople(inspection).length;
   const columns = all(sheet, S, 'col');
   const widths = Array.from({ length: 12 }, (_, index) => {
     const col = columns.find(c => number(c, 'min') <= index + 1 && number(c, 'max') >= index + 1);

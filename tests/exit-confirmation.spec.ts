@@ -32,10 +32,10 @@ test('Atrás permite cancelar sin perder el texto y salir sin acumular entradas 
   let nativeDialogs = 0;
   page.on('dialog', async dialog => { nativeDialogs++; await dialog.accept(); });
   await (await requestExit(page)).getByRole('button', { name: 'Salir', exact: true }).click();
-  await expect(page.getByRole('heading', { name: 'Página anterior', exact: true })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Inicia sesión', exact: true })).toBeVisible();
   expect(nativeDialogs).toBe(0);
-  await page.goForward();
-  await expect(page.getByLabel('Área inspeccionada')).toBeVisible();
+  await page.getByRole('button', { name: 'Espacio de pruebas', exact: true }).click();
+  await expect(page.getByLabel('Área inspeccionada')).toHaveValue('Texto que debo conservar');
   await (await requestExit(page)).getByRole('button', { name: 'Seguir en la aplicación', exact: true }).click();
   expect(await page.evaluate(() => history.length)).toBe(length);
 });
@@ -74,5 +74,5 @@ test('recargar permite cancelar con el aviso nativo y salir funciona también en
   await expect.poll(() => reloadWarning).toBe(1);
   await expect(page.getByLabel('Área inspeccionada')).toHaveValue('No salir todavía');
   await (await requestExit(page)).getByRole('button', { name: 'Salir', exact: true }).click();
-  await expect(page).toHaveURL('about:blank');
+  await expect(page.getByRole('heading', { name: 'Inicia sesión', exact: true })).toBeVisible();
 });

@@ -10,8 +10,6 @@ function marker(state: unknown): Marker | undefined {
 
 export function useExitConfirmation(enabled = true) {
   const [requested, setRequested] = useState(false);
-  const allowLeave = useRef(false);
-  const current = useRef<Marker | undefined>(undefined);
   const currentUrl = useRef(location.href);
   const beforeLeave = useRef<(() => Promise<void>) | undefined>(undefined);
   const setBeforeLeave = useCallback((handler: () => Promise<void>) => {
@@ -22,13 +20,11 @@ export function useExitConfirmation(enabled = true) {
 
   useEffect(() => {
     if (!enabled) { setRequested(false); return; }
-    allowLeave.current = false;
     const originalScrollRestoration = history.scrollRestoration;
     history.scrollRestoration = 'manual';
     const previous = marker(history.state);
     const base: Marker = previous ? { ...previous, position: 'base' } : { id: crypto.randomUUID(), position: 'base', hasPrevious: history.length > 1 };
     const guard: Marker = { ...base, position: 'guard' };
-    current.current = guard;
     const state = history.state && typeof history.state === 'object' ? history.state : {};
     // Reuse our pair after reloads, StrictMode and return visits. Cancelling
     // Back replaces the forward guard rather than growing the history stack.
@@ -38,17 +34,16 @@ export function useExitConfirmation(enabled = true) {
     }
     const back = (event: PopStateEvent) => {
       const destination = marker(event.state);
-      if (allowLeave.current || destination?.id !== base.id || destination.position !== 'base') return;
+      if (destination?.id !== base.id || destination.position !== 'base') return;
       history.pushState({ ...event.state, [KEY]: guard }, '', currentUrl.current);
       setRequested(true);
     };
     const unload = (event: BeforeUnloadEvent) => {
-      if (allowLeave.current) return;
       event.preventDefault();
       event.returnValue = '';
     };
     const show = () => {
-      allowLeave.current = false; setRequested(false);
+      setRequested(false);
       history.scrollRestoration = 'manual';
       const restored = marker(history.state);
       if (restored?.id === base.id && restored.position === 'base') history.pushState({ ...history.state, [KEY]: guard }, '');
@@ -70,14 +65,7 @@ export function useExitConfirmation(enabled = true) {
     cancel: () => setRequested(false),
     setBeforeLeave,
     prepareLeave: async () => { await beforeLeave.current?.(); },
-    leave: () => {
-      allowLeave.current = true;
-      setRequested(false);
-      history.scrollRestoration = 'auto';
-      if (current.current?.hasPrevious) history.go(-2);
-      else location.assign('about:blank');
-    },
   };
 }
 
-export type ExitConfirmation = Omit<ReturnType<typeof useExitConfirmation>, 'leave'> & { leave: () => void | Promise<void>; leaving?: boolean; error?: string };
+export type ExitConfirmation = ReturnType<typeof useExitConfirmation> & { leave: () => void | Promise<void>; leaving?: boolean; error?: string };

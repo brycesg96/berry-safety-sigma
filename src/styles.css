@@ -142,3 +142,17 @@
 .input-icon.locked-email-control>svg,.input-icon.locked-profile-control>svg{top:50%;transform:translateY(-50%);color:#7c9571}.locked-email-control input,.locked-profile-control input{padding-left:36px}.locked-profile-control input[readonly]{background:#f7f9f4}
 .inspection-list-info>.list-inspected-area,.inspection-list-info>.list-responsibles,.inspection-list-info>.list-responsible-areas{white-space:normal;overflow-wrap:anywhere;line-height:1.6}
 .topbar-left{min-width:0}.breadcrumbs{min-width:0}.breadcrumbs ol{display:flex;align-items:center;flex-wrap:wrap;gap:10px;list-style:none;padding:0;margin:0}.breadcrumbs li{display:flex;align-items:center;gap:10px;min-width:0}.breadcrumbs .breadcrumb-link{border:0;background:none;padding:0;color:#263a34;font:inherit;text-align:left}.breadcrumbs .breadcrumb-link:hover{text-decoration:underline}.breadcrumbs .breadcrumb-separator{display:block;flex-shrink:0}.followup-heading{flex-wrap:wrap;align-items:flex-start}.followup-downloads{display:flex;flex-wrap:wrap;gap:8px}@media(max-width:600px){.breadcrumbs ol,.breadcrumbs li{gap:5px}.breadcrumbs .breadcrumb-parent{display:none}.breadcrumbs .breadcrumb-current,.breadcrumbs .breadcrumb-link{font-size:10px}.followup-downloads{width:100%}}
+
+.registration-fields{grid-template-columns:minmax(0,1fr) minmax(280px,.85fr)}
+.registration-person-data{grid-template-columns:minmax(0,1fr) 155px}
+.registration-signature{max-width:none}
+.signature-actions{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+.registration-signature .signature-actions .button{min-height:44px;padding:9px 8px;gap:6px;white-space:normal;text-align:center}
+.signature-preview{min-height:80px;justify-content:space-between;gap:8px}
+.signature-preview img{width:auto;max-width:calc(100% - 38px);height:70px;object-fit:contain}
+.signature-pad canvas{display:block;width:100%;height:auto;aspect-ratio:2.5;border:1px dashed #91ab8b;border-radius:10px;background:#fff;touch-action:none;cursor:crosshair}
+.signature-pad-tools{display:flex;gap:10px;flex-wrap:wrap;margin:12px 0 20px}
+@media(max-width:760px){.registration-fields{grid-template-columns:1fr;margin-left:0}.registration-person-data{grid-template-columns:minmax(0,1fr) 145px}}
+@media(max-width:400px){.registration-person-data{grid-template-columns:minmax(0,1fr) 130px}}
+
+.profile-logout{margin-top:12px}

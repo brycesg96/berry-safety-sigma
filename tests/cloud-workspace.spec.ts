@@ -208,7 +208,8 @@ test('un borrador pendiente retirado por el administrador o el reinicio no reapa
 test('Salir conserva el borrador y no cierra sesión si falla su guardado',async({page,context})=>{
   const state=stateOf();await mock(context,state,author);await enter(page,author);
   state.failSave=true;await page.getByLabel('Área inspeccionada').fill('Borrador antes de salir');
-  await page.getByRole('button',{name:'Cerrar sesión',exact:true}).click();
+  await page.getByRole('button',{name:'Mi perfil',exact:true}).click();
+  await page.getByRole('dialog',{name:'Tu perfil',exact:true}).getByRole('button',{name:'Cerrar sesión',exact:true}).click();
   const dialog=page.getByRole('dialog',{name:'¿Estás seguro de salir?',exact:true});
   await dialog.getByRole('button',{name:'Salir',exact:true}).click();
   await expect(dialog.getByRole('alert')).toContainText('No pudimos guardar el borrador');

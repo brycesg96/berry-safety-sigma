@@ -14,7 +14,7 @@ SHA-256: `bf3295c4ce4e86982ef7b344fd6d093f4bf2336249ae12b19739d37c0a98e892`. Tam
 
 ## Requisitos recibidos
 
-Utilizar el documento original como plantilla, conservar medidas de filas/columnas, combinaciones, estilos, bordes, colores, imágenes fijas, márgenes y configuración de impresión. Descargar y enviar por correo el mismo archivo rellenado.
+Utilizar el documento original como plantilla, conservar medidas de filas/columnas salvo la ampliación de firmas solicitada posteriormente, combinaciones, estilos, bordes, colores, imágenes fijas, márgenes y configuración de impresión. Descargar y enviar por correo el mismo archivo rellenado.
 
 El usuario entregó una copia con instrucciones rojas y pidió explicar el mapeo antes de implementar el llenado. Tras revisar esa interpretación, el 6 de noviembre autorizó cambiar el generador. La hoja de valoración se conserva, salvo instrucciones expresas posteriores.
 
@@ -24,7 +24,7 @@ El archivo original sigue en los adjuntos del espacio de trabajo. La versión di
 
 Archivo de instrucciones: `REGISTRO DE INSPECCIONES INTERNAS - copia.xlsx`, recibido el 5 de noviembre de 2026. Las instrucciones rojas son una referencia para rellenar el original limpio: no se imprimen ni se conservan como contenido del informe.
 
-La aclaración posterior del usuario sustituye la petición de ampliar el ancho de las fotografías y la referencia a 550 píxeles: las imágenes pueden ser pequeñas y deben acomodarse dentro del recuadro, como en la plantilla original. Se conservan los anchos y las alturas originales. No se amplían columnas para que quepan fotografías ni se fija una altura de 550 píxeles.
+La aclaración posterior del usuario sustituye la petición de ampliar el ancho de las fotografías y la referencia a 550 píxeles: las imágenes pueden ser pequeñas y deben acomodarse dentro del recuadro, como en la plantilla original. Se conservan los anchos y las alturas originales de las observaciones. Las filas de responsables registrados se amplían según la solicitud posterior de firmas descrita más abajo. No se amplían columnas para que quepan fotografías ni se fija una altura de 550 píxeles.
 
 ## Mapeo leído para revisión con el usuario
 
@@ -96,3 +96,12 @@ Conservar los encabezados y el apartado ADJUNTAR. Todas estas secciones bajan ju
 - Ejemplo con textos e ilustraciones ficticios: `public/examples/REG_INS_TALLER DE MAQUINARIA_06.11.2026.xlsx`. Incluye fotografías de ejemplo y un levantamiento para revisar ambos recuadros. Comprobado también con un lector independiente: dos hojas, 18 imágenes y firma PNG con transparencia real.
 
 - Al registrar levantamientos, la celda F conserva la medida original y añade «Acción realizada» y, cuando exista, «Observación del revisor». El cierre completo genera ese Excel final y el paso 4 de Supabase sustituye el inicial por ese único archivo alojado. Responsable, fecha, estado y fotografías del levantamiento permanecen en sus posiciones de la plantilla.
+
+
+## Firma en pantalla y ampliación autorizada
+
+El 8 de noviembre el propietario solicitó **Firmar en pantalla**, disponible junto a Adjuntar firma. Permite registrar trazos con mouse, dedo o lápiz táctil, deshacer y limpiar antes de guardar. Se conserva como PNG transparente, con el margen vacío recortado, y sigue el mismo guardado de borrador, sincronización y generación del informe que una firma adjunta.
+
+El campo de fecha ocupa menos ancho para dejar espacio a ambos botones. La firma tiene una vista previa ampliada. En cada Excel nuevo, la altura de las filas de los responsables registrados pasa de 35,1 a 105,3 puntos. Las filas de responsables vacías mantienen su altura original en Excel y se omiten al generar el PDF cerrado para evitar páginas adicionales vacías. Las firmas se ajustan proporcionalmente y se insertan como imágenes flotantes de DrawingML sobre la cuadrícula, conservando la transparencia. Los anchos de columnas, la hoja de valoración, los recuadros de fotografías y las fórmulas de colores mantienen su configuración. La plantilla fuente no se sobrescribe.
+
+Por aclaración expresa del propietario, el rótulo del Excel vuelve a **Cargo:**; los formularios de la aplicación mantienen **Puesto**. Los archivos históricos ya almacenados no se reescriben por este cambio de formato.

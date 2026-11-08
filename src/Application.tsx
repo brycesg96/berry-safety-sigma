@@ -33,11 +33,12 @@ export default function Application() {
       await guard.prepareLeave();
       const { error } = await supabaseClient().auth.signOut({ scope: 'local' });
       if (error) throw new Error('No pudimos cerrar la sesión. Revisa tu conexión y vuelve a intentarlo.');
-      guard.cancel(); navigate(true);
+      const url = new URL(location.href); url.searchParams.delete('recuperar'); url.searchParams.delete('modo'); url.hash = ''; history.replaceState(history.state, '', url);
+      setAuthenticated(false); guard.cancel(); navigate(true);
     } catch (problem) { setExitError(problem instanceof Error ? problem.message : 'No pudimos cerrar la sesión. Vuelve a intentarlo.'); }
     finally { setLeaving(false); }
   };
-  const exit = accountView ? { ...guard, leave, leaving, error: exitError, request: () => { setExitError(''); guard.request(); } } : guard;
+  const exit = { ...guard, leave, leaving, error: exitError, request: () => { setExitError(''); guard.request(); } };
   return accountView
     ? <CloudAccess exit={exit} onSessionChange={setAuthenticated} onReturn={allowLegacy ? () => navigate(false) : undefined} initialSection={accountSection}/>
     : <App exit={exit} onCloudAccess={section => navigate(true, section)}/>;
