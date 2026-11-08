@@ -32,6 +32,10 @@ test('firma con mouse: deshacer, limpiar, guardar con transparencia y conservar 
   await mouseStroke(page); await save.click();
   await expect(page.getByRole('dialog', { name: 'Registrar firma' })).toHaveCount(0);
   await expect(page.locator('.signature-preview img')).toBeVisible();
+  const preview = (await page.locator('.signature-preview').boundingBox())!, imagePreview = (await page.locator('.signature-preview img').boundingBox())!;
+  expect(preview.width).toBeLessThanOrEqual(280);
+  expect(Math.abs(imagePreview.x + imagePreview.width / 2 - preview.x - preview.width / 2)).toBeLessThan(2);
+  await page.screenshot({ path: test.info().outputPath('firma-compacta.png') });
   await expect.poll(() => page.evaluate(async () => {
     const { loadInspections } = await import('/src/model.ts');
     return !!(await loadInspections()).find(item => item.area === 'Firma de prueba')?.registrationDetails?.['demo-admin']?.signature;
