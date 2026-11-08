@@ -1,13 +1,15 @@
-import { useState } from 'react';
+import { useContext, useState } from 'react';
 import { ImagePlus, LoaderCircle, LockKeyhole, X } from 'lucide-react';
 import { Field } from './components';
 import type { Inspection } from './model';
 import { prepareSignature } from './registration';
 import { readAccounts } from './accounts';
 import type { RegistrationDetails } from './registration';
+import { AccountDirectory } from './AccountDirectory';
 
 export function RegistrationFields({ draft, personId, email, fallbackJobTitle = '', onChange }: { draft: Inspection; personId: string; email: string; fallbackJobTitle?: string; onChange: (id: string, data: RegistrationDetails) => void }) {
-  const person = readAccounts().find(a => a.id === personId || a.email.toLowerCase() === email.toLowerCase());
+  const directory = useContext(AccountDirectory);
+  const person = (directory || readAccounts()).find(a => a.id === personId || a.email.toLowerCase() === email.toLowerCase());
   const stored = draft.registrationDetails?.[personId];
   const jobTitle = person ? person.jobTitle : fallbackJobTitle;
   const value = draft.delivery && stored ? stored : { ...stored, jobTitle, initialJobTitle: jobTitle, date: stored?.date ?? draft.date };

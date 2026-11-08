@@ -7,6 +7,7 @@ const checks = [];
 const test = (name, run) => checks.push({ name, run });
 const migration = await readFile(new URL('../migrations/202611070001_foundation.sql', import.meta.url), 'utf8');
 const accountsMigration = await readFile(new URL('../migrations/202611070002_accounts.sql', import.meta.url), 'utf8');
+const reportsMigration = await readFile(new URL('../migrations/202611080003_reports.sql', import.meta.url), 'utf8');
 const users = { author: '00000000-0000-4000-8000-000000000001', recipient: '00000000-0000-4000-8000-000000000002', other: '00000000-0000-4000-8000-000000000003', pending: '00000000-0000-4000-8000-000000000004' };
 const reports = { draft: '10000000-0000-4000-8000-000000000001', sent: '10000000-0000-4000-8000-000000000002', closed: '10000000-0000-4000-8000-000000000003', otherDraft: '10000000-0000-4000-8000-000000000004', unassigned: '10000000-0000-4000-8000-000000000005' };
 async function as(role, id, query, values = [], claims = {}) {
@@ -158,6 +159,131 @@ test('password completion is server-only, serializes changes and invalidates old
   assert.equal((await db.query('select must_change_password from public.berry_profiles where id=$1', [temporaryUser])).rows[0].must_change_password, false);
   await assert.rejects(() => db.exec(migration), error => error.code === '55000');
   await db.exec('rollback');
+});
+
+const cloudReport = '80000000-0000-4000-8000-000000000001';
+const cloudObservation = '80000000-0000-4000-8000-000000000002';
+const sourceHash = 'a'.repeat(64), documentHash = 'b'.repeat(64);
+let cloudRevision, registrationLease;
+const cloudData = () => ({ id: cloudReport, ownerId: users.author, date: '2026-11-05', area: 'Taller', facility: 'Armonía', type: 'Planeada', inspectionTime: '09:30', inspectionPeriod: 'AM', objective: 'Objetivo', unfavorableCause: 'Causas', closingRemarks: 'Recomendaciones', status: 'draft', step: 4, responsibles: [{ id: 'row', personId: users.recipient, name: 'Fake', email: 'fake@example.invalid' }], additionalInspectors: [], registrationDetails: {}, observations: [{ id: cloudObservation, description: 'Hallazgo', correctiveAction: 'Medida correctiva', severity: 'media', dueDate: '2026-12-01', photos: [] }] });
+test('cloud drafts enforce authorship and revisions, bind profile identities and preserve private files', async () => {
+  await db.exec(reportsMigration);
+  await db.exec("create or replace function berry_private.report_clock() returns timestamptz language sql volatile set search_path='' as $$select '2026-11-08T05:00:00Z'::timestamptz$$;");
+  await denied(() => as('anon', null, 'select public.berry_ensure_draft($1)', [cloudReport]));
+  await as('authenticated', users.author, 'select public.berry_ensure_draft($1)', [cloudReport]);
+  await denied(() => as('authenticated', users.recipient, 'select public.berry_ensure_draft($1)', [cloudReport]));
+  const saved = await as('authenticated', users.author, 'select public.berry_save_draft($1,$2,$3) as value', [cloudReport, 1, cloudData()]);
+  cloudRevision = Number(saved.rows[0].value.revision);
+  assert.equal(saved.rows[0].value.data.inspectorEmail, 'author@example.invalid');
+  assert.equal(saved.rows[0].value.data.responsibles[0].email, 'recipient@example.invalid');
+  await assert.rejects(() => as('authenticated', users.author, 'select public.berry_save_draft($1,$2,$3)', [cloudReport, 1, { ...cloudData(), area: 'Cambio obsoleto' }]), error => error.code === '40001');
+  assert.equal((await as('authenticated', users.recipient, 'select id from public.berry_inspections where id=$1', [cloudReport])).rows.length, 0);
+  const path = `${cloudReport}/${cloudObservation}/${documentHash}.jpg`;
+  await as('authenticated', users.author, 'insert into storage.objects(bucket_id,name)values($1,$2)', ['berry-evidence', path]);
+  await denied(() => as('authenticated', users.recipient, 'insert into storage.objects(bucket_id,name)values($1,$2)', ['berry-evidence', `${cloudReport}/${cloudObservation}/${sourceHash}.jpg`]));
+});
+
+test('annual code is committed only with stored bytes, archive path follows inspection month and replays preserve the code', async () => {
+  const prepared = await as('authenticated', users.author, 'select public.berry_prepare_report($1,$2,$3) as value', [cloudReport, cloudRevision, sourceHash]);
+  registrationLease = prepared.rows[0].value.lease;
+  assert.equal(registrationLease.code, 'IH-2026-001');
+  assert.equal((await db.query('select last_sequence from berry_private.report_counters where year=2026')).rows[0].last_sequence, 0);
+  const doc = { filename: 'REG_INS_TALLER_05.11.2026.xlsx', sha256: documentHash, byte_size: 2000, storage_path: `2026/11-NOVIEMBRE/${cloudReport}/${documentHash}/REG_INS_TALLER_05.11.2026.xlsx` };
+  await denied(() => as('authenticated', users.author, 'select public.berry_commit_report($1,$2,$3,$4)', [registrationLease.operation_id, users.author, 100, doc]));
+  await assert.rejects(() => as('service_role', null, 'select public.berry_commit_report($1,$2,$3,$4)', [registrationLease.operation_id, users.author, 100, doc]), error => error.code === '22023');
+  assert.equal((await db.query('select last_sequence from berry_private.report_counters where year=2026')).rows[0].last_sequence, 0);
+  await db.query('insert into storage.objects(bucket_id,name)values($1,$2)', ['berry-documents', doc.storage_path]);
+  const committed = await as('service_role', null, 'select public.berry_commit_report($1,$2,$3,$4) as value', [registrationLease.operation_id, users.author, 100, doc]);
+  cloudRevision = Number(committed.rows[0].value.inspection.revision);
+  assert.equal(committed.rows[0].value.inspection.code, 'IH-2026-001');
+  assert.equal(committed.rows[0].value.document.storage_path, doc.storage_path);
+  assert.equal((await as('authenticated', users.recipient, 'select code from public.berry_inspections where id=$1', [cloudReport])).rows[0].code, 'IH-2026-001');
+  assert.equal((await as('authenticated', users.recipient, 'select name from storage.objects where name=$1', [doc.storage_path])).rows.length, 1);
+  const replay = await as('authenticated', users.author, 'select public.berry_prepare_report($1,$2,$3) as value', [cloudReport, cloudRevision, null]);
+  assert.equal(replay.rows[0].value.registered, true);
+  assert.equal((await db.query('select last_sequence from berry_private.report_counters where year=2026')).rows[0].last_sequence, 1);
+  await assert.rejects(() => as('authenticated', users.author, 'select public.berry_prepare_report($1,$2,$3)', [cloudReport, cloudRevision, 'c'.repeat(64)]), error => error.code === '23505');
+});
+
+test('mail outbox is claimed once and its persisted receipt is shared with the report', async () => {
+  assert.equal((await as('service_role', null, 'select public.berry_claim_report_mail($1,$2) as value', [cloudReport, users.author])).rows[0].value.dispatch, true);
+  assert.equal((await as('service_role', null, 'select public.berry_claim_report_mail($1,$2) as value', [cloudReport, users.author])).rows[0].value.dispatch, false);
+  await as('service_role', null, 'select public.berry_finish_report_mail($1,$2,$3)', [cloudReport, users.author, { state: 'accepted', upstreamStatus: 200 }]);
+  assert.equal((await as('authenticated', users.recipient, 'select data from public.berry_inspections where id=$1', [cloudReport])).rows[0].data.emailDelivery.state, 'accepted');
+  assert.equal((await as('authenticated', users.author, 'select objective from public.berry_shared_texts')).rows[0].objective, 'Objetivo');
+});
+
+test('shared corrections permit both status controls, enforce review decisions and lock the complete closed report', async () => {
+  const change = async (actor, action, value) => {
+    const result = await as('authenticated', actor, 'select public.berry_change_correction($1,$2,$3,$4,$5) as value', [cloudReport, cloudObservation, cloudRevision, action, value]);
+    cloudRevision = Number(result.rows[0].value.revision); return result.rows[0].value;
+  };
+  await denied(() => change(users.other, 'state', { state: 'Ejecutado' }));
+  await change(users.recipient, 'save', { responsibleName: 'Persona responsable', action: 'Acción realizada', date: '2026-11-08', photos: [], state: 'Pendiente' });
+  await change(users.author, 'state', { state: 'Ejecutado' });
+  const saved = await change(users.recipient, 'submit', { responsibleName: 'Persona responsable', action: 'Acción realizada', date: '2026-11-08', photos: [], state: 'Pendiente' });
+  assert.equal(saved.data.delivery.corrections[cloudObservation].decision, 'review');
+  await change(users.recipient, 'state', { state: 'Ejecutado' });
+  const changes = await change(users.author, 'changes', { note: 'Completar evidencia' });
+  assert.equal(changes.data.delivery.corrections[cloudObservation].state, 'Pendiente');
+  await change(users.recipient, 'submit', { responsibleName: 'Persona responsable', action: 'Acción completa', date: '2026-11-08', photos: [], state: 'Pendiente' });
+  const closed = await change(users.author, 'approve', { note: 'Aprobado' });
+  assert.equal(closed.workflow, 'closed');
+  assert.equal(closed.data.delivery.corrections[cloudObservation].state, 'Ejecutado');
+  await denied(() => change(users.recipient, 'state', { state: 'Pendiente' }));
+  await denied(() => as('authenticated', users.recipient, 'insert into storage.objects(bucket_id,name)values($1,$2)', ['berry-evidence', `${cloudReport}/${cloudObservation}/${sourceHash}.jpg`]));
+  const audit = (await db.query("select actor_id from public.berry_audit where inspection_id=$1 and entity_type='berry_corrections' order by id desc limit 1", [cloudReport])).rows[0];
+  assert.equal(audit.actor_id, users.author);
+});
+
+const clock = time => db.exec(`create or replace function berry_private.report_clock() returns timestamptz language sql volatile set search_path='' as $$select '${time}'::timestamptz$$;`);
+async function nextDraft(index, date = '2026-11-05') {
+  const id = `90000000-0000-4000-8000-${String(index).padStart(12,'0')}`;
+  await as('authenticated', users.author, 'select public.berry_ensure_draft($1)', [id]);
+  const row = (await as('authenticated', users.author, 'select public.berry_save_draft($1,1,$2) as value', [id, { ...cloudData(), id, date }])).rows[0].value;
+  return row;
+}
+async function prepare(row) { return (await as('authenticated', users.author, 'select public.berry_prepare_report($1,$2,$3) as value', [row.id, row.revision, sourceHash])).rows[0].value.lease; }
+async function storeAndCommit(row, lease, folder) {
+  const doc = { filename: 'REG_INS_TALLER.xlsx', sha256: documentHash, byte_size: 2000, storage_path: `${folder}/${row.id}/${documentHash}/REG_INS_TALLER.xlsx` };
+  await db.query('insert into storage.objects(bucket_id,name)values($1,$2)', ['berry-documents',doc.storage_path]);
+  // Objects uploaded before their transaction commits are never visible to browsers.
+  assert.equal((await as('authenticated',users.author,'select name from storage.objects where name=$1',[doc.storage_path])).rows.length,0);
+  return (await as('service_role',null,'select public.berry_commit_report($1,$2,$3,$4) as value',[lease.operation_id,users.author,100,doc])).rows[0].value;
+}
+test('later months share an annual counter, November inspections keep their folder when sent in December, and reservations serialize', async () => {
+  await clock('2026-12-02T12:00:00Z');
+  const november = await nextDraft(1), december = await nextDraft(2, '2026-12-02');
+  const lease = await prepare(november);
+  assert.equal(lease.code,'IH-2026-002');
+  assert.equal((await prepare(november)).operation_id,lease.operation_id);
+  await assert.rejects(() => prepare(december),error => error.code==='55P03');
+  assert.equal((await storeAndCommit(november,lease,'2026/11-NOVIEMBRE')).inspection.code,'IH-2026-002');
+  assert.equal((await storeAndCommit(december,await prepare(december),'2026/12-DICIEMBRE')).inspection.code,'IH-2026-003');
+});
+test('a year boundary discards the old reservation without consuming a number and preserves the inspection-date archive', async () => {
+  await clock('2027-01-01T04:59:30Z');
+  const row = await nextDraft(3), old = await prepare(row);
+  assert.equal(old.code,'IH-2026-004');
+  await clock('2027-01-01T05:00:01Z');
+  await assert.rejects(() => as('service_role',null,'select public.berry_commit_report($1,$2,$3,$4)',[old.operation_id,users.author,100,{}]),error=>error.code==='40001' && error.message==='YEAR_CHANGED');
+  await as('service_role',null,'select public.berry_cancel_report($1,$2)',[old.operation_id,users.author]);
+  assert.equal((await db.query('select last_sequence from berry_private.report_counters where year=2026')).rows[0].last_sequence,3);
+  const fresh = await prepare(row); assert.equal(fresh.code,'IH-2027-001');
+  assert.equal((await storeAndCommit(row,fresh,'2026/11-NOVIEMBRE')).inspection.code,'IH-2027-001');
+  await clock('2028-01-01T06:00:00Z');
+  await db.exec('insert into berry_private.report_counters(year,last_sequence) values(2028,999)');
+  assert.equal((await prepare(await nextDraft(4))).code,'IH-2028-1000');
+});
+test('invalid JSON cannot poison shared records, and rerunning older setup cannot reset an activated workspace', async () => {
+  const row = await nextDraft(5);
+  for (const data of [{ ...cloudData(), area:{} },{ ...cloudData(), observations:[{ ...cloudData().observations[0], description:null }] },{ ...cloudData(), registrationDetails:{ [users.author]:{ date:[] } } }]) {
+    await assert.rejects(() => as('authenticated',users.author,'select public.berry_save_draft($1,$2,$3)',[row.id,row.revision,data]),error=>error.code==='22023');
+  }
+  await assert.rejects(() => db.exec(accountsMigration),error=>error.code==='55000'); await db.exec('rollback');
+  await db.exec(reportsMigration);
+  assert.equal((await as('anon',null,'select public.berry_schema_status() as value')).rows[0].value.sync_ready,true);
+  assert.equal((await db.query('select code from public.berry_inspections where id=$1',[cloudReport])).rows[0].code,'IH-2026-001');
 });
 
 let failed;

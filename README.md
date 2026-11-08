@@ -36,7 +36,7 @@ El flujo `.github/workflows/pages.yml` prepara la publicación en GitHub Pages a
 ## Flujo implementado
 
 1. **Datos generales:** empleador de solo lectura; código pendiente de asignación al registrar el envío, área, fecha, hora, responsable de la inspección; tipo Planeada, No planeada u Otro con detalle; objetivo de hasta 560 caracteres y responsables seleccionados por nombre, con correo automático no editable. [Alcance y conexión del directorio](docs/PRIMER_APARTADO.md).
-2. **Observaciones:** registros repetibles, descripción, medida correctiva, criticidad alta/media/baja, fecha de compromiso manual y hasta ocho fotografías por observación. También permite confirmar explícitamente una inspección sin hallazgos.
+2. **Observaciones:** registros repetibles, descripción, medida correctiva, criticidad alta/media/baja, fecha de compromiso manual y hasta ocho fotografías por observación. Se requiere al menos una observación para continuar.
 3. **Resumen:** recuento por criticidad, evidencias, acciones y fechas, con acceso a la edición.
 4. **Cierre:** conclusiones, recomendaciones e identificación del inspector.
 5. **Revisión y envío:** revisión de información y destinatarios, y descarga de un informe Excel con fotografías integradas.
@@ -45,12 +45,12 @@ El menú lateral se convierte en un panel desplegable en móvil. Incluye perfil 
 
 ## Guardado y alcance de esta versión
 
-- Los borradores y las fotografías se guardan automáticamente en **IndexedDB del navegador**; el perfil usa almacenamiento local. Se puede retomar una inspección al recargar. No se sincronizan entre dispositivos y se pierden si se borran los datos del sitio.
+- El espacio de pruebas conserva los borradores y fotografías en **IndexedDB del navegador**. El espacio autenticado conecta las nuevas inspecciones a Supabase al activar la tercera migración; permite retomar borradores, enviar y revisar desde otros dispositivos. Los datos históricos locales no se importan automáticamente.
 - Las fotos JPG, PNG y WebP se convierten a JPEG de hasta 1600 píxeles para reducir el almacenamiento. El límite de entrada es de 15 MB por fotografía.
 - La demostración incluye las cuentas Bryan `bryx.96@gmail.com` (administrador) y `bcespedes@hortifrut.com` (inspecciones). Las altas locales de Administración aparecen en el directorio de ese navegador. `VITE_DIRECTORY_URL` permite añadir un directorio remoto. El acceso real usa correo y contraseña de Supabase; la opción Microsoft fue retirada.
-- El Excel utiliza la plantilla oficial proporcionada y conserva sus medidas, formatos y fotografías. El código definitivo sigue pendiente del registro central.
+- El Excel utiliza la plantilla oficial proporcionada y conserva sus medidas, formatos y fotografías. El registro autenticado asigna un correlativo anual y conserva el archivo enviado por año y mes de inspección, previa activación del paso 3 de Supabase.
 - El envío de correo utiliza Render, Make y Outlook. La aceptación de Make no confirma por sí sola la entrega al buzón. La opción secundaria de compartir localmente no envía correo.
-- El espacio de pruebas conserva perfiles y roles locales. La ruta `?acceso=cuenta` permite entrar con una cuenta habilitada de Supabase y guardar su nombre, área y cargo con permisos del servidor. Las inspecciones siguen en IndexedDB; entrar con contraseña todavía no sincroniza ni importa los informes locales. [Etapas y estado de la conexión](docs/SUPABASE.md).
+- El espacio de pruebas conserva perfiles y roles locales. La ruta `?acceso=cuenta` permite entrar con una cuenta habilitada de Supabase y guardar su nombre, área y cargo con permisos del servidor. La tercera etapa habilita el botón Entrar al espacio de trabajo, con borradores privados, directorio real, archivos y seguimiento compartido. Requiere ejecutar su SQL y desplegar la API; conserva el espacio de pruebas y sus informes locales por separado. [Etapas y estado de la conexión](docs/SUPABASE.md).
 - Administración del portal incluye creación y consulta de usuarios con contraseña temporal y cambio obligatorio al primer ingreso. Requiere ejecutar la segunda migración y configurar una clave privada **solo en Render**, sin cambios de plan. [Activación única](docs/USUARIOS.md).
 - Los registros cerrados admiten descarga directa en PDF con el formato de impresión de la hoja V.01, además de Excel. [Formato y validación](docs/PDF.md).
 

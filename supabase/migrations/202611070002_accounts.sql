@@ -3,6 +3,12 @@
 -- ni retira el acceso de las cuentas que ya existen.
 begin;
 
+do $$ begin
+  if exists(select 1 from information_schema.columns where table_schema='public' and table_name='berry_inspections' and column_name='code') then
+    raise exception 'Ya está instalada la etapa de informes. Use la migración correspondiente, sin repetir el paso 2.' using errcode='55000';
+  end if;
+end; $$;
+
 alter table public.berry_profiles add column if not exists must_change_password boolean not null default false;
 alter table public.berry_profiles alter column must_change_password set default true;
 alter table public.berry_profiles add column if not exists credentials_valid_after bigint not null default 0;

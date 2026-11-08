@@ -1,13 +1,15 @@
-import { useEffect, useId, useState } from 'react';
+import { useContext, useEffect, useId, useState } from 'react';
 import { LoaderCircle, Search } from 'lucide-react';
 import { Field, LockedEmailField } from './components';
 import { searchDirectory } from './directory';
 import type { DirectoryPerson } from './directory';
 import { readAccounts } from './accounts';
 import type { Responsible } from './model';
+import { AccountDirectory } from './AccountDirectory';
 
 export function ResponsiblePicker({ value, onChange, error, excludedIds, excludedEmails = [], emailLabel = 'Correo electrónico' }: { value: Responsible; onChange: (changes: Partial<Responsible>) => void; error?: string; excludedIds: string[]; excludedEmails?: string[]; emailLabel?: string }) {
   const listId = useId();
+  const directory = useContext(AccountDirectory);
   const [open, setOpen] = useState(false);
   const [active, setActive] = useState(-1);
   const [people, setPeople] = useState<DirectoryPerson[]>([]);
@@ -25,19 +27,21 @@ export function ResponsiblePicker({ value, onChange, error, excludedIds, exclude
     const controller = new AbortController();
     setState('loading');
     const timer = setTimeout(() => {
-      searchDirectory(value.name, controller.signal).then(result => {
+      const normalize = (text: string) => text.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+      const search = directory ? Promise.resolve({ status: 'ready' as const, people: directory.filter(person => person.enabled && normalize(`${person.name} ${person.email}`).includes(normalize(value.name))).slice(0, 20) }) : searchDirectory(value.name, controller.signal);
+      search.then(result => {
         if (controller.signal.aborted) return;
         setPeople(result.people); setState(result.status);
       }).catch(() => { if (!controller.signal.aborted) setState('error'); });
     }, 250);
     return () => { clearTimeout(timer); controller.abort(); };
-  }, [value.name, searching, retry]);
+  }, [value.name, searching, retry, directory]);
   const available = people.filter(p => !excludedIds.includes(p.id) && !excludedEmails.some(email => email.trim().toLowerCase() === p.email.trim().toLowerCase()));
   const choose = (person: DirectoryPerson) => {
     onChange({ personId: person.id, name: person.name, email: person.email, area: person.area || '', jobTitle: person.jobTitle || '' });
     setOpen(false); setActive(-1);
   };
-  const currentPerson = value.personId ? readAccounts().find(a => a.id === value.personId || a.email.toLowerCase() === value.email.toLowerCase()) : undefined;
+  const currentPerson = value.personId ? (directory || readAccounts()).find(a => a.id === value.personId || a.email.toLowerCase() === value.email.toLowerCase()) : undefined;
   const selectedDetails = [currentPerson ? currentPerson.area : value.area, currentPerson ? currentPerson.jobTitle : value.jobTitle].map(text => text?.trim()).filter(Boolean).join(' — ');
   return <div className="field-grid picker-grid">
     <Field label="Nombre completo" required error={error} hint={value.personId ? selectedDetails || 'Área y cargo por completar.' : 'Escribe al menos dos letras y selecciona una persona.'}>{props => <div className="person-picker" onBlur={event => { if (!event.currentTarget.contains(event.relatedTarget)) setOpen(false); }}>

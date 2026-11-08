@@ -122,3 +122,14 @@ El propietario creó la organización Free Berry Safety y el proyecto `berry-saf
 `IH-2026-001`, `IH-2026-002`, …; al comenzar 2027: `IH-2027-001`.
 
 Los borradores y las descargas de prueba no consumen correlativos. El primer envío válido confirmado por la base de datos recibe el siguiente número disponible. Dos informes distintos simultáneos reciben números distintos. Repetir el mismo envío por un doble clic o un corte de conexión devuelve el mismo código; no crea un segundo informe. Un envío rechazado o un Excel que no pudo guardarse no consume un número. Una inspección aceptada conserva para siempre su código, aunque se reintente después de Año Nuevo.
+
+
+## Entrega del 8 de noviembre: tercer paso de Supabase
+
+- [x] Preparar espacio autenticado con directorio real, borradores y fotografías entre dispositivos, permisos y revisiones en servidor, levantamientos/revisión/cierre y auditoría.
+- [x] Preparar correlativo anual, archivo privado por fecha de inspección (año/mes), Excel exacto enviado y cola persistente que evita duplicados. No requiere crear carpetas manuales ni modificar Make.
+- [ ] Ejecutar únicamente `202611080003_reports.sql` y desplegar la nueva API en Render; comprobar el estado público de la migración y realizar una prueba desde las cuentas reales. Las etapas 1 y 2 sí están instaladas, incluida la clave privada configurada directamente en Render.
+- [ ] Importación revisable de las inspecciones y cuentas locales anteriores; se conservan sin alterar en su navegador. No confundir el correo real del propietario con el correo de demostración que contiene punto.
+- [ ] Pantalla de consulta del historial. Los eventos y versiones quedan guardados en auditoría protegida; la vista de historial todavía no se incorpora.
+
+Los pendientes anteriores relativos al desarrollo del backend se consideran preparados por esta entrega para registros nuevos; la activación remota, prueba real e importación siguen separados. [Pasos de activación, verificaciones y límites](SUPABASE.md#tercera-etapa-espacio-de-trabajo-compartido-y-archivo-mensual).

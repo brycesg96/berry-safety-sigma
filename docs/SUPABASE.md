@@ -4,7 +4,7 @@
 
 El propietario creó la organización Free Berry Safety y el proyecto `berry-safety`, disponible en `https://rwacygoxhkxxxkvushmb.supabase.co`. Proporcionó su clave pública Publishable. El 7 de noviembre ejecutó la migración inicial desde SQL Editor: `berry_schema_status()` respondió HTTP 200 con versión `202611070001`, etapa `foundation` y `sync_ready: false`. Después creó y confirmó su primera cuenta de Auth y mostró el resultado de habilitarla como administradora.
 
-La ruta `?acceso=cuenta` conecta el inicio de sesión por correo/contraseña y el perfil propio con Supabase. Las inspecciones y las cuentas del espacio de pruebas continúan en cada navegador hasta completar funciones de escritura, archivos e importación. Entrar al portal de cuenta no cambia las identidades ni los informes de prueba.
+La ruta `?acceso=cuenta` conecta el inicio de sesión por correo/contraseña y el perfil propio con Supabase. La tercera etapa conecta las nuevas inspecciones, evidencias y levantamientos al espacio de trabajo autenticado. Su activación requiere el script 3 y desplegar la API actualizada. Las inspecciones y cuentas anteriores del espacio de pruebas permanecen en su navegador y no se importan automáticamente. Entrar al portal de cuenta no cambia las identidades ni los informes de prueba.
 
 La prueba debe empezar en el plan Free, sin contratar servicios de pago ni cambiar de plan automáticamente. Referencia oficial consultada: [precios](https://supabase.com/pricing), 1 GB de archivos y 500 MB de base de datos. La duración deseada de la prueba es de aproximadamente dos meses. Controlar especialmente el volumen de fotos, sus originales, firmas y versiones de Excel; conservar información no debe depender de borrados automáticos silenciosos. Un proyecto Free puede pausarse tras una semana de inactividad.
 
@@ -36,7 +36,7 @@ Conservar las reglas actuales: el autor y los destinatarios pueden cambiar Pendi
 6. Preparar una importación revisable de los datos existentes en el navegador hacia las cuentas verificadas; no borrar las copias locales hasta confirmar la importación y su consulta desde otro dispositivo.
 7. Validar con sesiones de navegador independientes: crear un borrador en un equipo, retomarlo en otro, enviar a un destinatario, registrar y revisar un levantamiento, solicitar ajustes, aprobar y cerrar. Comprobar historial, documentos originales, permisos, guardados simultáneos, cortes de conexión y ausencia de duplicados.
 
-La creación de la cuenta o del proyecto de Supabase no sincroniza por sí sola las inspecciones. Este documento distingue el acceso y el perfil ya conectados del guardado y seguimiento de informes todavía pendientes.
+La creación de la cuenta o del proyecto de Supabase no sincroniza por sí sola las inspecciones. Este documento distingue el acceso y las cuentas ya activados de la tercera migración preparada y pendiente de ejecutar en el proyecto real.
 
 ## Primera etapa preparada: estructura y permisos
 
@@ -66,7 +66,7 @@ El script otorga explícitamente los permisos necesarios y habilita RLS en las s
 - El portal no carga, importa ni sobrescribe registros de IndexedDB. Entrar desde el espacio de pruebas guarda antes su borrador; al volver se conserva el flujo local y su selector. La confirmación de salida se mantiene entre ambas vistas.
 - Pendiente de configuración del propietario: en Authentication → Sign In / Providers, desactivar **Allow new users to sign up** si el piloto utilizará únicamente altas manuales. Las nuevas cuentas permanecen deshabilitadas por defecto aunque el registro público esté permitido. No se ha verificado este ajuste desde la cuenta del propietario.
 
-El siguiente paso funcional es conectar borradores y archivos privados, destinatarios, envíos, levantamientos y revisión a operaciones autenticadas y versionadas. Después se incorporará la importación de los datos locales por identidad verificada.
+La tercera etapa descrita abajo incorpora las operaciones autenticadas y versionadas de inspecciones. La importación revisable de los datos locales por identidad verificada sigue pendiente.
 
 ### Segunda etapa preparada: altas y contraseña temporal
 
@@ -84,6 +84,39 @@ Los documentos se organizarán automáticamente en el bucket privado `berry-docu
 
 ### Verificaciones
 
-`npm run test:supabase` ejecuta diez comprobaciones con PostgreSQL embebido mediante PGlite. Simula únicamente los contratos mínimos de las tablas/plataforma Auth y Storage: el SQL de Berry, RLS, permisos y triggers se ejecutan de verdad. Prueba separación entre autores/destinatarios, cuentas pendientes, rechazo de autoasignación de administrador, archivos privados, auditoría, reintentos, cambio de contraseña y conservación de las cuentas. Estas pruebas no crean usuarios ni informes en el proyecto real.
+`npm run test:supabase` ejecuta diecisiete comprobaciones con PostgreSQL embebido mediante PGlite. Simula únicamente los contratos mínimos de las tablas/plataforma Auth y Storage: el SQL de Berry, RLS, permisos y triggers se ejecutan de verdad. Prueba separación entre autores/destinatarios, cuentas pendientes, rechazo de autoasignación de administrador, archivos privados, auditoría, reintentos, cambio de contraseña y conservación de las cuentas. Estas pruebas no crean usuarios ni informes en el proyecto real.
 
 `tests/supabase-foundation.spec.ts` comprueba el cliente con una API interceptada: abrir el espacio de pruebas no inicia sesión ni cambia su almacenamiento; una consulta explícita reconoce que la estructura sigue sin estar lista para sincronizar. `tests/cloud-access.spec.ts` comprueba el acceso, el perfil, el aislamiento de cuentas locales, fallos de guardado, sesiones entre pestañas y consulta desde un segundo contexto móvil con Auth/API interceptados. Estas pruebas no crean cuentas reales ni envían correo. La ejecución en SQL Editor real está verificada; el inicio de sesión del propietario y la prueba completa de inspecciones con dos dispositivos deben confirmarse al completar cada etapa.
+
+
+## Tercera etapa: espacio de trabajo compartido y archivo mensual
+
+Implementación preparada el 8 de noviembre. **No está activada en el proyecto real hasta ejecutar la migración 3 y desplegar Render.** No requiere claves nuevas, carpetas manuales, cambio de plan ni cambios en Make.
+
+### Activación única
+
+1. Abrir [202611080003_reports.sql en texto](https://raw.githubusercontent.com/brycesg96/berry-safety-sigma/main/supabase/migrations/202611080003_reports.sql). Copiar **todo el contenido SQL**, no pegar la dirección del enlace.
+2. Supabase → SQL Editor → nueva consulta → pegar el contenido completo y ejecutar. El script requiere los pasos 1 y 2 ya instalados, usa una transacción, habilita RLS y conserva los datos existentes. No ejecutar otra vez los scripts 1 o 2 sobre esta etapa: sus guardas impiden restablecer reglas anteriores.
+3. Render → berry-safety-api → Manual Deploy → Deploy latest commit. Conservar las variables privadas actuales y esperar «Live».
+4. Recargar `https://brycesg96.github.io/berry-safety-sigma/?acceso=cuenta`, entrar con la cuenta real, completar/guardar el perfil y pulsar **Entrar al espacio de trabajo**. El botón aparece cuando `berry_schema_status()` devuelve `reports_version: 202611080003` y `sync_ready: true`.
+5. Probar un borrador en una laptop y retomarlo con la misma cuenta en un teléfono. Las cuentas creadas en Administración usan primero la contraseña temporal y deben cambiarla antes de acceder a datos. El correo de prueba real lo solicita el propietario desde su sesión; las herramientas de validación no envían correos.
+
+### Datos y archivos
+
+- El directorio de este espacio usa solo los perfiles habilitados reales. Los borradores son privados del autor; después del registro, los destinatarios asignados ven el mismo informe, fotografías y levantamientos desde cualquier dispositivo con su sesión.
+- Se guardan todos los campos, firmas, fotografías procesadas y originales editables en tablas y buckets privados. Las imágenes usan referencias de Storage; no se meten imágenes base64 en JSON ni en la auditoría. La copia local de ediciones pendientes protege fallos de conexión, sin convertir el selector local en una identidad válida.
+- Cada guardado comprueba una revisión. Dos dispositivos no sobrescriben cambios silenciosamente: el obsoleto conserva su edición y puede reintentar o pulsar Abrir versión guardada; esa sustitución exige confirmación en la app. Las listas se actualizan al abrirlas, recuperar el foco y cada 20 segundos mientras están visibles. El formulario de seguimiento se actualiza al volver a abrir para preservar ediciones que todavía no se han guardado.
+- El envío exige JWT verificado en `/api/reports/send`, aunque esté habilitado el prototipo. Usa el UUID estable, la revisión guardada y el hash del Excel. La base reserva temporalmente un candidato anual sin consumir número; Render valida el ZIP, modifica exclusivamente B5 con el código, guarda el archivo inmutable y finaliza la transacción que confirma código, destinatarios, documento y trabajo de correo.
+- Si falla el archivo, el contador no avanza. Una reserva dura 90 segundos y serializa brevemente registros del mismo año. Un cambio de año regenera el candidato antes de confirmar. Los códigos admiten 1000 y más; el año corresponde al registro en Perú, mientras la carpeta corresponde siempre a la fecha de inspección.
+- Ruta de ejemplo: `berry-documents/2026/11-NOVIEMBRE/{inspección}/{sha256}/REG_INS_TALLER_05.11.2026.xlsx`. Los prefijos aparecen al guardar el primer archivo de ese mes. El hash y el UUID conservan archivos de igual nombre; no se sobreescribe el original.
+- El Excel adjunto es exactamente el archivo almacenado, verificado por SHA-256. Descargar Excel antes de cualquier levantamiento recupera ese original; después de registrar levantamientos genera el informe actualizado a partir de los datos compartidos. El PDF del registro cerrado se genera al descargar con el formato existente del informe. Esas descargas actualizadas no reemplazan el Excel original enviado; no se archiva automáticamente cada PDF descargado.
+- El correo mantiene el cuerpo aprobado, los tres compañeros SIGMA, el asunto y el nombre del adjunto. El trabajo persistente se reclama una sola vez antes de llamar Make: doble clic, reinicio o respuesta perdida no duplican correos. Un rechazo o resultado ambiguo conserva el informe y su código; no hay reenvío automático. «Comprobar envío» puede procesar un trabajo que siga en cola, pero nunca repite uno ya reclamado. La aceptación HTTP no confirma entrega a Outlook. Un cierre abrupto entre reclamar y llamar Make puede requerir revisión manual del envío.
+- Autor y destinatarios mantienen los selectores Pendiente/Ejecutado hasta cerrar; aprobar pone Ejecutado y solicitar ajustes pone Pendiente. Solo la aprobación de todos los hallazgos en Ejecutado cierra y bloquea el informe. La auditoría conserva los actores y las versiones anteriores/nuevas de informes, asignaciones, documentos y levantamientos. No se incluye todavía una pantalla para explorar ese historial; los registros permanecen protegidos en la base.
+
+### Conservación de pruebas anteriores
+
+El espacio de pruebas y su IndexedDB permanecen accesibles. Esta entrega no transforma automáticamente cuentas locales en usuarios verificados ni migra inspecciones históricas; requiere un mapeo revisable. El administrador real `bryx96@gmail.com` y el correo de demostración `bryx.96@gmail.com` son identidades distintas. El envío del prototipo sigue disponible pero no reserva códigos oficiales ni archiva en Supabase. Para probar la nueva persistencia se debe entrar en el espacio autenticado.
+
+### Validación de esta etapa
+
+17 comprobaciones ejecutan SQL, roles, RLS y triggers de Berry en PostgreSQL embebido, con contratos mínimos de Auth/Storage. Incluyen idempotencia, auditoría, privacidad, guardados obsoletos, archivos huérfanos, mes de inspección, correlativos entre meses, cambio anual, secuencia 1000, revisión/cierre y preservación al repetir migraciones. Las 39 comprobaciones de API incluyen los bytes exactos archivados/adjuntos, Excel legible con CRC, rechazo de acceso, fallo de subida, reinicios y resultados ambiguos sin correo duplicado. Las 60 pruebas de navegadores interceptan los servicios externos con datos ficticios, comprueban dos dispositivos y ambos roles, y no crean cuentas ni correos reales. La activación remota y una prueba operativa desde las cuentas del propietario siguen siendo necesarias.

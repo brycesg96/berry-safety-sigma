@@ -1,6 +1,7 @@
 import { readAccounts, accountEmail, inspectionCopies } from './accounts';
 import type { Evidence, Inspection } from './model';
 import { database, validateStep } from './model';
+import { changeCloudCorrection } from './cloud-store';
 
 export type Correction = {
   actorId: string;
@@ -63,6 +64,7 @@ export async function deliverInspection(draft: Inspection, actorId: string): Pro
   });
 }
 export function saveCorrection(d: Inspection, observationId: string, actorId: string, correction: Correction, submit: boolean) {
+  if (d.storage === 'cloud') return changeCloudCorrection(d, observationId, actorId, submit ? 'submit' : 'save', correction);
   return changeStored(d.id, current => {
     const delivery = current.delivery;
     if (!delivery || !isRecipient(current, actorId)) throw new Error('Esta inspección no está asignada a tu cuenta.');
@@ -79,6 +81,7 @@ export function saveCorrection(d: Inspection, observationId: string, actorId: st
   });
 }
 export function saveCorrectionState(d: Inspection, observationId: string, actorId: string, state: Correction['state']) {
+  if (d.storage === 'cloud') return changeCloudCorrection(d, observationId, actorId, 'state', { state });
   return changeStored(d.id, current => {
     const delivery = current.delivery;
     if (!delivery || (current.ownerId !== actorId && !isRecipient(current, actorId))) throw new Error('Esta inspección no está asignada a tu cuenta.');
@@ -93,6 +96,7 @@ export function saveCorrectionState(d: Inspection, observationId: string, actorI
   });
 }
 export function reviewCorrection(d: Inspection, observationId: string, actorId: string, approve: boolean, note: string) {
+  if (d.storage === 'cloud') return changeCloudCorrection(d, observationId, actorId, approve ? 'approve' : 'changes', { note });
   return changeStored(d.id, current => {
     const delivery = current.delivery;
     if (!delivery || current.ownerId !== actorId) throw new Error('Solo el autor puede revisar los levantamientos.');

@@ -1,4 +1,5 @@
 import { mailEndpoint } from './mail-api';
+import { supabaseClient } from './supabase';
 
 export type InspectionTexts = { objective: string; unfavorableCause: string; closingRemarks: string };
 type SavedTexts = { texts: InspectionTexts; acceptedAt: string };
@@ -34,7 +35,15 @@ export function rememberInspectionTexts(d: InspectionTexts, acceptedAt = new Dat
   remember({ texts: { objective: d.objective, unfavorableCause: d.unfavorableCause, closingRemarks: d.closingRemarks }, acceptedAt });
 }
 /** Read-only request. A failed lookup must not block writing a new inspection. */
-export async function refreshInspectionTexts(): Promise<InspectionTexts> {
+export async function refreshInspectionTexts(cloud = false): Promise<InspectionTexts> {
+  if (cloud) {
+    const { data, error } = await supabaseClient().from('berry_shared_texts').select('*').eq('singleton', true).maybeSingle();
+    if (!error && data) {
+      const value = { texts: { objective: data.objective, unfavorableCause: data.unfavorable_cause, closingRemarks: data.closing_remarks }, acceptedAt: data.submitted_at };
+      return value.texts;
+    }
+    return { ...EMPTY };
+  }
   const endpoint = mailEndpoint('/api/inspections/send');
   if (endpoint) {
     try {

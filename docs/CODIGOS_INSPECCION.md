@@ -1,36 +1,27 @@
 # Código definitivo de inspección
 
-Formato fijo: `IH-{año de registro}-{secuencia anual con un mínimo de tres dígitos}`. Se usa `America/Lima` para decidir el año del envío aceptado, no la fecha de la inspección ni el reloj del teléfono.
+Formato: `IH-{año de registro en America/Lima}-{secuencia anual con un mínimo de tres dígitos}`. Empieza en `IH-2026-001`, sigue `002`, `003` y al cambiar el año de registro reinicia en `IH-2027-001`. La secuencia 1000 no se recorta.
 
-## Lo que está disponible en la web
+## Registro compartido preparado
 
-El campo es de solo lectura y muestra un código numérico **tentativo**, como `IH-2026-001`, sin puntos suspensivos. El texto aclara que puede variar según el orden de envío y que el definitivo aparecerá en Mis inspecciones. Hasta conectar un servicio de numeración, se utiliza 001 como estimación inicial del año; no se reserva un número ni se garantiza que sea el siguiente real. Distintos borradores pueden mostrar la misma estimación. Las descargas locales se identifican como borradores sin código registrado. Los números introducidos manualmente en versiones anteriores se conservan como `legacyRegistrationNumber`, pero no se validan ni se publican como códigos definitivos.
+La tercera migración y `/api/reports/send` implementan la numeración para el espacio autenticado. [Activación y límites](SUPABASE.md#tercera-etapa-espacio-de-trabajo-compartido-y-archivo-mensual). Requieren ejecutar el script 3 y desplegar Render; la instalación remota de esa etapa aún debe confirmarse.
 
-La lista Mis inspecciones distingue «Código definitivo: pendiente de envío» de un código presente en un recibo de registro con `inspectionId`, `code` y `acceptedAt`. Ese recibo debe provenir del servidor después de confirmar la transacción. La interfaz valida su forma, correspondencia con la inspección y año; esas validaciones no sustituyen la autenticación ni la consulta al servidor. Actualmente no se generan recibos reales desde la app.
+El navegador envía el UUID estable de la inspección y su revisión, con la sesión real y el Excel sin código definitivo. Supabase valida autoría, datos y destinatarios y bloquea el contador anual para reservar temporalmente el siguiente candidato. La reserva no consume un número. Render valida el ZIP y sus CRC, cambia únicamente B5, guarda el archivo privado y finaliza una transacción que incrementa el contador y confirma inspección, código único, documento, asignaciones y trabajo de correo juntos. El archivo debe existir antes de confirmar. No se mantienen bloqueos de base mientras se llama al correo.
 
-## Operación futura de registro
+La carpeta depende de la **fecha de inspección**, por decisión del propietario. Una inspección de noviembre enviada en diciembre se guarda en noviembre; el contador es anual, no mensual. Una inspección de 2026 registrada en 2027 conserva carpeta 2026 y código del registro 2027.
 
-El cliente manda el UUID estable de la inspección (`draft.id`) como clave de idempotencia, los datos y las evidencias al servicio autenticado. No manda un código elegido por el usuario. El servidor obtiene la identidad de la sesión y valida el informe, las personas y los archivos antes de asignar numeración.
+Si falla el guardado o la transacción, no se consume un número. Un reintento del mismo UUID conserva su código y archivo. Cambiar los bytes de un informe registrado genera conflicto. El correo se reclama una sola vez desde una cola persistente: su rechazo o resultado ambiguo no genera otro código ni un envío automático duplicado. Un código confirmado se conserva aunque se reintente después de Año Nuevo.
 
-En una sola transacción:
+## Borradores y espacio de pruebas
 
-1. Si el UUID ya se registró para la misma cuenta y el mismo contenido, devolver la respuesta original sin aumentar el contador ni volver a generar el archivo. Si cambió el contenido, responder conflicto; si pertenece a otra cuenta, rechazar.
-2. Bloquear e incrementar el contador del año con una operación atómica. No usar `MAX + 1` ni un contador del navegador.
-3. Generar el Excel definitivo con el código asignado. Guardar código, contenido y archivo juntos con restricciones únicas sobre código y `(año, secuencia)`.
-4. Guardar un único trabajo de correo en una cola transaccional. Confirmar la transacción y devolver el código y la referencia del archivo persistido.
+El campo de Información general sigue mostrando una estimación, inicialmente 001; puede variar según el orden de registro. Los borradores y las descargas no consumen correlativos. El definitivo aparece después de la transacción, en Mis inspecciones, el seguimiento y el Excel archivado.
 
-Si falla la generación o el guardado, se revierte la transacción, incluido el contador. El correo se procesa después; sus fallos no anulan una inspección registrada ni provocan una numeración nueva. No mantener bloqueos de la base de datos mientras se llama a servicios de correo externos. El orden corresponde a las operaciones aceptadas por la base de datos, no al orden de clics o llegada de respuestas al navegador.
+El prototipo local no reserva códigos oficiales. Los números manuales antiguos se conservan como `legacyRegistrationNumber` y no se presentan como definitivos. Los registros antiguos del navegador no se importan silenciosamente.
 
-Si el servicio de automatización solo admite archivos externos, se deberá adaptar este contrato para impedir que un código se confirme sin su documento definitivo (por ejemplo, almacenamiento temporal verificado y finalización transaccional). Esa integración no existe todavía y no debe presentarse como operativa.
+La interfaz reconoce el recibo `inspectionId`, `code`, `acceptedAt`, pero la validación de forma no sustituye al servidor: identidad, permisos y código oficial se comprueban en Supabase y Render.
 
-## Referencia ejecutable
+## Pruebas
 
-`reference/registry.py` utiliza SQLite para demostrar la transacción completa y guardar el Excel como BLOB, sin exponer un endpoint ni crear una base de datos de producción. `render_excel` es un generador del servidor; el código del informe debe figurar en el XLSX resultante. El proveedor definitivo puede implementar la misma garantía en otra base de datos. No se ha seleccionado ni impuesto un proveedor de automatización.
+`npm run test:supabase` comprueba permisos, revisión, contador, reintentos, archivo antes de confirmar, meses, cambio anual en Perú y secuencia 1000. `npm run test:api` verifica que el archivo adjunto coincide byte por byte con el archivado y que B5 contiene el código confirmado. Se usan datos y proveedores ficticios; no se envían correos reales.
 
-```bash
-python3 -m unittest discover -s reference -p 'test_*.py' -v
-```
-
-Las pruebas ejercitan 30 registros concurrentes, múltiples reintentos del mismo UUID, conflictos de cuenta y contenido, fallos de generación, correspondencia entre código y Excel, reinicio anual según Perú y la secuencia 1000. La referencia no sustituye la autenticación ni la validación completa del formato o del contenido de las inspecciones.
-
-La app publicada aún no tiene un endpoint de registro o una base de datos compartida. Conectar y desplegarlo queda en [PENDIENTES.md](PENDIENTES.md).
+La referencia SQLite original permanece en `reference/registry.py`, con pruebas de concurrencia ejecutables mediante `python3 -m unittest discover -s reference -p 'test_*.py' -v`. No es la base operativa de la aplicación.

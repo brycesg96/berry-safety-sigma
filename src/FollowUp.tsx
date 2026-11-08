@@ -10,10 +10,12 @@ import { closingRemarksOf } from './registration';
 import { exportExcel } from './export';
 import { exportPdf } from './pdf';
 import { confirmedInspectionCode } from './inspection-code';
+import { CloudReportSendForm } from './CloudReportSendForm';
 
 export function FollowUp({ inspection, actor, onChange, onBack }: { inspection: Inspection; actor: DemoAccount; onChange: (d: Inspection) => void; onBack: () => void }) {
   const [error, setError] = useState(''); const [busy, setBusy] = useState(false);
   const [preview, setPreview] = useState<{ data: string; name: string } | null>(null);
+  const [mailOpen, setMailOpen] = useState(false);
   const owner = inspection.ownerId === actor.id;
   const recipient = isRecipient(inspection, actor.id);
   const closed = inspectionClosed(inspection);
@@ -28,6 +30,7 @@ export function FollowUp({ inspection, actor, onChange, onBack }: { inspection: 
     <button className="button button-back" onClick={onBack}><ArrowLeft size={17}/>Volver</button>
     <div className="page-heading followup-heading"><div><div className="eyebrow">SEGUIMIENTO DE HALLAZGOS</div><h1>{inspection.area}</h1><p>{workflowLabel(inspection)} · {confirmedInspectionCode(inspection) || 'Código definitivo pendiente'} · {formatDate(inspection.date)}</p></div><div className="followup-downloads"><button className="button button-outline" disabled={busy} onClick={() => void download('excel')}><Download size={16}/>Descargar Excel</button>{closed && <button className="button button-outline" disabled={busy} onClick={() => void download('pdf')}><Download size={16}/>Descargar PDF</button>}</div></div>
     <div className="notice"><p><strong>{closed ? 'Inspección cerrada: todos los estados están en Ejecutado.' : 'Levantamiento de resultados de la inspección'}</strong><br/>{closed ? 'Puedes descargar el registro final en Excel o PDF.' : owner ? 'Revisa las evidencias y aprueba cada levantamiento o solicita ajustes.' : 'Registra la acción realizada y sus evidencias. El autor revisará el levantamiento.'}</p></div>
+    {owner && inspection.storage === 'cloud' && inspection.emailDelivery?.state !== 'accepted' && <button type="button" className="button button-outline" onClick={() => setMailOpen(true)}>Comprobar envío por correo</button>}
     <div className="followup-context"><p><strong>Objetivo</strong> {inspection.objective}</p><div><strong>RESPONSABLE DE LA INSPECCIÓN</strong>{[{ id: inspection.ownerId, name: inspection.inspector, email: inspection.inspectorEmail }, ...(inspection.additionalInspectors || [])].map(p => <p key={p.id}>{p.name} · {p.email}</p>)}</div><p><strong>Descripción de la causa</strong> {inspection.unfavorableCause || 'Sin indicar'}</p><p><strong>Conclusiones y recomendaciones</strong> {closingRemarksOf(inspection)}</p></div>
     {error && <p className="notice notice-error" role="alert">{error}</p>}
     {inspection.observations.map((o, i) => <section className="followup-card" key={o.id}>
@@ -38,6 +41,7 @@ export function FollowUp({ inspection, actor, onChange, onBack }: { inspection: 
       <CorrectionForm key={o.id} inspection={inspection} observationId={o.id} actor={actor} owner={owner} recipient={recipient} onChange={onChange} onPreview={setPreview}/>
     </section>)}
     {preview && <Modal title="Evidencia del informe" wide onClose={() => setPreview(null)}><img className="photo-full" src={preview.data} alt={preview.name}/></Modal>}
+    {mailOpen && <Modal title="Envío por correo" onClose={() => !busy && setMailOpen(false)}><CloudReportSendForm inspection={inspection} actorId={actor.id} onBusyChange={setBusy} onChange={updated => { onChange(updated); setMailOpen(false); }}/></Modal>}
   </>;
 }
 function CorrectionForm({ inspection, observationId, actor, owner, recipient, onChange, onPreview }: { inspection: Inspection; observationId: string; actor: DemoAccount; owner: boolean; recipient: boolean; onChange: (d: Inspection) => void; onPreview: (p: { data: string; name: string }) => void }) {

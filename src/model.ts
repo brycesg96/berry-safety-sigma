@@ -8,6 +8,7 @@ import type { Delivery } from './follow-up';
 import type { RegistrationReceipt } from './inspection-code';
 import { lastInspectionTexts } from './inspection-texts';
 import type { InspectionTexts } from './inspection-texts';
+import { loadCloudInspections, persistCloudInspection, removeCloudInspection } from './cloud-store';
 export type Responsible = { id: string; name: string; email: string; personId?: string; area?: string; jobTitle?: string };
 export type Evidence = { id: string; name: string; data: string; originalData?: string; editState?: PhotoEdit };
 export type Observation = {
@@ -18,8 +19,10 @@ export type Observation = {
   dueDate: string;
   photos: Evidence[];
 };
-export type Profile = { name: string; email: string; area?: string; accountId?: string };
+export type Profile = { name: string; email: string; area?: string; accountId?: string; storage?: 'cloud' };
 export type Inspection = {
+  storage?: 'cloud';
+  cloudRevision?: number;
   id: string;
   ownerId: string;
   company: string;
@@ -62,9 +65,9 @@ export const newResponsible = (): Responsible => ({ id: id(), name: '', email: '
 export const newObservation = (closingDate = ''): Observation => ({ id: id(), description: '', correctiveAction: '', severity: 'media', dueDate: closingDate, photos: [] });
 export const newInspection = (profile: Profile): Inspection => {
   const date = new Date().toLocaleDateString('en-CA');
-  const texts = lastInspectionTexts();
+  const texts = profile.storage === 'cloud' ? { objective: '', unfavorableCause: '', closingRemarks: '' } : lastInspectionTexts();
   return ({
-  id: id(), ownerId: profile.accountId || 'demo-admin', company: EMPLOYER.name, ruc: EMPLOYER.ruc, facility: '', area: '', type: '', otherType: '', registrationNumber: '', inspectionTime: '', inspectionPeriod: '',
+  id: id(), ownerId: profile.accountId || 'demo-admin', ...(profile.storage ? { storage: profile.storage } : {}), company: EMPLOYER.name, ruc: EMPLOYER.ruc, facility: '', area: '', type: '', otherType: '', registrationNumber: '', inspectionTime: '', inspectionPeriod: '',
   date, initialInspectionDate: date, ...texts, initialReportTexts: { ...texts }, responsibles: [newResponsible()],
   observations: [], defaultClosingDate: '', registrationDetails: {}, conclusions: '', recommendations: '', inspector: profile.name,
   inspectorEmail: profile.email, additionalInspectors: [], step: 0, updatedAt: new Date().toISOString(), status: 'draft',
@@ -156,7 +159,8 @@ export function database(): Promise<IDBDatabase> {
     request.onerror = () => reject(request.error);
   });
 }
-export async function loadInspections(): Promise<Inspection[]> {
+export async function loadInspections(cloudActor?: string): Promise<Inspection[]> {
+  if (cloudActor) return loadCloudInspections(cloudActor);
   const db = await database();
   return new Promise((resolve, reject) => {
     const tx = db.transaction('inspections', 'readonly');
@@ -166,7 +170,11 @@ export async function loadInspections(): Promise<Inspection[]> {
     tx.oncomplete = () => db.close();
   });
 }
-export async function persistInspection(inspection: Inspection): Promise<void> {
+export async function persistInspection(inspection: Inspection): Promise<Inspection | void> {
+  if (inspection.storage === 'cloud') {
+    if (hasInspectionContent(inspection)) return persistCloudInspection(inspection);
+    await removeCloudInspection(inspection.id, inspection.ownerId, inspection.cloudRevision || 0); return;
+  }
   const db = await database();
   return new Promise((resolve, reject) => {
     const tx = db.transaction('inspections', 'readwrite');
@@ -182,7 +190,8 @@ export async function persistInspection(inspection: Inspection): Promise<void> {
     tx.onabort = () => { db.close(); reject(tx.error || new Error('No se puede sobrescribir un informe enviado.')); };
   });
 }
-export async function removeInspection(inspectionId: string): Promise<void> {
+export async function removeInspection(inspectionId: string, cloudActor?: string, cloudRevision = 0): Promise<void> {
+  if (cloudActor) return removeCloudInspection(inspectionId, cloudActor, cloudRevision);
   const db = await database();
   return new Promise((resolve, reject) => {
     const tx = db.transaction('inspections', 'readwrite');

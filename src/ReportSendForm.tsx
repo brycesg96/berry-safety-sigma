@@ -7,7 +7,12 @@ import { buildExcel } from './export';
 import { saveEmailReceipt } from './follow-up';
 import { rememberInspectionTexts } from './inspection-texts';
 import { registrationPeople } from './registration';
+import { CloudReportSendForm } from './CloudReportSendForm';
 export function ReportSendForm({ inspection, actorId, onPrepare, onChange, onBusyChange }: { inspection: Inspection; actorId: string; onPrepare: () => Promise<Inspection>; onChange: (d: Inspection) => void; onBusyChange?: (busy: boolean) => void }) {
+  if (inspection.storage === 'cloud') return <CloudReportSendForm inspection={inspection} actorId={actorId} onChange={onChange} onBusyChange={onBusyChange}/>;
+  return <LocalReportSendForm inspection={inspection} actorId={actorId} onPrepare={onPrepare} onChange={onChange} onBusyChange={onBusyChange}/>;
+}
+function LocalReportSendForm({ inspection, actorId, onPrepare, onChange, onBusyChange }: { inspection: Inspection; actorId: string; onPrepare: () => Promise<Inspection>; onChange: (d: Inspection) => void; onBusyChange?: (busy: boolean) => void }) {
   const [busy,setBusy]=useState(false), [error,setError]=useState('');
   const lock=useRef(false), api=mailEndpoint('/api/inspections/send'), receipt=inspection.emailDelivery;
   const cc=receipt ? inspection.emailCc ?? inspectionCopies(inspection.responsibles) : inspectionCopies(inspection.responsibles);

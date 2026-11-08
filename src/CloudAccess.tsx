@@ -9,6 +9,8 @@ import type { ExitConfirmation } from './useExitConfirmation';
 import './cloud-account.css';
 import { CloudAdministration } from './CloudAdministration';
 import { newPasswordError } from '../shared/account-rules.mjs';
+import { CloudWorkspace } from './CloudWorkspace';
+import { supabaseFoundationStatus } from './supabase';
 
 type ProfileForm = { full_name: string; area: string; job_title: string };
 const blank = (): ProfileForm => ({ full_name: '', area: '', job_title: '' });
@@ -29,7 +31,8 @@ export function CloudAccess({ exit, onReturn }: { exit: ExitConfirmation; onRetu
   const [formError, setFormError] = useState('');
   const [saved, setSaved] = useState(false);
   const [busy, setBusy] = useState<'login' | 'save' | 'logout' | 'password' | null>(null);
-  const [section, setSection] = useState<'profile' | 'admin'>('profile');
+  const [section, setSection] = useState<'profile' | 'admin' | 'workspace'>('profile');
+  const [workspaceReady, setWorkspaceReady] = useState(false);
   const [newPassword, setNewPassword] = useState('');
   const [repeatPassword, setRepeatPassword] = useState('');
   const [passwordError, setPasswordError] = useState('');
@@ -88,6 +91,12 @@ export function CloudAccess({ exit, onReturn }: { exit: ExitConfirmation; onRetu
   }, [userId, retry]);
 
   useEffect(() => { if (ready) heading.current?.focus({ preventScroll: true }); }, [ready, userId, ownProfile?.enabled]);
+  useEffect(() => {
+    let active = true;
+    if (!ownProfile?.enabled || ownProfile.must_change_password) { setWorkspaceReady(false); return; }
+    void supabaseFoundationStatus().then(status => { if (active) setWorkspaceReady(status.sync_ready); }).catch(() => { if (active) setWorkspaceReady(false); });
+    return () => { active = false; };
+  }, [ownProfile?.id, ownProfile?.enabled, ownProfile?.must_change_password]);
 
   const login = async () => {
     if (busy) return;
@@ -145,6 +154,7 @@ export function CloudAccess({ exit, onReturn }: { exit: ExitConfirmation; onRetu
   const changeField = (key: keyof ProfileForm, value: string) => { setForm(current => ({ ...current, [key]: value })); setFormError(''); setSaved(false); };
 
   const showAdmin = !!ownProfile?.enabled && !ownProfile.must_change_password && ownProfile.role === 'admin' && section === 'admin';
+  if (section === 'workspace' && ownProfile?.enabled && !ownProfile.must_change_password) return <CloudWorkspace profile={ownProfile} exit={exit} onAccount={target => { setSection(target || 'profile'); setRetry(value => value + 1); }}/>;
   return <div className="cloud-account-page" spellCheck={false}>
     <header className="cloud-account-header"><Brand/>{!ownProfile?.must_change_password && <button type="button" className="cloud-return" disabled={!!busy} onClick={() => dirty ? setConfirmLeave('return') : onReturn()}><ArrowLeft size={17}/>Espacio de pruebas</button>}</header>
     <main className={`cloud-account-main ${showAdmin ? 'cloud-account-admin-main' : ''}`}>
@@ -192,6 +202,7 @@ export function CloudAccess({ exit, onReturn }: { exit: ExitConfirmation; onRetu
             {saved && <p role="status" className="cloud-saved"><Check size={16}/>Perfil guardado en tu cuenta.</p>}
             <button type="submit" className="button button-primary full-width" disabled={!!busy || !dirty}>{busy === 'save' ? <LoaderCircle className="spin" size={17}/> : <Check size={17}/>} {busy === 'save' ? 'Guardando…' : 'Guardar perfil'}</button>
           </form>
+          {workspaceReady && <button type="button" className="button button-outline full-width cloud-enter-workspace" disabled={!!busy || dirty || !form.full_name.trim() || !form.area.trim()} onClick={() => setSection('workspace')}>Entrar al espacio de trabajo</button>}
         </> : <>
           <h1 ref={heading} tabIndex={-1}>No pudimos abrir tu perfil</h1>
           <p role="alert" className="error-message cloud-message">{profileError}</p>
@@ -199,7 +210,7 @@ export function CloudAccess({ exit, onReturn }: { exit: ExitConfirmation; onRetu
         </>}
         {session && <><button type="button" className="cloud-logout" disabled={!!busy} onClick={() => dirty ? setConfirmLeave('logout') : void logout()}>{busy === 'logout' ? <LoaderCircle className="spin" size={17}/> : <LogOut size={17}/>}Cerrar sesión en este dispositivo</button>{formError && !ownProfile?.enabled && <p role="alert" className="error-message cloud-message">{formError}</p>}</>}
       </section>}
-      <p className="cloud-stage-note">El acceso y el perfil ya se guardan en tu cuenta. Las inspecciones siguen en el espacio de pruebas mientras completamos su conexión.</p>
+      <p className="cloud-stage-note">{workspaceReady ? 'Las nuevas inspecciones se guardan en tu cuenta. Los registros anteriores del espacio de pruebas se conservan en el navegador donde se crearon.' : 'El acceso y el perfil ya se guardan en tu cuenta. Las inspecciones siguen en el espacio de pruebas mientras completamos su conexión.'}</p>
     </main>
     {confirmLeave && <Modal title={confirmLeave === 'return' ? '¿Volver al espacio de pruebas?' : '¿Cerrar sesión?'} onClose={() => setConfirmLeave(null)}><p className="modal-description">Tienes cambios sin guardar en tu perfil.</p><div className="modal-actions"><button className="button button-outline" onClick={() => setConfirmLeave(null)}>Seguir editando</button><button className="button button-primary" onClick={() => { const target = confirmLeave; setConfirmLeave(null); if (target === 'return') onReturn(); else void logout(); }}>{confirmLeave === 'return' ? 'Volver sin guardar' : 'Cerrar sesión sin guardar'}</button></div></Modal>}
     {exit.requested && <Modal title="¿Estás seguro de salir?" onClose={exit.cancel}><p className="modal-description">{dirty ? 'Tienes cambios sin guardar en tu perfil.' : 'Puedes seguir en la aplicación o salir de la página.'}</p><div className="modal-actions"><button className="button button-outline" onClick={exit.cancel}>Seguir en la aplicación</button><button className="button button-primary" onClick={exit.leave}>Salir</button></div></Modal>}

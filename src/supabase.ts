@@ -3,7 +3,8 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import { SUPABASE_PROJECT } from './supabase-project';
 
 // A configured client is not a completed migration: cloud mode is enabled only
-// after authentication, workflow RPCs and local-data import are implemented.
+// after the protected workflow RPCs are installed. Legacy local records are
+// kept separately until their identity mapping can be reviewed for import.
 let client: SupabaseClient | undefined;
 export function supabaseConfig() {
   const address = import.meta.env.VITE_SUPABASE_URL?.trim() || SUPABASE_PROJECT.url;

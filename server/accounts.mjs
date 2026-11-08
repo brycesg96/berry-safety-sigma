@@ -8,7 +8,7 @@ class ApiError extends Error {
   constructor(status, code, message) { super(message); this.status = status; this.code = code; }
 }
 const unavailable = () => new ApiError(503, 'ACCOUNTS_UNAVAILABLE', 'La gestión de usuarios aún no está configurada.');
-function configOf(env) {
+export function supabaseServerConfig(env) {
   try {
     const url = new URL(env.SUPABASE_URL || 'https://rwacygoxhkxxxkvushmb.supabase.co');
     if (url.protocol !== 'https:' || !/^[a-z0-9]{20}\.supabase\.co$/.test(url.hostname) || url.origin + '/' !== url.href) return null;
@@ -32,7 +32,7 @@ function normalizedAccount(input) {
 /** Auth admin keys, passwords and provider bodies never enter logs or replies. */
 export function createAccountsHandler({ env = process.env, fetchImpl = fetch, now = () => new Date(), timeoutMs = 10000 } = {}) {
   const { origins } = loadConfig({ ...env, MAKE_TEST_ENABLED: 'false' });
-  const config = configOf(env);
+  const config = supabaseServerConfig(env);
   const attempts = new Map();
   async function upstream(path, { method = 'GET', body, token } = {}) {
     if (!config) throw unavailable();

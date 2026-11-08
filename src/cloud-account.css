@@ -17,6 +17,7 @@
 .cloud-account-hint { font-size: 11px; line-height: 1.8; color: #7c8c7a; margin-top: 21px; }
 .cloud-account-email { overflow-wrap: anywhere; font-size: 13px; margin-bottom: 20px; }
 .cloud-stage-note { font-size: 12px; color: #6b7f6b; line-height: 1.8; text-align: center; margin: 21px 8px 0; }
+.cloud-enter-workspace { margin-top: 14px; }
 .cloud-loading { display: flex; align-items: center; gap: 10px; font-size: 13px; color: #698263; margin-top: 20px; }
 .cloud-message { font-size: 12px; line-height: 1.8; margin: 12px 0 18px; }
 .cloud-saved { display: flex; align-items: center; gap: 7px; color: #4c7b43; font-size: 12px; margin: 13px 0 18px; }

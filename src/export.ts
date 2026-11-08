@@ -2,6 +2,7 @@ import type { Inspection } from './model';
 import { validateStep } from './model';
 import { fillInspectionTemplate } from './excel-template';
 import { reportFilename } from '../shared/report-filename.mjs';
+import { cloudOriginalExcel } from './cloud-store';
 
 export async function buildExcel(d: Inspection) {
   if (Object.keys(validateStep(d, 0)).length) throw new Error('Completa el primer apartado antes de exportar.');
@@ -9,7 +10,7 @@ export async function buildExcel(d: Inspection) {
 }
 
 export async function exportExcel(d: Inspection) {
-  const file = await buildExcel(d);
+  const file = d.storage === 'cloud' && d.delivery && !Object.keys(d.delivery.corrections).length ? await cloudOriginalExcel(d) : await buildExcel(d);
   const blob = new Blob([file.bytes as BlobPart], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
   const url = URL.createObjectURL(blob);
   const anchor = document.createElement('a');

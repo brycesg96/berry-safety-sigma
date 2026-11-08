@@ -20,6 +20,7 @@ async function mock(context: BrowserContext, profile = initialProfile()) {
     state.paths.push(url.pathname);
     if (request.method() === 'OPTIONS') return route.fulfill({ status: 204, headers: { 'access-control-allow-origin': '*', 'access-control-allow-headers': '*', 'access-control-allow-methods': '*' } });
     expect(request.headers().apikey).toMatch(/^sb_publishable_/);
+    if (url.pathname === '/rest/v1/rpc/berry_schema_status') return route.fulfill({ json: { schema_version: '202611070001', accounts_version: '202611070002', stage: 'accounts', sync_ready: false } });
     if (url.pathname === '/auth/v1/token') {
       state.loginBodies.push(request.postDataJSON());
       if (!state.loginAllowed) return route.fulfill({ status: 400, headers: { 'x-supabase-api-version': '2024-01-01' }, json: { code: 'invalid_credentials', msg: 'Invalid login credentials' } });
