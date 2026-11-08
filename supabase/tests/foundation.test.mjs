@@ -8,6 +8,7 @@ const test = (name, run) => checks.push({ name, run });
 const migration = await readFile(new URL('../migrations/202611070001_foundation.sql', import.meta.url), 'utf8');
 const accountsMigration = await readFile(new URL('../migrations/202611070002_accounts.sql', import.meta.url), 'utf8');
 const reportsMigration = await readFile(new URL('../migrations/202611080003_reports.sql', import.meta.url), 'utf8');
+const finalMigration = await readFile(new URL('../migrations/202611080004_final_archive.sql', import.meta.url), 'utf8');
 const users = { author: '00000000-0000-4000-8000-000000000001', recipient: '00000000-0000-4000-8000-000000000002', other: '00000000-0000-4000-8000-000000000003', pending: '00000000-0000-4000-8000-000000000004' };
 const reports = { draft: '10000000-0000-4000-8000-000000000001', sent: '10000000-0000-4000-8000-000000000002', closed: '10000000-0000-4000-8000-000000000003', otherDraft: '10000000-0000-4000-8000-000000000004', unassigned: '10000000-0000-4000-8000-000000000005' };
 async function as(role, id, query, values = [], claims = {}) {
@@ -284,6 +285,52 @@ test('invalid JSON cannot poison shared records, and rerunning older setup canno
   await db.exec(reportsMigration);
   assert.equal((await as('anon',null,'select public.berry_schema_status() as value')).rows[0].value.sync_ready,true);
   assert.equal((await db.query('select code from public.berry_inspections where id=$1',[cloudReport])).rows[0].code,'IH-2026-001');
+});
+
+let originalDocument, finalDocument;
+test('only a fully closed assigned inspection can replace its workbook, and failed storage preserves the original',async()=>{
+  await db.exec(finalMigration);
+  originalDocument=(await db.query("select * from public.berry_documents where inspection_id=$1 and kind='excel'",[cloudReport])).rows[0];
+  await denied(()=>as('authenticated',users.other,'select public.berry_prepare_final($1,$2)',[cloudReport,cloudRevision]));
+  const open=(await db.query("select id,revision from public.berry_inspections where code='IH-2026-002'")).rows[0];
+  await denied(()=>as('authenticated',users.author,'select public.berry_prepare_final($1,$2)',[open.id,open.revision]));
+  assert.equal((await as('authenticated',users.recipient,'select public.berry_prepare_final($1,$2) as value',[cloudReport,cloudRevision])).rows[0].value.complete,false);
+  finalDocument={...originalDocument,storage_path:originalDocument.storage_path.replace(documentHash,'c'.repeat(64)),sha256:'c'.repeat(64),byte_size:3000};
+  await denied(()=>as('authenticated',users.author,'select public.berry_commit_final($1,$2,$3,$4,$5)',[cloudReport,users.author,100,cloudRevision,finalDocument]));
+  await assert.rejects(()=>as('service_role',null,'select public.berry_commit_final($1,$2,$3,$4,$5)',[cloudReport,users.author,100,cloudRevision,finalDocument]),error=>error.code==='22023');
+  assert.equal((await db.query('select storage_path from public.berry_documents where id=$1',[originalDocument.id])).rows[0].storage_path,originalDocument.storage_path);
+});
+test('replacement keeps one document row, removes the old object before success and preserves code, corrections and audit history',async()=>{
+  const abandoned=originalDocument.storage_path.replace(documentHash,'f'.repeat(64));
+  await db.query('insert into storage.objects(bucket_id,name)values($1,$2)',['berry-documents',abandoned]);
+  await db.query('insert into storage.objects(bucket_id,name)values($1,$2)',['berry-documents',finalDocument.storage_path]);
+  const committed=(await as('service_role',null,'select public.berry_commit_final($1,$2,$3,$4,$5) as value',[cloudReport,users.author,100,cloudRevision,finalDocument])).rows[0].value;
+  assert.equal(committed.document.id,originalDocument.id);assert.equal(committed.document.is_final,true);
+  assert.equal((await db.query('select count(*) from public.berry_documents where inspection_id=$1',[cloudReport])).rows[0].count,1);
+  assert.equal((await as('authenticated',users.recipient,'select name from storage.objects where name=$1',[originalDocument.storage_path])).rows.length,0);
+  const cleanup=(await as('service_role',null,'select public.berry_final_cleanup($1,$2,$3) as value',[cloudReport,users.author,100])).rows[0].value;
+  assert.deepEqual(new Set(cleanup),new Set([originalDocument.storage_path,abandoned]));
+  await assert.rejects(()=>as('service_role',null,'select public.berry_finish_final($1,$2,$3,$4)',[cloudReport,users.author,100,[]]),error=>error.code==='40001');
+  await db.query('delete from storage.objects where bucket_id=$1 and name=any($2)',['berry-documents',cleanup]);
+  const finished=(await as('service_role',null,'select public.berry_finish_final($1,$2,$3,$4) as value',[cloudReport,users.author,100,cleanup])).rows[0].value;
+  assert.equal(finished.final_excel_stored,true);assert.equal(finished.code,'IH-2026-001');assert.equal(finished.data.delivery.corrections[cloudObservation].decision,'approved');
+  assert.equal((await db.query('select count(*) from storage.objects where bucket_id=$1 and name in($2,$3)',['berry-documents',originalDocument.storage_path,finalDocument.storage_path])).rows[0].count,1);
+  const history=await as('authenticated',users.recipient,"select before_data,after_data from public.berry_audit where entity_type='berry_documents' and entity_id=$1 order by id desc limit 1",[originalDocument.id]);
+  assert.equal(history.rows[0].before_data.is_final,false);assert.equal(history.rows[0].after_data.is_final,true);
+});
+test('competing final uploads keep the first completed workbook, clean the unused file and cannot reset the migration',async()=>{
+  const alternate={...finalDocument,storage_path:finalDocument.storage_path.replace('c'.repeat(64),'d'.repeat(64)),sha256:'d'.repeat(64)};
+  await db.query('insert into storage.objects(bucket_id,name)values($1,$2)',['berry-documents',alternate.storage_path]);
+  const raced=(await as('service_role',null,'select public.berry_commit_final($1,$2,$3,$4,$5) as value',[cloudReport,users.recipient,100,cloudRevision,alternate])).rows[0].value;
+  assert.equal(raced.document.storage_path,finalDocument.storage_path);
+  const cleanup=(await as('service_role',null,'select public.berry_final_cleanup($1,$2,$3) as value',[cloudReport,users.recipient,100])).rows[0].value;
+  assert.deepEqual(cleanup,[alternate.storage_path]);
+  await db.query('delete from storage.objects where bucket_id=$1 and name=$2',['berry-documents',alternate.storage_path]);
+  await as('service_role',null,'select public.berry_finish_final($1,$2,$3,$4)',[cloudReport,users.recipient,100,cleanup]);
+  assert.equal((await db.query('select count(*) from public.berry_documents where inspection_id=$1',[cloudReport])).rows[0].count,1);
+  await assert.rejects(()=>db.exec(reportsMigration),error=>error.code==='55000');await db.exec('rollback');
+  await db.exec(finalMigration);
+  assert.equal((await as('anon',null,'select public.berry_schema_status() as value')).rows[0].value.final_archive_version,'202611080004');
 });
 
 let failed;

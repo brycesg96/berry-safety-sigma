@@ -3,14 +3,15 @@ import type { BrowserContext, Page } from '@playwright/test';
 import { createHash } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
 import { isDeepStrictEqual } from 'node:util';
+import JSZip from 'jszip';
 import { registeredExcel } from '../server/xlsx-registration.mjs';
 
 const project='https://rwacygoxhkxxxkvushmb.supabase.co';
 const author='31000000-0000-4000-8000-000000000001',recipient='31000000-0000-4000-8000-000000000002';
 const profiles=[{id:author,email:'ana@example.com',full_name:'Ana Inspectora',area:'SIGMA',job_title:'Supervisora',role:'admin',enabled:true,must_change_password:false,supervisor_emails:[]},{id:recipient,email:'bruno@example.com',full_name:'Bruno Responsable',area:'Mantenimiento',job_title:'Jefe',role:'inspector',enabled:true,must_change_password:false,supervisor_emails:['jefe@example.com']}];
 const png={name:'evidencia.png',mimeType:'image/png',buffer:Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=','base64')};
-type Row={id:string;author_id:string;workflow:string;revision:number;updated_at:string;deleted_at?:string|null;code?:string;data:any};
-const stateOf=()=>({rows:new Map<string,Row>(),files:new Map<string,Buffer>(),documents:new Map<string,any>(),sends:0,saves:0,paths:[] as string[],failSave:false});
+type Row={id:string;author_id:string;workflow:string;revision:number;updated_at:string;deleted_at?:string|null;code?:string;data:any;final_excel_stored?:boolean};
+const stateOf=()=>({rows:new Map<string,Row>(),files:new Map<string,Buffer>(),documents:new Map<string,any>(),sends:0,saves:0,paths:[] as string[],failSave:false,failFinal:false,finalizes:0});
 type State=ReturnType<typeof stateOf>;
 async function mock(context:BrowserContext,state:State,actor:string) {
   const profile=profiles.find(p=>p.id===actor)!;
@@ -38,7 +39,7 @@ async function mock(context:BrowserContext,state:State,actor:string) {
     if(path==='/rest/v1/rpc/berry_ensure_draft'){
       if(state.failSave)return route.fulfill({status:503,json:{message:'offline'}});
       const {p_id}=req.postDataJSON();let row=state.rows.get(p_id);
-      if(!row){row={id:p_id,author_id:actor,workflow:'draft',revision:1,updated_at:new Date().toISOString(),data:{partial:true}};state.rows.set(p_id,row);}
+      if(!row){row={id:p_id,author_id:actor,workflow:'draft',revision:1,final_excel_stored:false,updated_at:new Date().toISOString(),data:{partial:true}};state.rows.set(p_id,row);}
       expect(row.author_id).toBe(actor);expect(row.workflow).toBe('draft');return route.fulfill({json:row});
     }
     if(path==='/rest/v1/rpc/berry_save_draft'){
@@ -76,6 +77,19 @@ async function mock(context:BrowserContext,state:State,actor:string) {
     throw new Error(`Unexpected cloud operation ${req.method()} ${path}`);
   });
   // This mock records the API request; no Make/Outlook service is contacted.
+  await context.route('**/api/reports/finalize',async route=>{
+    const req=route.request(),input=req.postDataJSON(),row=state.rows.get(input.inspectionId)!;
+    expect(req.headers().authorization).toBe(`Bearer ${token}`);expect(row.workflow).toBe('closed');
+    if(state.failFinal)return route.fulfill({status:503,json:{ok:false,message:'No se pudo guardar el Excel final. Vuelve a intentarlo.'}});
+    let document=state.documents.get(row.id);
+    if(!document.is_final){
+      const bytes=registeredExcel(Buffer.from(input.contentBase64,'base64'),row.code!),hash=createHash('sha256').update(bytes).digest('hex');
+      const storage_path=document.storage_path.replace(document.sha256,hash);
+      state.files.set('berry-documents/'+storage_path,bytes);state.files.delete('berry-documents/'+document.storage_path);
+      document={...document,storage_path,sha256:hash,is_final:true};state.documents.set(row.id,document);row.revision++;state.finalizes++;
+    }
+    row.final_excel_stored=true;return route.fulfill({json:{ok:true,inspection:row,document}});
+  });
   await context.route('**/api/reports/send',async route=>{
     const req=route.request(),input=req.postDataJSON(),row=state.rows.get(input.inspectionId)!;
     expect(req.headers().authorization).toBe(`Bearer ${token}`);expect(actor).toBe(author);
@@ -96,7 +110,7 @@ async function enter(page:Page,actor:string){
   await page.getByRole('button',{name:'Entrar al espacio de trabajo'}).click();
   await expect(page.locator('.card-eyebrow')).toBeVisible();
 }
-test('private drafts and evidence resume on another device, the original Excel is preserved, and both accounts share the complete review',async({browser,page,context})=>{
+test('private drafts resume on another device and full approval replaces the initial Excel with the stored final',async({browser,page,context})=>{
   test.setTimeout(90000);
   const state=stateOf();await mock(context,state,author);await enter(page,author);
   await expect(page.getByText('Modo de prueba',{exact:true})).toHaveCount(0);
@@ -138,8 +152,15 @@ test('private drafts and evidence resume on another device, the original Excel i
   await receiver.getByLabel('Acción realizada').fill('Protección instalada.');await receiver.getByRole('button',{name:'Enviar a revisión',exact:true}).click();await expect(receiver.getByText('Levantamiento enviado a revisión.',{exact:true})).toBeVisible();
   await other.getByRole('button',{name:'Volver',exact:true}).click();await other.getByRole('button',{name:'Revisar informe',exact:true}).click();
   await expect(other.getByLabel('Apellidos y nombres del responsable del levantamiento')).toHaveValue('Bruno Responsable');
+  state.failFinal=true;const originalPath=state.documents.get(row.id).storage_path;
   await other.getByRole('button',{name:'Aprobar levantamiento',exact:true}).click();await expect(other.getByText('Inspección cerrada: todos los estados están en Ejecutado.',{exact:true})).toBeVisible();await expect(other.getByRole('button',{name:'Descargar PDF',exact:true})).toBeVisible();
   expect(row.workflow).toBe('closed');expect(row.data.delivery.corrections[row.data.observations[0].id].state).toBe('Ejecutado');
+  await expect(other.getByRole('alert')).toContainText('No se pudo guardar el Excel final');expect(state.documents.get(row.id).storage_path).toBe(originalPath);
+  state.failFinal=false;await other.getByRole('button',{name:'Reintentar guardar Excel final'}).click();await expect.poll(()=>row.final_excel_stored).toBe(true);
+  expect(state.documents.size).toBe(1);expect(state.files.has('berry-documents/'+originalPath)).toBe(false);expect(state.finalizes).toBe(1);expect(state.sends).toBe(1);
+  const finalDownloadPromise=other.waitForEvent('download');await other.getByRole('button',{name:'Descargar Excel',exact:true}).click();const finalDownload=await finalDownloadPromise;
+  const finalBytes=await readFile((await finalDownload.path())!);expect(finalBytes.equals(state.files.get('berry-documents/'+state.documents.get(row.id).storage_path)!)).toBe(true);
+  const archive=await JSZip.loadAsync(finalBytes,{checkCRC32:true});const sheet=await archive.file('xl/worksheets/sheet1.xml')!.async('string');expect(sheet).toContain('Protección instalada.');expect(sheet).toContain('Acción realizada:');expect(sheet).toContain('IH-2026-001');
   await device.close();await recipientDevice.close();
 });
 

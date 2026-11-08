@@ -2,7 +2,7 @@ import { supabaseClient } from './supabase';
 import type { Evidence, Inspection } from './model';
 import type { Correction } from './follow-up';
 
-export type CloudInspectionRow = { id: string; author_id: string; data: Inspection & { partial?: boolean }; revision: number; updated_at: string; workflow: string };
+export type CloudInspectionRow = { id: string; author_id: string; data: Inspection & { partial?: boolean }; revision: number; updated_at: string; workflow: string; final_excel_stored?: boolean };
 type StoredEvidence = Evidence & { dataRef?: string; originalRef?: string };
 type Runtime = { actor: string; files: Map<string, Promise<string>>; revisions: Map<string, { base: number; saved: number }>; queues: Map<string, Promise<unknown>> };
 let runtime: Runtime | undefined;
@@ -78,7 +78,7 @@ async function mapImages(draft: Inspection, transform: (photo: StoredEvidence) =
 export async function hydrateCloudInspection(row: CloudInspectionRow, actor: string): Promise<Inspection> {
   await actorIs(actor);
   const state = forActor(actor);
-  const snapshot = { ...row.data, id: row.id, ownerId: row.author_id, storage: 'cloud' as const, cloudRevision: Number(row.revision), updatedAt: row.updated_at };
+  const snapshot = { ...row.data, id: row.id, ownerId: row.author_id, storage: 'cloud' as const, cloudRevision: Number(row.revision), finalExcelStored: row.final_excel_stored, updatedAt: row.updated_at };
   return mapImages(snapshot, async photo => ({ ...photo, data: photo.dataRef ? await storedImage(photo.dataRef, state) : photo.data, ...(photo.originalRef ? { originalData: await storedImage(photo.originalRef, state) } : {}) }));
 }
 export async function loadCloudInspections(actor: string) {
@@ -132,6 +132,7 @@ export async function persistCloudInspection(draft: Inspection): Promise<Inspect
     if (!version.saved && header.data.partial) version.saved = Number(header.revision);
     try { await cachePut({ ...draft, cloudRevision: version.saved }, draft.id); } catch { /* Keep the expected revision with the offline edit whenever possible. */ }
     const encoded = await encodeImages(draft, state);
+    delete encoded.finalExcelStored;
     await actorIs(draft.ownerId);
     const saved = await cloudRpc<CloudInspectionRow>('berry_save_draft', { p_id: draft.id, p_expected: version.saved, p_data: encoded });
     version.saved = Number(saved.revision);
@@ -173,9 +174,9 @@ export async function changeCloudCorrection(draft: Inspection, observationId: st
   window.dispatchEvent(new Event('berry-cloud-inspections-changed'));
   return hydrateCloudInspection(row, actor);
 }
-export async function cloudOriginalExcel(draft: Inspection) {
+export async function cloudStoredExcel(draft: Inspection) {
   const { data, error } = await supabaseClient().from('berry_documents').select('filename,storage_path,sha256').eq('inspection_id', draft.id).eq('kind', 'excel').order('revision').limit(1).single();
-  if (error || !data) throw new Error('No pudimos encontrar el Excel enviado.');
+  if (error || !data) throw new Error('No pudimos encontrar el Excel guardado.');
   const file = await supabaseClient().storage.from('berry-documents').download(data.storage_path);
   if (file.error || !file.data) throw new Error('No pudimos descargar el archivo guardado.');
   const bytes = new Uint8Array(await file.data.arrayBuffer());

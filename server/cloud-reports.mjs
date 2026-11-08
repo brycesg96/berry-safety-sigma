@@ -7,6 +7,8 @@ import { inspectionArchivePath } from '../shared/archive-path.mjs';
 import { reportFilename } from '../shared/report-filename.mjs';
 
 export const CLOUD_REPORT_PATH = '/api/reports/send';
+export const CLOUD_FINAL_PATH = '/api/reports/finalize';
+const MAX_FINAL_BYTES = 15 * 1024 * 1024;
 const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 class ReportError extends Error { constructor(status, code, message) { super(message); this.status = status; this.code = code; } }
 const encodePath = path => path.split('/').map(encodeURIComponent).join('/');
@@ -35,7 +37,7 @@ export function createCloudReportHandler({ env = process.env, fetchImpl = fetch,
     if (!result.ok) {
       const code = result.data?.code;
       if (code === '42501') throw new ReportError(403, 'ACCESS_DENIED', 'Tu cuenta no puede registrar esta inspección. Comprueba tu sesión.');
-      if (code === 'PGRST202' || code === '42703') throw new ReportError(503, 'REPORTS_MIGRATION_REQUIRED', 'Falta activar el registro compartido de inspecciones en Supabase.');
+      if (code === 'PGRST202' || code === '42703') throw new ReportError(503, 'REPORTS_MIGRATION_REQUIRED', name.includes('final') ? 'Falta activar el paso 4 de Supabase para guardar el Excel final.' : 'Falta activar el registro compartido de inspecciones en Supabase.');
       if (code === '23505') throw new ReportError(409, 'REGISTERED_CONTENT_CHANGED', 'Esta inspección ya está registrada con otro archivo. Vuelve a abrirla para consultar el original.');
       if (code === '55P03') throw new ReportError(409, 'REGISTRATION_BUSY', 'Se está registrando otra inspección. Espera un momento y vuelve a intentarlo.');
       if (code === '40001') throw new ReportError(409, result.data?.message === 'YEAR_CHANGED' ? 'YEAR_CHANGED' : 'REVISION_CONFLICT', 'La inspección cambió en otra sesión. Vuelve a abrirla antes de enviarla.');
@@ -52,7 +54,7 @@ export function createCloudReportHandler({ env = process.env, fetchImpl = fetch,
       if (req.method === 'OPTIONS') { res.writeHead(204, { 'Cache-Control': 'no-store', ...cors }); res.end(); return; }
       if (req.method !== 'POST') throw new ReportError(405, 'METHOD_NOT_ALLOWED', 'Solo se permite registrar mediante POST.');
       if (!config) throw new ReportError(503, 'CLOUD_UNAVAILABLE', 'Falta configurar el servidor de inspecciones.');
-      if (!mail.enabled) throw new ReportError(503, 'REPORTS_DISABLED', 'El envío de informes aún no está habilitado. El borrador se conserva.');
+      if (!mail.enabled && req.url !== CLOUD_FINAL_PATH) throw new ReportError(503, 'REPORTS_DISABLED', 'El envío de informes aún no está habilitado. El borrador se conserva.');
       const authorization = req.headers.authorization || '';
       if (!authorization.startsWith('Bearer ')) throw new ReportError(401, 'SESSION_REQUIRED', 'Inicia sesión para enviar tu inspección.');
       const token = authorization.slice(7);
@@ -69,13 +71,35 @@ export function createCloudReportHandler({ env = process.env, fetchImpl = fetch,
       if (attempts.size > 1000) attempts.delete(attempts.keys().next().value);
       if ((req.headers['content-type'] || '').split(';')[0].trim() !== 'application/json') throw new ReportError(415, 'JSON_REQUIRED', 'Envía el informe en formato JSON.');
       let input;
-      try { input = await bodyOf(req, 5 * 1024 * 1024); } catch { throw new ReportError(400, 'INVALID_REPORT', 'El informe supera el tamaño permitido o no es válido.'); }
+      try { input = await bodyOf(req, req.url === CLOUD_FINAL_PATH ? 21 * 1024 * 1024 : 5 * 1024 * 1024); } catch { throw new ReportError(400, 'INVALID_REPORT', 'El informe supera el tamaño permitido o no es válido.'); }
       if (!input || !uuid.test(input.inspectionId) || req.headers['idempotency-key'] !== input.inspectionId || Object.keys(input).some(key => !['inspectionId','expectedRevision','contentBase64'].includes(key))) throw new ReportError(400, 'INVALID_REPORT', 'Revisa el identificador y los datos del informe.');
       const id = input.inspectionId;
       let source = null, sourceHash = null;
       if (input.contentBase64 !== undefined) {
-        if (typeof input.contentBase64 !== 'string' || input.contentBase64.length > Math.ceil(MAX_EXCEL_BYTES / 3) * 4 || !/^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/.test(input.contentBase64)) throw new ReportError(400, 'INVALID_EXCEL', 'El Excel no es válido o supera 3 MB.');
+        const limit = req.url === CLOUD_FINAL_PATH ? MAX_FINAL_BYTES : MAX_EXCEL_BYTES;
+        if (typeof input.contentBase64 !== 'string' || input.contentBase64.length > Math.ceil(limit / 3) * 4 || input.contentBase64.length % 4 || !/^[A-Za-z0-9+/]*={0,2}$/.test(input.contentBase64)) throw new ReportError(400, 'INVALID_EXCEL', 'El Excel no es válido o supera el tamaño permitido.');
         source = Buffer.from(input.contentBase64, 'base64'); sourceHash = digest(source);
+      }
+      if (req.url === CLOUD_FINAL_PATH) {
+        let final = await rpc('berry_prepare_final', { p_id: id, p_expected: input.expectedRevision || null }, token);
+        if (!final.complete) {
+          let bytes;
+          try { bytes = registeredExcel(source, final.inspection.code, MAX_FINAL_BYTES); }
+          catch { throw new ReportError(400, 'INVALID_EXCEL', 'No se pudo generar el Excel final. La inspección y su archivo anterior se conservan.'); }
+          if (bytes.length > MAX_FINAL_BYTES) throw new ReportError(400, 'EXCEL_TOO_LARGE', 'El Excel final supera los 15 MB permitidos.');
+          const d = final.inspection.data, name = reportFilename(d.area, d.date), hash = digest(bytes);
+          const path = inspectionArchivePath(d.date, id, hash, name);
+          const stored = await upstream(`/storage/v1/object/berry-documents/${encodePath(path)}`, { bytes });
+          if (!stored.ok && stored.status !== 409 && stored.data?.error !== 'Duplicate' && stored.data?.statusCode !== '409') throw new ReportError(503, 'FINAL_ARCHIVE_FAILED', 'No se pudo guardar el Excel final. El archivo anterior se conserva; vuelve a intentarlo.');
+          final = await rpc('berry_commit_final', { p_id: id, p_actor: actor, p_actor_iat: issuedAt, p_expected: input.expectedRevision || null, p_document: { filename: name, storage_path: path, byte_size: bytes.length, sha256: hash } });
+        }
+        const cleanup = await rpc('berry_final_cleanup', { p_id: id, p_actor: actor, p_actor_iat: issuedAt });
+        if (cleanup.length) {
+          const removed = await upstream('/storage/v1/object/berry-documents', { method: 'DELETE', body: { prefixes: cleanup } });
+          if (!removed.ok && removed.status !== 404) throw new ReportError(503, 'FINAL_CLEANUP_PENDING', 'El Excel final está guardado. Falta completar el reemplazo; vuelve a intentarlo.');
+        }
+        final.inspection = await rpc('berry_finish_final', { p_id: id, p_actor: actor, p_actor_iat: issuedAt, p_removed: cleanup });
+        reply(res, 200, { ok: true, inspection: final.inspection, document: final.document }, cors); return;
       }
       let registered;
       for (let attempt = 0; attempt < 2; attempt++) {

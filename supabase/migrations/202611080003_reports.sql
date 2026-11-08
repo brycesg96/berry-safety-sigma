@@ -1,6 +1,11 @@
 -- Berry Safety · Paso 3: inspecciones compartidas, correlativo y archivo mensual.
 -- Requiere los pasos 1 y 2. No importa ni borra los datos del navegador.
 begin;
+do $$ begin
+  if exists(select 1 from information_schema.columns where table_schema='public' and table_name='berry_inspections' and column_name='final_excel_stored') then
+    raise exception 'A later migration is installed; do not reapply step 3' using errcode='55000';
+  end if;
+end $$;
 
 alter table public.berry_inspections add column if not exists code text unique;
 alter table public.berry_inspections add column if not exists registered_at timestamptz;

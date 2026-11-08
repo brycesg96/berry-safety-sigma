@@ -2,6 +2,7 @@ import { readFile } from 'node:fs/promises';
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import JSZip from 'jszip';
+import { randomBytes } from 'node:crypto';
 import { registeredExcel } from './xlsx-registration.mjs';
 test('registration modifies B5 only and preserves all template parts and ZIP readability', async () => {
   const source = await readFile(new URL('../public/templates/inspection.xlsx', import.meta.url));
@@ -32,4 +33,11 @@ test('malformed, missing-cell and corrupt packages cannot be registered', async 
   assert.throws(() => registeredExcel(missing, 'IH-2026-001'));
   const corrupt = Buffer.from(source); corrupt[70] ^= 255;
   assert.throws(() => registeredExcel(corrupt, 'IH-2026-001'));
+});
+test('a final archive permits larger workbooks while email keeps its 3 MB limit', async () => {
+  const zip=await JSZip.loadAsync(await readFile(new URL('../public/templates/inspection.xlsx',import.meta.url)));
+  zip.file('xl/media/large.bin',randomBytes(4*1024*1024));
+  const source=await zip.generateAsync({type:'nodebuffer',compression:'STORE'});
+  assert.throws(()=>registeredExcel(source,'IH-2026-001'));
+  await JSZip.loadAsync(registeredExcel(source,'IH-2026-001',15*1024*1024),{checkCRC32:true});
 });

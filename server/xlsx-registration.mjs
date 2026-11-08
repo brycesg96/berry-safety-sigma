@@ -14,8 +14,8 @@ const invalid = () => { throw new Error('INVALID_XLSX'); };
 /** Patch only B5. Other OOXML parts, images, styles and print settings survive.
  * ZIP entries are checked before use; no files are extracted to the filesystem.
  */
-export function registeredExcel(source, code) {
-  if (!Buffer.isBuffer(source) || source.length < 22 || source.length > 3 * 1024 * 1024 || !/^IH-[1-9]\d{3}-\d{3,}$/.test(code)) invalid();
+export function registeredExcel(source, code, maxBytes = 3 * 1024 * 1024) {
+  if (!Buffer.isBuffer(source) || source.length < 22 || source.length > maxBytes || maxBytes > 15 * 1024 * 1024 || !/^IH-[1-9]\d{3}-\d{3,}$/.test(code)) invalid();
   let end = -1;
   for (let i = source.length - 22; i >= Math.max(0, source.length - 65557); i--) {
     if (source.readUInt32LE(i) === 0x06054b50 && i + 22 + source.readUInt16LE(i + 20) === source.length) { end = i; break; }

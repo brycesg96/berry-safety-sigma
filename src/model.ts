@@ -23,6 +23,7 @@ export type Profile = { name: string; email: string; area?: string; accountId?: 
 export type Inspection = {
   storage?: 'cloud';
   cloudRevision?: number;
+  finalExcelStored?: boolean;
   id: string;
   ownerId: string;
   company: string;

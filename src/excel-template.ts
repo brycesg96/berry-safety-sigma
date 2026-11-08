@@ -259,7 +259,7 @@ export async function fillInspectionTemplate(d: Inspection): Promise<Uint8Array>
     form.text(`A${row}`, observation.description);
     if (!Object.hasOwn(RISK_LABELS, observation.severity)) throw new Error('Selecciona un nivel de riesgo válido para cada observación.');
     form.text(`E${row}`, RISK_LABELS[observation.severity]);
-    form.text(`F${row}`, observation.correctiveAction);
+    form.text(`F${row}`, [observation.correctiveAction, correction?.action?.trim() ? `Acción realizada:\n${correction.action}` : '', correction?.note?.trim() ? `Observación del revisor:\n${correction.note}` : ''].filter(Boolean).join('\n\n'));
     form.text(`G${row}`, correction?.responsibleName ?? d.responsibles[0]?.name ?? '');
     form.text(`I${row}`, correction?.state || 'Pendiente');
     form.text(`J${row}`, printedDate(correction?.date || observation.dueDate));

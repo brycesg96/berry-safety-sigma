@@ -133,3 +133,11 @@ Los borradores y las descargas de prueba no consumen correlativos. El primer env
 - [ ] Pantalla de consulta del historial. Los eventos y versiones quedan guardados en auditoría protegida; la vista de historial todavía no se incorpora.
 
 Los pendientes anteriores relativos al desarrollo del backend se consideran preparados por esta entrega para registros nuevos; la activación remota, prueba real e importación siguen separados. [Pasos de activación, verificaciones y límites](SUPABASE.md#tercera-etapa-espacio-de-trabajo-compartido-y-archivo-mensual).
+
+
+## Cambio posterior: archivo final y recuperación
+
+- [x] Recuperación por correo desde Olvidé mi contraseña, con retorno PKCE, verificación de identidad y cambio mediante la API propia. Publicado en `7238089`; requiere configurar URL de sitio y redirecciones en Supabase. El propietario realiza el envío y el cambio desde su navegador.
+- [x] Paso 3 instalado por el propietario y Render `6e0639a` mostrado como Live.
+- [x] Preparar paso 4: al aprobar todos los levantamientos, guardar el Excel final y retirar el inicial, manteniendo una sola fila y un solo archivo. Datos de auditoría conservados; fallos y operaciones simultáneas recuperables sin otro correo/código.
+- [ ] Ejecutar únicamente `202611080004_final_archive.sql` y desplegar la API actualizada. Confirmar recuperación de la contraseña del propietario y una prueba operativa del archivo final.

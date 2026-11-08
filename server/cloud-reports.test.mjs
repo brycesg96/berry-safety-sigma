@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { createServer } from 'node:http';
 import { readFile } from 'node:fs/promises';
-import { createHash } from 'node:crypto';
+import { createHash, randomBytes } from 'node:crypto';
 import JSZip from 'jszip';
 import { createCloudReportHandler } from './cloud-reports.mjs';
 
@@ -14,7 +14,7 @@ const source = await readFile(new URL('../public/templates/inspection.xlsx', imp
 const hash = bytes => createHash('sha256').update(bytes).digest('hex');
 const json = (data,status=200) => new Response(data===null ? null : JSON.stringify(data),{status,headers:{'Content-Type':'application/json'}});
 const input = () => ({ inspectionId:id, expectedRevision:2, contentBase64:source.toString('base64') });
-function stateOf() { return { calls:[], files:new Map(), row:{ id, author_id:actor, workflow:'draft', revision:2, data:{ id, ownerId:actor, date:'2026-11-05', area:'Taller', facility:'Armonía', objective:'Inspeccionar', unfavorableCause:'No aplica', closingRemarks:'Dar seguimiento', inspector:'Ana Inspectora', inspectorEmail:'ana@example.com', additionalInspectors:[], responsibles:[{name:'Responsable',email:'responsable@example.com'}], emailCc:['jefe@example.com'], observations:[{id:'observation'}] } }, job:'queued', document:null, sourceHash:null, uploadFails:false, authValid:true, access:true, yearChanged:false, mailStatus:200, mailThrows:false, finishThrows:false }; }
+function stateOf() { return { calls:[], files:new Map(), row:{ id, author_id:actor, workflow:'draft', revision:2, data:{ id, ownerId:actor, date:'2026-11-05', area:'Taller', facility:'Armonía', objective:'Inspeccionar', unfavorableCause:'No aplica', closingRemarks:'Dar seguimiento', inspector:'Ana Inspectora', inspectorEmail:'ana@example.com', additionalInspectors:[], responsibles:[{name:'Responsable',email:'responsable@example.com'}], emailCc:['jefe@example.com'], observations:[{id:'observation'}] } }, job:'queued', document:null, sourceHash:null, uploadFails:false, authValid:true, access:true, yearChanged:false, mailStatus:200, mailThrows:false, finishThrows:false, cleanup:[], deleteFails:false, deleteThrowsAfterRemove:false }; }
 async function setup(t, state=stateOf(), extraEnv={}) {
   const env={ NODE_ENV:'production', BERRY_PROTOTYPE_MODE:'true', BERRY_ALLOWED_ORIGINS:origin, SUPABASE_URL:project, SUPABASE_SECRET_KEY:secret, MAKE_REPORTS_ENABLED:'true', MAKE_WEBHOOK_URL:'https://hook.us2.make.com/fictitious', MAKE_TEST_API_TOKEN:'fictitious-token-32-characters-long', ...extraEnv };
   const handler=createCloudReportHandler({env,fetchImpl:async(address,options)=>{
@@ -33,7 +33,30 @@ async function setup(t, state=stateOf(), extraEnv={}) {
       }
       return json({registered:false,lease:{operation_id:'operation',code:state.yearChanged?'IH-2026-001':'IH-2027-001'},inspection:state.row});
     }
+    if(path==='/rest/v1/rpc/berry_prepare_final') {
+      assert.equal(options.headers.Authorization,`Bearer ${jwt}`);
+      if(!state.access||state.row.workflow!=='closed')return json({code:'42501'},403);
+      return json({complete:state.document.is_final===true,inspection:state.row,document:state.document});
+    }
     assert.equal(options.headers.Authorization,`Bearer ${secret}`);
+    if(path==='/storage/v1/object/berry-documents'&&options.method==='DELETE') {
+      if(state.deleteFails)return json({},503);
+      for(const file of body.prefixes)state.files.delete('/storage/v1/object/berry-documents/'+file);
+      if(state.deleteThrowsAfterRemove)throw new Error('response lost after deletion');
+      return json(body.prefixes.map(name=>({name})));
+    }
+    if(path==='/rest/v1/rpc/berry_commit_final') {
+      assert.equal(body.p_actor,actor);assert.equal(body.p_actor_iat,100);
+      state.cleanup.push(state.document.storage_path);state.document={...body.p_document,is_final:true};state.row.revision++;
+      return json({inspection:state.row,document:state.document});
+    }
+    if(path==='/rest/v1/rpc/berry_final_cleanup')return json(state.cleanup);
+    if(path==='/rest/v1/rpc/berry_finish_final') {
+      state.cleanup=state.cleanup.filter(path=>!body.p_removed.includes(path));
+      assert.equal(state.cleanup.length,0);
+      if(!state.row.final_excel_stored){state.row.final_excel_stored=true;state.row.revision++;}
+      return json(state.row);
+    }
     if(path.startsWith('/storage/v1/object/berry-documents/')) {
       if(state.uploadFails) return json({message:'private storage error'},503);
       assert.equal(options.headers['x-upsert'],'false');
@@ -62,12 +85,12 @@ async function setup(t, state=stateOf(), extraEnv={}) {
   const server=createServer((req,res)=>void handler(req,res));
   await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));
   t.after(()=>new Promise(resolve=>{server.closeAllConnections();server.close(resolve);}));
-  const send=async(body=input(),headers={})=>{
-    const response=await fetch(`http://127.0.0.1:${server.address().port}/api/reports/send`,{method:'POST',headers:{Origin:origin,Authorization:`Bearer ${jwt}`,'Content-Type':'application/json','Idempotency-Key':id,...headers},body:JSON.stringify(body)});
+  const send=async(body=input(),headers={},path='/api/reports/send')=>{
+    const response=await fetch(`http://127.0.0.1:${server.address().port}${path}`,{method:'POST',headers:{Origin:origin,Authorization:`Bearer ${jwt}`,'Content-Type':'application/json','Idempotency-Key':id,...headers},body:JSON.stringify(body)});
     const data=await response.json(); assert.ok(!JSON.stringify(data).includes(secret)); assert.ok(!JSON.stringify(data).includes('private'));
     return {status:response.status,data};
   };
-  return {state,send};
+  return {state,send,finalize:(body=input(),headers={})=>send(body,headers,'/api/reports/finalize')};
 }
 test('cloud archive keeps the inspection month and sends exactly the stored, valid Excel with its committed code',async t=>{
   const api=await setup(t), result=await api.send(); assert.equal(result.status,200);
@@ -123,4 +146,34 @@ test('rejected, timed-out or ambiguously completed mail stays archived without a
     const restarted=await setup(t,state); assert.equal((await restarted.send({inspectionId:id})).status,200);
     assert.equal(state.calls.filter(c=>c.path==='/fictitious').length,1);
   }
+});
+async function finalInput() {
+  const zip=await JSZip.loadAsync(source),sheet=zip.file('xl/worksheets/sheet1.xml');
+  zip.file(sheet.name,(await sheet.async('string')).replace('</sheetData>','<row r="2000"><c r="B2000" t="inlineStr"><is><t>Acción realizada final</t></is></c></row></sheetData>'));
+  return {...input(),contentBase64:(await zip.generateAsync({type:'nodebuffer',compression:'DEFLATE'})).toString('base64')};
+}
+test('complete closure replaces the stored Excel, deletes its initial bytes and never requests another email or code',async t=>{
+  const api=await setup(t);await api.send();const original=api.state.document.storage_path;
+  assert.equal((await api.finalize()).status,403);api.state.row.workflow='closed';
+  const result=await api.finalize(await finalInput());assert.equal(result.status,200);assert.equal(result.data.inspection.final_excel_stored,true);
+  assert.equal(api.state.files.size,1);assert.equal(api.state.files.has('/storage/v1/object/berry-documents/'+original),false);
+  const bytes=api.state.files.get('/storage/v1/object/berry-documents/'+result.data.document.storage_path);
+  const zip=await JSZip.loadAsync(bytes,{checkCRC32:true});const sheet=await zip.file('xl/worksheets/sheet1.xml').async('string');assert.match(sheet,/Acción realizada final/);assert.match(sheet,/IH-2027-001/);
+  assert.equal(api.state.calls.filter(c=>c.path==='/fictitious').length,1);assert.equal(api.state.calls.filter(c=>c.path==='/rest/v1/rpc/berry_commit_report').length,1);
+  assert.equal((await api.finalize({inspectionId:id})).status,200);assert.equal(api.state.calls.filter(c=>c.path==='/rest/v1/rpc/berry_commit_final').length,1);
+});
+test('failed final upload preserves the initial workbook; interrupted cleanup resumes after restart without another upload',async t=>{
+  const api=await setup(t);await api.send();api.state.row.workflow='closed';const original=api.state.document.storage_path;
+  api.state.uploadFails=true;assert.equal((await api.finalize(await finalInput())).status,503);assert.equal(api.state.document.storage_path,original);assert.equal(api.state.files.size,1);
+  api.state.uploadFails=false;api.state.deleteFails=true;assert.equal((await api.finalize(await finalInput())).status,503);assert.equal(api.state.files.size,2);assert.equal(api.state.document.is_final,true);assert.ok(!api.state.row.final_excel_stored);
+  api.state.deleteFails=false;api.state.deleteThrowsAfterRemove=true;
+  const restarted=await setup(t,api.state,{MAKE_REPORTS_ENABLED:'false'});assert.equal((await restarted.finalize({inspectionId:id})).status,503);assert.equal(api.state.files.size,1);
+  api.state.deleteThrowsAfterRemove=false;assert.equal((await restarted.finalize({inspectionId:id})).status,200);assert.equal(api.state.files.size,1);assert.equal(api.state.calls.filter(c=>c.path==='/rest/v1/rpc/berry_commit_final').length,1);
+});
+test('final storage accepts workbooks larger than the email limit without overflowing base64 validation',async t=>{
+  const api=await setup(t);await api.send();api.state.row.workflow='closed';
+  const zip=await JSZip.loadAsync(source);zip.file('xl/media/large.bin',randomBytes(4*1024*1024));
+  const inputFile={...input(),contentBase64:(await zip.generateAsync({type:'nodebuffer',compression:'STORE'})).toString('base64')};
+  assert.equal((await api.send(inputFile)).status,400);
+  assert.equal((await api.finalize(inputFile)).status,200);assert.equal(api.state.files.size,1);
 });

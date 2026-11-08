@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { ArrowLeft, Camera, Check, Download, ImagePlus, LoaderCircle, Send, X } from 'lucide-react';
 import { Badge, Field, Modal } from './components';
 import type { Inspection } from './model';
@@ -11,14 +11,29 @@ import { exportExcel } from './export';
 import { exportPdf } from './pdf';
 import { confirmedInspectionCode } from './inspection-code';
 import { CloudReportSendForm } from './CloudReportSendForm';
+import { storeFinalExcel } from './cloud-final';
 
 export function FollowUp({ inspection, actor, onChange, onBack }: { inspection: Inspection; actor: DemoAccount; onChange: (d: Inspection) => void; onBack: () => void }) {
   const [error, setError] = useState(''); const [busy, setBusy] = useState(false);
   const [preview, setPreview] = useState<{ data: string; name: string } | null>(null);
   const [mailOpen, setMailOpen] = useState(false);
+  const [finalizing, setFinalizing] = useState(false);
+  const currentChange = useRef(onChange); currentChange.current = onChange;
   const owner = inspection.ownerId === actor.id;
   const recipient = isRecipient(inspection, actor.id);
   const closed = inspectionClosed(inspection);
+  const finalize = async () => {
+    setFinalizing(true); setError('');
+    try { currentChange.current(await storeFinalExcel(inspection)); }
+    catch (problem) { setError(problem instanceof Error ? problem.message : 'No se pudo guardar el Excel final. Vuelve a intentarlo.'); }
+    finally { setFinalizing(false); }
+  };
+  useEffect(() => {
+    if (inspection.storage !== 'cloud' || !closed || inspection.finalExcelStored !== false) { setFinalizing(false); return; }
+    let active = true; setFinalizing(true); setError('');
+    void storeFinalExcel(inspection).then(value => { if (active) currentChange.current(value); }).catch(problem => { if (active) setError(problem instanceof Error ? problem.message : 'No se confirmó el Excel final. Vuelve a intentarlo.'); }).finally(() => { if (active) setFinalizing(false); });
+    return () => { active = false; };
+  }, [inspection.id, inspection.cloudRevision, inspection.finalExcelStored, closed]);
   async function download(format: 'excel' | 'pdf') {
     setBusy(true); setError('');
     try { await (format === 'pdf' ? exportPdf(inspection) : exportExcel(inspection)); }
@@ -32,7 +47,9 @@ export function FollowUp({ inspection, actor, onChange, onBack }: { inspection: 
     <div className="notice"><p><strong>{closed ? 'Inspección cerrada: todos los estados están en Ejecutado.' : 'Levantamiento de resultados de la inspección'}</strong><br/>{closed ? 'Puedes descargar el registro final en Excel o PDF.' : owner ? 'Revisa las evidencias y aprueba cada levantamiento o solicita ajustes.' : 'Registra la acción realizada y sus evidencias. El autor revisará el levantamiento.'}</p></div>
     {owner && inspection.storage === 'cloud' && inspection.emailDelivery?.state !== 'accepted' && <button type="button" className="button button-outline" onClick={() => setMailOpen(true)}>Comprobar envío por correo</button>}
     <div className="followup-context"><p><strong>Objetivo</strong> {inspection.objective}</p><div><strong>RESPONSABLE DE LA INSPECCIÓN</strong>{[{ id: inspection.ownerId, name: inspection.inspector, email: inspection.inspectorEmail }, ...(inspection.additionalInspectors || [])].map(p => <p key={p.id}>{p.name} · {p.email}</p>)}</div><p><strong>Descripción de la causa</strong> {inspection.unfavorableCause || 'Sin indicar'}</p><p><strong>Conclusiones y recomendaciones</strong> {closingRemarksOf(inspection)}</p></div>
+    {finalizing && <p className="inline-note" role="status"><LoaderCircle size={16} className="spin"/>Guardando Excel final…</p>}
     {error && <p className="notice notice-error" role="alert">{error}</p>}
+    {closed && inspection.storage === 'cloud' && inspection.finalExcelStored === false && !finalizing && <button type="button" className="button button-outline" disabled={busy} onClick={() => void finalize()}>Reintentar guardar Excel final</button>}
     {inspection.observations.map((o, i) => <section className="followup-card" key={o.id}>
       <div className="observation-heading"><span className="observation-index">{i + 1}</span><h2>Observación {i + 1}</h2><Badge severity={o.severity}/><span className="list-status">{inspection.delivery?.corrections[o.id]?.state || 'Pendiente'}</span></div>
       <div className="followup-original-layout"><div className="followup-original"><p><strong>Descripción</strong>{o.description}</p><p><strong>Acción a tomar</strong>{o.correctiveAction}</p></div><div className="followup-original-side"><p className="followup-planned-date"><strong>Fecha de Cierre prevista</strong>{formatDate(o.dueDate)}</p>
