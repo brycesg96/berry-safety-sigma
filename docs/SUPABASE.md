@@ -135,3 +135,10 @@ Si falla la subida, el inicial sigue disponible. Si se interrumpe la retirada de
 El archivo final admite 15 MB, el límite del bucket; el envío inicial conserva el límite de adjunto de 3 MB. No se borran registros, evidencias ni auditoría: se retira exclusivamente el Excel sustituido. Los históricos anteriores/nuevos de los datos y del cambio de metadatos permanecen en la auditoría protegida. Hasta activar el paso 4, el paso 3 mantiene su comportamiento anterior.
 
 Pruebas: 21 comprobaciones PostgreSQL y 43 de API, además del recorrido con dos sesiones que cierra, simula una subida fallida, reintenta, verifica los textos reales del levantamiento y descarga los bytes exactos del único final alojado. Ninguna prueba envía correos o modifica cuentas reales.
+
+
+## Quinta etapa: permisos independientes y gestión administrativa
+
+El [paso 5](../supabase/migrations/202611080005_access_controls.sql) requiere el paso 4, conserva los datos y añade Hacer inspecciones, Recibir inspecciones y Administrador como accesos independientes. Las funciones y RLS verifican estos permisos con la identidad autenticada; ocultar controles en el navegador no es el control de acceso. La administración permite delegar accesos, deshabilitar/retirar cuentas y retirar inspecciones de cualquier autor conservando sus códigos.
+
+La actualización incluye comprobaciones de versiones, protección del último administrador utilizable y rechazo de borradores retirados por el administrador o por el reinicio excepcional. Ver los [pasos operativos del propietario](REINICIO_PILOTO.md). No se ejecutan automáticamente ni se considera confirmada su activación remota.

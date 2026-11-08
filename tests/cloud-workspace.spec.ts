@@ -8,13 +8,13 @@ import { registeredExcel } from '../server/xlsx-registration.mjs';
 
 const project='https://rwacygoxhkxxxkvushmb.supabase.co';
 const author='31000000-0000-4000-8000-000000000001',recipient='31000000-0000-4000-8000-000000000002';
-const profiles=[{id:author,email:'ana@example.com',full_name:'Ana Inspectora',area:'SIGMA',job_title:'Supervisora',role:'admin',enabled:true,must_change_password:false,supervisor_emails:[]},{id:recipient,email:'bruno@example.com',full_name:'Bruno Responsable',area:'Mantenimiento',job_title:'Jefe',role:'inspector',enabled:true,must_change_password:false,supervisor_emails:['jefe@example.com']}];
+const profiles=[{id:author,email:'ana@example.com',full_name:'Ana Inspectora',area:'SIGMA',job_title:'Supervisora',role:'admin',enabled:true,must_change_password:false,supervisor_emails:[],can_create_inspections:true,can_receive_inspections:true},{id:recipient,email:'bruno@example.com',full_name:'Bruno Responsable',area:'Mantenimiento',job_title:'Jefe',role:'inspector',enabled:true,must_change_password:false,supervisor_emails:['jefe@example.com'],can_create_inspections:true,can_receive_inspections:true}];
 const png={name:'evidencia.png',mimeType:'image/png',buffer:Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=','base64')};
 type Row={id:string;author_id:string;workflow:string;revision:number;updated_at:string;deleted_at?:string|null;code?:string;data:any;final_excel_stored?:boolean};
-const stateOf=()=>({rows:new Map<string,Row>(),files:new Map<string,Buffer>(),documents:new Map<string,any>(),sends:0,saves:0,paths:[] as string[],failSave:false,failFinal:false,finalizes:0});
+const stateOf=()=>({rows:new Map<string,Row>(),files:new Map<string,Buffer>(),documents:new Map<string,any>(),sends:0,saves:0,paths:[] as string[],retired:new Set<string>(),failSave:false,failFinal:false,finalizes:0});
 type State=ReturnType<typeof stateOf>;
-async function mock(context:BrowserContext,state:State,actor:string) {
-  const profile=profiles.find(p=>p.id===actor)!;
+async function mock(context:BrowserContext,state:State,actor:string,overrides:Partial<typeof profiles[number]>={}) {
+  const profile={...profiles.find(p=>p.id===actor)!,...overrides};
   const user={id:actor,aud:'authenticated',role:'authenticated',email:profile.email,email_confirmed_at:new Date().toISOString(),app_metadata:{provider:'email',providers:['email']},user_metadata:{},identities:[],created_at:new Date().toISOString()};
   const token=`eyJhbGciOiJIUzI1NiJ9.${Buffer.from(JSON.stringify({sub:actor,iat:100,exp:Math.floor(Date.now()/1000)+3600,role:'authenticated'})).toString('base64url')}.fictitious`;
   const canRead=(row:Row)=>row.author_id===actor||row.workflow!=='draft'&&row.data.delivery?.recipientIds.includes(actor);
@@ -27,8 +27,9 @@ async function mock(context:BrowserContext,state:State,actor:string) {
     if(path==='/auth/v1/logout')return route.fulfill({status:204});
     if(path==='/rest/v1/rpc/berry_schema_status')return route.fulfill({json:{schema_version:'202611070001',stage:'reports',sync_ready:true,reports_version:'202611080003'}});
     expect(req.headers().authorization).toBe(`Bearer ${token}`);
-    if(path==='/rest/v1/berry_profiles')return route.fulfill({json:url.searchParams.has('id')?profile:profiles});
+    if(path==='/rest/v1/berry_profiles')return route.fulfill({json:url.searchParams.has('id')?profile:profiles.map(p=>p.id===actor?profile:p)});
     if(path==='/rest/v1/berry_shared_texts')return route.fulfill({json:null});
+    if(path==='/rest/v1/rpc/berry_cloud_tombstones')return route.fulfill({json:req.postDataJSON().p_ids.filter((id:string)=>state.retired.has(id))});
     if(path==='/rest/v1/rpc/berry_cloud_session')return route.fulfill({json:actor});
     if(path==='/rest/v1/berry_inspections'){
       const id=url.searchParams.get('id')?.slice(3);
@@ -174,4 +175,46 @@ test('offline edits stay recoverable and an obsolete device cannot overwrite a n
   state.failSave=true;await second.getByLabel('Área inspeccionada').fill('Edición sin conexión');await expect(second.getByText('Sin guardar',{exact:true})).toBeVisible();state.failSave=false;
   await second.reload();await second.getByRole('button',{name:'Entrar al espacio de trabajo'}).click();await expect(second.getByLabel('Área inspeccionada')).toHaveValue('Edición sin conexión');await expect(second.getByText('Guardado en tu cuenta',{exact:true})).toBeVisible();
   await device.close();
+});
+
+
+test('un usuario que solo recibe no crea borradores ni ve controles de creación o administración',async({page,context})=>{
+  const state=stateOf();await mock(context,state,recipient,{can_create_inspections:false,can_receive_inspections:true,role:'inspector'});
+  await page.goto('./?acceso=cuenta');await page.getByLabel(/^Correo electrónico/).fill('bruno@example.com');await page.getByLabel(/^Contraseña/).fill('Fictitious!47');await page.getByRole('button',{name:'Iniciar sesión',exact:true}).click();
+  await page.getByRole('button',{name:'Entrar al espacio de trabajo'}).click();
+  await expect(page.getByRole('heading',{name:'Inspecciones recibidas',exact:true})).toBeVisible();
+  await expect(page.getByRole('button',{name:'Nueva inspección',exact:true})).toHaveCount(0);
+  await expect(page.getByRole('button',{name:'Administración',exact:true})).toHaveCount(0);
+  await page.getByRole('button',{name:'Mis inspecciones',exact:true}).click();
+  await expect(page.getByRole('heading',{name:'Mis inspecciones',exact:true})).toBeVisible();
+  expect(state.rows.size).toBe(0);expect(state.saves).toBe(0);
+  await page.getByRole('button',{name:'Cerrar sesión',exact:true}).click();await page.getByRole('button',{name:'Salir',exact:true}).click();
+  await expect(page.getByRole('heading',{name:'Inicia sesión',exact:true})).toBeVisible();
+});
+
+test('un borrador pendiente retirado por el administrador o el reinicio no reaparece al recargar',async({page,context})=>{
+  const state=stateOf();await mock(context,state,author);await enter(page,author);
+  state.failSave=true;await page.getByLabel('Área inspeccionada').fill('Borrador retirado');
+  await expect(page.getByRole('alert').filter({hasText:'No se ha podido guardar el borrador.'})).toBeVisible();
+  const pending=await page.evaluate(async()=>{const db=await new Promise<IDBDatabase>((resolve,reject)=>{const r=indexedDB.open('berry-cloud-pending-v1');r.onsuccess=()=>resolve(r.result);r.onerror=()=>reject(r.error);});return new Promise<any[]>(resolve=>{const tx=db.transaction('drafts');const r=tx.objectStore('drafts').getAll();r.onsuccess=()=>resolve(r.result);tx.oncomplete=()=>db.close();});});
+  expect(pending.length).toBe(1);state.retired.add(pending[0].id);state.failSave=false;
+  page.once('dialog',dialog=>dialog.accept());await page.reload();
+  await page.getByRole('button',{name:'Entrar al espacio de trabajo'}).click();
+  await expect(page.getByLabel('Área inspeccionada')).toHaveValue('');
+  expect(state.rows.has(pending[0].id)).toBe(false);
+  expect(state.paths).toContain('/rest/v1/rpc/berry_cloud_tombstones');
+});
+
+test('Salir conserva el borrador y no cierra sesión si falla su guardado',async({page,context})=>{
+  const state=stateOf();await mock(context,state,author);await enter(page,author);
+  state.failSave=true;await page.getByLabel('Área inspeccionada').fill('Borrador antes de salir');
+  await page.getByRole('button',{name:'Cerrar sesión',exact:true}).click();
+  const dialog=page.getByRole('dialog',{name:'¿Estás seguro de salir?',exact:true});
+  await dialog.getByRole('button',{name:'Salir',exact:true}).click();
+  await expect(dialog.getByRole('alert')).toContainText('No pudimos guardar el borrador');
+  expect(state.paths).not.toContain('/auth/v1/logout');
+  state.failSave=false;await dialog.getByRole('button',{name:'Salir',exact:true}).click();
+  await expect(page.getByRole('heading',{name:'Inicia sesión',exact:true})).toBeVisible();
+  expect([...state.rows.values()].some(row=>row.data.area==='Borrador antes de salir')).toBe(true);
+  expect(state.paths).toContain('/auth/v1/logout');
 });

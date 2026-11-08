@@ -7,13 +7,18 @@ export type CloudProfile = {
   role: 'admin' | 'inspector'; enabled: boolean;
   must_change_password?: boolean;
   supervisor_emails?: string[];
+  can_create_inspections?: boolean;
+  can_receive_inspections?: boolean;
+  access_revision?: number;
+  deleted_at?: string | null;
 };
 
 function profileRow(value: unknown, userId: string): CloudProfile {
   const row = value as CloudProfile | null;
   if (!row || typeof row.id !== 'string' || !row.id || row.id !== userId || typeof row.email !== 'string' ||
       !['full_name', 'area', 'job_title'].every(key => typeof (row as unknown as Record<string, unknown>)[key] === 'string') ||
-      !['admin', 'inspector'].includes(row.role) || typeof row.enabled !== 'boolean' || row.must_change_password !== undefined && typeof row.must_change_password !== 'boolean') {
+      !['admin', 'inspector'].includes(row.role) || typeof row.enabled !== 'boolean' || row.must_change_password !== undefined && typeof row.must_change_password !== 'boolean' ||
+      ['can_create_inspections','can_receive_inspections'].some(key => (row as unknown as Record<string, unknown>)[key] !== undefined && typeof (row as unknown as Record<string, unknown>)[key] !== 'boolean')) {
     throw new Error('No pudimos consultar tu perfil. Comprueba que tu cuenta esté habilitada.');
   }
   return { ...row, must_change_password: row.must_change_password === true };
@@ -67,9 +72,23 @@ export async function cloudAccounts(): Promise<CloudProfile[]> {
   if (!Array.isArray(result.accounts)) throw new Error('No pudimos consultar las cuentas.');
   return result.accounts.map((row: CloudProfile) => profileRow(row, row.id));
 }
-export async function createCloudAccount(input: { full_name: string; email: string; area: string; job_title: string; role: string; supervisor_emails: string[] }, requestId: string): Promise<CloudProfile> {
+export async function createCloudAccount(input: { full_name: string; email: string; area: string; job_title: string; role: string; supervisor_emails: string[]; can_create_inspections?: boolean; can_receive_inspections?: boolean }, requestId: string): Promise<CloudProfile> {
   const result = await accountRequest('/api/accounts', { method: 'POST', body: input, requestId });
   return profileRow(result.account, result.account?.id);
+}
+export type AccountPermissions = { enabled: boolean; role: 'admin' | 'inspector'; can_create_inspections: boolean; can_receive_inspections: boolean };
+export async function manageCloudAccount(account: CloudProfile, permissions: AccountPermissions, action: 'update' | 'delete' = 'update'): Promise<CloudProfile> {
+  const result=await accountRequest('/api/accounts/manage',{body:{id:account.id,expectedRevision:account.access_revision,action,permissions},method:'POST'});
+  return profileRow(result.account,account.id);
+}
+export type AdminInspection = { id:string; author_id:string; author:string; email:string; area:string; facility:string; date:string; workflow:string; code:string|null; revision:number; observation_count:number };
+export async function cloudAdminInspections(): Promise<AdminInspection[]> {
+  const result=await accountRequest('/api/accounts/inspections');
+  if(!Array.isArray(result.inspections)) throw new Error('No pudimos consultar las inspecciones.');
+  return result.inspections;
+}
+export async function deleteCloudAdminInspection(inspection: AdminInspection) {
+  await accountRequest('/api/accounts/inspections/delete',{method:'POST',body:{id:inspection.id,expectedRevision:inspection.revision}});
 }
 export async function changeCloudPassword(password: string) {
   await accountRequest('/api/accounts/password', { method: 'POST', body: { password } });

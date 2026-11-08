@@ -351,6 +351,123 @@ test('final replacement stays blocked until every observation has been approved,
   assert.equal((await as('authenticated',users.recipient,'select public.berry_prepare_final($1,$2) as value',[row.id,row.revision])).rows[0].value.complete,false);
 });
 
+const accessMigration=await readFile(new URL('../migrations/202611080005_access_controls.sql',import.meta.url),'utf8');
+let receiverRevision;
+const permissions=(create,receive,admin=false,enabled=true)=>({enabled,role:admin?'admin':'inspector',can_create_inspections:create,can_receive_inspections:receive});
+async function accessChange(actor,target,revision,values,action='update'){
+ return(await as('authenticated',actor,'select public.berry_manage_account($1,$2,$3,$4) as value',[target,revision,action,values])).rows[0].value;
+}
+test('independent capabilities preserve existing access and cannot be granted by profile edits or user metadata',async()=>{
+ await db.exec(accessMigration);
+ await db.query("update public.berry_profiles set role='inspector' where id=$1",[temporaryUser]);
+ const existing=(await db.query('select can_create_inspections,can_receive_inspections from public.berry_profiles where id=$1',[users.recipient])).rows[0];assert.equal(existing.can_create_inspections,true);assert.equal(existing.can_receive_inspections,true);
+ await denied(()=>as('authenticated',users.recipient,'update public.berry_profiles set can_create_inspections=true where id=$1',[users.recipient]));
+ await denied(()=>accessChange(users.recipient,users.author,1,permissions(true,true,true)));
+ const p=(await accessChange(users.author,users.recipient,1,permissions(false,true)));receiverRevision=p.access_revision;
+ assert.equal(p.can_create_inspections,false);assert.equal(p.can_receive_inspections,true);
+ await denied(()=>as('authenticated',users.recipient,'select public.berry_ensure_draft($1)',['92000000-0000-4000-8000-000000000001']));
+ const assigned=(await db.query("select id from public.berry_inspections where code='IH-2026-002'")).rows[0].id;
+ assert.equal((await as('authenticated',users.recipient,'select id from public.berry_inspections where id=$1',[assigned])).rows.length,1);
+ const off=await accessChange(users.author,users.recipient,receiverRevision,permissions(true,false));receiverRevision=off.access_revision;
+ assert.equal((await as('authenticated',users.recipient,'select id from public.berry_inspections where id=$1',[assigned])).rows.length,0);
+ await denied(()=>as('authenticated',users.recipient,'select public.berry_change_correction($1,$2,$3,$4,$5)',[assigned,cloudObservation,1,'submit',{state:'Pendiente'}]));
+ await as('authenticated',users.recipient,'select public.berry_ensure_draft($1)',['92000000-0000-4000-8000-000000000001']);
+ const restored=await accessChange(users.author,users.recipient,receiverRevision,permissions(true,true));receiverRevision=restored.access_revision;
+});
+test('administrators can delegate administration and remove access with version checks while preserving the last usable administrator',async()=>{
+ await assert.rejects(()=>accessChange(users.author,users.author,1,permissions(true,true,false)),error=>error.code==='22023'&&error.message==='LAST_ADMIN_REQUIRED');
+ const promoted=await accessChange(users.author,users.recipient,receiverRevision,permissions(false,true,true));receiverRevision=promoted.access_revision;
+ assert.ok((await as('authenticated',users.recipient,'select public.berry_admin_accounts() as value')).rows[0].value.length>0);
+ await assert.rejects(()=>accessChange(users.author,users.recipient,1,permissions(true,true)),error=>error.code==='40001');
+ const other=(await db.query('select access_revision from public.berry_profiles where id=$1',[users.other])).rows[0];
+ const deleted=await accessChange(users.recipient,users.other,other.access_revision,{},'delete');assert.ok(deleted.deleted_at);assert.equal(deleted.enabled,false);
+ assert.equal((await db.query('select id from auth.users where id=$1',[users.other])).rows.length,1);
+ assert.ok(!(await as('authenticated',users.author,'select public.berry_admin_accounts() as value')).rows[0].value.some(p=>p.id===users.other));
+ await denied(()=>as('authenticated',users.other,'select public.berry_cloud_session()'));
+ const restored=await accessChange(users.author,users.recipient,receiverRevision,permissions(true,true));receiverRevision=restored.access_revision;
+});
+test('new account grants accept independent booleans, reject forged flags and apply only the administrator request',async()=>{
+ const requestId='93000000-0000-4000-8000-000000000001',newId='93000000-0000-4000-8000-000000000002';
+ const input={email:'receiver-only@example.invalid',full_name:'Solo recibe',area:'Operaciones',job_title:'Responsable',role:'inspector',supervisor_emails:[],can_create_inspections:false,can_receive_inspections:true};
+ await assert.rejects(()=>as('authenticated',users.author,'select public.berry_prepare_account($1,$2)',[requestId,{...input,can_create_inspections:'true'}]),error=>error.code==='22023');
+ await as('authenticated',users.author,'select public.berry_prepare_account($1,$2)',[requestId,input]);
+ await db.query('insert into auth.users(id,email,raw_user_meta_data,raw_app_meta_data)values($1,$2,$3,$4)',[newId,input.email,{can_create_inspections:true,role:'admin'},{berry_request_id:requestId}]);
+ const profile=(await db.query('select can_create_inspections,can_receive_inspections from public.berry_profiles where id=$1',[newId])).rows[0];assert.equal(profile.can_create_inspections,false);assert.equal(profile.can_receive_inspections,false);
+ const created=(await as('authenticated',users.author,'select public.berry_finish_account($1,$2) as value',[requestId,newId])).rows[0].value;
+ assert.equal(created.can_create_inspections,false);assert.equal(created.can_receive_inspections,true);assert.equal(created.role,'inspector');
+});
+test('normal administrative deletion can remove another author report and leaves numbering gaps without reusing a code',async()=>{
+ const foreign=(await db.query('select revision from public.berry_inspections where id=$1',[reports.otherDraft])).rows[0];
+ await denied(()=>as('authenticated',users.recipient,'select public.berry_admin_delete_inspection($1,$2)',[reports.otherDraft,foreign.revision]));
+ await as('authenticated',users.author,'select public.berry_admin_delete_inspection($1,$2)',[reports.otherDraft,foreign.revision]);
+ const records=[];
+ for(const n of [100,101,102]){const row=await nextDraft(n);records.push((await storeAndCommit(row,await prepare(row),'2026/11-NOVIEMBRE')).inspection);}
+ const deleted=records[1],counter=(await db.query('select last_sequence from berry_private.report_counters where year=2026')).rows[0].last_sequence;
+ await as('authenticated',users.author,'select public.berry_admin_delete_inspection($1,$2)',[deleted.id,deleted.revision]);
+ assert.equal((await db.query('select last_sequence from berry_private.report_counters where year=2026')).rows[0].last_sequence,counter);
+ assert.equal((await db.query('select code from public.berry_inspections where id=$1',[deleted.id])).rows[0].code,deleted.code);
+ assert.equal((await as('authenticated',users.recipient,'select id from public.berry_inspections where id=$1',[deleted.id])).rows.length,0);
+ await denied(()=>as('authenticated',users.author,'select public.berry_ensure_draft($1)',[deleted.id]));
+ const next=await nextDraft(103),lease=await prepare(next);
+ assert.equal(Number(lease.code.split('-')[2]),Number(records[2].code.split('-')[2])+1);assert.notEqual(lease.code,deleted.code);
+ await as('service_role',null,'select public.berry_cancel_report($1,$2)',[lease.operation_id,users.author]);
+ const visible=(await as('authenticated',users.author,'select public.berry_admin_inspections() as value')).rows[0].value;
+ assert.ok(!visible.some(row=>row.id===deleted.id));assert.ok(visible.some(row=>row.id===records[0].id));assert.ok(visible.some(row=>row.id===records[2].id));
+});
+test('capabilities cannot be bypassed through old workflow functions, earlier setup or a duplicate migration',async()=>{
+ await denied(()=>as('authenticated',users.author,'select berry_private.berry_ensure_draft_v4($1)',['94000000-0000-4000-8000-000000000001']));
+ await assert.rejects(()=>db.exec(finalMigration),error=>error.code==='55000');await db.exec('rollback');
+ await db.exec(accessMigration);
+ assert.equal((await as('anon',null,'select public.berry_schema_status() as value')).rows[0].value.permissions_version,'202611080005');
+});
+
+const restoreOwner = await readFile(new URL('../operations/restore-owner-access.sql',import.meta.url),'utf8');
+const resetPilot = await readFile(new URL('../operations/reset-pilot.sql',import.meta.url),'utf8');
+test('owner recovery changes only the confirmed administrator, revokes its sessions and returns the temporary credential only to SQL Editor',async()=>{
+  await db.exec(`create schema if not exists extensions;
+    create or replace function extensions.gen_random_bytes(integer)returns bytea language sql as $$select decode(repeat('ab',$1),'hex')$$;
+    create or replace function extensions.gen_salt(text,integer)returns text language sql as $$select 'test-salt'$$;
+    create or replace function extensions.crypt(text,text)returns text language sql as $$select 'test-hash-only'$$;
+    alter table auth.users add column encrypted_password text default 'previous-hash';
+    alter table auth.users add column updated_at timestamptz default now();
+    create table auth.sessions(id uuid primary key,user_id uuid references auth.users(id));
+    create table auth.refresh_tokens(id bigint generated always as identity primary key,user_id text);
+    alter table auth.users add column if not exists email_confirmed_at timestamptz;`);
+  await db.query("update auth.users set email='bryx96@gmail.com',email_confirmed_at=now() where id=$1",[users.author]);
+  await db.query("update public.berry_profiles set email='bryx96@gmail.com',role='admin',enabled=true where id=$1",[users.author]);
+  await db.query('insert into auth.sessions(id,user_id)values($1,$2),($3,$4)',[passwordId,users.author,creationId,users.recipient]);
+  await db.query('insert into auth.refresh_tokens(user_id)values($1),($2)',[users.author,users.recipient]);
+  const restored=await db.query(restoreOwner);
+  assert.equal(restored.rows[0].email,'bryx96@gmail.com');assert.equal(restored.rows[0].temporary_password.length,36);
+  assert.equal((await db.query('select encrypted_password from auth.users where id=$1',[users.author])).rows[0].encrypted_password,'test-hash-only');
+  assert.equal((await db.query('select encrypted_password from auth.users where id=$1',[users.recipient])).rows[0].encrypted_password,'previous-hash');
+  assert.equal((await db.query('select user_id from auth.sessions')).rows[0].user_id,users.recipient);
+  assert.equal((await db.query('select must_change_password from public.berry_profiles where id=$1',[users.author])).rows[0].must_change_password,true);
+  assert.equal((await db.query(restoreOwner.replaceAll('bryx96@gmail.com','missing@example.invalid'))).rows.length,0);
+});
+test('the one-time pilot reset preserves the verified owner, removes the other accounts and records, starts at 001 and cannot erase new work on replay',async()=>{
+  await assert.rejects(()=>db.exec(resetPilot),error=>error.code==='55000');await db.exec('rollback');
+  assert.ok((await db.query('select count(*) as count from public.berry_inspections')).rows[0].count>0);
+  // Simulates Empty bucket in Storage; the operator SQL never deletes storage metadata.
+  await db.exec("delete from storage.objects where bucket_id in('berry-evidence','berry-documents')");
+  await db.exec(resetPilot);
+  assert.deepEqual((await db.query('select id from auth.users')).rows,[{id:users.author}]);
+  assert.equal((await db.query('select count(*) as count from public.berry_inspections')).rows[0].count,0);
+  assert.equal((await db.query('select count(*) as count from berry_private.report_counters')).rows[0].count,0);
+  assert.equal((await db.query('select count(*) as count from auth.sessions')).rows[0].count,0);
+  await assert.rejects(()=>db.query('insert into public.berry_inspections(id,author_id,data)values($1,$2,$3)',[cloudReport,users.author,{}]),error=>error.code==='42501');
+  const cutoff=Number((await db.query('select credentials_valid_after from public.berry_profiles where id=$1',[users.author])).rows[0].credentials_valid_after);
+  await denied(()=>as('authenticated',users.author,'select public.berry_cloud_session()',[],{iat:cutoff}));
+  await db.query('update public.berry_profiles set must_change_password=false where id=$1',[users.author]);
+  const fresh={iat:cutoff+1},id='91000000-0000-4000-8000-000000000001';
+  await as('authenticated',users.author,'select public.berry_ensure_draft($1)',[id],fresh);
+  const saved=(await as('authenticated',users.author,'select public.berry_save_draft($1,1,$2) as value',[id,{...cloudData(),id,responsibles:[{id:'self',personId:users.author,name:'Propietario',email:'bryx96@gmail.com'}]}],fresh)).rows[0].value;
+  const lease=(await as('authenticated',users.author,'select public.berry_prepare_report($1,$2,$3) as value',[id,saved.revision,sourceHash],fresh)).rows[0].value.lease;
+  assert.equal(lease.code,'IH-2026-001');
+  await assert.rejects(()=>db.exec(resetPilot),error=>error.code==='55000');await db.exec('rollback');
+  assert.equal((await db.query('select count(*) as count from public.berry_inspections')).rows[0].count,1);
+});
+
 let failed;
 try {
   await setup();

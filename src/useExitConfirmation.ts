@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 
 const KEY = 'berryExitGuard';
 type Marker = { id: string; position: 'base' | 'guard'; hasPrevious: boolean };
@@ -8,14 +8,21 @@ function marker(state: unknown): Marker | undefined {
   if (value && typeof value.id === 'string' && typeof value.hasPrevious === 'boolean' && ['base', 'guard'].includes(value.position)) return value;
 }
 
-export function useExitConfirmation() {
+export function useExitConfirmation(enabled = true) {
   const [requested, setRequested] = useState(false);
   const allowLeave = useRef(false);
   const current = useRef<Marker | undefined>(undefined);
   const currentUrl = useRef(location.href);
+  const beforeLeave = useRef<(() => Promise<void>) | undefined>(undefined);
+  const setBeforeLeave = useCallback((handler: () => Promise<void>) => {
+    beforeLeave.current = handler;
+    return () => { if (beforeLeave.current === handler) beforeLeave.current = undefined; };
+  }, []);
   currentUrl.current = location.href;
 
   useEffect(() => {
+    if (!enabled) { setRequested(false); return; }
+    allowLeave.current = false;
     const originalScrollRestoration = history.scrollRestoration;
     history.scrollRestoration = 'manual';
     const previous = marker(history.state);
@@ -55,11 +62,14 @@ export function useExitConfirmation() {
       window.removeEventListener('pageshow', show);
       history.scrollRestoration = originalScrollRestoration;
     };
-  }, []);
+  }, [enabled]);
 
   return {
     requested,
+    request: () => setRequested(true),
     cancel: () => setRequested(false),
+    setBeforeLeave,
+    prepareLeave: async () => { await beforeLeave.current?.(); },
     leave: () => {
       allowLeave.current = true;
       setRequested(false);
@@ -70,4 +80,4 @@ export function useExitConfirmation() {
   };
 }
 
-export type ExitConfirmation = ReturnType<typeof useExitConfirmation>;
+export type ExitConfirmation = Omit<ReturnType<typeof useExitConfirmation>, 'leave'> & { leave: () => void | Promise<void>; leaving?: boolean; error?: string };

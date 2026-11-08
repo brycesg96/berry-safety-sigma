@@ -1,6 +1,6 @@
 /** Local test accounts only. These roles are NOT server-side access control. */
 export type AccountRole = 'admin' | 'inspector';
-export type DemoAccount = { id: string; name: string; email: string; area: string; jobTitle: string; role: AccountRole; enabled: boolean; supervisorEmails?: string[] };
+export type DemoAccount = { id: string; name: string; email: string; area: string; jobTitle: string; role: AccountRole; enabled: boolean; supervisorEmails?: string[]; canCreateInspections?: boolean; canReceiveInspections?: boolean };
 const KEY = 'berry-demo-accounts-v1';
 const ACTIVE = 'berry-demo-active-account';
 export const ADMIN_ID = 'demo-admin';

@@ -1,6 +1,11 @@
 -- Berry Safety · Paso 4: conservar únicamente el Excel final tras el cierre.
 -- Requiere el paso 3. El archivo inicial se retira solo después de guardar el final.
 begin;
+do $$ begin
+ if exists(select 1 from information_schema.columns where table_schema='public' and table_name='berry_profiles' and column_name='can_create_inspections') then
+  raise exception 'Ya está instalada la etapa de permisos; no repita el paso 4' using errcode='55000';
+ end if;
+end $$;
 alter table public.berry_inspections add column if not exists final_excel_stored boolean not null default false;
 alter table public.berry_documents add column if not exists is_final boolean not null default false;
 create unique index if not exists berry_one_excel on public.berry_documents(inspection_id) where kind='excel';

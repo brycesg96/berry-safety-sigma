@@ -4,6 +4,9 @@ import { newPasswordError, TEMPORARY_PASSWORD } from '../shared/account-rules.mj
 
 export const ACCOUNTS_PATH = '/api/accounts';
 export const PASSWORD_PATH = '/api/accounts/password';
+export const ACCOUNT_MANAGE_PATH = '/api/accounts/manage';
+export const ADMIN_REPORTS_PATH = '/api/accounts/inspections';
+export const ADMIN_DELETE_REPORT_PATH = '/api/accounts/inspections/delete';
 class ApiError extends Error {
   constructor(status, code, message) { super(message); this.status = status; this.code = code; }
 }
@@ -21,11 +24,15 @@ export function supabaseServerConfig(env) {
   } catch { return null; }
 }
 function normalizedAccount(input) {
-  if (!input || typeof input !== 'object' || Array.isArray(input) || Object.keys(input).some(key => !['email', 'full_name', 'area', 'job_title', 'role', 'supervisor_emails'].includes(key))) throw new ApiError(400, 'INVALID_ACCOUNT', 'Revisa los datos de la cuenta.');
+  if (!input || typeof input !== 'object' || Array.isArray(input) || Object.keys(input).some(key => !['email', 'full_name', 'area', 'job_title', 'role', 'supervisor_emails', 'can_create_inspections', 'can_receive_inspections'].includes(key))) throw new ApiError(400, 'INVALID_ACCOUNT', 'Revisa los datos de la cuenta.');
   const result = { email: typeof input.email === 'string' ? input.email.trim().toLowerCase() : '', full_name: typeof input.full_name === 'string' ? input.full_name.trim() : '', area: typeof input.area === 'string' ? input.area.trim() : '', job_title: typeof input.job_title === 'string' ? input.job_title.trim() : '', role: input.role || 'inspector', supervisor_emails: input.supervisor_emails || [] };
   const emailValid = value => typeof value === 'string' && value.length <= 254 && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
   if (!emailValid(result.email) || !result.full_name || [result.full_name, result.area, result.job_title].some(value => value.length > 250) || !['admin', 'inspector'].includes(result.role) || !Array.isArray(result.supervisor_emails) || result.supervisor_emails.length > 50 || result.supervisor_emails.some(value => !emailValid(value))) throw new ApiError(400, 'INVALID_ACCOUNT', 'Completa el nombre, un correo válido y el rol. Revisa también los correos en copia.');
   result.supervisor_emails = [...new Set(result.supervisor_emails.map(value => value.trim().toLowerCase()))];
+  for (const key of ['can_create_inspections','can_receive_inspections']) if (Object.hasOwn(input,key)) {
+    if (typeof input[key] !== 'boolean') throw new ApiError(400,'INVALID_PERMISSIONS','Los accesos deben estar activados o desactivados.');
+    result[key]=input[key];
+  }
   return result;
 }
 
@@ -49,9 +56,13 @@ export function createAccountsHandler({ env = process.env, fetchImpl = fetch, no
     if (!result.ok) {
       const code = result.data?.code;
       if (code === '23505') throw new ApiError(409, 'ACCOUNT_EXISTS', 'Ese correo ya tiene una cuenta o un alta pendiente con otros datos.');
+      if (code === '40001' && result.data?.message === 'ACCESS_REVISION_CONFLICT') throw new ApiError(409, 'ACCESS_CHANGED', 'La cuenta cambió en otra sesión. Actualiza la lista y vuelve a abrir sus accesos.');
       if (code === '55P03' || code === '40001') throw new ApiError(409, 'OPERATION_BUSY', 'Hay otra operación en curso. Espera un momento y vuelve a intentarlo.');
       if (code === '42501') throw new ApiError(403, 'ACCESS_DENIED', 'Tu cuenta no tiene permiso para esta operación.');
-      if (code === '22023') throw new ApiError(400, 'INVALID_ACCOUNT', 'Revisa los datos de la cuenta.');
+      if (code === '22023') {
+        const messages={ LAST_ADMIN_REQUIRED:'Debe permanecer al menos una cuenta administradora habilitada que ya haya actualizado su contraseña.', CANNOT_DISABLE_SELF:'Utiliza otra cuenta administradora para deshabilitar o eliminar tu propia cuenta.' };
+        throw new ApiError(400, 'INVALID_ACCOUNT', messages[result.data?.message] || 'Revisa los datos y los accesos de la cuenta.');
+      }
       if (code === 'PGRST202' || code === '42703') throw new ApiError(503, 'ACCOUNTS_MIGRATION_REQUIRED', 'Falta instalar la actualización de gestión de usuarios.');
       throw unavailable();
     }
@@ -63,10 +74,10 @@ export function createAccountsHandler({ env = process.env, fetchImpl = fetch, no
     const token = authorization.slice(7);
     const auth = await upstream('/auth/v1/user', { token });
     if (!auth.ok || !auth.data?.id) throw new ApiError(401, 'SESSION_INVALID', 'Tu sesión no es válida. Vuelve a iniciar sesión.');
-    const result = await upstream(`/rest/v1/berry_profiles?id=eq.${encodeURIComponent(auth.data.id)}&select=id,role,enabled,must_change_password,credentials_valid_after`, { token });
+    const result = await upstream(`/rest/v1/berry_profiles?id=eq.${encodeURIComponent(auth.data.id)}&select=*`, { token });
     if (!result.ok) throw unavailable();
     const profile = Array.isArray(result.data) ? result.data[0] : null;
-    if (!profile?.enabled || profile.id !== auth.data.id) throw new ApiError(403, 'ACCOUNT_DISABLED', 'Tu cuenta está pendiente de habilitación.');
+    if (!profile?.enabled || profile.deleted_at || profile.id !== auth.data.id) throw new ApiError(403, 'ACCOUNT_DISABLED', 'Tu cuenta no tiene acceso habilitado.');
     let issuedAt = 0;
     try { issuedAt = JSON.parse(Buffer.from(token.split('.')[1], 'base64url')).iat; } catch { /* Auth has validated the JWT; malformed claims still fail closed. */ }
     if (profile.credentials_valid_after > 0 && (!Number.isSafeInteger(issuedAt) || issuedAt <= profile.credentials_valid_after)) throw new ApiError(401, 'SESSION_EXPIRED', 'La contraseña cambió. Inicia sesión con tu nueva contraseña.');
@@ -80,7 +91,7 @@ export function createAccountsHandler({ env = process.env, fetchImpl = fetch, no
     try {
       if (!origin || !origins.has(origin)) throw new ApiError(403, 'ORIGIN_NOT_ALLOWED', 'Origen de la aplicación no permitido.');
       if (req.method === 'OPTIONS') { res.writeHead(204, { 'Cache-Control': 'no-store', ...cors }); res.end(); return; }
-      if (![ACCOUNTS_PATH, PASSWORD_PATH].includes(req.url) || !['GET', 'POST'].includes(req.method) || req.url === PASSWORD_PATH && req.method !== 'POST') throw new ApiError(405, 'METHOD_NOT_ALLOWED', 'Método no permitido.');
+      if (![ACCOUNTS_PATH, PASSWORD_PATH,ACCOUNT_MANAGE_PATH,ADMIN_REPORTS_PATH,ADMIN_DELETE_REPORT_PATH].includes(req.url) || !['GET', 'POST'].includes(req.method) || [PASSWORD_PATH,ACCOUNT_MANAGE_PATH,ADMIN_DELETE_REPORT_PATH].includes(req.url) && req.method !== 'POST' || req.url===ADMIN_REPORTS_PATH && req.method!=='GET') throw new ApiError(405, 'METHOD_NOT_ALLOWED', 'Método no permitido.');
       if (!config) throw unavailable();
       const time = now().getTime(), address = req.socket.remoteAddress || 'unknown';
       for (const [key, value] of attempts) if (value.until <= time) attempts.delete(key);
@@ -88,8 +99,11 @@ export function createAccountsHandler({ env = process.env, fetchImpl = fetch, no
       if (entry.count >= 30) throw new ApiError(429, 'RATE_LIMITED', 'Espera un minuto antes de volver a intentarlo.');
       attempts.set(address, { ...entry, count: entry.count + 1 });
       if (attempts.size > 1000) attempts.delete(attempts.keys().next().value);
-      const actor = await authorize(req, req.url === ACCOUNTS_PATH);
-      if (req.method === 'GET') { reply(res, 200, { ok: true, accounts: await rpc('berry_admin_accounts', {}, actor.token) }, cors); return; }
+      const actor = await authorize(req, req.url !== PASSWORD_PATH);
+      if (req.method === 'GET') {
+        const reports=req.url===ADMIN_REPORTS_PATH;
+        reply(res, 200, { ok: true, [reports?'inspections':'accounts']: await rpc(reports?'berry_admin_inspections':'berry_admin_accounts', {}, actor.token) }, cors); return;
+      }
       if ((req.headers['content-type'] || '').split(';')[0].trim().toLowerCase() !== 'application/json') throw new ApiError(415, 'JSON_REQUIRED', 'Envía la solicitud en formato JSON.');
       let input;
       try { input = await bodyOf(req, 65536); } catch { throw new ApiError(400, 'INVALID_BODY', 'La solicitud no es válida.'); }
@@ -107,6 +121,17 @@ export function createAccountsHandler({ env = process.env, fetchImpl = fetch, no
         } catch (error) { try { await operation('failed'); } catch { /* Keep the account blocked if the result is uncertain. */ } throw error; }
         try { await upstream('/auth/v1/logout?scope=global', { method: 'POST', token: actor.token }); } catch { /* The database already rejects JWTs issued before this password change. */ }
         reply(res, 200, { ok: true, message: 'Contraseña actualizada. Inicia sesión con tu nueva contraseña.' }, cors);
+        return;
+      }
+      if (req.url===ACCOUNT_MANAGE_PATH || req.url===ADMIN_DELETE_REPORT_PATH) {
+        const report=req.url===ADMIN_DELETE_REPORT_PATH;
+        const allowed=report?['id','expectedRevision']:['id','expectedRevision','action','permissions'];
+        if (!input || typeof input!=='object' || Object.keys(input).some(key=>!allowed.includes(key)) || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(input.id) || !Number.isSafeInteger(input.expectedRevision) || input.expectedRevision<1) throw new ApiError(400,'INVALID_REQUEST','Revisa el registro que deseas modificar.');
+        if (report) reply(res,200,{ok:true,inspection:await rpc('berry_admin_delete_inspection',{p_id:input.id,p_expected:input.expectedRevision},actor.token)},cors);
+        else {
+          if (!['update','delete'].includes(input.action)) throw new ApiError(400,'INVALID_REQUEST','Revisa la operación de la cuenta.');
+          reply(res,200,{ok:true,account:await rpc('berry_manage_account',{p_id:input.id,p_expected:input.expectedRevision,p_action:input.action,p_permissions:input.permissions||{}},actor.token)},cors);
+        }
         return;
       }
       const account = normalizedAccount(input);

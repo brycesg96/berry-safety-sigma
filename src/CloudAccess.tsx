@@ -13,17 +13,22 @@ import { CloudWorkspace } from './CloudWorkspace';
 import { supabaseFoundationStatus } from './supabase';
 
 type ProfileForm = { full_name: string; area: string; job_title: string };
+const rememberedKey = 'berry-remembered-email';
+function rememberedEmail() { try { return localStorage.getItem(rememberedKey) || ''; } catch { return ''; } }
+function rememberEmail(email: string) { try { if (email) localStorage.setItem(rememberedKey, email); else localStorage.removeItem(rememberedKey); } catch { /* Browser storage is optional. */ } }
 const blank = (): ProfileForm => ({ full_name: '', area: '', job_title: '' });
 const fieldsOf = (profile: CloudProfile): ProfileForm => ({ full_name: profile.full_name, area: profile.area, job_title: profile.job_title });
 
-export function CloudAccess({ exit, onReturn, initialSection = 'profile' }: { exit: ExitConfirmation; onReturn: () => void; initialSection?: 'profile' | 'admin' }) {
+export function CloudAccess({ exit, onReturn, onSessionChange, initialSection = 'profile' }: { exit: ExitConfirmation; onReturn?: () => void; onSessionChange?: (authenticated: boolean) => void; initialSection?: 'profile' | 'admin' }) {
   const [ready, setReady] = useState(false);
   const [session, setSession] = useState<Session | null>(null);
   const [profile, setProfile] = useState<CloudProfile | null>(null);
   const [profileLoading, setProfileLoading] = useState(false);
   const [profileError, setProfileError] = useState('');
   const [retry, setRetry] = useState(0);
-  const [email, setEmail] = useState('');
+  const [email, setEmail] = useState(rememberedEmail);
+  const [rememberAccount, setRememberAccount] = useState(() => !!rememberedEmail());
+  const sessionChange = useRef(onSessionChange); sessionChange.current = onSessionChange;
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [loginError, setLoginError] = useState(() => new URLSearchParams(location.hash.slice(1)).has('error') ? 'El enlace de recuperación venció o no es válido. Solicita uno nuevo.' : '');
@@ -63,9 +68,10 @@ export function CloudAccess({ exit, onReturn, initialSection = 'profile' }: { ex
         setProfile(null); setProfileError(''); setForm(blank()); setFormError(''); setSaved(false); setPassword('');
         setShowPassword(false);
         setNewPassword(''); setRepeatPassword(''); setPasswordError(''); setSection(next ? initialSection : 'profile');
-        if (!next) setEmail('');
+        if (!next) { setEmail(rememberedEmail()); setRecoveryRequest(false); }
       }
       sessionRef.current = next;
+      sessionChange.current?.(!!next);
       setSession(next); setReady(true);
     };
     // Keep Auth callbacks synchronous: querying from them can block the SDK's
@@ -73,7 +79,10 @@ export function CloudAccess({ exit, onReturn, initialSection = 'profile' }: { ex
     const { data: { subscription } } = supabaseClient().auth.onAuthStateChange((event, next) => {
       authEvent = true;
       if (event === 'PASSWORD_RECOVERY') setPasswordRecovery(true);
-      if (event === 'SIGNED_OUT') setPasswordRecovery(false);
+      if (event === 'SIGNED_OUT') {
+        setPasswordRecovery(false); setRecoveryRequest(false);
+        const url = new URL(location.href); url.searchParams.delete('recuperar'); url.searchParams.delete('seccion'); url.hash = ''; history.replaceState(history.state, '', url);
+      }
       accept(next);
     });
     void supabaseClient().auth.getSession().then(({ data, error }) => {
@@ -117,6 +126,7 @@ export function CloudAccess({ exit, onReturn, initialSection = 'profile' }: { ex
         if (error.status === 429) throw new Error('Hubo varios intentos seguidos. Espera un momento y vuelve a intentarlo.');
         throw new Error('No pudimos iniciar sesión. Revisa tu conexión y vuelve a intentarlo.');
       }
+      rememberEmail(rememberAccount ? email.trim().toLowerCase() : '');
     } catch (error) { setLoginError(error instanceof Error ? error.message : 'No pudimos iniciar sesión.'); }
     finally { setPassword(''); setBusy(null); }
   };
@@ -127,7 +137,7 @@ export function CloudAccess({ exit, onReturn, initialSection = 'profile' }: { ex
       const target = new URL(location.href);
       target.search = '?acceso=cuenta&recuperar=1'; target.hash = '';
       const { error } = await supabaseClient().auth.resetPasswordForEmail(email.trim().toLowerCase(), { redirectTo: target.href });
-      if (error) throw new Error(error.status === 429 ? 'Espera unos minutos antes de solicitar otro enlace.' : 'No pudimos solicitar el enlace. Revisa tu conexión y vuelve a intentarlo.');
+      if (error) throw new Error(error.status === 429 ? 'Se alcanzó el límite temporal de correos de recuperación. Si usas el correo integrado de Supabase, permite hasta 2 envíos por hora; vuelve a intentarlo cuando se libere el límite.' : 'No pudimos solicitar el enlace. Revisa tu conexión y vuelve a intentarlo.');
       setRecoveryNotice('Si el correo corresponde a una cuenta, recibirás un enlace para elegir una nueva contraseña. Ábrelo en este navegador.');
     } catch (error) { setLoginError(error instanceof Error ? error.message : 'No pudimos solicitar el enlace.'); }
     finally { setBusy(null); }
@@ -148,7 +158,7 @@ export function CloudAccess({ exit, onReturn, initialSection = 'profile' }: { ex
     try {
       const { error } = await supabaseClient().auth.signOut({ scope: 'local' });
       if (error) throw error;
-      setEmail('');
+      setEmail(rememberedEmail());
     } catch { setFormError('No pudimos cerrar la sesión. Revisa tu conexión y vuelve a intentarlo.'); }
     finally { setBusy(null); }
   };
@@ -174,13 +184,14 @@ export function CloudAccess({ exit, onReturn, initialSection = 'profile' }: { ex
   };
   const changeField = (key: keyof ProfileForm, value: string) => { setForm(current => ({ ...current, [key]: value })); setFormError(''); setSaved(false); };
 
+  const hasModules = !!ownProfile && (ownProfile.role === 'admin' || ownProfile.can_create_inspections !== false || ownProfile.can_receive_inspections !== false);
   const showAdmin = !!ownProfile?.enabled && !ownProfile.must_change_password && !passwordRecovery && ownProfile.role === 'admin' && section === 'admin';
-  if (section === 'workspace' && ownProfile?.enabled && !ownProfile.must_change_password && !passwordRecovery) return <CloudWorkspace profile={ownProfile} exit={exit} onAccount={target => { setSection(target || 'profile'); setRetry(value => value + 1); }}/>;
+  if (section === 'workspace' && hasModules && ownProfile?.enabled && !ownProfile.must_change_password && !passwordRecovery) return <CloudWorkspace profile={ownProfile} exit={exit} onAccount={target => { setSection(target || 'profile'); setRetry(value => value + 1); }}/>;
   return <div className="cloud-account-page" spellCheck={false}>
-    <header className="cloud-account-header"><Brand/>{!ownProfile?.must_change_password && !passwordRecovery && <button type="button" className="cloud-return" disabled={!!busy} onClick={() => dirty ? setConfirmLeave('return') : onReturn()}><ArrowLeft size={17}/>Espacio de pruebas</button>}</header>
+    <header className="cloud-account-header"><Brand/>{onReturn && !ownProfile?.must_change_password && !passwordRecovery && <button type="button" className="cloud-return" disabled={!!busy} onClick={() => dirty ? setConfirmLeave('return') : onReturn()}><ArrowLeft size={17}/>Espacio de pruebas</button>}</header>
     <main className={`cloud-account-main ${showAdmin ? 'cloud-account-admin-main' : ''}`}>
       {ownProfile?.enabled && !ownProfile.must_change_password && !passwordRecovery && ownProfile.role === 'admin' && <nav className="admin-tabs" aria-label="Cuenta y administración"><button type="button" aria-current={section === 'profile' ? 'page' : undefined} disabled={!!busy} onClick={() => setSection('profile')}>Tu perfil</button><button type="button" aria-current={section === 'admin' ? 'page' : undefined} disabled={!!busy || dirty} onClick={() => setSection('admin')}>Administración</button></nav>}
-      {showAdmin ? <><CloudAdministration key={ownProfile!.id} actor={ownProfile!} isCurrent={() => sessionRef.current?.user.id === ownProfile!.id}/><button type="button" className="cloud-logout" disabled={!!busy} onClick={() => void logout()}><LogOut size={17}/>Cerrar sesión en este dispositivo</button>{formError && <p role="alert" className="error-message cloud-message">{formError}</p>}</> : <section className="cloud-account-card" aria-busy={!ready || profileLoading || !!busy}>
+      {showAdmin ? <><CloudAdministration key={ownProfile!.id} actor={ownProfile!} isCurrent={() => sessionRef.current?.user.id === ownProfile!.id} onSelfChange={next => { setProfile(next); setForm(fieldsOf(next)); if (next.role !== 'admin') setSection('profile'); }}/><button type="button" className="cloud-logout" disabled={!!busy} onClick={() => void logout()}><LogOut size={17}/>Cerrar sesión en este dispositivo</button>{formError && <p role="alert" className="error-message cloud-message">{formError}</p>}</> : <section className="cloud-account-card" aria-busy={!ready || profileLoading || !!busy}>
         <div className="cloud-account-icon"><ShieldCheck size={27}/></div>
         {!ready ? <><h1 ref={heading} tabIndex={-1}>Tu cuenta</h1><p className="cloud-loading" role="status"><LoaderCircle size={18} className="spin"/>Comprobando tu sesión…</p></> : !session && recoveryRequest ? <>
           <h1 ref={heading} tabIndex={-1}>Recupera tu contraseña</h1><p className="cloud-account-intro">Recibe un enlace en el correo de tu cuenta.</p>
@@ -193,6 +204,7 @@ export function CloudAccess({ exit, onReturn, initialSection = 'profile' }: { ex
           <form onSubmit={event => { event.preventDefault(); void login(); }}>
             <Field label="Correo electrónico" required>{props => <input {...props} type="email" autoComplete="username" autoCapitalize="none" required maxLength={254} value={email} disabled={!!busy} onChange={event => { setEmail(event.target.value); setLoginError(''); }}/>}</Field>
             <Field label="Contraseña" required>{props => <div className="cloud-password"><input {...props} type={showPassword ? 'text' : 'password'} autoComplete="current-password" required value={password} disabled={!!busy} onChange={event => { setPassword(event.target.value); setLoginError(''); }}/><button type="button" className="icon-button" aria-label={showPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'} aria-pressed={showPassword} onClick={() => setShowPassword(value => !value)}>{showPassword ? <EyeOff size={18}/> : <Eye size={18}/>}</button></div>}</Field>
+            <label className="cloud-remember"><input type="checkbox" checked={rememberAccount} disabled={!!busy} onChange={event => { setRememberAccount(event.target.checked); if (!event.target.checked) rememberEmail(''); }}/>Recordar mi cuenta en este dispositivo</label>
             {loginError && <p role="alert" className="error-message cloud-message">{loginError}</p>}
             {loginNotice && <p role="status" className="cloud-saved">{loginNotice}</p>}
             <button type="submit" className="button button-primary full-width" disabled={!!busy}>{busy === 'login' ? <LoaderCircle className="spin" size={17}/> : <LockKeyhole size={17}/>} {busy === 'login' ? 'Iniciando sesión…' : 'Iniciar sesión'}</button>
@@ -202,8 +214,8 @@ export function CloudAccess({ exit, onReturn, initialSection = 'profile' }: { ex
         </> : profileLoading || !ownProfile && !profileError ? <>
           <h1 ref={heading} tabIndex={-1}>Tu cuenta</h1><p className="cloud-loading" role="status"><LoaderCircle size={18} className="spin"/>Consultando tu perfil…</p>
         </> : ownProfile && !ownProfile.enabled ? <>
-          <h1 ref={heading} tabIndex={-1}>Cuenta pendiente de habilitación</h1>
-          <p className="cloud-account-intro">Tu identidad está verificada. El administrador debe habilitar tu acceso antes de continuar.</p>
+          <h1 ref={heading} tabIndex={-1}>{ownProfile.deleted_at ? 'Cuenta eliminada' : 'Cuenta pendiente de habilitación'}</h1>
+          <p className="cloud-account-intro">Tu cuenta no tiene acceso habilitado. Consulta con el administrador para continuar.</p>
           <p className="cloud-account-email">{ownProfile.email}</p>
           <button type="button" className="button button-primary full-width" disabled={!!busy} onClick={() => setRetry(value => value + 1)}>Comprobar acceso</button>
         </> : ownProfile?.must_change_password || passwordRecovery && ownProfile?.enabled ? <>
@@ -217,7 +229,7 @@ export function CloudAccess({ exit, onReturn, initialSection = 'profile' }: { ex
             <button type="submit" className="button button-primary full-width" disabled={!!busy}>{busy === 'password' ? <LoaderCircle size={17} className="spin"/> : <LockKeyhole size={17}/>} {busy === 'password' ? 'Actualizando…' : 'Actualizar contraseña'}</button>
           </form>
         </> : ownProfile ? <>
-          <div className="cloud-profile-heading"><h1 ref={heading} tabIndex={-1}>Tu perfil</h1><span className="account-enabled">{ownProfile.role === 'admin' ? 'Administración' : 'Inspecciones'}</span></div>
+          <div className="cloud-profile-heading"><h1 ref={heading} tabIndex={-1}>Tu perfil</h1><span className="account-enabled">{ownProfile.role === 'admin' ? 'Administración' : 'Usuario'}</span></div>
           <p className="cloud-account-intro">Estos datos identificarán tu participación en las inspecciones.</p>
           <form onSubmit={event => { event.preventDefault(); void save(); }}>
             <LockedEmailField label="Correo de tu cuenta" value={ownProfile.email}/>
@@ -228,7 +240,8 @@ export function CloudAccess({ exit, onReturn, initialSection = 'profile' }: { ex
             {saved && <p role="status" className="cloud-saved"><Check size={16}/>Perfil guardado en tu cuenta.</p>}
             <button type="submit" className="button button-primary full-width" disabled={!!busy || !dirty}>{busy === 'save' ? <LoaderCircle className="spin" size={17}/> : <Check size={17}/>} {busy === 'save' ? 'Guardando…' : 'Guardar perfil'}</button>
           </form>
-          {workspaceReady && <button type="button" className="button button-outline full-width cloud-enter-workspace" disabled={!!busy || dirty || !form.full_name.trim() || !form.area.trim()} onClick={() => setSection('workspace')}>Entrar al espacio de trabajo</button>}
+          {workspaceReady && hasModules && <button type="button" className="button button-outline full-width cloud-enter-workspace" disabled={!!busy || dirty || !form.full_name.trim() || !form.area.trim()} onClick={() => setSection('workspace')}>Entrar al espacio de trabajo</button>}
+          {!hasModules && <p className="cloud-account-hint">El administrador debe asignarte los accesos que utilizarás.</p>}
         </> : <>
           <h1 ref={heading} tabIndex={-1}>No pudimos abrir tu perfil</h1>
           <p role="alert" className="error-message cloud-message">{profileError}</p>
@@ -236,9 +249,8 @@ export function CloudAccess({ exit, onReturn, initialSection = 'profile' }: { ex
         </>}
         {session && <><button type="button" className="cloud-logout" disabled={!!busy} onClick={() => dirty ? setConfirmLeave('logout') : void logout()}>{busy === 'logout' ? <LoaderCircle className="spin" size={17}/> : <LogOut size={17}/>}Cerrar sesión en este dispositivo</button>{formError && !ownProfile?.enabled && <p role="alert" className="error-message cloud-message">{formError}</p>}</>}
       </section>}
-      <p className="cloud-stage-note">{workspaceReady ? 'Las nuevas inspecciones se guardan en tu cuenta. Los registros anteriores del espacio de pruebas se conservan en el navegador donde se crearon.' : 'El acceso y el perfil ya se guardan en tu cuenta. Las inspecciones siguen en el espacio de pruebas mientras completamos su conexión.'}</p>
     </main>
-    {confirmLeave && <Modal title={confirmLeave === 'return' ? '¿Volver al espacio de pruebas?' : '¿Cerrar sesión?'} onClose={() => setConfirmLeave(null)}><p className="modal-description">Tienes cambios sin guardar en tu perfil.</p><div className="modal-actions"><button className="button button-outline" onClick={() => setConfirmLeave(null)}>Seguir editando</button><button className="button button-primary" onClick={() => { const target = confirmLeave; setConfirmLeave(null); if (target === 'return') onReturn(); else void logout(); }}>{confirmLeave === 'return' ? 'Volver sin guardar' : 'Cerrar sesión sin guardar'}</button></div></Modal>}
-    {exit.requested && <Modal title="¿Estás seguro de salir?" onClose={exit.cancel}><p className="modal-description">{dirty ? 'Tienes cambios sin guardar en tu perfil.' : 'Puedes seguir en la aplicación o salir de la página.'}</p><div className="modal-actions"><button className="button button-outline" onClick={exit.cancel}>Seguir en la aplicación</button><button className="button button-primary" onClick={exit.leave}>Salir</button></div></Modal>}
+    {confirmLeave && <Modal title={confirmLeave === 'return' ? '¿Volver al espacio de pruebas?' : '¿Cerrar sesión?'} onClose={() => setConfirmLeave(null)}><p className="modal-description">Tienes cambios sin guardar en tu perfil.</p><div className="modal-actions"><button className="button button-outline" onClick={() => setConfirmLeave(null)}>Seguir editando</button><button className="button button-primary" onClick={() => { const target = confirmLeave; setConfirmLeave(null); if (target === 'return') onReturn?.(); else void logout(); }}>{confirmLeave === 'return' ? 'Volver sin guardar' : 'Cerrar sesión sin guardar'}</button></div></Modal>}
+    {exit.requested && <Modal title="¿Estás seguro de salir?" onClose={exit.cancel}><p className="modal-description">{dirty ? 'Tienes cambios sin guardar en tu perfil.' : 'Se cerrará tu sesión en este dispositivo y volverás al inicio de sesión.'}</p>{exit.error && <p className="error-message" role="alert">{exit.error}</p>}<div className="modal-actions"><button className="button button-outline" disabled={exit.leaving} onClick={exit.cancel}>Seguir en la aplicación</button><button className="button button-primary" disabled={exit.leaving || !!busy} onClick={() => void exit.leave()}>{exit.leaving ? 'Cerrando sesión…' : 'Salir'}</button></div></Modal>}
   </div>;
 }

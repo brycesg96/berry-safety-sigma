@@ -45,3 +45,21 @@
   .cloud-account-card .field input { font-size: 16px; }
   .cloud-account-card h1 { font-size: 25px; }
 }
+.access-switches { margin: 12px 0 24px; }
+.access-switches legend { font-size: 13px; font-weight: 600; margin-bottom: 12px; }
+.access-switch-grid { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 12px; }
+.access-control { border: 1px solid #e2e8dc; border-radius: 9px; padding: 14px; display: grid; gap: 10px; justify-items: start; }
+.access-control > span { font-size: 12px; }
+.access-control small { font-size: 11px; color: #677969; }
+.access-toggle { border-radius: 16px; height: 28px; width: 48px; padding: 3px; display: flex; align-items: center; }
+.access-toggle > span { width: 22px; height: 22px; border-radius: 50%; background: #fff; box-shadow: 0 1px 3px #0002; }
+.access-on { background: #28774c; justify-content: flex-end; }
+.access-off { background: #b3443d; justify-content: flex-start; }
+.cloud-managed-row { flex-wrap: wrap; gap: 14px; }
+.account-management-actions { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+.account-management-actions .button { min-height: 38px; font-size: 11px; padding: 8px 12px; }
+.admin-report-search { padding: 20px 24px 0; }
+@media(max-width:600px) { .access-switch-grid { grid-template-columns: 1fr; } .access-control { grid-template-columns: 1fr auto; align-items: center; } .access-control small { grid-column: 1 / -1; } .account-management-actions { width: 100%; justify-content: flex-start; } }
+
+.cloud-remember { display: flex; align-items: center; gap: 10px; margin: 0 0 24px; font-size: 14px; cursor: pointer; }
+.cloud-remember input { width: 18px; height: 18px; accent-color: var(--green, #276b52); }

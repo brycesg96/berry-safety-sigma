@@ -90,7 +90,16 @@ export async function loadCloudInspections(actor: string) {
   const rows = (data || []) as CloudInspectionRow[];
   const remote = await Promise.all(rows.filter(row => !row.data.partial).map(row => hydrateCloudInspection(row, actor)));
   const pending = await pendingDrafts(actor).catch(() => []);
+  const retired = new Set<string>();
+  if (pending.length) {
+    const result = await supabaseClient().rpc('berry_cloud_tombstones', { p_ids: pending.map(draft => draft.id) });
+    // Older schemas do not expose this RPC; other failures must not revive a
+    // draft which an administrator may have removed on another device.
+    if (result.error && result.error.code !== 'PGRST202') throw new Error('No pudimos comprobar tus borradores pendientes. Revisa tu conexión.');
+    for (const id of (result.data || []) as string[]) retired.add(id);
+  }
   for (const draft of pending) {
+    if (retired.has(draft.id)) { await cachePut(null, draft.id); continue; }
     const existing = remote.find(item => item.id === draft.id);
     if (existing?.delivery) { await cachePut(null, draft.id); continue; }
     const index = remote.findIndex(item => item.id === draft.id);

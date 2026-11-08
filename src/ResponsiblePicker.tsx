@@ -7,7 +7,7 @@ import { readAccounts } from './accounts';
 import type { Responsible } from './model';
 import { AccountDirectory } from './AccountDirectory';
 
-export function ResponsiblePicker({ value, onChange, error, excludedIds, excludedEmails = [], emailLabel = 'Correo electrónico' }: { value: Responsible; onChange: (changes: Partial<Responsible>) => void; error?: string; excludedIds: string[]; excludedEmails?: string[]; emailLabel?: string }) {
+export function ResponsiblePicker({ value, onChange, error, excludedIds, excludedEmails = [], emailLabel = 'Correo electrónico', purpose = 'receive' }: { value: Responsible; onChange: (changes: Partial<Responsible>) => void; error?: string; excludedIds: string[]; excludedEmails?: string[]; emailLabel?: string; purpose?: 'receive' | 'inspect' }) {
   const listId = useId();
   const directory = useContext(AccountDirectory);
   const [open, setOpen] = useState(false);
@@ -28,14 +28,14 @@ export function ResponsiblePicker({ value, onChange, error, excludedIds, exclude
     setState('loading');
     const timer = setTimeout(() => {
       const normalize = (text: string) => text.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
-      const search = directory ? Promise.resolve({ status: 'ready' as const, people: directory.filter(person => person.enabled && normalize(`${person.name} ${person.email}`).includes(normalize(value.name))).slice(0, 20) }) : searchDirectory(value.name, controller.signal);
+      const search = directory ? Promise.resolve({ status: 'ready' as const, people: directory.filter(person => person.enabled && (purpose === 'inspect' ? person.canCreateInspections !== false : person.canReceiveInspections !== false) && normalize(`${person.name} ${person.email}`).includes(normalize(value.name))).slice(0, 20) }) : searchDirectory(value.name, controller.signal);
       search.then(result => {
         if (controller.signal.aborted) return;
         setPeople(result.people); setState(result.status);
       }).catch(() => { if (!controller.signal.aborted) setState('error'); });
     }, 250);
     return () => { clearTimeout(timer); controller.abort(); };
-  }, [value.name, searching, retry, directory]);
+  }, [value.name, searching, retry, directory, purpose]);
   const available = people.filter(p => !excludedIds.includes(p.id) && !excludedEmails.some(email => email.trim().toLowerCase() === p.email.trim().toLowerCase()));
   const choose = (person: DirectoryPerson) => {
     onChange({ personId: person.id, name: person.name, email: person.email, area: person.area || '', jobTitle: person.jobTitle || '' });

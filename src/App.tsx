@@ -52,6 +52,8 @@ function WorkspaceApp({ initialAccounts, exit, onCloudAccess, cloud }: { initial
   const [activeId, setActiveId] = useState(() => cloud?.actorId || activeAccountId(initialAccounts));
   const account = accounts.find(a => a.id === activeId && a.enabled) || accounts[0];
   const isAdmin = account.role === 'admin';
+  const canCreate = !cloud || account.canCreateInspections !== false;
+  const canReceive = !cloud || account.canReceiveInspections !== false;
   const profile = { name: account.name, email: account.email, area: account.area, jobTitle: account.jobTitle, accountId: account.id, ...(cloud ? { storage: 'cloud' as const } : {}) };
   const activeIdRef = useRef(account.id); activeIdRef.current = account.id;
   const [draft, setDraft] = useState<Inspection>(() => newInspection(profile));
@@ -117,7 +119,7 @@ function WorkspaceApp({ initialAccounts, exit, onCloudAccess, cloud }: { initial
 
   useEffect(() => {
     let active = true;
-    setLoaded(false); setView('editor'); setErrors({}); setReceivedFilter('pending');
+    setLoaded(false); setView(canCreate ? 'editor' : canReceive ? 'received' : 'list'); setErrors({}); setReceivedFilter('pending');
     setProfileForm({ name: account.name, email: account.email, area: account.area, jobTitle: account.jobTitle, accountId: account.id });
     loadInspections(cloud ? account.id : undefined).then(items => {
       if (!active) return;
@@ -134,12 +136,12 @@ function WorkspaceApp({ initialAccounts, exit, onCloudAccess, cloud }: { initial
   }, [account.id]);
 
   useEffect(() => {
-    if (!loaded) return;
+    if (!loaded || !canCreate) return;
     setDraft(d => d.ownerId !== account.id || d.delivery || (d.inspector === account.name && d.inspectorEmail === account.email) ? d : { ...d, inspector: account.name, inspectorEmail: account.email, updatedAt: new Date().toISOString() });
   }, [loaded, account.id, account.name, account.email, draft.id]);
 
   useEffect(() => {
-    if (!loaded || draft.delivery) return;
+    if (!loaded || !canCreate || draft.delivery) return;
     setDraft(d => {
       if (d.delivery || d.ownerId !== account.id) return d;
       const records = { ...d.registrationDetails }; let changed = false;
@@ -161,7 +163,7 @@ function WorkspaceApp({ initialAccounts, exit, onCloudAccess, cloud }: { initial
   };
 
   const save = useCallback(async (item: Inspection) => {
-    if (item.delivery) return true;
+    if (item.delivery || !canCreate) return true;
     const hasContent = hasInspectionContent(item);
     if (!hasContent && !startedDraftIds.current.has(item.id)) { setSaveState('empty'); return true; }
     startedDraftIds.current.add(item.id);
@@ -174,15 +176,25 @@ function WorkspaceApp({ initialAccounts, exit, onCloudAccess, cloud }: { initial
       setSaveState(hasContent ? 'saved' : 'empty'); setStorageError(false);
       return true;
     } catch { setSaveState('error'); setStorageError(true); return false; }
-  }, []);
+  }, [canCreate]);
 
   useEffect(() => {
-    if (!loaded || draft.ownerId !== account.id || draft.delivery) return;
+    if (!canCreate || !loaded || draft.ownerId !== account.id || draft.delivery) return;
     if (!hasInspectionContent(draft) && !startedDraftIds.current.has(draft.id)) { setSaveState('empty'); return; }
     setSaveState('saving');
     const timer = window.setTimeout(() => { void save(draft); }, 650);
     return () => clearTimeout(timer);
-  }, [draft, loaded, save, account.id]);
+  }, [draft, loaded, save, account.id, canCreate]);
+
+  useEffect(() => {
+    if (!canCreate && view === 'editor') setView(canReceive ? 'received' : 'list');
+    if (!canReceive && view === 'received') setView('list');
+  }, [canCreate, canReceive, view]);
+
+  useEffect(() => exit.setBeforeLeave(async () => {
+    if (busy || photoBusy) throw new Error('Espera a que termine el envío o el archivo antes de cerrar la sesión.');
+    if (view === 'editor' && !await save(draft)) throw new Error('No pudimos guardar el borrador. Revisa tu conexión antes de cerrar la sesión.');
+  }), [exit.setBeforeLeave, busy, photoBusy, view, save, draft]);
 
   useEffect(() => {
     if (!toast) return;
@@ -238,6 +250,7 @@ function WorkspaceApp({ initialAccounts, exit, onCloudAccess, cloud }: { initial
     setErrors({}); patch('step', target);
   };
   const startNew = async () => {
+    if (!canCreate) return;
     if (!await save(draft)) { setToast('No pudimos guardar tu inspección. Descarga el informe antes de salir.'); return; }
     const next = newInspection(profile);
     setDraft(next); setErrors({}); setView('editor'); setMenuOpen(false); top();
@@ -270,6 +283,7 @@ function WorkspaceApp({ initialAccounts, exit, onCloudAccess, cloud }: { initial
     try { await refreshInspections(); setView('list'); setMenuOpen(false); top(); } catch { setToast('No pudimos consultar tus inspecciones. Revisa tu conexión.'); }
   };
   const showReceived = async () => {
+    if (!canReceive) return;
     if (!await save(draft)) return;
     try { await refreshInspections(); setView('received'); setMenuOpen(false); top(); } catch { setToast('No pudimos consultar tus inspecciones recibidas. Revisa tu conexión.'); }
   };
@@ -349,20 +363,20 @@ function WorkspaceApp({ initialAccounts, exit, onCloudAccess, cloud }: { initial
     {menuOpen && <div className="sidebar-scrim" onClick={() => setMenuOpen(false)} />}
     <aside ref={sidebarRef} className={`sidebar ${menuOpen ? 'sidebar-open' : ''}`} aria-label="Menú principal" role={isMobile && menuOpen ? 'dialog' : undefined} aria-modal={isMobile && menuOpen ? true : undefined} inert={!menuOpen && isMobile ? true : undefined}>
       <div className="sidebar-brand"><Brand /><button className="mobile-close icon-button" aria-label="Cerrar menú" onClick={() => setMenuOpen(false)}><X size={20} /></button></div>
-      <button className="user-card" onClick={() => { setProfileForm(profile); setProfileError(''); setModal('profile'); setMenuOpen(false); }} aria-label="Editar mi perfil"><span className="avatar">{initials(profile.name)}</span><span className="user-details"><strong>{profile.name}</strong><span>{isAdmin ? 'Administrador' : 'Inspecciones'}{account.area ? ` · ${account.area}` : ''}</span></span><MoreHorizontal size={18} /></button>
+      <button className="user-card" onClick={() => { setProfileForm(profile); setProfileError(''); setModal('profile'); setMenuOpen(false); }} aria-label="Editar mi perfil"><span className="avatar">{initials(profile.name)}</span><span className="user-details"><strong>{profile.name}</strong><span>{isAdmin ? 'Administrador' : canCreate ? 'Inspecciones' : 'Usuario'}{account.area ? ` · ${account.area}` : ''}</span></span><MoreHorizontal size={18} /></button>
       <div className="sidebar-divider" />
       <div className="nav-caption">ESPACIO DE TRABAJO</div>
       <nav className="sidebar-nav">
-        <button className={view === 'editor' ? 'active' : ''} onClick={() => { if (view !== 'editor') void startNew(); else setMenuOpen(false); }}><ClipboardCheck size={19} /><span>Nueva inspección</span><Plus size={15} /></button>
+        {canCreate && <button className={view === 'editor' ? 'active' : ''} onClick={() => { if (view !== 'editor') void startNew(); else setMenuOpen(false); }}><ClipboardCheck size={19} /><span>Nueva inspección</span><Plus size={15} /></button>}
         <button aria-label="Mis inspecciones" className={view === 'list' || following && followUpOrigin === 'list' ? 'active' : ''} onClick={() => void showList()}><LayoutGrid size={19} /><span>Mis inspecciones</span>{reviewCount > 0 && <span className="nav-count">{reviewCount}</span>}</button>
-        <button aria-label="Inspecciones recibidas" className={view === 'received' || following && followUpOrigin === 'received' ? 'active' : ''} onClick={() => void showReceived()}><Mail size={19}/><span>Inspecciones recibidas</span>{pendingReceivedCount > 0 && <span className="nav-count">{pendingReceivedCount}</span>}</button>
+        {canReceive && <button aria-label="Inspecciones recibidas" className={view === 'received' || following && followUpOrigin === 'received' ? 'active' : ''} onClick={() => void showReceived()}><Mail size={19}/><span>Inspecciones recibidas</span>{pendingReceivedCount > 0 && <span className="nav-count">{pendingReceivedCount}</span>}</button>}
         {isAdmin && <button className={view === 'admin' ? 'active' : ''} onClick={() => void showAdmin()}><Settings2 size={19}/><span>Administración</span></button>}
       </nav>
       <div className="sidebar-bottom"><div className="prevention-card"><div className="prevention-art"><ShieldCheck size={32} strokeWidth={1.4} /><span /><span /></div><h3>La prevención<br />empieza contigo.</h3><p>Cada observación es una oportunidad para cuidar a tu equipo.</p><div className="small-line" /></div><button className="help-button" onClick={() => { setModal('help'); setMenuOpen(false); }}><HelpCircle size={18} /><span>¿Necesitas una mano?</span><ArrowUpRight size={15} /></button><div className="sidebar-footer"><span className="online-dot" />Tu espacio de seguridad<span>v0.1</span></div></div>
     </aside>
 
     <div className="workspace">
-      <header className="topbar"><div className="topbar-left"><button className="menu-toggle icon-button" aria-label="Abrir menú" aria-expanded={menuOpen} onClick={() => setMenuOpen(v => !v)}><Menu size={23} /></button><nav className="breadcrumbs" aria-label="Ruta de navegación"><ol><li className="breadcrumb-parent"><span>Espacio de trabajo</span><ChevronRight className="breadcrumb-separator" size={14} aria-hidden="true"/></li>{following && <li><button type="button" className="breadcrumb-link" aria-label={followUpOrigin === 'received' ? 'Volver a Inspecciones recibidas' : 'Volver a Mis inspecciones'} onClick={() => void (followUpOrigin === 'received' ? showReceived() : showList())}>{followUpOrigin === 'received' ? 'Inspecciones recibidas' : 'Mis inspecciones'}</button><ChevronRight className="breadcrumb-separator" size={14} aria-hidden="true"/></li>}<li><span className="breadcrumb-current" aria-current="page">{breadcrumbSection}</span></li></ol></nav></div><div className="topbar-right">{!cloud && <span className="demo-badge header-demo-badge">Modo de prueba</span>}<span className={`save-status ${saveState === 'error' ? 'save-error' : ''}`} aria-live="polite">{view === 'followup' ? <Info size={15}/> : saveState === 'empty' ? <Pencil size={15}/> : saveState === 'saving' ? <LoaderCircle className="spin" size={15} /> : saveState === 'error' ? <Info size={15} /> : <CircleCheck size={16} />}<span>{view === 'followup' ? 'Guarda cada avance' : saveState === 'empty' ? 'Sin iniciar' : saveState === 'saving' ? 'Guardando…' : saveState === 'error' ? 'Sin guardar' : cloud ? 'Guardado en tu cuenta' : 'Guardado en este navegador'}</span></span><div className="topbar-separator" /><button className="top-avatar" aria-label="Mi perfil" onClick={() => { setProfileForm(profile); setProfileError(''); setModal('profile'); }}>{initials(profile.name)}</button></div></header>
+      <header className="topbar"><div className="topbar-left"><button className="menu-toggle icon-button" aria-label="Abrir menú" aria-expanded={menuOpen} onClick={() => setMenuOpen(v => !v)}><Menu size={23} /></button><nav className="breadcrumbs" aria-label="Ruta de navegación"><ol><li className="breadcrumb-parent"><span>Espacio de trabajo</span><ChevronRight className="breadcrumb-separator" size={14} aria-hidden="true"/></li>{following && <li><button type="button" className="breadcrumb-link" aria-label={followUpOrigin === 'received' ? 'Volver a Inspecciones recibidas' : 'Volver a Mis inspecciones'} onClick={() => void (followUpOrigin === 'received' ? showReceived() : showList())}>{followUpOrigin === 'received' ? 'Inspecciones recibidas' : 'Mis inspecciones'}</button><ChevronRight className="breadcrumb-separator" size={14} aria-hidden="true"/></li>}<li><span className="breadcrumb-current" aria-current="page">{breadcrumbSection}</span></li></ol></nav></div><div className="topbar-right">{!cloud && <span className="demo-badge header-demo-badge">Modo de prueba</span>}<span className={`save-status ${saveState === 'error' ? 'save-error' : ''}`} aria-live="polite">{view === 'followup' ? <Info size={15}/> : saveState === 'empty' ? <Pencil size={15}/> : saveState === 'saving' ? <LoaderCircle className="spin" size={15} /> : saveState === 'error' ? <Info size={15} /> : <CircleCheck size={16} />}<span>{view === 'followup' ? 'Guarda cada avance' : saveState === 'empty' ? 'Sin iniciar' : saveState === 'saving' ? 'Guardando…' : saveState === 'error' ? 'Sin guardar' : cloud ? 'Guardado en tu cuenta' : 'Guardado en este navegador'}</span></span>{cloud && <button type="button" className="text-button" onClick={exit.request}>Cerrar sesión</button>}<div className="topbar-separator" /><button className="top-avatar" aria-label="Mi perfil" onClick={() => { setProfileForm(profile); setProfileError(''); setModal('profile'); }}>{initials(profile.name)}</button></div></header>
 
       <main id="main-content" className="main-content" ref={contentRef}>
         {storageError && <div className="notice notice-error" role="alert"><Info size={19} /><div><strong>No se ha podido guardar el borrador.</strong><p>{cloud ? 'Revisa tu conexión. Si lo editaste en otro dispositivo, abre la versión guardada antes de continuar.' : 'Comprueba el espacio y los permisos del navegador. Mantén esta pestaña abierta para conservar los datos.'}</p></div><button className="text-button" onClick={() => void save(draft)}>Reintentar</button>{cloud && <button className="text-button" onClick={() => setModal('reload')}>Abrir versión guardada</button>}</div>}
@@ -421,11 +435,11 @@ function WorkspaceApp({ initialAccounts, exit, onCloudAccess, cloud }: { initial
           </aside></div>
           <footer className="page-footer"><span>Hecho para cuidar a las personas.</span><span>Berry Safety Workspace<ShieldCheck size={13} /></span></footer>
         </div> : view === 'admin' ? <Administration actor={account} onCloudAccess={() => void openCloudAccess('admin')}/> : <>
-          <div className="page-heading"><div><div className="eyebrow"><span />TU ESPACIO DE SEGURIDAD</div><h1>Mis inspecciones</h1><p>Cada registro, un paso hacia un trabajo más seguro.</p></div><button className="button button-primary" onClick={() => void startNew()}><Plus size={17} />Nueva inspección</button></div>
+          <div className="page-heading"><div><div className="eyebrow"><span />TU ESPACIO DE SEGURIDAD</div><h1>Mis inspecciones</h1><p>Cada registro, un paso hacia un trabajo más seguro.</p></div>{canCreate && <button className="button button-primary" onClick={() => void startNew()}><Plus size={17} />Nueva inspección</button>}</div>
           <div className="list-stats"><div><span className="list-stat-icon"><ClipboardList size={22} /></span><div><strong>{inspections.length}</strong><span>Inspecciones</span></div></div><div><span className="list-stat-icon muted-icon"><Pencil size={22} /></span><div><strong>{draftCount}</strong><span>En borrador</span></div></div><div><span className="list-stat-icon"><Search size={22}/></span><div><strong>{reviewCount}</strong><span>Inspecciones a revisar</span></div></div><div><span className="list-stat-icon green-icon"><FileCheck2 size={22} /></span><div><strong>{inspections.filter(inspectionClosed).length}</strong><span>Inspecciones cerradas</span></div></div></div>
           <div className="list-card"><div className="list-toolbar"><div className="search-box"><Search size={18} /><input aria-label="Buscar inspecciones" placeholder="Buscar por instalación, por área, responsable" value={query} onChange={e => setQuery(e.target.value)} /></div><label className="filter-select"><ListFilter size={16} /><select aria-label="Filtrar por estado" value={filter} onChange={e => setFilter(e.target.value)}><option value="all">Todos los estados</option><option value="draft">Borradores</option><option value="pending">En levantamiento</option><option value="review">Inspecciones a revisar</option><option value="closed">Inspecciones cerradas</option></select></label></div>
-          <div className="inspection-list">{inspections.filter(matches).map(item => <div className="inspection-list-row" key={item.id}><div className="list-building"><Building2 size={23} /></div><div className="inspection-list-info"><strong className="list-inspected-area">{item.area || item.facility || 'Inspección sin título'}</strong><span className="list-responsibles">{item.responsibles.map(person => person.name.trim()).filter(Boolean).join(', ') || 'Responsable sin asignar'}</span><span className="list-responsible-areas">{responsibleAreas(item, accounts) || 'Área del responsable sin registrar'}</span><small>{formatDate(item.date)} · {formatInspectionTime(item.inspectionTime, item.inspectionPeriod) || 'Hora sin registrar'} — {item.observations.length} {item.observations.length === 1 ? 'observación' : 'observaciones'}</small><span className="registration-list-code">{confirmedInspectionCode(item) ? `Código definitivo: ${confirmedInspectionCode(item)}` : 'Código definitivo: pendiente de envío'}</span></div><span className={`list-status ${item.status === 'ready' ? 'status-ready' : ''}`}>{workflowLabel(item)}</span><button className="button button-outline" onClick={() => { if (item.delivery) { openFollowUp(item, 'list'); return; } setDraft(item); setView('editor'); setErrors({}); top(); }}>{item.delivery ? 'Revisar informe' : item.status === 'ready' ? 'Ver informe' : 'Continuar'}<ArrowRight size={15} /></button>{!item.delivery && <button className="icon-button delete-button" aria-label={`Eliminar inspección ${item.area || item.facility || 'sin título'}`} onClick={() => setDeleteTarget(item)}><Trash2 size={17} /></button>}</div>)}</div>
-          {inspections.filter(matches).length === 0 && <div className="empty-list"><Search size={32} /><h3>No encontramos inspecciones</h3><p>Prueba con otra búsqueda o crea una nueva inspección.</p></div>}</div>
+          <div className="inspection-list">{inspections.filter(matches).map(item => <div className="inspection-list-row" key={item.id}><div className="list-building"><Building2 size={23} /></div><div className="inspection-list-info"><strong className="list-inspected-area">{item.area || item.facility || 'Inspección sin título'}</strong><span className="list-responsibles">{item.responsibles.map(person => person.name.trim()).filter(Boolean).join(', ') || 'Responsable sin asignar'}</span><span className="list-responsible-areas">{responsibleAreas(item, accounts) || 'Área del responsable sin registrar'}</span><small>{formatDate(item.date)} · {formatInspectionTime(item.inspectionTime, item.inspectionPeriod) || 'Hora sin registrar'} — {item.observations.length} {item.observations.length === 1 ? 'observación' : 'observaciones'}</small><span className="registration-list-code">{confirmedInspectionCode(item) ? `Código definitivo: ${confirmedInspectionCode(item)}` : 'Código definitivo: pendiente de envío'}</span></div><span className={`list-status ${item.status === 'ready' ? 'status-ready' : ''}`}>{workflowLabel(item)}</span><button className="button button-outline" disabled={!canCreate && !item.delivery} onClick={() => { if (item.delivery) { openFollowUp(item, 'list'); return; } setDraft(item); setView('editor'); setErrors({}); top(); }}>{item.delivery ? 'Revisar informe' : item.status === 'ready' ? 'Ver informe' : 'Continuar'}<ArrowRight size={15} /></button>{canCreate && !item.delivery && <button className="icon-button delete-button" aria-label={`Eliminar inspección ${item.area || item.facility || 'sin título'}`} onClick={() => setDeleteTarget(item)}><Trash2 size={17} /></button>}</div>)}</div>
+          {inspections.filter(matches).length === 0 && <div className="empty-list"><Search size={32} /><h3>No encontramos inspecciones</h3><p>{canCreate ? 'Prueba con otra búsqueda o crea una nueva inspección.' : 'Prueba con otra búsqueda o consulta tus accesos con el administrador.'}</p></div>}</div>
           <div className="local-storage-note"><LockKeyhole size={15} />{cloud ? 'Tus inspecciones están disponibles en tu cuenta.' : 'Tus inspecciones se guardan solo en este navegador y dispositivo.'}</div>
         </>}
       </main>
@@ -443,6 +457,6 @@ function WorkspaceApp({ initialAccounts, exit, onCloudAccess, cloud }: { initial
       setDraft(updated); setPreviewPhoto(photo);
     } : undefined}/>}
     {deleteTarget && <Modal title="Eliminar inspección" onClose={() => setDeleteTarget(null)}><p className="modal-description">Se eliminará «{deleteTarget.area || deleteTarget.facility || 'Inspección sin título'}»{cloud ? ' de tus borradores' : ' y sus fotografías de este navegador'}. Esta acción no se puede deshacer.</p><div className="modal-actions"><button className="button button-outline" onClick={() => setDeleteTarget(null)}>Conservar inspección</button><button className="button button-danger" onClick={async () => { try { await removeInspection(deleteTarget.id, cloud ? account.id : undefined, deleteTarget.cloudRevision || 0); setInspections(items => items.filter(i => i.id !== deleteTarget.id)); if (draft.id === deleteTarget.id) setDraft(newInspection(profile)); setDeleteTarget(null); setToast('Inspección eliminada.'); } catch { setToast('No pudimos eliminar la inspección. Inténtalo de nuevo.'); } }}><Trash2 size={16} />Eliminar</button></div></Modal>}
-    {exit.requested && <Modal title="¿Estás seguro de salir?" onClose={exit.cancel}><p className="modal-description">{busy || photoBusy ? 'Hay un envío o archivo en proceso. Si sales ahora, su resultado podría quedar sin confirmar.' : 'Los cambios que no hayas guardado podrían perderse.'}</p><div className="modal-actions"><button type="button" className="button button-outline" onClick={exit.cancel}>Seguir en la aplicación</button><button type="button" className="button button-danger" onClick={exit.leave}>Salir</button></div></Modal>}
+    {exit.requested && <Modal title="¿Estás seguro de salir?" onClose={exit.cancel}><p className="modal-description">{cloud ? 'Se guardará el borrador y se cerrará tu sesión. Guarda primero cualquier levantamiento en edición.' : busy || photoBusy ? 'Hay un envío o archivo en proceso. Si sales ahora, su resultado podría quedar sin confirmar.' : 'Los cambios que no hayas guardado podrían perderse.'}</p>{exit.error && <p className="error-message" role="alert">{exit.error}</p>}<div className="modal-actions"><button type="button" className="button button-outline" disabled={exit.leaving} onClick={exit.cancel}>Seguir en la aplicación</button><button type="button" className="button button-danger" disabled={exit.leaving || !!cloud && (busy || photoBusy !== null)} onClick={() => void exit.leave()}>{exit.leaving ? 'Cerrando sesión…' : 'Salir'}</button></div></Modal>}
   </div></AccountDirectory.Provider>;
 }
