@@ -48,6 +48,34 @@ async function mock(context: BrowserContext, profile = initialProfile()) {
   });
   return state;
 }
+test('recuperación: solicita el enlace PKCE y permite cambiar solo la contraseña de la identidad verificada', async ({ page, context }) => {
+  await mock(context, { ...initialProfile(), full_name: 'Propietario', area: 'Seguridad', must_change_password: false });
+  let target = '';
+  await context.route(`${origin}/auth/v1/recover*`, async route => {
+    const url = new URL(route.request().url()); target = url.searchParams.get('redirect_to')!;
+    expect(new URL(target).searchParams.get('recuperar')).toBe('1');
+    const body = route.request().postDataJSON(); expect(body.email).toBe(email); expect(body.code_challenge).toBeTruthy();
+    await route.fulfill({ json: {} });
+  });
+  let passwordCalls = 0;
+  await context.route('**/api/accounts/password', async route => { passwordCalls++; expect(route.request().headers().authorization).toMatch(/^Bearer ey/); expect(route.request().postDataJSON()).toEqual({ password: 'Recuperada!47' }); await route.fulfill({ json: { ok: true } }); });
+  await page.goto('./?acceso=cuenta'); await page.getByRole('button', { name: 'Olvidé mi contraseña' }).click();
+  await page.getByLabel(/^Correo electrónico/).fill(email.toUpperCase()); await page.getByRole('button', { name: 'Enviar enlace de recuperación' }).click();
+  await expect(page.getByRole('status')).toContainText('recibirás un enlace'); expect(passwordCalls).toBe(0);
+  const callback = new URL(target); callback.searchParams.set('code', 'fictitious-recovery-code'); await page.goto(callback.href);
+  await expect(page.getByRole('heading', { name: 'Crea una nueva contraseña' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Administración', exact: true })).toHaveCount(0);
+  await page.getByLabel(/^Nueva contraseña/).fill('Recuperada!47'); await page.getByLabel(/^Repite la nueva contraseña/).fill('Recuperada!47'); await page.getByRole('button', { name: 'Actualizar contraseña', exact: true }).click();
+  await expect(page.getByRole('heading', { name: 'Inicia sesión', exact: true })).toBeVisible(); expect(passwordCalls).toBe(1);
+  expect(await page.evaluate(() => JSON.stringify({ ...localStorage, ...sessionStorage }))).not.toContain('Recuperada!47');
+});
+test('un enlace de recuperación vencido conserva el acceso cerrado y permite solicitar otro', async ({ page, context }) => {
+  await mock(context);
+  await page.goto('./?acceso=cuenta&recuperar=1#error=access_denied&error_code=otp_expired');
+  await expect(page.getByRole('heading', { name: 'Inicia sesión', exact: true })).toBeVisible();
+  await expect(page.getByRole('alert')).toContainText('enlace de recuperación');
+  await expect(page.getByLabel(/^Nueva contraseña/)).toHaveCount(0);
+});
 async function login(page: Page) {
   await page.goto('./?acceso=cuenta');
   await page.getByLabel(/^Correo electrónico/).fill(email);

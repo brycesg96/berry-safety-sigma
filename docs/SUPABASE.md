@@ -91,7 +91,7 @@ Los documentos se organizarán automáticamente en el bucket privado `berry-docu
 
 ## Tercera etapa: espacio de trabajo compartido y archivo mensual
 
-Implementación preparada el 8 de noviembre. **No está activada en el proyecto real hasta ejecutar la migración 3 y desplegar Render.** No requiere claves nuevas, carpetas manuales, cambio de plan ni cambios en Make.
+Implementación preparada el 8 de noviembre. **Activación confirmada por el propietario:** mostró «Success. No rows returned» del script 3 y Render `6e0639a` como Live el 8 de noviembre. La prueba operativa desde sus cuentas permanece pendiente. No requiere claves nuevas, carpetas manuales, cambio de plan ni cambios en Make.
 
 ### Activación única
 

@@ -26,11 +26,14 @@ export function CloudAccess({ exit, onReturn }: { exit: ExitConfirmation; onRetu
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
-  const [loginError, setLoginError] = useState('');
+  const [loginError, setLoginError] = useState(() => new URLSearchParams(location.hash.slice(1)).has('error') ? 'El enlace de recuperación venció o no es válido. Solicita uno nuevo.' : '');
+  const [recoveryRequest, setRecoveryRequest] = useState(false);
+  const [passwordRecovery, setPasswordRecovery] = useState(() => new URL(location.href).searchParams.get('recuperar') === '1');
+  const [recoveryNotice, setRecoveryNotice] = useState('');
   const [form, setForm] = useState<ProfileForm>(blank);
   const [formError, setFormError] = useState('');
   const [saved, setSaved] = useState(false);
-  const [busy, setBusy] = useState<'login' | 'save' | 'logout' | 'password' | null>(null);
+  const [busy, setBusy] = useState<'login' | 'save' | 'logout' | 'password' | 'recovery' | null>(null);
   const [section, setSection] = useState<'profile' | 'admin' | 'workspace'>('profile');
   const [workspaceReady, setWorkspaceReady] = useState(false);
   const [newPassword, setNewPassword] = useState('');
@@ -67,7 +70,12 @@ export function CloudAccess({ exit, onReturn }: { exit: ExitConfirmation; onRetu
     };
     // Keep Auth callbacks synchronous: querying from them can block the SDK's
     // session lock. Profile requests run in the separate effect below.
-    const { data: { subscription } } = supabaseClient().auth.onAuthStateChange((_event, next) => { authEvent = true; accept(next); });
+    const { data: { subscription } } = supabaseClient().auth.onAuthStateChange((event, next) => {
+      authEvent = true;
+      if (event === 'PASSWORD_RECOVERY') setPasswordRecovery(true);
+      if (event === 'SIGNED_OUT') setPasswordRecovery(false);
+      accept(next);
+    });
     void supabaseClient().auth.getSession().then(({ data, error }) => {
       if (!active || authEvent) return;
       if (error) setLoginError('No pudimos recuperar tu sesión. Vuelve a iniciar sesión.');
@@ -112,6 +120,18 @@ export function CloudAccess({ exit, onReturn }: { exit: ExitConfirmation; onRetu
     } catch (error) { setLoginError(error instanceof Error ? error.message : 'No pudimos iniciar sesión.'); }
     finally { setPassword(''); setBusy(null); }
   };
+  const requestRecovery = async () => {
+    if (busy) return;
+    setBusy('recovery'); setLoginError(''); setRecoveryNotice('');
+    try {
+      const target = new URL(location.href);
+      target.search = '?acceso=cuenta&recuperar=1'; target.hash = '';
+      const { error } = await supabaseClient().auth.resetPasswordForEmail(email.trim().toLowerCase(), { redirectTo: target.href });
+      if (error) throw new Error(error.status === 429 ? 'Espera unos minutos antes de solicitar otro enlace.' : 'No pudimos solicitar el enlace. Revisa tu conexión y vuelve a intentarlo.');
+      setRecoveryNotice('Si el correo corresponde a una cuenta, recibirás un enlace para elegir una nueva contraseña. Ábrelo en este navegador.');
+    } catch (error) { setLoginError(error instanceof Error ? error.message : 'No pudimos solicitar el enlace.'); }
+    finally { setBusy(null); }
+  };
   const save = async () => {
     if (!userId || !ownProfile?.enabled || busy) return;
     const requestGeneration = generation.current;
@@ -142,6 +162,7 @@ export function CloudAccess({ exit, onReturn }: { exit: ExitConfirmation; onRetu
       await changeCloudPassword(newPassword);
       if (generation.current !== requestGeneration) return;
       setNewPassword(''); setRepeatPassword('');
+      const url = new URL(location.href); url.searchParams.delete('recuperar'); url.hash = ''; history.replaceState(history.state, '', url);
       const { error } = await supabaseClient().auth.signOut({ scope: 'local' });
       if (error) throw new Error('La contraseña se actualizó. Cierra la sesión y entra con tu nueva contraseña.');
       // JWT issue times use whole seconds. A fresh sign-in must fall after
@@ -153,15 +174,19 @@ export function CloudAccess({ exit, onReturn }: { exit: ExitConfirmation; onRetu
   };
   const changeField = (key: keyof ProfileForm, value: string) => { setForm(current => ({ ...current, [key]: value })); setFormError(''); setSaved(false); };
 
-  const showAdmin = !!ownProfile?.enabled && !ownProfile.must_change_password && ownProfile.role === 'admin' && section === 'admin';
-  if (section === 'workspace' && ownProfile?.enabled && !ownProfile.must_change_password) return <CloudWorkspace profile={ownProfile} exit={exit} onAccount={target => { setSection(target || 'profile'); setRetry(value => value + 1); }}/>;
+  const showAdmin = !!ownProfile?.enabled && !ownProfile.must_change_password && !passwordRecovery && ownProfile.role === 'admin' && section === 'admin';
+  if (section === 'workspace' && ownProfile?.enabled && !ownProfile.must_change_password && !passwordRecovery) return <CloudWorkspace profile={ownProfile} exit={exit} onAccount={target => { setSection(target || 'profile'); setRetry(value => value + 1); }}/>;
   return <div className="cloud-account-page" spellCheck={false}>
-    <header className="cloud-account-header"><Brand/>{!ownProfile?.must_change_password && <button type="button" className="cloud-return" disabled={!!busy} onClick={() => dirty ? setConfirmLeave('return') : onReturn()}><ArrowLeft size={17}/>Espacio de pruebas</button>}</header>
+    <header className="cloud-account-header"><Brand/>{!ownProfile?.must_change_password && !passwordRecovery && <button type="button" className="cloud-return" disabled={!!busy} onClick={() => dirty ? setConfirmLeave('return') : onReturn()}><ArrowLeft size={17}/>Espacio de pruebas</button>}</header>
     <main className={`cloud-account-main ${showAdmin ? 'cloud-account-admin-main' : ''}`}>
-      {ownProfile?.enabled && !ownProfile.must_change_password && ownProfile.role === 'admin' && <nav className="admin-tabs" aria-label="Cuenta y administración"><button type="button" aria-current={section === 'profile' ? 'page' : undefined} disabled={!!busy} onClick={() => setSection('profile')}>Tu perfil</button><button type="button" aria-current={section === 'admin' ? 'page' : undefined} disabled={!!busy || dirty} onClick={() => setSection('admin')}>Administración</button></nav>}
+      {ownProfile?.enabled && !ownProfile.must_change_password && !passwordRecovery && ownProfile.role === 'admin' && <nav className="admin-tabs" aria-label="Cuenta y administración"><button type="button" aria-current={section === 'profile' ? 'page' : undefined} disabled={!!busy} onClick={() => setSection('profile')}>Tu perfil</button><button type="button" aria-current={section === 'admin' ? 'page' : undefined} disabled={!!busy || dirty} onClick={() => setSection('admin')}>Administración</button></nav>}
       {showAdmin ? <><CloudAdministration key={ownProfile!.id} actor={ownProfile!} isCurrent={() => sessionRef.current?.user.id === ownProfile!.id}/><button type="button" className="cloud-logout" disabled={!!busy} onClick={() => void logout()}><LogOut size={17}/>Cerrar sesión en este dispositivo</button>{formError && <p role="alert" className="error-message cloud-message">{formError}</p>}</> : <section className="cloud-account-card" aria-busy={!ready || profileLoading || !!busy}>
         <div className="cloud-account-icon"><ShieldCheck size={27}/></div>
-        {!ready ? <><h1 ref={heading} tabIndex={-1}>Tu cuenta</h1><p className="cloud-loading" role="status"><LoaderCircle size={18} className="spin"/>Comprobando tu sesión…</p></> : !session ? <>
+        {!ready ? <><h1 ref={heading} tabIndex={-1}>Tu cuenta</h1><p className="cloud-loading" role="status"><LoaderCircle size={18} className="spin"/>Comprobando tu sesión…</p></> : !session && recoveryRequest ? <>
+          <h1 ref={heading} tabIndex={-1}>Recupera tu contraseña</h1><p className="cloud-account-intro">Recibe un enlace en el correo de tu cuenta.</p>
+          <form onSubmit={event => { event.preventDefault(); void requestRecovery(); }}><Field label="Correo electrónico" required>{props => <input {...props} type="email" autoComplete="username" autoCapitalize="none" required maxLength={254} disabled={!!busy} value={email} onChange={event => setEmail(event.target.value)}/>}</Field>{loginError && <p role="alert" className="error-message cloud-message">{loginError}</p>}{recoveryNotice && <p role="status" className="cloud-saved">{recoveryNotice}</p>}<button type="submit" className="button button-primary full-width" disabled={!!busy}>{busy === 'recovery' ? <LoaderCircle size={17} className="spin"/> : <LockKeyhole size={17}/>}Enviar enlace de recuperación</button></form>
+          <button type="button" className="cloud-logout" disabled={!!busy} onClick={() => { setRecoveryRequest(false); setLoginError(''); }}>Volver a iniciar sesión</button>
+        </> : !session ? <>
           <div className="eyebrow">TU ESPACIO DE SEGURIDAD</div>
           <h1 ref={heading} tabIndex={-1}>Inicia sesión</h1>
           <p className="cloud-account-intro">Accede con tu cuenta de Berry Safety.</p>
@@ -173,6 +198,7 @@ export function CloudAccess({ exit, onReturn }: { exit: ExitConfirmation; onRetu
             <button type="submit" className="button button-primary full-width" disabled={!!busy}>{busy === 'login' ? <LoaderCircle className="spin" size={17}/> : <LockKeyhole size={17}/>} {busy === 'login' ? 'Iniciando sesión…' : 'Iniciar sesión'}</button>
           </form>
           <p className="cloud-account-hint">Utiliza el correo y la contraseña de tu cuenta habilitada.</p>
+          <button type="button" className="cloud-logout" disabled={!!busy} onClick={() => { setRecoveryRequest(true); setPassword(''); setLoginError(''); setRecoveryNotice(''); }}>Olvidé mi contraseña</button>
         </> : profileLoading || !ownProfile && !profileError ? <>
           <h1 ref={heading} tabIndex={-1}>Tu cuenta</h1><p className="cloud-loading" role="status"><LoaderCircle size={18} className="spin"/>Consultando tu perfil…</p>
         </> : ownProfile && !ownProfile.enabled ? <>
@@ -180,9 +206,9 @@ export function CloudAccess({ exit, onReturn }: { exit: ExitConfirmation; onRetu
           <p className="cloud-account-intro">Tu identidad está verificada. El administrador debe habilitar tu acceso antes de continuar.</p>
           <p className="cloud-account-email">{ownProfile.email}</p>
           <button type="button" className="button button-primary full-width" disabled={!!busy} onClick={() => setRetry(value => value + 1)}>Comprobar acceso</button>
-        </> : ownProfile?.must_change_password ? <>
-          <h1 ref={heading} tabIndex={-1}>Actualiza tu contraseña</h1>
-          <p className="cloud-account-intro">Estás usando una contraseña temporal. Crea una contraseña personal para continuar.</p>
+        </> : ownProfile?.must_change_password || passwordRecovery && ownProfile?.enabled ? <>
+          <h1 ref={heading} tabIndex={-1}>{passwordRecovery ? 'Crea una nueva contraseña' : 'Actualiza tu contraseña'}</h1>
+          <p className="cloud-account-intro">{passwordRecovery ? 'Elige una contraseña personal para volver a entrar a tu cuenta.' : 'Estás usando una contraseña temporal. Crea una contraseña personal para continuar.'}</p>
           <p className="cloud-account-email">{ownProfile.email}</p>
           <form onSubmit={event => { event.preventDefault(); void updatePassword(); }}>
             <Field label="Nueva contraseña" required hint="Al menos 10 caracteres, distinta de la temporal.">{props => <div className="cloud-password"><input {...props} required type={showPassword ? 'text' : 'password'} autoComplete="new-password" minLength={10} value={newPassword} disabled={!!busy} onChange={event => { setNewPassword(event.target.value); setPasswordError(''); }}/><button type="button" className="icon-button" aria-label={showPassword ? 'Ocultar nueva contraseña' : 'Mostrar nueva contraseña'} onClick={() => setShowPassword(value => !value)}>{showPassword ? <EyeOff size={18}/> : <Eye size={18}/>}</button></div>}</Field>

@@ -35,3 +35,15 @@ La lista muestra las cuentas reales y distingue las deshabilitadas y las que aú
 `npm run test:supabase` ejecuta diecisiete comprobaciones PostgreSQL sobre las tres migraciones, incluidos el bloqueo con contraseña temporal, la prohibición de autoasignar permisos, los reintentos, los archivos y la invalidación de JWT anteriores. La primera migración rechaza repetirse sobre una versión posterior para conservar los controles nuevos.
 
 `npm run test:api` incluye seis pruebas de las rutas de cuentas, con Auth/REST simulados. `tests/cloud-access.spec.ts` comprueba el flujo de altas y cambio obligatorio, además del acceso y perfil anteriores, sin crear cuentas reales ni solicitar correos. La configuración de cuentas y el despliegue `6fde0aa` fueron mostrados por el propietario. Sigue pendiente su comprobación operativa con un segundo usuario; las pruebas automatizadas no crean cuentas reales.
+
+
+## Recuperación de contraseña
+
+La pantalla de acceso incluye **Olvidé mi contraseña**. Solicita un enlace de Supabase Auth, con PKCE, para que la persona verifique su correo y elija una contraseña nueva. Abrir el enlace en el mismo navegador que lo solicitó. No se envían correos desde las herramientas de desarrollo; la persona pulsa el botón desde la app.
+
+Configuración única en Supabase → Authentication → URL Configuration:
+
+- Site URL: `https://brycesg96.github.io/berry-safety-sigma/?acceso=cuenta`.
+- Redirect URLs: añadir `https://brycesg96.github.io/berry-safety-sigma/**` para admitir el retorno de recuperación y su identificador PKCE.
+
+El enlace habilita el formulario de contraseña solo después de verificar la sesión con Auth y el perfil propio. También se admiten los enlaces de recuperación enviados desde el panel de Supabase. La ruta protegida de cambio existente conserva el rol y los registros, modifica solo la contraseña del usuario verificado, invalida las sesiones anteriores y solicita entrar otra vez. Un enlace vencido permite solicitar otro; el identificador en la URL no concede permisos por sí solo. Las pruebas interceptan Auth y no envían correos reales.
