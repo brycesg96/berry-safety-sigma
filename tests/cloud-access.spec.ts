@@ -64,7 +64,7 @@ test('recuperación: solicita el enlace PKCE y permite cambiar solo la contrase�
   await expect(page.getByRole('status')).toContainText('recibirás un enlace'); expect(passwordCalls).toBe(0);
   const callback = new URL(target); callback.searchParams.set('code', 'fictitious-recovery-code'); await page.goto(callback.href);
   await expect(page.getByRole('heading', { name: 'Crea una nueva contraseña' })).toBeVisible();
-  await expect(page.getByRole('button', { name: 'Administración', exact: true })).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Gestión de Cuentas', exact: true })).toHaveCount(0);
   await page.getByLabel(/^Nueva contraseña/).fill('Recuperada!47'); await page.getByLabel(/^Repite la nueva contraseña/).fill('Recuperada!47'); await page.getByRole('button', { name: 'Actualizar contraseña', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'Inicia sesión', exact: true })).toBeVisible(); expect(passwordCalls).toBe(1);
   expect(await page.evaluate(() => JSON.stringify({ ...localStorage, ...sessionStorage }))).not.toContain('Recuperada!47');
@@ -110,7 +110,7 @@ test('perfil y rol provienen de la cuenta del servidor; una cuenta pendiente no 
   await page.getByRole('button', { name: 'Comprobar acceso', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'Tu perfil', exact: true })).toBeVisible();
   await expect(page.locator('.cloud-profile-heading')).toContainText('Usuario');
-  await expect(page.locator('.cloud-profile-heading')).not.toContainText('Administración');
+  await expect(page.locator('.cloud-profile-heading')).not.toContainText('Administrador');
   await expect(page.getByLabel('Correo de tu cuenta')).toHaveValue(email);
   expect(state.updates).toEqual([]);
 });
@@ -206,7 +206,7 @@ test('el primer ingreso exige una contraseña personal, rechaza la temporal y vu
   });
   await login(page);
   await expect(page.getByRole('heading', { name: 'Actualiza tu contraseña', exact: true })).toBeVisible();
-  await expect(page.getByRole('button', { name: 'Administración', exact: true })).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Gestión de Cuentas', exact: true })).toHaveCount(0);
   await expect(page.getByRole('button', { name: 'Espacio de pruebas', exact: true })).toHaveCount(0);
   await expect(page.getByLabel('Nombres y apellidos')).toHaveCount(0);
   await page.getByLabel(/^Nueva contraseña/).fill('0123456789');
@@ -238,8 +238,8 @@ test('el administrador crea usuarios reales sin añadir cuentas locales y conser
     await route.fulfill({ json: { ok: true, account: { id: '30000000-0000-4000-8000-000000000002', ...body, enabled: true, must_change_password: true } } });
   });
   await login(page);
-  await page.getByRole('button', { name: 'Administración', exact: true }).click();
-  await expect(page.getByRole('heading', { name: 'Administración', exact: true })).toBeVisible();
+  await page.getByRole('button', { name: 'Gestión de Cuentas', exact: true }).click();
+  await expect(page.getByRole('heading', { name: 'Gestión de Cuentas', exact: true })).toBeVisible();
   await page.getByLabel('Nombres y apellidos').fill('Persona de Prueba');
   await page.getByLabel(/^Correo del usuario/).fill('persona@example.invalid');
   await page.getByLabel(/^Área/).fill('Mantenimiento');
@@ -333,7 +333,7 @@ test('los tres accesos se editan por separado; el administrador deshabilita/elim
   await page.route('**/api/accounts/inspections', route => route.fulfill({ json: { ok: true, inspections: [report] } }));
   let removed = false;
   await page.route('**/api/accounts/inspections/delete', route => { expect(route.request().postDataJSON()).toEqual({ id: report.id, expectedRevision: 7 }); removed = true; return route.fulfill({ json: { ok: true } }); });
-  await login(page); await page.getByRole('button', { name: 'Administración', exact: true }).click();
+  await login(page); await page.getByRole('button', { name: 'Gestión de Cuentas', exact: true }).click();
   const row = page.locator('.account-row').filter({ hasText: target.email });
   await row.getByRole('button', { name: 'Editar accesos' }).click();
   const dialog = page.getByRole('dialog');

@@ -184,7 +184,7 @@ test('un usuario que solo recibe no crea borradores ni ve controles de creación
   await page.getByRole('button',{name:'Entrar al espacio de trabajo'}).click();
   await expect(page.getByRole('heading',{name:'Inspecciones recibidas',exact:true})).toBeVisible();
   await expect(page.getByRole('button',{name:'Nueva inspección',exact:true})).toHaveCount(0);
-  await expect(page.getByRole('button',{name:'Administración',exact:true})).toHaveCount(0);
+  await expect(page.getByRole('button',{name:'Gestión de Cuentas',exact:true})).toHaveCount(0);
   await page.getByRole('button',{name:'Mis inspecciones',exact:true}).click();
   await expect(page.getByRole('heading',{name:'Mis inspecciones',exact:true})).toBeVisible();
   expect(state.rows.size).toBe(0);expect(state.saves).toBe(0);
