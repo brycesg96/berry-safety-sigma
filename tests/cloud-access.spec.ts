@@ -263,3 +263,28 @@ test('el administrador crea usuarios reales sin añadir cuentas locales y conser
   expect(await page.evaluate(() => localStorage.getItem('berry-demo-accounts-v1'))).toBeNull();
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
 });
+
+
+test('Administrar usuarios llega a la gestión real después de iniciar sesión y conserva el destino al recargar', async ({ page, context }) => {
+  await mock(context, { ...initialProfile(), full_name: 'Admin real', area: 'Seguridad', must_change_password: false });
+  let lists = 0;
+  await page.route('**/api/accounts', route => { lists++; expect(route.request().headers().authorization).toMatch(/^Bearer ey/); return route.fulfill({ json: { ok: true, accounts: [] } }); });
+  await page.goto('./');
+  await page.getByRole('button', { name: 'Administración', exact: true }).click();
+  await page.getByRole('button', { name: 'Administrar usuarios', exact: true }).click();
+  await page.getByLabel(/^Correo electrónico/).fill(email); await page.getByLabel(/^Contraseña/).fill('Fictitious!47'); await page.getByRole('button', { name: 'Iniciar sesión', exact: true }).click();
+  await expect(page.getByRole('button', { name: 'Crear usuario', exact: true })).toBeVisible();
+  await expect(page.getByLabel(/^Correo del usuario/)).toBeVisible(); expect(lists).toBeGreaterThan(0);
+  expect(await page.evaluate(() => localStorage.getItem('berry-demo-accounts-v1'))).toBeNull();
+  const beforeReload = lists;
+  await page.reload(); await expect(page.getByRole('button', { name: 'Crear usuario', exact: true })).toBeVisible(); await expect.poll(() => lists).toBeGreaterThan(beforeReload);
+});
+test('el enlace a Usuarios no otorga permisos administrativos a una cuenta de inspecciones', async ({ page, context }) => {
+  await mock(context, { ...initialProfile(), full_name: 'Inspector real', area: 'Seguridad', role: 'inspector' });
+  let lists = 0;
+  await page.route('**/api/accounts', route => { lists++; return route.fulfill({ status: 403, json: { ok: false } }); });
+  await page.goto('./?acceso=cuenta&seccion=usuarios');
+  await page.getByLabel(/^Correo electrónico/).fill(email); await page.getByLabel(/^Contraseña/).fill('Fictitious!47'); await page.getByRole('button', { name: 'Iniciar sesión', exact: true }).click();
+  await expect(page.getByRole('heading', { name: 'Tu perfil', exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Crear usuario', exact: true })).toHaveCount(0); expect(lists).toBe(0);
+});

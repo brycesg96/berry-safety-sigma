@@ -6,13 +6,12 @@ import { reportFilename } from '../shared/report-filename.mjs';
 async function prepare(page:Page, withTeam=false) {
  await page.route('**/api/people?*',r=>r.fulfill({json:{people:[]}}));
  await page.goto('./');
- await page.getByRole('button',{name:'Administración',exact:true}).click();
- await page.getByRole('button',{name:'Editar cuenta bcespedes@hortifrut.com',exact:true}).click();
- await page.getByLabel('Correos de jefes y gerentes (CC)').fill('JEFE@example.com, jefe@example.com, gerente@example.com, bcespedes@hortifrut.com');
- await page.getByRole('button',{name:'Guardar cuenta',exact:true}).click();
- await page.reload();await page.getByRole('button',{name:'Administración',exact:true}).click();
- await expect(page.locator('.account-row').filter({hasText:'bcespedes@hortifrut.com'})).toContainText('jefe@example.com');
- await page.getByRole('button',{name:'Nueva inspección',exact:true}).click();
+ await page.evaluate(async()=>{
+  const {readAccounts,editAccount,supervisorEmails}=await import('/src/accounts.ts');
+  const person=readAccounts().find(account=>account.id==='demo-inspector')!;
+  editAccount('demo-admin',person.id,{...person,supervisorEmails:supervisorEmails('JEFE@example.com, jefe@example.com, gerente@example.com, bcespedes@hortifrut.com')});
+ });
+ await page.reload();
  await page.getByLabel('Área inspeccionada').fill('Taller - Armonía 2');
  await page.getByLabel('Hora de inspección').fill('07:30');await page.getByLabel('AM o PM').selectOption('AM');
  await page.getByRole('radio',{name:'Planeada',exact:true}).check();

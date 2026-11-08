@@ -59,7 +59,7 @@ El script otorga explícitamente los permisos necesarios y habilita RLS en las s
 
 ### Acceso y perfil
 
-- Abrir `https://brycesg96.github.io/berry-safety-sigma/?acceso=cuenta`, también disponible desde Tu perfil o Administración → Inicio de sesión → Iniciar sesión con correo en el espacio de pruebas.
+- Abrir `https://brycesg96.github.io/berry-safety-sigma/?acceso=cuenta`, también disponible desde Tu perfil o Administración → Usuarios → Administrar usuarios en el espacio de pruebas.
 - `CloudAccess.tsx` usa Auth por correo/contraseña, restaura la sesión y permite cerrarla en el dispositivo. No incluye registro público, invitaciones, restablecimiento por correo ni Microsoft. Las contraseñas se envían únicamente a Auth, se vacían del formulario tras el intento y no se guardan en los perfiles o el almacenamiento de la app. El SDK conserva la sesión de Auth con su clave propia.
 - `cloud-account.ts` verifica la identidad con `auth.getUser()` y consulta exclusivamente su fila `berry_profiles`. Nombre, área y cargo se guardan en la base real mediante una lista explícita de columnas y RLS; correo, rol y habilitación no son editables. Una identidad autenticada sin perfil habilitado ve únicamente su estado de acceso y puede volver a comprobarlo o cerrar sesión.
 - Un fallo al guardar mantiene el texto para reintentar. La salida con cambios pendientes pide confirmación. El guardado no muestra éxito antes de la respuesta del servidor y las respuestas de otra sesión no repueblan el perfil después de salir.

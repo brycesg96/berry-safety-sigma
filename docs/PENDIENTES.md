@@ -141,3 +141,10 @@ Los pendientes anteriores relativos al desarrollo del backend se consideran prep
 - [x] Paso 3 instalado por el propietario y Render `6e0639a` mostrado como Live.
 - [x] Preparar paso 4: al aprobar todos los levantamientos, guardar el Excel final y retirar el inicial, manteniendo una sola fila y un solo archivo. Datos de auditoría conservados; fallos y operaciones simultáneas recuperables sin otro correo/código.
 - [ ] Ejecutar únicamente `202611080004_final_archive.sql` y desplegar la API actualizada. Confirmar recuperación de la contraseña del propietario y una prueba operativa del archivo final.
+
+
+## Gestión única de usuarios
+
+- [x] Retirar Añadir cuenta y la lista editable local de Administración; dejar Administrar usuarios como única gestión con Supabase.
+- [x] Abrir directamente la administración real tras iniciar sesión y conservar el destino al recargar, con comprobación del rol de la cuenta.
+- [x] Conservar perfiles y borradores históricos del navegador, sin importar ni borrar identidades automáticamente. Las funciones de permisos e integraciones se mantienen.

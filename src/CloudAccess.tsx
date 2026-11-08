@@ -16,7 +16,7 @@ type ProfileForm = { full_name: string; area: string; job_title: string };
 const blank = (): ProfileForm => ({ full_name: '', area: '', job_title: '' });
 const fieldsOf = (profile: CloudProfile): ProfileForm => ({ full_name: profile.full_name, area: profile.area, job_title: profile.job_title });
 
-export function CloudAccess({ exit, onReturn }: { exit: ExitConfirmation; onReturn: () => void }) {
+export function CloudAccess({ exit, onReturn, initialSection = 'profile' }: { exit: ExitConfirmation; onReturn: () => void; initialSection?: 'profile' | 'admin' }) {
   const [ready, setReady] = useState(false);
   const [session, setSession] = useState<Session | null>(null);
   const [profile, setProfile] = useState<CloudProfile | null>(null);
@@ -34,7 +34,7 @@ export function CloudAccess({ exit, onReturn }: { exit: ExitConfirmation; onRetu
   const [formError, setFormError] = useState('');
   const [saved, setSaved] = useState(false);
   const [busy, setBusy] = useState<'login' | 'save' | 'logout' | 'password' | 'recovery' | null>(null);
-  const [section, setSection] = useState<'profile' | 'admin' | 'workspace'>('profile');
+  const [section, setSection] = useState<'profile' | 'admin' | 'workspace'>(initialSection);
   const [workspaceReady, setWorkspaceReady] = useState(false);
   const [newPassword, setNewPassword] = useState('');
   const [repeatPassword, setRepeatPassword] = useState('');
@@ -62,7 +62,7 @@ export function CloudAccess({ exit, onReturn }: { exit: ExitConfirmation; onRetu
         generation.current++;
         setProfile(null); setProfileError(''); setForm(blank()); setFormError(''); setSaved(false); setPassword('');
         setShowPassword(false);
-        setNewPassword(''); setRepeatPassword(''); setPasswordError(''); setSection('profile');
+        setNewPassword(''); setRepeatPassword(''); setPasswordError(''); setSection(next ? initialSection : 'profile');
         if (!next) setEmail('');
       }
       sessionRef.current = next;

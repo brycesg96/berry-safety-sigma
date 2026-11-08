@@ -47,3 +47,8 @@ Configuración única en Supabase → Authentication → URL Configuration:
 - Redirect URLs: añadir `https://brycesg96.github.io/berry-safety-sigma/**` para admitir el retorno de recuperación y su identificador PKCE.
 
 El enlace habilita el formulario de contraseña solo después de verificar la sesión con Auth y el perfil propio. También se admiten los enlaces de recuperación enviados desde el panel de Supabase. La ruta protegida de cambio existente conserva el rol y los registros, modifica solo la contraseña del usuario verificado, invalida las sesiones anteriores y solicita entrar otra vez. Un enlace vencido permite solicitar otro; el identificador en la URL no concede permisos por sí solo. Las pruebas interceptan Auth y no envían correos reales.
+
+
+## Entrada única de administración
+
+Administración → Usuarios → Administrar usuarios es la única gestión de altas. El formulario local paralelo se retiró; las cuentas históricas y sus informes se conservan. El enlace `?acceso=cuenta&seccion=usuarios` lleva a esta sección después del acceso, sujeto al rol real. [Interfaz y conservación de datos anteriores](ADMINISTRACION.md).

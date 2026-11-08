@@ -1,53 +1,25 @@
-# Administración y cuentas de prueba
+# Administración de usuarios
 
-## Disponible ahora
+## Gestión única con Supabase
 
-La opción **Administración** aparece debajo de **Mis inspecciones** al usar la cuenta administradora de prueba. Tiene tres apartados:
+Administración → Usuarios ofrece una única entrada: **Administrar usuarios**. Abre el portal autenticado y lleva directamente a la gestión real de usuarios cuando la cuenta tiene rol administrador. Si no existe sesión, solicita el correo y la contraseña y conserva ese destino después del acceso y al recargar.
 
-- **Cuentas permitidas:** añadir nombre y correo, elegir uno de los dos roles básicos, editar el nombre y habilitar o desactivar cuentas. No permite duplicar correos. Los correos existentes se conservan como identidad de cada cuenta; el del administrador inicial se cambia en la configuración de compilación.
-- **Inicio de sesión:** opción de Microsoft visible y desactivada. No hay redirecciones, peticiones a Microsoft ni comprobación de identidad durante las pruebas.
-- **Funciones y permisos:** espacio preparado para definir permisos adicionales. Solo están modelados los roles de administración e inspecciones; no se inventa una matriz de permisos avanzados.
+El formulario de añadir cuentas locales, su lista con edición/activación y la pestaña duplicada de Inicio de sesión se retiraron el 8 de noviembre de 2026. Las altas nuevas se realizan únicamente en la gestión de Supabase. Las pestañas Funciones y permisos e Integraciones se conservan.
 
-Cuentas iniciales, según lo confirmado por Brian:
+El portal permite crear y consultar usuarios reales, con nombre, correo, área, cargo, rol y correos en copia. La contraseña temporal es `0123456789` y el primer ingreso exige cambiarla. Correo, permisos y acceso se verifican con Auth y la base de datos; una cuenta de inspecciones no obtiene acceso administrativo por abrir el enlace de Usuarios. La edición de accesos y el restablecimiento de contraseñas de otros usuarios por el administrador permanecen como trabajo separado.
 
-| Nombre básico | Correo | Rol de prueba |
-| --- | --- | --- |
-| Bryan | bryx.96@gmail.com | Administrador |
-| Bryan | bcespedes@hortifrut.com | Inspecciones |
+Acceso directo: `https://brycesg96.github.io/berry-safety-sigma/?acceso=cuenta&seccion=usuarios`.
 
-Las dos están habilitadas y aparecen al buscar «Bryan» en responsables. Se distinguen por el correo. Las cuentas adicionales habilitadas también aparecen en ese directorio local.
+Este ajuste de interfaz usa las rutas de cuentas existentes. No requiere SQL, nuevas variables ni otro despliegue de Render. [Gestión de cuentas, contraseña temporal y recuperación](USUARIOS.md).
 
-## Probar ambas cuentas sin iniciar sesión
+## Datos del espacio de pruebas anterior
 
-Abrir **Tu perfil → Cuenta de prueba** y seleccionar el correo. La selección persiste al recargar. La cuenta de inspecciones no muestra Administración. Cada cuenta dispone de su nombre, área y borradores propios dentro del navegador; los borradores anteriores sin propietario se conservan para la cuenta administradora inicial.
+La retirada de la gestión local no borra cuentas, perfiles o inspecciones existentes del navegador ni crea cuentas remotas automáticamente. Sus identidades y borradores siguen disponibles en el espacio de pruebas para conservar el historial hasta preparar la importación revisable. El directorio local conserva los registros anteriores; el espacio autenticado consulta los usuarios habilitados reales.
 
-En el perfil, nombre completo y área se pueden completar, mientras que el correo procede de la cuenta y no se escribe manualmente. El área de perfil es distinta del área inspeccionada. Para evitar perder archivos a medio procesar, no se cambia de cuenta mientras se procesa una foto o se genera un Excel.
+El selector Tu perfil → Cuenta de prueba se mantiene para consultar esos datos históricos. Ese selector y los roles locales no autentican al usuario de Supabase. La cuenta real del propietario es `bryx96@gmail.com`; el correo de demostración anterior contiene un punto y corresponde a otra identidad.
 
-## Configuración del entorno
+Las variables públicas `VITE_DEMO_ADMIN_EMAIL`, `VITE_DEMO_ADMIN_NAME`, `VITE_DEMO_INSPECTOR_EMAIL` y `VITE_DEMO_INSPECTOR_NAME` siguen describiendo las identidades históricas del prototipo. No crean ni habilitan usuarios de Auth. Las cuentas nuevas deben registrarse desde Administrar usuarios con una sesión administradora real.
 
-Variables **públicas y no secretas** de compilación:
+## Verificación
 
-```dotenv
-VITE_DEMO_ADMIN_EMAIL=bryx.96@gmail.com
-VITE_DEMO_ADMIN_NAME=Bryan
-VITE_DEMO_INSPECTOR_EMAIL=bcespedes@hortifrut.com
-VITE_DEMO_INSPECTOR_NAME=Bryan
-```
-
-Para desarrollo pueden establecerse en el proceso de Vite o en un archivo `.env.local` ignorado por Git. Para la publicación automática, el flujo toma las variables de igual nombre de **GitHub → Settings → Secrets and variables → Actions → Variables**. Después de cambiarlas se debe ejecutar una compilación/publicación; cambiar una variable solo en el entorno de este chat no modifica por sí solo la web que compila GitHub Actions.
-
-Si no se proporcionan variables, se usan las dos cuentas anteriores. El correo y rol de las cuentas iniciales se resuelven de la configuración en cada carga, manteniendo identificadores estables para conservar sus borradores. Los nombres configurados son los valores iniciales; después de completar el perfil se conserva el nombre del perfil de ese navegador. Correos inválidos o iguales en ambas cuentas muestran un error de configuración.
-
-## Alcance local de las pruebas
-
-Las cuentas nuevas se guardan en `localStorage` del navegador y los informes en IndexedDB con su propietario de prueba. No se crean identidades en Microsoft, no se envían invitaciones y no se sincronizan las cuentas creadas con otros dispositivos. No se publica un directorio completo de usuarios nuevos en archivos estáticos.
-
-El directorio ofrece las cuentas locales habilitadas. Si se configura `VITE_DIRECTORY_URL`, consulta además ese directorio, con deduplicación de identificadores/correos. El conector remoto sigue siendo opcional y no convierte las cuentas de prueba en cuentas autenticadas.
-
-**Los roles actuales son una simulación para pruebas, no una barrera de seguridad.** Cualquiera que abra esta demostración puede elegir una cuenta de prueba. La separación de pantallas y borradores permite validar el recorrido, pero un navegador no puede proteger los datos contra alguien que modifique su almacenamiento o código.
-
-## Antes de activar Microsoft
-
-Pendiente: registrar la aplicación y sus redirecciones en Microsoft Entra, conectar la autenticación real, validar la identidad y los permisos en el servidor, guardar usuarios/invitaciones en la base de datos y exigir completar el perfil en el primer ingreso autenticado. La cuenta Gmail del administrador deberá ser una identidad Microsoft compatible o un invitado autorizado en el tenant que se elija. No se debe autenticar a nadie por el texto de un correo recibido del navegador.
-
-No existe un interruptor que active una conexión real ya implementada: el botón visible es la opción preparada para esa integración futura, mantenida desactivada por petición del usuario. Los permisos adicionales se definirán con Brian antes de implementarse.
+Las pruebas de interfaz comprueban la ausencia del formulario local, conservación del borrador y las cuentas previas, acceso al portal desde el botón único, restauración del destino al recargar y rechazo de la vista administrativa para inspectores. Las pruebas de altas y correo usan proveedores simulados; no crean usuarios ni envían mensajes reales.
