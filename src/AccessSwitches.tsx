@@ -1,10 +1,13 @@
+import { useId } from 'react';
 import type { AccountPermissions } from './cloud-account';
 
 export function AccessSwitches({ value, onChange, disabled = false }: { value: AccountPermissions; onChange: (value: AccountPermissions) => void; disabled?: boolean }) {
+  const hintId = useId();
+  const inspections = value.can_create_inspections && value.can_receive_inspections;
+  const partial = value.can_create_inspections !== value.can_receive_inspections;
   const options = [
-    { label: 'Hacer inspecciones', active: value.can_create_inspections, change: () => onChange({ ...value, can_create_inspections: !value.can_create_inspections }) },
-    { label: 'Recibir inspecciones', active: value.can_receive_inspections, change: () => onChange({ ...value, can_receive_inspections: !value.can_receive_inspections }) },
-    { label: 'Administrador', active: value.role === 'admin', change: () => onChange({ ...value, role: value.role === 'admin' ? 'inspector' : 'admin' }) },
+    { label: 'Administrador', description: 'Gestionar cuentas, accesos e inspecciones.', active: value.role === 'admin', state: value.role === 'admin' ? 'Activado' : 'Desactivado', change: () => onChange({ ...value, role: value.role === 'admin' ? 'inspector' : 'admin' }) },
+    { label: 'Inspecciones', description: 'Realizar y recibir inspecciones.', active: inspections, state: partial ? value.can_create_inspections ? 'Actualmente solo puede realizar inspecciones.' : 'Actualmente solo puede recibir inspecciones.' : inspections ? 'Activado' : 'Desactivado', change: () => onChange({ ...value, can_create_inspections: !inspections, can_receive_inspections: !inspections }) },
   ];
-  return <fieldset className="access-switches"><legend>Accesos</legend><div className="access-switch-grid">{options.map(option => <div className="access-control" key={option.label}><span>{option.label}</span><button type="button" role="switch" aria-label={option.label} aria-checked={option.active} disabled={disabled} className={`access-toggle ${option.active ? 'access-on' : 'access-off'}`} onClick={option.change}><span/></button><small>{option.active ? 'Activado' : 'Desactivado'}</small></div>)}</div></fieldset>;
+  return <fieldset className="access-switches"><legend>Accesos</legend><div className="access-switch-grid">{options.map((option, index) => <div className="access-control" key={option.label}><span>{option.label}</span><button type="button" role="switch" aria-label={option.label} aria-describedby={`${hintId}-${index}`} aria-checked={option.active} disabled={disabled} className={`access-toggle ${option.active ? 'access-on' : 'access-off'}`} onClick={option.change}><span/></button><small id={`${hintId}-${index}`}>{option.description}</small><small>{option.state}</small></div>)}</div></fieldset>;
 }

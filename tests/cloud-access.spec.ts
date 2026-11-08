@@ -247,9 +247,12 @@ test('el administrador crea usuarios reales sin añadir cuentas locales y conser
   await page.getByRole('button', { name: 'Mostrar contraseña temporal', exact: true }).click();
   await expect(page.getByLabel('Contraseña temporal', { exact: true })).toHaveValue('0123456789');
   await expect(page.getByLabel('Contraseña temporal', { exact: true })).toHaveAttribute('readonly', '');
-  await page.getByRole('switch', { name: 'Hacer inspecciones', exact: true }).click();
-  await expect(page.getByRole('switch', { name: 'Hacer inspecciones', exact: true })).toBeChecked();
-  await expect(page.getByRole('switch', { name: 'Recibir inspecciones', exact: true })).not.toBeChecked();
+  await page.getByRole('switch', { name: 'Inspecciones', exact: true }).click();
+  await expect(page.getByRole('switch', { name: 'Inspecciones', exact: true })).toBeChecked();
+  await expect(page.getByRole('switch')).toHaveCount(2);
+  await page.getByRole('switch', { name: 'Administrador', exact: true }).click();
+  await expect(page.getByRole('switch', { name: 'Inspecciones', exact: true })).toBeChecked();
+  await page.getByRole('switch', { name: 'Administrador', exact: true }).click();
   await expect(page.getByRole('switch', { name: 'Administrador', exact: true })).not.toBeChecked();
   await page.getByRole('button', { name: 'Crear usuario', exact: true }).click();
   await expect(page.getByRole('alert')).toContainText('No se confirmó el alta.');
@@ -258,7 +261,7 @@ test('el administrador crea usuarios reales sin añadir cuentas locales y conser
   await page.getByRole('button', { name: 'Crear usuario', exact: true }).click();
   await expect(page.getByRole('status')).toContainText('Cuenta creada para persona@example.invalid');
   expect(calls).toHaveLength(2); expect(calls[0].id).toBe(calls[1].id);
-  expect(calls[1].body).toMatchObject({ can_create_inspections: true, can_receive_inspections: false, role: 'inspector' });
+  expect(calls[1].body).toMatchObject({ can_create_inspections: true, can_receive_inspections: true, role: 'inspector' });
   await expect(page.locator('.account-row')).toContainText('Persona de Prueba');
   await expect(page.locator('.account-row')).toContainText('Contraseña temporal');
   expect(await page.evaluate(() => localStorage.getItem('berry-demo-accounts-v1'))).toBeNull();
@@ -317,7 +320,7 @@ test('Atrás cierra la sesión y vuelve al acceso; recordar cuenta conserva solo
   await expect(page.getByLabel(/^Correo electrónico/)).toHaveValue('');
 });
 
-test('los tres accesos se editan por separado; el administrador deshabilita/elimina cuentas e inspecciones ajenas', async ({ page, context }) => {
+test('Administrador e Inspecciones se activan por separado; el administrador deshabilita/elimina cuentas e inspecciones ajenas', async ({ page, context }) => {
   const actor = { ...initialProfile(), full_name: 'Admin real', area: 'Seguridad', must_change_password: false };
   await mock(context, actor);
   let target = { ...actor, id: '30000000-0000-4000-8000-000000000002', email: 'otra@example.invalid', full_name: 'Otra persona', role: 'inspector', can_create_inspections: false, can_receive_inspections: true, access_revision: 1, deleted_at: null as string | null };
@@ -337,9 +340,15 @@ test('los tres accesos se editan por separado; el administrador deshabilita/elim
   const row = page.locator('.account-row').filter({ hasText: target.email });
   await row.getByRole('button', { name: 'Editar accesos' }).click();
   const dialog = page.getByRole('dialog');
-  await dialog.getByRole('switch', { name: 'Hacer inspecciones', exact: true }).click();
+  await expect(dialog).toContainText('Actualmente solo puede recibir inspecciones.');
+  await expect(dialog.getByRole('switch')).toHaveCount(2);
   await dialog.getByRole('switch', { name: 'Administrador', exact: true }).click();
-  await expect(dialog.getByRole('switch', { name: 'Recibir inspecciones', exact: true })).toBeChecked();
+  await expect(dialog.getByRole('switch', { name: 'Inspecciones', exact: true })).not.toBeChecked();
+  await dialog.getByRole('switch', { name: 'Inspecciones', exact: true }).click();
+  await expect(dialog.getByRole('switch', { name: 'Inspecciones', exact: true })).toBeChecked();
+  await dialog.getByRole('switch', { name: 'Inspecciones', exact: true }).click();
+  await expect(dialog.getByRole('switch', { name: 'Administrador', exact: true })).toBeChecked();
+  await dialog.getByRole('switch', { name: 'Inspecciones', exact: true }).click();
   await dialog.getByRole('button', { name: 'Guardar accesos' }).click();
   await expect(page.getByRole('status')).toContainText('Accesos actualizados.');
   expect(changes[0].permissions).toEqual({ enabled: true, role: 'admin', can_create_inspections: true, can_receive_inspections: true });

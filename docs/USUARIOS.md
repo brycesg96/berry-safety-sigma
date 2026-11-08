@@ -14,11 +14,11 @@ Hasta completar los pasos 1–4, la pantalla muestra el error de configuración 
 
 ## Uso desde la app
 
-El administrador introduce nombre, correo, área, puesto, los tres accesos independientes y, si corresponde, correos de administradores en copia. Nombre y correo son obligatorios. La contraseña temporal solicitada es `0123456789`; se muestra de solo lectura con opción para verla. No se envían invitaciones por correo.
+El administrador introduce nombre, correo, área, puesto, los accesos independientes Administrador e Inspecciones y, si corresponde, correos de administradores en copia. Nombre y correo son obligatorios. La contraseña temporal solicitada es `0123456789`; se muestra de solo lectura con opción para verla. No se envían invitaciones por correo.
 
 En el primer ingreso, el usuario solo puede actualizar esa contraseña o cerrar sesión. La nueva debe tener al menos diez caracteres, ser distinta de `0123456789` y confirmarse en un segundo campo. Tras el cambio se solicita iniciar sesión con la nueva contraseña. La cuenta inicial del propietario no recibe la contraseña temporal ni pierde su acceso.
 
-La lista muestra las cuentas reales y distingue las deshabilitadas y las que aún usan contraseña temporal. El paso 5 incorpora tres accesos independientes, edición de permisos, deshabilitación y eliminación lógica. El detalle de activación, la recuperación del propietario y el reinicio solicitado están en [Reinicio del piloto](REINICIO_PILOTO.md).
+La lista muestra las cuentas reales y distingue las deshabilitadas y las que aún usan contraseña temporal. El paso 5 permite editar permisos, deshabilitar y eliminar cuentas de forma lógica. La pantalla presenta dos interruptores independientes: Administrador e Inspecciones; este último habilita realizar y recibir inspecciones al mismo tiempo. El detalle de activación, la recuperación del propietario y el reinicio solicitado están en [Reinicio del piloto](REINICIO_PILOTO.md).
 
 ## Permisos, reintentos y trazabilidad
 
