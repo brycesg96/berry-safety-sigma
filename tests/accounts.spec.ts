@@ -59,7 +59,7 @@ test('cambio de rol de prueba sin login, perfil separado y borradores de cada cu
   await page.getByLabel('Área inspeccionada').fill('Borrador personal administrador');
   await page.getByRole('button', { name: 'Mi perfil', exact: true }).click();
   await expect(page.getByLabel('Correo de tu cuenta')).toHaveValue(adminEmail);
-  await expect(page.getByRole('button', { name: /Continuar con Microsoft/ })).toBeDisabled();
+  await expect(page.getByRole('button', { name: /Microsoft/ })).toHaveCount(0);
   await page.getByLabel('Cuenta de prueba').selectOption('demo-inspector');
   await expect(page.getByLabel('Correo de tu cuenta')).toHaveValue(inspectorEmail);
   await page.getByLabel('Nombres y apellidos').fill('Bryan de Inspecciones');
@@ -84,12 +84,12 @@ test('cambio de rol de prueba sin login, perfil separado y borradores de cada cu
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
 });
 
-test('Microsoft permanece desactivado y el espacio de permisos queda visible al administrador', async ({ page }) => {
+test('el acceso ofrece Supabase sin opciones Microsoft y conserva el espacio de permisos', async ({ page }) => {
   const externalRequests: string[] = [];
   page.on('request', r => { if (/login\.microsoftonline|login\.live|graph\.microsoft/.test(r.url())) externalRequests.push(r.url()); });
   await page.goto('./'); await page.getByRole('button', { name: 'Administración', exact: true }).click();
   await page.getByRole('button', { name: 'Inicio de sesión', exact: true }).click();
-  await expect(page.getByRole('button', { name: /Continuar con Microsoft/ })).toBeDisabled();
+  await expect(page.getByRole('button', { name: /Microsoft/ })).toHaveCount(0);
   await page.getByRole('button', { name: 'Funciones y permisos', exact: true }).click();
   await expect(page.getByText('Los permisos adicionales se definirán en próximos avances.')).toBeVisible();
   expect(externalRequests).toEqual([]);

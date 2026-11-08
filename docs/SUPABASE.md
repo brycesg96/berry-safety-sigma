@@ -29,7 +29,7 @@ Conservar las reglas actuales: el autor y los destinatarios pueden cambiar Pendi
 ## Orden de implementación previsto
 
 1. Crear organización y proyecto Free desde la cuenta del propietario y configurar credenciales mediante los ajustes privados correspondientes.
-2. Definir acceso autenticado para las cuentas habilitadas, permisos de filas y almacenamiento, y los roles necesarios. El proveedor Microsoft podrá incorporarse al acceso según la configuración disponible.
+2. Definir acceso autenticado con correo y contraseña de Supabase, permisos de filas y almacenamiento, y los roles necesarios. El propietario retiró la propuesta de Microsoft el 8 de noviembre de 2026.
 3. Crear el esquema persistente, almacenamiento de evidencias/documentos y registro de eventos. Separar estados del hallazgo, aprobación y entrega de correo.
 4. Conectar cuentas, borradores, envíos, levantamientos y revisión a los datos compartidos. Mostrar si los cambios están guardados en servidor o todavía pendientes de sincronización. Mantener una copia local útil para fallos de conexión.
 5. Incorporar versiones de Excel, generación/envío coherentes con el registro, correlativos y deduplicación persistente. Un reintento conserva el mismo envío y archivo.
@@ -74,7 +74,13 @@ El propietario solicitó que la administración cree cuentas desde la app, con c
 
 La segunda migración conserva las cuentas existentes. Las nuevas tienen `must_change_password: true` y no pueden leer informes o archivos, editar perfiles ni administrar cuentas hasta completar el cambio. Solo el servidor puede finalizarlo; el navegador no puede quitar el requisito. Se conservan las identidades del actor en auditoría, los reintentos de alta no duplican usuarios ni restablecen contraseñas y el cambio invalida JWT anteriores.
 
-**Pendiente de activación:** ejecutar el script 2 en SQL Editor y configurar `SUPABASE_URL` y `SUPABASE_SECRET_KEY` directamente en Render, desplegando el último código de su API. La clave privada no se coloca en Pages, `VITE_` ni el chat. No se ha recibido ni utilizado una clave privada del proyecto ni creado cuentas reales desde las herramientas. [Pasos completos y límites de esta entrega](USUARIOS.md).
+**Activación confirmada el 8 de noviembre:** el propietario ejecutó el script 2 y mostró el despliegue de Render del commit `6fde0aa` como Live. La API pública confirmó `accounts_version: 202611070002`; la API de Render respondió salud HTTP 200, preflight de cuentas HTTP 204 y `SESSION_REQUIRED` HTTP 401 sin sesión. La verificación de una alta real y su primer ingreso debe hacerla el propietario desde su sesión. La clave privada se introdujo directamente en Render; no se ha recibido por chat ni se han creado cuentas reales desde las herramientas. [Pasos completos y límites de esta entrega](USUARIOS.md).
+
+### Archivo por año y mes acordado el 8 de noviembre
+
+Los documentos se organizarán automáticamente en el bucket privado `berry-documents` por **fecha de inspección**: `2026/11-NOVIEMBRE`, `2026/12-DICIEMBRE`, `2027/01-ENERO`. Una inspección de noviembre enviada en diciembre permanece en noviembre. Las carpetas son prefijos de los archivos de Storage; no requieren crearlas manualmente ni mantener tareas de fin de mes.
+
+`shared/archive-path.mjs` valida la fecha y compone la ruta. El identificador de inspección y el hash de los bytes separan informes con el mismo nombre y conservan las versiones sin sobrescribir el Excel enviado. El correlativo acordado es anual y compartido: `IH-2026-001`, `IH-2026-002`; cambia a `IH-2027-001` al comenzar el año del registro en hora de Perú. Descargar borradores y probar usuarios no consume números. La conexión de registro, archivo y envío debe conservar una misma inspección, código y archivo al reintentar.
 
 ### Verificaciones
 

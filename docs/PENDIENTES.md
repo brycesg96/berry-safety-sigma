@@ -11,7 +11,7 @@ Esta lista es la referencia de trabajo y se resumirá al cerrar cada avance. Se 
 - [x] Reducir aproximadamente a la mitad la altura inicial del objetivo, conservando ancho y límite de 560 caracteres.
 - [x] Retirar la explicación bajo el correo; se mantiene el relleno automático al seleccionar una cuenta.
 
-- [x] Administración debajo de Mis inspecciones, con cuentas permitidas, opción Microsoft desactivada y espacio de funciones/permisos.
+- [x] Administración debajo de Mis inspecciones, con cuentas permitidas y espacio de funciones/permisos. Retirada la opción de Microsoft por decisión del propietario; el acceso real usa Supabase.
 - [x] Dos cuentas locales Bryan: administrador `bryx.96@gmail.com` e inspector `bcespedes@hortifrut.com`, configurables en la compilación.
 - [x] Directorio local de cuentas habilitadas: búsqueda por nombre, correo automático y altas, edición y desactivación desde Administración.
 - [x] Cambio de cuenta de prueba sin login, correo de perfil no editable, área y nombre por cuenta, y borradores separados en el navegador.
@@ -107,8 +107,8 @@ El propietario creó la organización Free Berry Safety y el proyecto `berry-saf
 - [ ] Activar la segunda migración y configurar la clave privada de Auth en Render una sola vez; desplegar su API y comprobar un alta real y el cambio de contraseña desde otro dispositivo. [Configuración y límites](USUARIOS.md). No se ha configurado ni solicitado una clave privada por chat.
 
 1. [ ] Elegir y conectar el sistema de automatización y la base de datos real. Confirmar alojamiento y credenciales mediante configuración segura, sin claves en el navegador.
-2. [ ] Microsoft real: registrar la aplicación, conectar el inicio de sesión y aplicar en el servidor la lista de cuentas habilitadas. Las altas y perfiles actuales son locales de prueba; completar el perfil en el primer ingreso autenticado sigue pendiente.
-3. [ ] Sincronizar cuentas, perfiles y directorio con la base de datos real entre dispositivos. Las dos cuentas solicitadas ya aparecen en la demostración, pero no representan identidades verificadas por Microsoft.
+2. [x] Sustituir la propuesta de Microsoft por acceso con correo y contraseña de Supabase. La opción y sus referencias se retiran del perfil y Administración; no se requiere registrar una aplicación Microsoft.
+3. [ ] Conectar el directorio de las inspecciones a las cuentas reales de Supabase. El acceso y el perfil reales están disponibles; la demostración conserva su propio directorio local.
 4. [ ] Integrar el registro de envío autenticado: validar los datos, asignar el código una sola vez, generar el Excel con ese código y guardar ambos en la misma operación. La referencia transaccional está probada; el servicio real sigue pendiente.
 5. [x] Incorporar la exportación sobre el Excel proporcionado, con las instrucciones rojas revisadas y medidas originales. [Referencia y mapeo](PLANTILLA_EXCEL.md).
 6. [ ] Conectar almacenamiento compartido y evidencias para retomar inspecciones entre dispositivos. Los borradores actuales permanecen en cada navegador.
