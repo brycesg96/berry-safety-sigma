@@ -8,6 +8,8 @@ import { supabaseClient } from './supabase';
 import type { ExitConfirmation } from './useExitConfirmation';
 import './cloud-account.css';
 import { CloudAdministration } from './CloudAdministration';
+import type { CloudAdministrationCache } from './CloudAdministration';
+import { clearCloudRuntime } from './cloud-store';
 import { AccountSupport } from './AccountSupport';
 import { newPasswordError } from '../shared/account-rules.mjs';
 import { CloudWorkspace } from './CloudWorkspace';
@@ -47,6 +49,7 @@ export function CloudAccess({ exit, onReturn, onSessionChange, initialSection = 
   const [passwordError, setPasswordError] = useState('');
   const [loginNotice, setLoginNotice] = useState('');
   const [confirmLeave, setConfirmLeave] = useState<'return' | 'logout' | null>(null);
+  const administrationCache = useRef<CloudAdministrationCache | null>(null);
   const sessionRef = useRef<Session | null>(null);
   const generation = useRef(0);
   const userId = session?.user.id;
@@ -65,7 +68,7 @@ export function CloudAccess({ exit, onReturn, onSessionChange, initialSection = 
     const accept = (next: Session | null) => {
       if (!active) return;
       if (next?.user.id !== sessionRef.current?.user.id) {
-        generation.current++;
+        generation.current++; administrationCache.current = null; clearCloudRuntime();
         setProfile(null); setProfileError(''); setForm(blank()); setFormError(''); setSaved(false); setPassword('');
         setShowPassword(false);
         setNewPassword(''); setRepeatPassword(''); setPasswordError(''); setSection(next ? initialSection : 'profile');
@@ -101,6 +104,8 @@ export function CloudAccess({ exit, onReturn, onSessionChange, initialSection = 
     setProfileLoading(true); setProfileError(''); setProfile(null); setSaved(false);
     void loadCloudProfile(userId, () => active && generation.current === requestGeneration).then(next => {
       if (!active || generation.current !== requestGeneration) return;
+      if (!next.enabled || next.deleted_at) clearCloudRuntime();
+      if (!next.enabled || next.deleted_at || next.role !== 'admin') administrationCache.current = null;
       setProfile(next); setForm(fieldsOf(next)); setFormError('');
     }).catch(error => {
       if (active && generation.current === requestGeneration) setProfileError(error instanceof Error ? error.message : 'No pudimos consultar tu perfil.');
@@ -192,7 +197,7 @@ export function CloudAccess({ exit, onReturn, onSessionChange, initialSection = 
     <header className="cloud-account-header"><Brand/>{onReturn && !ownProfile?.must_change_password && !passwordRecovery && <button type="button" className="cloud-return" disabled={!!busy} onClick={() => dirty ? setConfirmLeave('return') : onReturn()}><ArrowLeft size={17}/>Espacio de pruebas</button>}</header>
     <main className={`cloud-account-main ${showAdmin ? 'cloud-account-admin-main' : ''}`}>
       {ownProfile?.enabled && !ownProfile.must_change_password && !passwordRecovery && ownProfile.role === 'admin' && <nav className="admin-tabs" aria-label="Cuenta y administración"><button type="button" aria-current={section === 'profile' ? 'page' : undefined} disabled={!!busy} onClick={() => setSection('profile')}>Tu perfil</button><button type="button" aria-current={section === 'admin' ? 'page' : undefined} disabled={!!busy || dirty} onClick={() => setSection('admin')}>Gestión de Cuentas</button></nav>}
-      {showAdmin ? <><CloudAdministration key={ownProfile!.id} actor={ownProfile!} isCurrent={() => sessionRef.current?.user.id === ownProfile!.id} onSelfChange={next => { setProfile(next); setForm(fieldsOf(next)); if (next.role !== 'admin') setSection('profile'); }}/><button type="button" className="cloud-logout" disabled={!!busy} onClick={() => void logout()}><LogOut size={17}/>Cerrar sesión en este dispositivo</button>{formError && <p role="alert" className="error-message cloud-message">{formError}</p>}</> : <section className="cloud-account-card" aria-busy={!ready || profileLoading || !!busy}>
+      {showAdmin ? <><CloudAdministration key={ownProfile!.id} actor={ownProfile!} cache={administrationCache} isCurrent={() => sessionRef.current?.user.id === ownProfile!.id} onSelfChange={next => { setProfile(next); setForm(fieldsOf(next)); if (next.role !== 'admin') { administrationCache.current = null; setSection('profile'); } }}/><button type="button" className="cloud-logout" disabled={!!busy} onClick={() => void logout()}><LogOut size={17}/>Cerrar sesión en este dispositivo</button>{formError && <p role="alert" className="error-message cloud-message">{formError}</p>}</> : <section className="cloud-account-card" aria-busy={!ready || profileLoading || !!busy}>
         <div className="cloud-account-icon"><ShieldCheck size={27}/></div>
         {!ready ? <><h1 ref={heading} tabIndex={-1}>Tu cuenta</h1><p className="cloud-loading" role="status"><LoaderCircle size={18} className="spin"/>Comprobando tu sesión…</p></> : !session && recoveryRequest ? <>
           <h1 ref={heading} tabIndex={-1}>Recupera tu contraseña</h1><p className="cloud-account-intro">Recibe un enlace en el correo de tu cuenta.</p>
@@ -242,7 +247,7 @@ export function CloudAccess({ exit, onReturn, onSessionChange, initialSection = 
             <button type="submit" className="button button-primary full-width" disabled={!!busy || !dirty}>{busy === 'save' ? <LoaderCircle className="spin" size={17}/> : <Check size={17}/>} {busy === 'save' ? 'Guardando…' : 'Guardar perfil'}</button>
           </form>
           {workspaceReady && hasModules && <button type="button" className="button button-outline full-width cloud-enter-workspace" disabled={!!busy || dirty || !form.full_name.trim() || !form.area.trim()} onClick={() => setSection('workspace')}>Entrar al espacio de trabajo</button>}
-          {!hasModules && <p className="cloud-account-hint">El administrador debe asignarte los accesos que utilizarás.</p>}
+          {!hasModules && <p className="cloud-account-hint">El administrador debe asignarte los permisos que utilizarás.</p>}
         </> : <>
           <h1 ref={heading} tabIndex={-1}>No pudimos abrir tu perfil</h1>
           <p role="alert" className="error-message cloud-message">{profileError}</p>

@@ -125,6 +125,11 @@ test('private drafts resume on another device and full approval replaces the ini
   await expect(page.getByText('Guardado en tu cuenta',{exact:true})).toBeVisible();
   const row=[...state.rows.values()].find(r=>!r.data.partial)!;expect(row.data.observations[0].photos[0].dataRef).toBeTruthy();
   expect(state.files.size).toBe(1);expect(await page.evaluate(()=>localStorage.getItem('berry-demo-accounts-v1'))).toBeNull();
+  const imageReads=()=>state.paths.filter(path=>path.includes('/object/authenticated/berry-evidence/')).length;
+  const reads=imageReads();
+  await page.getByRole('button',{name:'Mi perfil',exact:true}).click();await page.getByRole('button',{name:'Ir a mi cuenta',exact:true}).click();
+  await page.getByRole('button',{name:'Entrar al espacio de trabajo'}).click();
+  await expect(page.locator('.photo-thumb img').first()).toBeVisible();expect(imageReads()).toBe(reads);
   const device=await browser.newContext();await mock(device,state,author);const other=await device.newPage();await enter(other,author);
   await expect(other.getByLabel('Descripción')).toHaveValue('Protección pendiente.');
   await expect(other.locator('.photo-thumb img').first()).toBeVisible();

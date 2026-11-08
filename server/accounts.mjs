@@ -30,7 +30,7 @@ function normalizedAccount(input) {
   if (!emailValid(result.email) || !result.full_name || [result.full_name, result.area, result.job_title].some(value => value.length > 250) || !['admin', 'inspector'].includes(result.role) || !Array.isArray(result.supervisor_emails) || result.supervisor_emails.length > 50 || result.supervisor_emails.some(value => !emailValid(value))) throw new ApiError(400, 'INVALID_ACCOUNT', 'Completa el nombre, un correo válido y el rol. Revisa también los correos en copia.');
   result.supervisor_emails = [...new Set(result.supervisor_emails.map(value => value.trim().toLowerCase()))];
   for (const key of ['can_create_inspections','can_receive_inspections']) if (Object.hasOwn(input,key)) {
-    if (typeof input[key] !== 'boolean') throw new ApiError(400,'INVALID_PERMISSIONS','Los accesos deben estar activados o desactivados.');
+    if (typeof input[key] !== 'boolean') throw new ApiError(400,'INVALID_PERMISSIONS','Los permisos deben estar activados o desactivados.');
     result[key]=input[key];
   }
   return result;
@@ -56,12 +56,12 @@ export function createAccountsHandler({ env = process.env, fetchImpl = fetch, no
     if (!result.ok) {
       const code = result.data?.code;
       if (code === '23505') throw new ApiError(409, 'ACCOUNT_EXISTS', 'Ese correo ya tiene una cuenta o un alta pendiente con otros datos.');
-      if (code === '40001' && result.data?.message === 'ACCESS_REVISION_CONFLICT') throw new ApiError(409, 'ACCESS_CHANGED', 'La cuenta cambió en otra sesión. Actualiza la lista y vuelve a abrir sus accesos.');
+      if (code === '40001' && result.data?.message === 'ACCESS_REVISION_CONFLICT') throw new ApiError(409, 'ACCESS_CHANGED', 'La cuenta cambió en otra sesión. Actualiza la lista y vuelve a abrir sus permisos.');
       if (code === '55P03' || code === '40001') throw new ApiError(409, 'OPERATION_BUSY', 'Hay otra operación en curso. Espera un momento y vuelve a intentarlo.');
       if (code === '42501') throw new ApiError(403, 'ACCESS_DENIED', 'Tu cuenta no tiene permiso para esta operación.');
       if (code === '22023') {
         const messages={ LAST_ADMIN_REQUIRED:'Debe permanecer al menos una cuenta administradora habilitada que ya haya actualizado su contraseña.', CANNOT_DISABLE_SELF:'Utiliza otra cuenta administradora para deshabilitar o eliminar tu propia cuenta.' };
-        throw new ApiError(400, 'INVALID_ACCOUNT', messages[result.data?.message] || 'Revisa los datos y los accesos de la cuenta.');
+        throw new ApiError(400, 'INVALID_ACCOUNT', messages[result.data?.message] || 'Revisa los datos y los permisos de la cuenta.');
       }
       if (code === 'PGRST202' || code === '42703') throw new ApiError(503, 'ACCOUNTS_MIGRATION_REQUIRED', 'Falta instalar la actualización de gestión de usuarios.');
       throw unavailable();

@@ -345,7 +345,7 @@ test('Administrador incluye realizar y recibir inspecciones; el administrador de
   await page.route('**/api/accounts/inspections/delete', route => { expect(route.request().postDataJSON()).toEqual({ id: report.id, expectedRevision: 7 }); removed = true; return route.fulfill({ json: { ok: true } }); });
   await login(page); await page.getByRole('button', { name: 'Gestión de Cuentas', exact: true }).click();
   const row = page.locator('.account-row').filter({ hasText: target.email });
-  await row.getByRole('button', { name: 'Editar accesos' }).click();
+  await row.getByRole('button', { name: 'Editar permisos' }).click();
   const dialog = page.getByRole('dialog');
   await expect(dialog).toContainText('Actualmente solo puede recibir inspecciones.');
   await expect(dialog.getByRole('switch')).toHaveCount(2);
@@ -354,8 +354,8 @@ test('Administrador incluye realizar y recibir inspecciones; el administrador de
   await expect(dialog.getByRole('switch', { name: 'Inspecciones', exact: true })).toBeChecked();
   await expect(dialog.getByRole('switch', { name: 'Inspecciones', exact: true })).toBeDisabled();
   await expect(dialog).toContainText('Incluido en Administrador');
-  await dialog.getByRole('button', { name: 'Guardar accesos' }).click();
-  await expect(page.getByRole('status')).toContainText('Accesos actualizados.');
+  await dialog.getByRole('button', { name: 'Guardar permisos' }).click();
+  await expect(page.getByRole('status')).toContainText('Permisos actualizados.');
   expect(changes[0].permissions).toEqual({ enabled: true, role: 'admin', can_create_inspections: true, can_receive_inspections: true });
   await row.getByRole('button', { name: 'Desactivar', exact: true }).click();
   await page.getByRole('dialog').getByRole('button', { name: 'Desactivar', exact: true }).click();
@@ -394,4 +394,35 @@ test('una cuenta inhabilitada ve los administradores vigentes y una eliminada no
   await expect(contacts).toHaveCount(0);
   await expect(page.getByRole('button', { name: 'Comprobar acceso', exact: true })).toHaveCount(0);
   await expect(page.getByRole('button', { name: 'Entrar al espacio de trabajo' })).toHaveCount(0);
+});
+
+
+test('Gestión de Cuentas reutiliza la lista al cambiar de sección, la actualiza en segundo plano y limpia la caché al salir', async ({ page, context }) => {
+  const actor = { ...initialProfile(), full_name: 'Administrador de prueba', area: 'Seguridad', must_change_password: false };
+  await mock(context, actor);
+  let version = 'Persona en memoria', calls = 0, block = false;
+  let resumes: Array<() => void> = [];
+  await page.route('**/api/accounts', async route => {
+    calls++;
+    if (block) await new Promise<void>(resolve => { resumes.push(resolve); });
+    await route.fulfill({ json: { ok: true, accounts: [actor, { ...actor, id: '30000000-0000-4000-8000-000000000002', email: 'persona@example.invalid', full_name: version, role: 'inspector' }] } });
+  });
+  await login(page); await page.getByRole('button', { name: 'Gestión de Cuentas', exact: true }).click();
+  await expect(page.locator('.account-row')).toContainText(['Administrador de prueba', 'Persona en memoria']);
+  await page.getByRole('button', { name: 'Tu perfil', exact: true }).click();
+  const beforeReturn = calls; block = true;
+  await page.getByRole('button', { name: 'Gestión de Cuentas', exact: true }).click();
+  await expect.poll(() => calls).toBeGreaterThan(beforeReturn);
+  try { await expect(page.locator('.account-row').filter({ hasText: 'Persona en memoria' })).toBeVisible(); }
+  finally { version = 'Persona actualizada'; block = false; for (const resume of resumes) resume(); resumes = []; }
+  await expect(page.locator('.account-row').filter({ hasText: 'Persona actualizada' })).toBeVisible();
+  await page.getByRole('button', { name: 'Cerrar sesión en este dispositivo', exact: true }).click();
+  await expect(page.getByRole('heading', { name: 'Inicia sesión' })).toBeVisible();
+  await page.getByLabel(/^Correo electrónico/).fill(email); await page.getByLabel(/^Contraseña/).fill('Fictitious!47'); await page.getByRole('button', { name: 'Iniciar sesión', exact: true }).click();
+  await expect(page.getByRole('heading', { name: 'Tu perfil', exact: true })).toBeVisible();
+  const beforeSignIn = calls; block = true; await page.getByRole('button', { name: 'Gestión de Cuentas', exact: true }).click();
+  await expect.poll(() => calls).toBeGreaterThan(beforeSignIn);
+  try { await expect(page.locator('.account-row')).toHaveCount(0); await expect(page.getByText('Consultando cuentas…', { exact: true })).toBeVisible(); }
+  finally { block = false; for (const resume of resumes) resume(); resumes = []; }
+  await expect(page.locator('.account-row').filter({ hasText: 'Persona actualizada' })).toBeVisible();
 });

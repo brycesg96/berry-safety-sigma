@@ -62,3 +62,10 @@ Eliminar retira el acceso y la cuenta de las listas, manteniendo su identidad pa
 Un administrador puede eliminar a otro administrador. Debe quedar al menos uno habilitado y con contraseña personal; la base protege ese requisito incluso con solicitudes simultáneas. No se permite desactivar ni eliminar la propia cuenta desde esa misma sesión.
 
 El paso 5 incorpora una función autenticada limitada a los nombres y correos de contacto. Una cuenta inhabilitada con una sesión nueva puede consultarlos sin obtener permisos para inspecciones ni para el directorio general. No se publican contactos a visitantes anónimos ni a cuentas eliminadas.
+
+
+## Cambio rápido entre secciones
+
+Las listas de gestión se conservan en memoria durante la sesión de la misma cuenta. Volver a una sección muestra su última lista mientras consulta la versión actual al servidor. Las mutaciones actualizan también esa memoria y un error de autorización no conserva una lista antigua como válida. Cerrar sesión, cambiar de cuenta o perder la habilitación/administración limpia la caché de gestión.
+
+Las imágenes ya descargadas se reutilizan al volver desde el perfil al espacio de trabajo. Sus referencias incluyen el hash de contenido y cada consulta de inspecciones sigue verificando la sesión y los registros autorizados. La memoria de imágenes se limpia al cerrar sesión o cambiar de identidad. No se almacena esta caché adicional en disco ni se usa como sustitución de la base compartida.
