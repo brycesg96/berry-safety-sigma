@@ -333,6 +333,24 @@ test('competing final uploads keep the first completed workbook, clean the unuse
   assert.equal((await as('anon',null,'select public.berry_schema_status() as value')).rows[0].value.final_archive_version,'202611080004');
 });
 
+test('final replacement stays blocked until every observation has been approved, even when statuses are already Executed',async()=>{
+  await clock('2026-11-08T10:00:00Z');
+  let row=await nextDraft(6);
+  const second='90000000-0000-4000-8000-000000000099';
+  row=(await as('authenticated',users.author,'select public.berry_save_draft($1,$2,$3) as value',[row.id,row.revision,{...cloudData(),id:row.id,observations:[...cloudData().observations,{...cloudData().observations[0],id:second}]}])).rows[0].value;
+  row=(await storeAndCommit(row,await prepare(row),'2026/11-NOVIEMBRE')).inspection;
+  const change=async(actor,observation,action,value)=>{row=(await as('authenticated',actor,'select public.berry_change_correction($1,$2,$3,$4,$5) as value',[row.id,observation,row.revision,action,value])).rows[0].value;};
+  for(const observation of [cloudObservation,second])await change(users.author,observation,'state',{state:'Ejecutado'});
+  assert.equal(row.workflow,'sent');await denied(()=>as('authenticated',users.author,'select public.berry_prepare_final($1,$2)',[row.id,row.revision]));
+  for(const [index,observation] of [cloudObservation,second].entries()){
+    await change(users.recipient,observation,'submit',{responsibleName:'Responsable',action:'Acción completada',date:'2026-11-08',photos:[],state:'Pendiente'});
+    await change(users.author,observation,'approve',{note:'Evidencia revisada'});
+    assert.equal(row.workflow,index===0?'sent':'closed');
+    if(index===0)await denied(()=>as('authenticated',users.author,'select public.berry_prepare_final($1,$2)',[row.id,row.revision]));
+  }
+  assert.equal((await as('authenticated',users.recipient,'select public.berry_prepare_final($1,$2) as value',[row.id,row.revision])).rows[0].value.complete,false);
+});
+
 let failed;
 try {
   await setup();

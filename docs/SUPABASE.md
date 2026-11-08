@@ -134,4 +134,4 @@ Si falla la subida, el inicial sigue disponible. Si se interrumpe la retirada de
 
 El archivo final admite 15 MB, el límite del bucket; el envío inicial conserva el límite de adjunto de 3 MB. No se borran registros, evidencias ni auditoría: se retira exclusivamente el Excel sustituido. Los históricos anteriores/nuevos de los datos y del cambio de metadatos permanecen en la auditoría protegida. Hasta activar el paso 4, el paso 3 mantiene su comportamiento anterior.
 
-Pruebas: 20 comprobaciones PostgreSQL y 43 de API, además del recorrido con dos sesiones que cierra, simula una subida fallida, reintenta, verifica los textos reales del levantamiento y descarga los bytes exactos del único final alojado. Ninguna prueba envía correos o modifica cuentas reales.
+Pruebas: 21 comprobaciones PostgreSQL y 43 de API, además del recorrido con dos sesiones que cierra, simula una subida fallida, reintenta, verifica los textos reales del levantamiento y descarga los bytes exactos del único final alojado. Ninguna prueba envía correos o modifica cuentas reales.
