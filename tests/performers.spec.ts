@@ -27,7 +27,7 @@ test('hasta tres inspectores, autor de la cuenta bloqueado, selección sin dupli
   await page.keyboard.press('ControlOrMeta+A'); await page.keyboard.insertText('cambio-no-permitido@example.com');
   await expect(primary.getByLabel('Correo del inspector')).toHaveValue('bryx.96@gmail.com');
   await expect(primary.getByRole('button')).toHaveCount(0);
-  const primaryJobTitle = section.locator('.registration-fields').first().getByLabel('Cargo', { exact: true });
+  const primaryJobTitle = section.locator('.registration-fields').first().getByLabel('Puesto', { exact: true });
   await expect(primaryJobTitle).toHaveValue('Supervisor inicial');
   await expect(primaryJobTitle).toHaveAttribute('readonly', '');
   await primaryJobTitle.focus();
@@ -39,8 +39,8 @@ test('hasta tres inspectores, autor de la cuenta bloqueado, selección sin dupli
   await extras.nth(0).getByRole('combobox').fill('Ana');
   await page.getByRole('listbox').getByRole('option', { name: /Ana Torres/ }).click();
   await expect(extras.nth(0).getByLabel('Correo del inspector')).toHaveValue('ana@example.com');
-  await expect(section.locator('.inspector-entry').nth(0).getByLabel('Cargo', { exact: true })).toHaveValue('Jefa de Operaciones');
-  await expect(section.locator('.inspector-entry').nth(0).getByLabel('Cargo', { exact: true })).toHaveAttribute('readonly', '');
+  await expect(section.locator('.inspector-entry').nth(0).getByLabel('Puesto', { exact: true })).toHaveValue('Jefa de Operaciones');
+  await expect(section.locator('.inspector-entry').nth(0).getByLabel('Puesto', { exact: true })).toHaveAttribute('readonly', '');
   await expect(extras.nth(0).getByLabel('Correo del inspector')).toHaveAttribute('readonly', '');
   await extras.nth(0).getByLabel('Correo del inspector').focus();
   await page.keyboard.press('ControlOrMeta+A'); await page.keyboard.insertText('cambio-no-permitido@example.com');
@@ -79,7 +79,7 @@ test('hasta tres inspectores, autor de la cuenta bloqueado, selección sin dupli
   await expect(section.locator('.signature-preview img')).toHaveCount(1);
   for (const jobTitle of ['', 'Supervisor SST']) {
     await page.getByRole('button', { name: 'Mi perfil', exact: true }).click();
-    await page.getByRole('dialog', { name: 'Tu perfil' }).getByLabel('Cargo', { exact: true }).fill(jobTitle);
+    await page.getByRole('dialog', { name: 'Tu perfil' }).getByLabel('Puesto', { exact: true }).fill(jobTitle);
     await page.getByRole('button', { name: 'Guardar perfil', exact: true }).click();
     await expect(primaryJobTitle).toHaveValue(jobTitle);
     await expect(section.locator('.registration-fields').first().getByLabel('Fecha', { exact: true })).toHaveValue('2026-11-05');
@@ -87,7 +87,7 @@ test('hasta tres inspectores, autor de la cuenta bloqueado, selección sin dupli
   }
   await page.getByRole('button', { name: 'Guardar y salir' }).click(); await page.reload();
   await expect(section.locator('.signature-preview img')).toHaveCount(1);
-  await expect(section.locator('.registration-fields').first().getByLabel('Cargo', { exact: true })).toHaveValue('Supervisor SST');
+  await expect(section.locator('.registration-fields').first().getByLabel('Puesto', { exact: true })).toHaveValue('Supervisor SST');
   await page.setViewportSize({ width: 390, height: 844 });
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   await expect.poll(async () => (await page.locator('.sidebar').boundingBox())!.x + (await page.locator('.sidebar').boundingBox())!.width).toBeLessThanOrEqual(1);
@@ -116,7 +116,7 @@ test('hasta tres inspectores, autor de la cuenta bloqueado, selección sin dupli
   const emptyTitleDownload = page.waitForEvent('download');
   await page.getByRole('button', { name: 'Descargar Excel', exact: true }).click();
   const emptyTitleBook = new ExcelJS.Workbook(); await emptyTitleBook.xlsx.readFile((await (await emptyTitleDownload).path())!);
-  expect(emptyTitleBook.getWorksheet('V.01')!.getCell('E36').value).toBe('Cargo: ');
+  expect(emptyTitleBook.getWorksheet('V.01')!.getCell('E36').value).toBe('Puesto: ');
   await page.evaluate(async () => {
     const { updateOwnProfile, readAccounts } = await import('/src/accounts.ts');
     updateOwnProfile(readAccounts().find(a => a.email === 'ana@example.com')!.id, 'Ana Torres', 'Operaciones', 'Jefa de Operaciones');

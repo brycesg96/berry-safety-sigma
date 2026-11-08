@@ -133,7 +133,7 @@ test('private drafts resume on another device and full approval replaces the ini
   await expect(receiver.getByRole('heading',{name:'No tienes inspecciones recibidas'})).toBeVisible();
   await other.getByRole('button',{name:'Continuar',exact:true}).click();await other.getByRole('button',{name:'Continuar',exact:true}).click();
   await other.getByRole('textbox',{name:'CONCLUSIONES Y RECOMENDACIONES',exact:true}).fill('Gestionar la medida indicada.');
-  await expect(other.getByLabel('Cargo',{exact:true})).toHaveValue('Supervisora');await expect(other.getByLabel('Cargo',{exact:true})).toHaveAttribute('readonly','');
+  await expect(other.getByLabel('Puesto',{exact:true})).toHaveValue('Supervisora');await expect(other.getByLabel('Puesto',{exact:true})).toHaveAttribute('readonly','');
   await other.getByRole('button',{name:'Continuar',exact:true}).click();await other.getByRole('button',{name:'Enviar inspección',exact:true}).click();
   await expect(other.getByText('Compartir solo en este navegador')).toHaveCount(0);
   await other.getByRole('button',{name:'Enviar informe por correo',exact:true}).click();

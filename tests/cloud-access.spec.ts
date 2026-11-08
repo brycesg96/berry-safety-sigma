@@ -122,13 +122,13 @@ test('guarda solo el perfil propio y se consulta en otro dispositivo, sin cuenta
   await expect(page.getByLabel('Correo de tu cuenta')).toHaveAttribute('readonly', '');
   await page.getByLabel('Nombres y apellidos').fill('  Elena de Prueba  ');
   await page.getByLabel(/^Área/).fill(' Prevención ');
-  await page.getByLabel('Cargo', { exact: true }).fill(' Supervisora SST ');
+  await page.getByLabel('Puesto', { exact: true }).fill(' Supervisora SST ');
   await page.getByRole('button', { name: 'Guardar perfil', exact: true }).click();
   await expect(page.getByRole('status')).toContainText('Perfil guardado en tu cuenta.');
   expect(state.updates).toEqual([{ full_name: 'Elena de Prueba', area: 'Prevención', job_title: 'Supervisora SST' }]);
   expect(await page.evaluate(() => localStorage.getItem('berry-demo-accounts-v1'))).toBeNull();
   await page.reload();
-  await expect(page.getByLabel('Cargo', { exact: true })).toHaveValue('Supervisora SST');
+  await expect(page.getByLabel('Puesto', { exact: true })).toHaveValue('Supervisora SST');
   const second = await browser.newContext({ viewport: { width: 390, height: 844 } });
   try {
     await mock(second, state.profile);
@@ -136,7 +136,7 @@ test('guarda solo el perfil propio y se consulta en otro dispositivo, sin cuenta
     await login(mobile);
     await expect(mobile.getByLabel('Nombres y apellidos')).toHaveValue('Elena de Prueba');
     await expect(mobile.getByLabel(/^Área/)).toHaveValue('Prevención');
-    await expect(mobile.getByLabel('Cargo', { exact: true })).toHaveValue('Supervisora SST');
+    await expect(mobile.getByLabel('Puesto', { exact: true })).toHaveValue('Supervisora SST');
     expect(await mobile.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   } finally { await second.close(); }
   expect(await page.evaluate(() => JSON.stringify(localStorage))).not.toContain('Fictitious!47');
@@ -145,26 +145,26 @@ test('guarda solo el perfil propio y se consulta en otro dispositivo, sin cuenta
 test('un fallo al guardar conserva la edición para reintentar y el cierre de sesión limpia las otras pestañas', async ({ page, context }) => {
   const state = await mock(context, { ...initialProfile(), full_name: 'Elena', area: 'Prevención' });
   await login(page);
-  await page.getByLabel('Cargo', { exact: true }).fill('Coordinadora');
+  await page.getByLabel('Puesto', { exact: true }).fill('Coordinadora');
   await page.getByRole('button', { name: 'Cerrar sesión en este dispositivo', exact: true }).click();
   await expect(page.getByRole('dialog', { name: '¿Cerrar sesión?' })).toContainText('Tienes cambios sin guardar');
   await page.getByRole('button', { name: 'Seguir editando', exact: true }).click();
-  await expect(page.getByLabel('Cargo', { exact: true })).toHaveValue('Coordinadora');
+  await expect(page.getByLabel('Puesto', { exact: true })).toHaveValue('Coordinadora');
   state.saveFails = true;
   await page.getByRole('button', { name: 'Guardar perfil', exact: true }).click();
   await expect(page.getByRole('alert')).toContainText('No se guardó el perfil.');
-  await expect(page.getByLabel('Cargo', { exact: true })).toHaveValue('Coordinadora');
+  await expect(page.getByLabel('Puesto', { exact: true })).toHaveValue('Coordinadora');
   await expect(page.getByText('Perfil guardado en tu cuenta.')).toHaveCount(0);
   state.saveFails = false;
   await page.getByRole('button', { name: 'Guardar perfil', exact: true }).click();
   await expect(page.getByRole('status')).toContainText('Perfil guardado en tu cuenta.');
   const second = await context.newPage();
   await second.goto('./?acceso=cuenta');
-  await expect(second.getByLabel('Cargo', { exact: true })).toHaveValue('Coordinadora');
+  await expect(second.getByLabel('Puesto', { exact: true })).toHaveValue('Coordinadora');
   await page.getByRole('button', { name: 'Cerrar sesión en este dispositivo', exact: true }).click();
   for (const tab of [page, second]) {
     await expect(tab.getByRole('heading', { name: 'Inicia sesión', exact: true })).toBeVisible();
-    await expect(tab.getByLabel('Cargo', { exact: true })).toHaveCount(0);
+    await expect(tab.getByLabel('Puesto', { exact: true })).toHaveCount(0);
   }
 });
 
@@ -243,7 +243,7 @@ test('el administrador crea usuarios reales sin añadir cuentas locales y conser
   await page.getByLabel('Nombres y apellidos').fill('Persona de Prueba');
   await page.getByLabel(/^Correo del usuario/).fill('persona@example.invalid');
   await page.getByLabel(/^Área/).fill('Mantenimiento');
-  await page.getByLabel('Cargo', { exact: true }).fill('Supervisor');
+  await page.getByLabel('Puesto', { exact: true }).fill('Supervisor');
   await page.getByRole('button', { name: 'Mostrar contraseña temporal', exact: true }).click();
   await expect(page.getByLabel('Contraseña temporal', { exact: true })).toHaveValue('0123456789');
   await expect(page.getByLabel('Contraseña temporal', { exact: true })).toHaveAttribute('readonly', '');

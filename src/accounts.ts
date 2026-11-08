@@ -23,7 +23,7 @@ function valid(value: unknown): value is DemoAccount {
 }
 export function supervisorEmails(values: string | string[] = []): string[] {
   const emails = [...new Set((Array.isArray(values) ? values : values.split(/[;,\n]+/)).map(accountEmail).filter(Boolean))];
-  if (emails.length > 50 || emails.some(email => !emailPattern.test(email))) throw new Error('Añade correos válidos de jefes o gerentes, separados por coma. Máximo 50.');
+  if (emails.length > 50 || emails.some(email => !emailPattern.test(email))) throw new Error('Añade correos válidos de administradores, separados por coma. Máximo 50.');
   return emails;
 }
 export function inspectionCopies(recipients: { email: string }[], accounts = readAccounts()): string[] {

@@ -49,7 +49,7 @@ function LocalReportSendForm({ inspection, actorId, onPrepare, onChange, onBusyC
   }
   return <div className="report-send-form">
     <p>Las personas seleccionadas recibirán un correo con el mensaje y el informe de inspección en Excel adjunto.</p>
-    <p><strong>CC · Jefes y gerentes:</strong> {cc.length?cc.join(', '):'Sin correos asociados'}</p>
+    <p><strong>Administradores (CC):</strong> {cc.length?cc.join(', '):'Sin correos asociados'}</p>
     <p className="local-admin-note">El Excel utiliza la plantilla de inspecciones internas. El código definitivo y la sincronización de levantamientos entre dispositivos siguen pendientes.</p>
     {accepted?<p className="notice" role="status">Make aceptó el informe (HTTP {receipt.upstreamStatus}). La recepción del correo por Outlook aún no está confirmada.</p>:<>
       {receipt && <p className="notice" role="status">{receipt.state==='pending'?'Hay un intento pendiente. Revisa Make antes de repetir.':receipt.message || 'Recepción no confirmada.'} Se conserva el mismo ID para consultar el intento, sin reenvíos automáticos.</p>}

@@ -14,7 +14,7 @@ Hasta completar los pasos 1–4, la pantalla muestra el error de configuración 
 
 ## Uso desde la app
 
-El administrador introduce nombre, correo, área, cargo, los tres accesos independientes y, si corresponde, correos de jefes/gerentes en copia. Nombre y correo son obligatorios. La contraseña temporal solicitada es `0123456789`; se muestra de solo lectura con opción para verla. No se envían invitaciones por correo.
+El administrador introduce nombre, correo, área, puesto, los tres accesos independientes y, si corresponde, correos de administradores en copia. Nombre y correo son obligatorios. La contraseña temporal solicitada es `0123456789`; se muestra de solo lectura con opción para verla. No se envían invitaciones por correo.
 
 En el primer ingreso, el usuario solo puede actualizar esa contraseña o cerrar sesión. La nueva debe tener al menos diez caracteres, ser distinta de `0123456789` y confirmarse en un segundo campo. Tras el cambio se solicita iniciar sesión con la nueva contraseña. La cuenta inicial del propietario no recibe la contraseña temporal ni pierde su acceso.
 
