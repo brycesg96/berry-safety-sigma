@@ -55,7 +55,7 @@ Administración → Usuarios → Administrar usuarios es la única gestión de a
 
 ## Desactivar y eliminar cuentas
 
-En Gestión de Cuentas, cada usuario tiene acciones separadas para **Desactivar/Reactivar** y **Eliminar**. Desactivar impide el acceso a datos y retira a la persona de los selectores de nuevas inspecciones. La cuenta permanece y se puede reactivar. El ingreso muestra «Cuenta inhabilitada» y los nombres/correos de los administradores actuales habilitados que ya actualizaron su contraseña. Los contactos se consultan al abrir esa pantalla y al recuperar el foco; no se mantienen como una lista fija.
+En Gestión de Cuentas → Gestión de Usuarios, cada usuario tiene acciones separadas para **Desactivar/Reactivar** y **Eliminar**. Desactivar impide el acceso a datos y retira a la persona de los selectores de nuevas inspecciones. La cuenta permanece y se puede reactivar. El ingreso muestra «Cuenta inhabilitada» y los nombres/correos de los administradores actuales habilitados que ya actualizaron su contraseña. Los contactos se consultan al abrir esa pantalla y al recuperar el foco; no se mantienen como una lista fija.
 
 Eliminar retira el acceso y la cuenta de las listas, manteniendo su identidad para las inspecciones y documentos históricos. No elimina sus informes, sus levantamientos ni su autoría. La persona no vuelve a estar disponible como destinataria de nuevas inspecciones. Esta eliminación es lógica; no equivale al borrado excepcional del piloto.
 
@@ -69,3 +69,7 @@ El paso 5 incorpora una función autenticada limitada a los nombres y correos de
 Las listas de gestión se conservan en memoria durante la sesión de la misma cuenta. Volver a una sección muestra su última lista mientras consulta la versión actual al servidor. Las mutaciones actualizan también esa memoria y un error de autorización no conserva una lista antigua como válida. Cerrar sesión, cambiar de cuenta o perder la habilitación/administración limpia la caché de gestión.
 
 Las imágenes ya descargadas se reutilizan al volver desde el perfil al espacio de trabajo. Sus referencias incluyen el hash de contenido y cada consulta de inspecciones sigue verificando la sesión y los registros autorizados. La memoria de imágenes se limpia al cerrar sesión o cambiar de identidad. No se almacena esta caché adicional en disco ni se usa como sustitución de la base compartida.
+
+## Organización y edición de copias
+
+**Agregar Usuario** se dedica al alta; **Gestión de Usuarios** reúne las cuentas existentes. Cada fila ofrece **Editar CC**, que abre **Administradores (CC)** con los correos actuales. Permite añadir, sustituir o quitar todos los correos sin alterar permisos ni datos de perfil. El [paso 11](../supabase/migrations/202611090011_account_copies.sql) conserva los controles de administrador, el último administrador utilizable, el historial y la numeración. Mantiene los correos de copia cuando un cliente anterior actualiza únicamente permisos. Las cuentas retiradas no son editables. La API existente admite este cambio sin otro despliegue de Render.

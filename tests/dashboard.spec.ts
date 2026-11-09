@@ -9,7 +9,7 @@ async function setup(page:Page,context:BrowserContext,admin=true) {
  const profile={id:actor,email:'admin@example.invalid',full_name:'Administradora',area:'Seguridad',job_title:'Supervisora',role:admin?'admin':'inspector',enabled:true,must_change_password:false,can_create_inspections:true,can_receive_inspections:true,access_revision:1};
  const user={id:actor,aud:'authenticated',role:'authenticated',email:profile.email,app_metadata:{provider:'email'},user_metadata:{},identities:[],created_at:new Date().toISOString()};
  const token=`eyJhbGciOiJIUzI1NiJ9.${Buffer.from(JSON.stringify({sub:actor,iat:100,exp:Math.floor(Date.now()/1000)+3600,role:'authenticated'})).toString('base64url')}.fictitious`;
- const state={rows:[] as any[],paths:[] as string[],fail:false,delay:null as Promise<void>|null, editing:false, prepared:null as any, failEdit:false, editCalls:0,editBytes:null as Buffer|null,editDocument:null as any};
+ const state={rows:[] as any[],paths:[] as string[],fail:false,delay:null as Promise<void>|null, editing:false, prepared:null as any, failEdit:false, editCalls:0,editBytes:null as Buffer|null,editDocument:null as any, deletes:[] as any[], deleteFailure:false};
  const newRecipient={...profile,id:'66000000-0000-4000-8000-000000000003',full_name:'Nueva Responsable',email:'nueva@example.invalid',role:'inspector'};
  await context.route(`${project}/**`,async route=>{
   const req=route.request(),path=new URL(req.url()).pathname;state.paths.push(path);
@@ -41,6 +41,11 @@ async function setup(page:Page,context:BrowserContext,admin=true) {
    state.editBytes=Buffer.from(body.contentBase64,'base64');state.editDocument={filename:'EDITADO.xlsx',storage_path:'test-edit.xlsx',sha256:createHash('sha256').update(state.editBytes).digest('hex')};
    const row={...state.prepared.row,revision:state.prepared.row.revision+1};state.rows=state.rows.map(r=>r.id===row.id?row:r);
    return route.fulfill({json:{ok:true,inspection:row,document:{filename:'EDITADO.xlsx'}}});
+  }
+  if(new URL(route.request().url()).pathname==='/api/accounts/inspections/delete') {
+   expect(admin).toBe(true);const body=route.request().postDataJSON();state.deletes.push(body);const row=state.rows.find(r=>r.id===body.id);expect(body.expectedRevision).toBe(row.revision);
+   if(state.deleteFailure)return route.fulfill({status:409,json:{ok:false,message:'La inspección cambió. Actualiza el panel.'}});
+   state.rows=state.rows.filter(r=>r.id!==body.id);return route.fulfill({json:{ok:true,inspection:{id:body.id,code:row.code,deleted:true}}});
   }
   throw new Error('Dashboard must not write: '+route.request().url());
  });
@@ -123,4 +128,15 @@ test('edición cancelada no escribe y un informe cerrado no ofrece editar',async
  await page.locator('.admin-inspection-editor').getByRole('button',{name:'Cancelar',exact:true}).click();await page.getByRole('dialog').getByRole('button',{name:'Volver al informe',exact:true}).click();
  await expect(page.getByRole('heading',{name:'Maquinaria - Armonía 2',exact:true})).toBeVisible();expect(state.paths.some(p=>p.endsWith('berry_prepare_admin_edit'))).toBe(false);
  await page.getByRole('button',{name:'Volver',exact:true}).click();await page.locator('.dashboard-results tbody tr').filter({hasText:'IH-2026-003'}).getByRole('button',{name:'Revisar',exact:true}).click();await expect(page.getByRole('button',{name:'Editar inspección',exact:true})).toHaveCount(0);expect(state.editCalls).toBe(0);
+});
+
+test('eliminar desde la última columna confirma, conserva los otros códigos y actualiza estadísticas, filtros y caché',async({page,context})=>{
+ const state=await setup(page,context);await panel(page);await expect(page.getByText('Consolidado en Excel (.xlsx), sin imágenes.',{exact:true})).toHaveCount(0);
+ expect(await page.locator('.dashboard-results th').allTextContents()).toEqual(['Código / Fecha','Área inspeccionada','Inspector','Responsable del área','Estado','Descargas','Eliminar']);
+ const first=page.locator('.dashboard-results tbody tr').filter({hasText:'IH-2026-002'});await first.getByRole('button',{name:'Eliminar inspección IH-2026-002',exact:true}).click();const dialog=page.getByRole('dialog',{name:'Eliminar inspección',exact:true});await expect(dialog).toContainText('Su número permanecerá reservado');await dialog.getByRole('button',{name:'Cancelar',exact:true}).click();expect(state.deletes).toHaveLength(0);
+ await first.getByRole('button',{name:'Eliminar inspección IH-2026-002',exact:true}).click();state.deleteFailure=true;await dialog.getByRole('button',{name:'Eliminar inspección',exact:true}).click();await expect(dialog.getByRole('alert')).toContainText('Actualiza el panel');await expect(first).toHaveCount(1);
+ state.deleteFailure=false;await dialog.getByRole('button',{name:'Eliminar inspección',exact:true}).click();await expect(dialog).toHaveCount(0);await expect(page.locator('.dashboard-results tbody tr')).toHaveCount(2);await expect(page.getByRole('status')).toContainText('IH-2026-002 eliminada');
+ expect(state.rows.map(r=>r.code)).toEqual(['IH-2026-001','IH-2026-003']);await expect(page.getByRole('button',{name:'Filtrar mes 2026-12: 1 inspecciones',exact:true})).toHaveCount(0);
+ const download=page.waitForEvent('download');await page.getByRole('button',{name:'Descargar consolidado'}).click();const book=new ExcelJS.Workbook();await book.xlsx.readFile((await (await download).path())!);expect(book.getWorksheet('Inspecciones')!.getColumn(1).values.filter(Boolean)).toEqual(['Código','IH-2026-001','IH-2026-003']);
+ await page.getByRole('button',{name:'Tu perfil',exact:true}).click();await page.getByRole('button',{name:'Panel de inspecciones',exact:true}).click();await expect(page.locator('.dashboard-results tbody tr')).toHaveCount(2);await expect(page.getByText('IH-2026-002',{exact:true})).toHaveCount(0);
 });

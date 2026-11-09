@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { BarChart3, CheckCheck, ClipboardList, Download, LoaderCircle, RefreshCw, Search, TriangleAlert } from 'lucide-react';
-import { Field } from './components';
+import { BarChart3, CheckCheck, ClipboardList, Download, LoaderCircle, RefreshCw, Search, Trash2, TriangleAlert } from 'lucide-react';
+import { Field, Modal } from './components';
+import { deleteCloudAdminInspection } from './cloud-account';
 import type { CloudProfile } from './cloud-account';
 import type { Inspection } from './model';
 import { formatDate } from './model';
@@ -12,13 +13,14 @@ import { FollowUp } from './FollowUp';
 import { exportExcel } from './export';
 import { exportPdf } from './pdf';
 import { buildConsolidated, dashboardMetrics, dashboardState, dashboardStateLabel, dashboardText, emptyDashboardFilters, filterDashboard, loadDashboard, loadDashboardInspection, saveDashboardFile } from './dashboard';
-import type { DashboardCache, DashboardFilters } from './dashboard';
+import type { DashboardCache, DashboardFilters, DashboardRow } from './dashboard';
 import './dashboard.css';
 
 export function InspectionDashboard({ actor, cache, isCurrent, onBusyChange }: { actor: CloudProfile; cache: { current: DashboardCache | null }; isCurrent: () => boolean; onBusyChange: (busy: boolean) => void }) {
   const previous = cache.current?.actorId === actor.id ? cache.current : null;
   const [rows, setRows] = useState(previous?.rows || []), [updatedAt, setUpdatedAt] = useState(previous?.updatedAt || '');
   const [filters, setFilters] = useState(emptyDashboardFilters), [loading, setLoading] = useState(!previous), [retry, setRetry] = useState(0);
+  const [deleting, setDeleting] = useState<DashboardRow | null>(null), [message, setMessage] = useState('');
   const [editing, setEditing] = useState(false);
   const [busy, setBusy] = useState(false), [error, setError] = useState(''), [detail, setDetail] = useState<Inspection | null>(null);
   const detailBusy = useCallback((value: boolean) => { working.current = value; setBusy(value); onBusyChange(value); }, [onBusyChange]);
@@ -72,6 +74,18 @@ export function InspectionDashboard({ actor, cache, isCurrent, onBusyChange }: {
       else { setDetail(report); window.scrollTo({ top: 0 }); }
     });
   }
+  async function removeReport() {
+    if (!deleting) return;
+    const target = deleting;
+    await action(async () => {
+      await deleteCloudAdminInspection(target);
+      if (!live.current || !current.current()) return;
+      const stamp = new Date().toISOString();
+      setRows(old => { const next = old.filter(row => row.id !== target.id); cache.current = { actorId: actor.id, rows: next, updatedAt: stamp }; return next; });
+      setUpdatedAt(stamp); setDeleting(null); setMessage(`Inspección ${target.code} eliminada. Su número permanece reservado.`);
+      window.dispatchEvent(new Event('berry-cloud-inspections-changed'));
+    });
+  }
   const saved = (updated: Inspection) => {
     const snapshot = dashboardSnapshot(updated);
     setRows(old => { const next = old.map(row => row.id === updated.id ? snapshot : row); cache.current = { actorId: actor.id, rows: next, updatedAt: new Date().toISOString() }; return next; });
@@ -83,7 +97,7 @@ export function InspectionDashboard({ actor, cache, isCurrent, onBusyChange }: {
   return <section className="inspection-dashboard" aria-busy={busy}>
     <div className="dashboard-heading"><div><div className="eyebrow">VISIÓN GENERAL</div><h1>Panel de inspecciones</h1><p>Consulta los registros, revisa su avance y descarga el consolidado.</p></div><button type="button" className="button button-primary" disabled={busy || invalidDates || !filtered.length} onClick={() => void action(async () => { const file = await buildConsolidated(filtered); if (live.current && current.current()) saveDashboardFile(file); })}><Download size={17}/>Descargar consolidado</button></div>
     <div className="dashboard-toolbar"><p>{updatedAt ? `Última actualización: ${new Intl.DateTimeFormat('es-PE', { timeZone: 'America/Lima', dateStyle: 'short', timeStyle: 'short' }).format(new Date(updatedAt))}` : 'Registros compartidos de inspección'}</p><button type="button" className="button button-outline" disabled={busy || loading} onClick={() => setRetry(value => value + 1)}>{loading ? <LoaderCircle size={16} className="spin"/> : <RefreshCw size={16}/>}Actualizar panel</button></div>
-    {error && <p className="notice notice-error" role="alert">{error}</p>}
+    {error && !deleting && <p className="notice notice-error" role="alert">{error}</p>}{message && <p role="status" className="account-success">{message}</p>}
     <div className="dashboard-filters"><h2><Search size={19}/>Filtrar inspecciones</h2><div className="dashboard-filter-grid">
       <Field label="Código de inspección">{props => <input {...props} value={filters.code} onChange={e => update('code', e.target.value)} placeholder="IH-2026-001" maxLength={100}/>}</Field>
       <Field label="Desde">{props => <input {...props} type="date" value={filters.from} onChange={e => update('from', e.target.value)}/>}</Field><Field label="Hasta">{props => <input {...props} type="date" value={filters.to} onChange={e => update('to', e.target.value)}/>}</Field>
@@ -96,8 +110,9 @@ export function InspectionDashboard({ actor, cache, isCurrent, onBusyChange }: {
     <div className="dashboard-charts"><div className="dashboard-chart"><h2>Inspecciones por mes</h2><p>Selecciona un mes para consultar sus registros.</p>{metrics.months.length ? <div className="dashboard-months">{metrics.months.map(([month, count]) => <button type="button" key={month} className="dashboard-month" aria-label={`Filtrar mes ${month}: ${count} inspecciones`} onClick={() => { const end = new Date(Date.UTC(Number(month.slice(0, 4)), Number(month.slice(5)), 0)).toISOString().slice(0, 10); setFilters(old => ({ ...old, from: `${month}-01`, to: end })); }}><strong>{count}</strong><span className="dashboard-month-track"><span style={{ height: `${Math.max(4, count / monthMaximum * 100)}%` }}/></span><small>{new Intl.DateTimeFormat('es-PE', { timeZone: 'UTC', month: 'short', year: '2-digit' }).format(new Date(`${month}-01T12:00:00Z`))}</small></button>)}</div> : <p className="dashboard-empty">Sin registros para este período.</p>}</div>
     <div className="dashboard-chart"><h2>Inspecciones por área</h2><p>Selecciona un área para ver su detalle.</p><div className="dashboard-areas">{metrics.areas.map(area => <button type="button" key={area.key} onClick={() => update('area', area.key)} aria-label={`Filtrar área ${area.name}`}><span>{area.name}</span><strong>{area.count}</strong><span className="dashboard-area-track"><span style={{ width: `${area.count / areaMaximum * 100}%` }}/></span></button>)}{!metrics.areas.length && <p className="dashboard-empty">Sin áreas para estos filtros.</p>}</div></div></div>
     <div className="dashboard-risk"><h2>Observaciones por nivel de riesgo</h2>{([['baja','Bajo'],['media','Medio'],['alta','Alto']] as const).map(([key, label]) => <span className={`dashboard-risk-${key}`} key={key}>{label}<strong>{metrics.risk[key]}</strong></span>)}<p>{metrics.executed} de {metrics.observations} observaciones ejecutadas</p></div>
-    <div className="dashboard-results"><div className="dashboard-result-heading"><h2>Inspecciones registradas <span>{filtered.length}</span></h2><p>Consolidado en Excel (.xlsx), sin imágenes.</p></div>{loading && !updatedAt ? <p role="status" className="cloud-loading"><LoaderCircle className="spin" size={18}/>Consultando registros…</p> : <div className="dashboard-table-scroll"><table><thead><tr><th>Código / Fecha</th><th>Área inspeccionada</th><th>Inspector</th><th>Responsable del área</th><th>Estado</th><th>Descargas</th></tr></thead><tbody>{filtered.map(row => <tr key={row.id}><td><strong>{row.code}</strong><small>{formatDate(row.data.date)}</small></td><td>{row.data.area}<small>{row.data.facility}</small></td><td>{inspectionPeople(row.data).map(person => <span key={person.id}>{person.name}</span>)}</td><td>{row.data.responsibles.map(person => <span key={person.id}>{person.name}</span>)}</td><td><span className={`dashboard-status dashboard-status-${dashboardState(row)}`}>{dashboardStateLabel(row)}</span><small>{row.data.observations.length} observaciones</small></td><td><div className="dashboard-row-actions"><button className="button button-outline" disabled={busy} onClick={() => void openReport(row.id)}>Revisar</button><button className="text-button" disabled={busy} onClick={() => void openReport(row.id, 'excel')}>Excel</button>{row.workflow === 'closed' && <button className="text-button" disabled={busy} onClick={() => void openReport(row.id, 'pdf')}>PDF</button>}</div></td></tr>)}</tbody></table>{!filtered.length && <p className="dashboard-empty">{rows.length ? 'No hay inspecciones que coincidan con estos filtros.' : 'Aún no hay inspecciones registradas.'}</p>}</div>}</div>
-    {busy && <p role="status" className="dashboard-processing"><LoaderCircle className="spin" size={17}/>Preparando el informe…</p>}
+    <div className="dashboard-results"><div className="dashboard-result-heading"><h2>Inspecciones registradas <span>{filtered.length}</span></h2></div>{loading && !updatedAt ? <p role="status" className="cloud-loading"><LoaderCircle className="spin" size={18}/>Consultando registros…</p> : <div className="dashboard-table-scroll"><table><thead><tr><th>Código / Fecha</th><th>Área inspeccionada</th><th>Inspector</th><th>Responsable del área</th><th>Estado</th><th>Descargas</th><th>Eliminar</th></tr></thead><tbody>{filtered.map(row => <tr key={row.id}><td><strong>{row.code}</strong><small>{formatDate(row.data.date)}</small></td><td>{row.data.area}<small>{row.data.facility}</small></td><td>{inspectionPeople(row.data).map(person => <span key={person.id}>{person.name}</span>)}</td><td>{row.data.responsibles.map(person => <span key={person.id}>{person.name}</span>)}</td><td><span className={`dashboard-status dashboard-status-${dashboardState(row)}`}>{dashboardStateLabel(row)}</span><small>{row.data.observations.length} observaciones</small></td><td><div className="dashboard-row-actions"><button className="button button-outline" disabled={busy} onClick={() => void openReport(row.id)}>Revisar</button><button className="text-button" disabled={busy} onClick={() => void openReport(row.id, 'excel')}>Excel</button>{row.workflow === 'closed' && <button className="text-button" disabled={busy} onClick={() => void openReport(row.id, 'pdf')}>PDF</button>}</div></td><td><button type="button" className="button button-outline delete-button dashboard-delete" aria-label={`Eliminar inspección ${row.code}`} disabled={busy} onClick={() => { setError(''); setMessage(''); setDeleting(row); }}><Trash2 size={16}/>Eliminar</button></td></tr>)}</tbody></table>{!filtered.length && <p className="dashboard-empty">{rows.length ? 'No hay inspecciones que coincidan con estos filtros.' : 'Aún no hay inspecciones registradas.'}</p>}</div>}</div>
+    {deleting && <Modal title="Eliminar inspección" onClose={() => !busy && setDeleting(null)}><p className="modal-description">Se eliminará <strong>{deleting.code} · {deleting.data.area}</strong> de las listas y del panel. Su número permanecerá reservado y no se reutilizará.</p>{error && <p role="alert" className="error-message cloud-message">{error}</p>}<div className="modal-actions"><button type="button" className="button button-outline" disabled={busy} onClick={() => { setDeleting(null); setError(''); }}>Cancelar</button><button type="button" className="button button-danger" disabled={busy} onClick={() => void removeReport()}>{busy ? <LoaderCircle className="spin" size={16}/> : <Trash2 size={16}/>} {busy ? 'Eliminando…' : 'Eliminar inspección'}</button></div></Modal>}
+    {busy && !deleting && <p role="status" className="dashboard-processing"><LoaderCircle className="spin" size={17}/>Preparando el informe…</p>}
   </section>;
 }
 function Metric({ label, value, icon }: { label: string; value: number; icon: React.ReactNode }) { return <div className="dashboard-metric"><span>{icon}</span><div><strong>{value}</strong><p>{label}</p></div></div>; }

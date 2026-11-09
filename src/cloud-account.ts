@@ -77,7 +77,7 @@ export async function createCloudAccount(input: { full_name: string; email: stri
   return profileRow(result.account, result.account?.id);
 }
 export type AccountPermissions = { enabled: boolean; role: 'admin' | 'inspector'; can_create_inspections: boolean; can_receive_inspections: boolean };
-export async function manageCloudAccount(account: CloudProfile, permissions: AccountPermissions, action: 'update' | 'delete' = 'update'): Promise<CloudProfile> {
+export async function manageCloudAccount(account: CloudProfile, permissions: AccountPermissions & { supervisor_emails?: string[] }, action: 'update' | 'delete' = 'update'): Promise<CloudProfile> {
   const result=await accountRequest('/api/accounts/manage',{body:{id:account.id,expectedRevision:account.access_revision,action,permissions},method:'POST'});
   return profileRow(result.account,account.id);
 }
@@ -87,7 +87,7 @@ export async function cloudAdminInspections(): Promise<AdminInspection[]> {
   if(!Array.isArray(result.inspections)) throw new Error('No pudimos consultar las inspecciones.');
   return result.inspections;
 }
-export async function deleteCloudAdminInspection(inspection: AdminInspection) {
+export async function deleteCloudAdminInspection(inspection: Pick<AdminInspection, 'id' | 'revision'>) {
   await accountRequest('/api/accounts/inspections/delete',{method:'POST',body:{id:inspection.id,expectedRevision:inspection.revision}});
 }
 export async function changeCloudPassword(password: string) {

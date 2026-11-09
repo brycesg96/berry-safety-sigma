@@ -42,6 +42,9 @@ test('permission switches and inspection deletion use verified JWT RPCs, optimis
   const { state, send } = setup();
   assert.equal((await send('/api/accounts/manage', { id: target, expectedRevision: 2, action: 'update', permissions })).status, 200);
   assert.deepEqual(state.calls.at(-1).body, { p_id: target, p_expected: 2, p_action: 'update', p_permissions: permissions });
+  const copies={...permissions,supervisor_emails:['new-boss@example.invalid']};
+  assert.equal((await send('/api/accounts/manage', { id: target, expectedRevision: 3, action: 'update', permissions: copies })).status, 200);
+  assert.deepEqual(state.calls.at(-1).body, { p_id: target, p_expected: 3, p_action: 'update', p_permissions: copies });
   assert.equal((await send('/api/accounts/manage', { id: target, expectedRevision: 2, action: 'delete' })).status, 200);
   assert.equal((await send('/api/accounts/inspections')).data.inspections[0].code, 'IH-2026-010');
   assert.equal((await send('/api/accounts/inspections/delete', { id: target, expectedRevision: 2 })).status, 200);

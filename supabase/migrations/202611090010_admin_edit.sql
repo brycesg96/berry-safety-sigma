@@ -2,6 +2,7 @@
 -- Requiere el paso 9. Conserva autoría, correlativo, avances y auditoría.
 begin;
 do $$ begin
+ if public.berry_schema_status()->>'account_copies_version' is not null then raise exception 'No repita el paso 10 después de instalar el paso 11' using errcode='55000';end if;
  if public.berry_schema_status()->>'correction_identity_version' is distinct from '202611090009' then
   raise exception 'Primero instale el paso 9' using errcode='55000';end if;
 end $$;

@@ -352,7 +352,7 @@ test('final replacement stays blocked until every observation has been approved,
 });
 
 const upgradeWorkspace=await readFile(new URL('../operations/upgrade-workspace.sql',import.meta.url),'utf8');
-test('single workspace upgrade installs steps 5 to 10 atomically from the current final-archive stage without changing reports or counters',async()=>{
+test('single workspace upgrade installs steps 5 to 11 atomically from the current final-archive stage without changing reports or counters',async()=>{
  const reportsBefore=(await db.query('select id,data,code from public.berry_inspections order by id')).rows;
  const countersBefore=(await db.query('select * from berry_private.report_counters order by year')).rows;
  await assert.rejects(()=>db.transaction(async tx=>{
@@ -360,6 +360,7 @@ test('single workspace upgrade installs steps 5 to 10 atomically from the curren
   assert.equal((await tx.query('select public.berry_schema_status() as value')).rows[0].value.registration_version,'202611090008');
   assert.equal((await tx.query('select public.berry_schema_status() as value')).rows[0].value.correction_identity_version,'202611090009');
   assert.equal((await tx.query('select public.berry_schema_status() as value')).rows[0].value.admin_edit_version,'202611090010');
+  assert.equal((await tx.query('select public.berry_schema_status() as value')).rows[0].value.account_copies_version,'202611090011');
   assert.deepEqual((await tx.query('select id,data,code from public.berry_inspections order by id')).rows,reportsBefore);
   assert.deepEqual((await tx.query('select * from berry_private.report_counters order by year')).rows,countersBefore);
   throw new Error('ROLLBACK_UPGRADE_FIXTURE');
@@ -726,6 +727,49 @@ test('structured areas preserve the composed text in drafts, reject retired site
  const before=(await db.query('select id,code,data,revision from public.berry_inspections order by id')).rows,counters=(await db.query('select * from berry_private.report_counters order by year')).rows;
  await db.exec(upgradeWorkspace);assert.deepEqual((await db.query('select id,code,data,revision from public.berry_inspections order by id')).rows,before);assert.deepEqual((await db.query('select * from berry_private.report_counters order by year')).rows,counters);
  await assert.rejects(()=>db.exec(correctionIdentityMigration),e=>e.code==='55000');await db.exec('rollback');
+});
+
+const copiesMigration=await readFile(new URL('../migrations/202611090011_account_copies.sql',import.meta.url),'utf8');
+test('account copy migration preserves profiles, report history, documents and numbering, and blocks obsolete setup',async()=>{
+ const before=(await db.query('select * from public.berry_profiles order by id')).rows;
+ const history=(await db.query('select id,code,data,revision from public.berry_inspections order by id')).rows,documents=(await db.query('select * from public.berry_documents order by id')).rows,counters=(await db.query('select * from berry_private.report_counters order by year')).rows;
+ await db.exec(copiesMigration);
+ assert.deepEqual((await db.query('select * from public.berry_profiles order by id')).rows,before);
+ assert.deepEqual((await db.query('select id,code,data,revision from public.berry_inspections order by id')).rows,history);assert.deepEqual((await db.query('select * from public.berry_documents order by id')).rows,documents);assert.deepEqual((await db.query('select * from berry_private.report_counters order by year')).rows,counters);
+ assert.equal((await db.query('select public.berry_schema_status() as value')).rows[0].value.account_copies_version,'202611090011');
+ await assert.rejects(()=>db.exec(adminEditMigration),e=>e.code==='55000');await db.exec('rollback');
+});
+test('only current administrators can edit CC with version checks, normalization and audit; legacy permission updates retain CC',async()=>{
+ const target=editLead,original=(await db.query('select * from public.berry_profiles where id=$1',[target])).rows[0];
+ const settings=permissions(original.can_create_inspections,original.can_receive_inspections,original.role==='admin',original.enabled);
+ let row=await accessChange(users.author,target,original.access_revision,{...settings,supervisor_emails:[' BOSS@example.invalid ','boss@example.invalid','second@example.invalid']});
+ assert.deepEqual(row.supervisor_emails,['boss@example.invalid','second@example.invalid']);assert.equal(row.access_revision,Number(original.access_revision)+1);
+ for(const key of ['enabled','role','can_create_inspections','can_receive_inspections','full_name','email','area','job_title'])assert.equal(row[key],original[key]);
+ const audit=(await db.query("select actor_id,after_data from public.berry_audit where entity_type='berry_profiles' and entity_id=$1 and action='update' order by id desc limit 1",[target])).rows[0];assert.equal(audit.actor_id,users.author);assert.deepEqual(audit.after_data.supervisor_emails,row.supervisor_emails);
+ await assert.rejects(()=>accessChange(users.author,target,original.access_revision,{...settings,supervisor_emails:[]}),e=>e.code==='40001');
+ await denied(()=>accessChange(target,target,row.access_revision,{...settings,supervisor_emails:['forged@example.invalid']}));
+ await denied(()=>as('anon',null,'select public.berry_manage_account($1,$2,$3,$4)',[target,row.access_revision,'update',{...settings,supervisor_emails:[]}]));
+ await denied(()=>as('authenticated',target,"update public.berry_profiles set supervisor_emails=array['forged@example.invalid'] where id=$1",[target]));
+ for(const value of [null,'not-an-array',[1],['invalido'],[' '],Array(51).fill('boss@example.invalid'),['bad\nheader@example.invalid']])await assert.rejects(()=>accessChange(users.author,target,row.access_revision,{...settings,supervisor_emails:value}),e=>e.code==='22023');
+ row=await accessChange(users.author,target,row.access_revision,settings);assert.deepEqual(row.supervisor_emails,['boss@example.invalid','second@example.invalid']);
+ const saved=(await db.query('select access_revision,supervisor_emails from public.berry_profiles where id=$1',[target])).rows[0];assert.equal(Number(saved.access_revision),row.access_revision);assert.deepEqual(saved.supervisor_emails,row.supervisor_emails);
+});
+test('editing copies cannot bypass the last usable administrator protection',async()=>{
+ const row=(await db.query('select access_revision from public.berry_profiles where id=$1',[users.author])).rows[0];
+ await assert.rejects(()=>db.transaction(async tx=>{
+  await tx.query("update public.berry_profiles set enabled=false where id<>$1 and role='admin'",[users.author]);
+  await tx.exec('set local role authenticated');await tx.query("select set_config('request.jwt.claim.sub',$1,true)",[users.author]);await tx.query("select set_config('request.jwt.claims',$1,true)",[JSON.stringify({sub:users.author,iat:100})]);
+  await tx.query('select public.berry_manage_account($1,$2,$3,$4)',[users.author,row.access_revision,'update',{...permissions(true,true),supervisor_emails:['boss@example.invalid']}]);
+ }),e=>e.message==='LAST_ADMIN_REQUIRED');
+});
+test('CC edits affect future registrations, preserve sent reports and can clear every copy address without changing a sequence',async()=>{
+ const f=await editFixture(5);assert.deepEqual(f.row.data.emailCc,['boss@example.invalid','second@example.invalid']);
+ const history=(await db.query('select id,code,data,revision from public.berry_inspections order by id')).rows,documents=(await db.query('select * from public.berry_documents order by id')).rows,counters=(await db.query('select * from berry_private.report_counters order by year')).rows;
+ let target=(await db.query('select * from public.berry_profiles where id=$1',[editLead])).rows[0],settings=permissions(target.can_create_inspections,target.can_receive_inspections,target.role==='admin',target.enabled);
+ target=await accessChange(users.author,editLead,target.access_revision,{...settings,supervisor_emails:[]});assert.deepEqual(target.supervisor_emails,[]);
+ assert.deepEqual((await db.query('select id,code,data,revision from public.berry_inspections order by id')).rows,history);assert.deepEqual((await db.query('select * from public.berry_documents order by id')).rows,documents);assert.deepEqual((await db.query('select * from berry_private.report_counters order by year')).rows,counters);
+ const next=await editFixture(6);assert.deepEqual(next.row.data.emailCc,[]);assert.equal((await db.query('select data from public.berry_inspections where id=$1',[f.row.id])).rows[0].data.emailCc.length,2);
+ const beforeReplay=(await db.query('select * from public.berry_profiles order by id')).rows;await db.exec(upgradeWorkspace);assert.deepEqual((await db.query('select * from public.berry_profiles order by id')).rows,beforeReplay);
 });
 
 const restoreOwner = await readFile(new URL('../operations/restore-owner-access.sql',import.meta.url),'utf8');
