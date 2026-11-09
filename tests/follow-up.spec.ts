@@ -209,23 +209,25 @@ test('autor y destinatario ven al mismo responsable antes de guardar y tras regi
   }
   await switchTo(page, 'demo-inspector'); await openReceived(page);
   await expect(cards.first().getByLabel(name)).toHaveValue('Responsable destinataria');
-  await cards.first().getByLabel(name).fill('Responsable del levantamiento confirmado');
+  await expect(cards.first().getByLabel(name)).toHaveAttribute('readonly', '');
+  await cards.first().getByLabel(name).focus(); await page.keyboard.press('ControlOrMeta+A'); await page.keyboard.insertText('Nombre no permitido');
+  await expect(cards.first().getByLabel(name)).toHaveValue('Responsable destinataria');
   await cards.first().getByRole('button', { name: 'Guardar avance', exact: true }).click();
   await expect(cards.first().getByText('Avance guardado.', { exact: true })).toBeVisible();
   await switchTo(page, 'demo-admin');
   await page.getByRole('button', { name: 'Mis inspecciones', exact: true }).click();
   await page.getByRole('button', { name: 'Revisar informe', exact: true }).click();
-  await expect(cards.first().getByLabel(name)).toHaveValue('Responsable del levantamiento confirmado');
+  await expect(cards.first().getByLabel(name)).toHaveValue('Responsable destinataria');
   await expect(cards.nth(1).getByLabel(name)).toHaveValue('Responsable destinataria');
   const downloadEvent = page.waitForEvent('download');
   await page.getByRole('button', { name: 'Descargar Excel', exact: true }).click();
   const book = new ExcelJS.Workbook(); await book.xlsx.readFile((await (await downloadEvent).path())!);
-  expect(book.getWorksheet('V.01')!.getCell('G20').value).toBe('Responsable del levantamiento confirmado');
+  expect(book.getWorksheet('V.01')!.getCell('G20').value).toBe('Responsable destinataria');
   expect(book.getWorksheet('V.01')!.getCell('G21').value).toBe('Responsable destinataria');
   await page.reload();
   await page.getByRole('button', { name: 'Mis inspecciones', exact: true }).click();
   await page.getByRole('button', { name: 'Revisar informe', exact: true }).click();
-  await expect(cards.first().getByLabel(name)).toHaveValue('Responsable del levantamiento confirmado');
+  await expect(cards.first().getByLabel(name)).toHaveValue('Responsable destinataria');
   await expect(cards.nth(1).getByLabel(name)).toHaveValue('Responsable destinataria');
 });
 
@@ -240,7 +242,8 @@ test('permisos, versiones concurrentes y protección del informe enviado', async
     const correction = blankCorrection(report, report.observations[0].id);
     const reject = async (fn: () => Promise<unknown>) => { try { await fn(); return false; } catch { return true; } };
     const outsiderBlocked = await reject(() => saveCorrection(report, report.observations[0].id, 'outsider', correction, false));
-    const updated = await saveCorrection(report, report.observations[0].id, actor.id, correction, false);
+    const updated = await saveCorrection(report, report.observations[0].id, actor.id, { ...correction, responsibleName: 'Nombre manipulado' }, false);
+    const identityPreserved = updated.delivery!.corrections[report.observations[0].id].responsibleName === report.responsibles[0].name;
     const staleBlocked = await reject(() => saveCorrection(report, report.observations[0].id, actor.id, correction, false));
     const selfReviewBlocked = await reject(() => reviewCorrection(updated, report.observations[0].id, actor.id, true, ''));
     const outsiderStateBlocked = await reject(() => saveCorrectionState(updated, report.observations[0].id, 'outsider', 'Ejecutado'));
@@ -249,7 +252,7 @@ test('permisos, versiones concurrentes y protección del informe enviado', async
     const staleStateBlocked = await reject(() => saveCorrectionState(updated, report.observations[0].id, actor.id, 'Pendiente'));
     const overwriteBlocked = await reject(() => persistInspection({ ...report, delivery: undefined }));
     const deletionBlocked = await reject(() => removeInspection(report.id));
-    return { outsiderBlocked, staleBlocked, selfReviewBlocked, outsiderStateBlocked, invalidStateBlocked, staleStateBlocked, overwriteBlocked, deletionBlocked, closed: inspectionClosed(changed) };
+    return { identityPreserved, outsiderBlocked, staleBlocked, selfReviewBlocked, outsiderStateBlocked, invalidStateBlocked, staleStateBlocked, overwriteBlocked, deletionBlocked, closed: inspectionClosed(changed) };
   });
-  expect(result).toEqual({ outsiderBlocked: true, staleBlocked: true, selfReviewBlocked: true, outsiderStateBlocked: true, invalidStateBlocked: true, staleStateBlocked: true, overwriteBlocked: true, deletionBlocked: true, closed: false });
+  expect(result).toEqual({ identityPreserved: true, outsiderBlocked: true, staleBlocked: true, selfReviewBlocked: true, outsiderStateBlocked: true, invalidStateBlocked: true, staleStateBlocked: true, overwriteBlocked: true, deletionBlocked: true, closed: false });
 });

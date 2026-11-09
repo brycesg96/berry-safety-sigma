@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { ArrowLeft, Camera, Check, Download, ImagePlus, LoaderCircle, Send, X } from 'lucide-react';
+import { ArrowLeft, Camera, Check, Download, ImagePlus, LoaderCircle, LockKeyhole, Send, X } from 'lucide-react';
 import { Badge, Field, Modal } from './components';
 import type { Inspection } from './model';
 import { formatDate, preparePhoto } from './model';
@@ -80,7 +80,7 @@ function CorrectionForm({ inspection, observationId, actor, owner, recipient, on
     {saved?.decision === 'review' && <p className="notice">Levantamiento enviado. Pendiente de revisión del autor.</p>}
     {saved?.decision === 'approved' && <p className="notice">Levantamiento aprobado · Ejecutado.</p>}
     {saved?.note && <p className="notice"><strong>Observación del revisor:</strong> {saved.note}</p>}
-    <div className="correction-layout"><div className="correction-texts"><Field label="Apellidos y nombres del responsable del levantamiento" required>{props => <input {...props} value={value.responsibleName} maxLength={250} readOnly={locked || busy} onChange={e => update('responsibleName', e.target.value)}/>}</Field>
+    <div className="correction-layout"><div className="correction-texts"><Field label="Apellidos y nombres del responsable del levantamiento" required>{props => <div className="input-icon locked-profile-control"><LockKeyhole size={16} aria-hidden="true"/><input {...props} value={closed ? value.responsibleName : blankCorrection(inspection, observationId).responsibleName} readOnly aria-readonly="true" title="Nombre registrado al asignar la inspección."/></div>}</Field>
     <Field label="Acción realizada" required>{props => <textarea {...props} rows={3} maxLength={5000} value={value.action} readOnly={locked || busy} onChange={e => update('action', e.target.value)} placeholder="Detalla cómo se corrigió el hallazgo."/>}</Field>
     </div><div className="correction-details"><div className="correction-metadata"><Field label="Fecha de Cierre" required>{props => <input {...props} type="date" value={value.date} readOnly={locked || busy} onChange={e => update('date', e.target.value)}/>}</Field><Field label="Estado">{props => <select {...props} value={value.state} disabled={closed || busy || !owner && !recipient} onChange={e => update('state', e.target.value as Correction['state'])}><option>Pendiente</option><option>Ejecutado</option></select>}</Field></div>
     <div className="evidence-label"><span>Registro fotográfico del levantamiento</span><span>{value.photos.length} / 8</span></div>

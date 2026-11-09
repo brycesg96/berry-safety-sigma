@@ -64,7 +64,7 @@ export async function deliverInspection(draft: Inspection, actorId: string): Pro
   });
 }
 export function saveCorrection(d: Inspection, observationId: string, actorId: string, correction: Correction, submit: boolean) {
-  if (d.storage === 'cloud') return changeCloudCorrection(d, observationId, actorId, submit ? 'submit' : 'save', correction);
+  if (d.storage === 'cloud') return changeCloudCorrection(d, observationId, actorId, submit ? 'submit' : 'save', { ...correction, responsibleName: blankCorrection(d, observationId).responsibleName });
   return changeStored(d.id, current => {
     const delivery = current.delivery;
     if (!delivery || !isRecipient(current, actorId)) throw new Error('Esta inspección no está asignada a tu cuenta.');
@@ -74,9 +74,11 @@ export function saveCorrection(d: Inspection, observationId: string, actorId: st
     if (previous?.decision === 'approved' || previous?.decision === 'review' || inspectionClosed(current)) throw new Error('Este levantamiento ya fue enviado a revisión.');
     if (!['Pendiente', 'Ejecutado'].includes(correction.state)) throw new Error('Selecciona un estado válido.');
     if (correction.photos.length > 8) throw new Error('Puedes adjuntar hasta 8 evidencias.');
-    if (submit && (!correction.action.trim() || !correction.responsibleName.trim() || !correction.date)) throw new Error('Completa la acción, los nombres del responsable y la Fecha de Cierre.');
+    const responsibleName = blankCorrection(current, observationId).responsibleName;
+    if (!responsibleName.trim()) throw new Error('No se encontró el responsable asignado a esta inspección.');
+    if (submit && (!correction.action.trim() || !correction.date)) throw new Error('Completa la acción realizada y la Fecha de Cierre.');
     if (submit && correction.state === 'Ejecutado' && !correction.photos.length) throw new Error('Adjunta al menos una evidencia del levantamiento para enviar en Ejecutado.');
-    const saved: Correction = { ...correction, actorId, proposedState: correction.state, decision: submit ? 'review' : 'draft', note: previous?.note || '' };
+    const saved: Correction = { ...correction, actorId, responsibleName, proposedState: correction.state, decision: submit ? 'review' : 'draft', note: previous?.note || '' };
     return { ...current, updatedAt: new Date().toISOString(), delivery: { ...delivery, revision: delivery.revision + 1, corrections: { ...delivery.corrections, [observationId]: saved } } };
   });
 }
@@ -91,7 +93,7 @@ export function saveCorrectionState(d: Inspection, observationId: string, actorI
     if (!['Pendiente', 'Ejecutado'].includes(state)) throw new Error('Selecciona un estado válido.');
     const previous = delivery.corrections[observationId] || blankCorrection(current, observationId);
     // A changed approved finding needs another review; changing a status never grants approval.
-    const saved: Correction = { ...previous, state, proposedState: state, decision: previous.decision === 'approved' && previous.state !== state ? 'review' : previous.decision };
+    const saved: Correction = { ...previous, responsibleName: blankCorrection(current, observationId).responsibleName, state, proposedState: state, decision: previous.decision === 'approved' && previous.state !== state ? 'review' : previous.decision };
     return { ...current, updatedAt: new Date().toISOString(), delivery: { ...delivery, revision: delivery.revision + 1, corrections: { ...delivery.corrections, [observationId]: saved } } };
   });
 }
@@ -106,7 +108,7 @@ export function reviewCorrection(d: Inspection, observationId: string, actorId: 
     if (!correction || correction.decision !== 'review') throw new Error('El levantamiento no está pendiente de revisión.');
     if (!approve && !note.trim()) throw new Error('Indica qué debe corregir el responsable.');
     const state = approve ? 'Ejecutado' : 'Pendiente';
-    const reviewed: Correction = { ...correction, state, proposedState: state, decision: approve ? 'approved' : 'changes', note: note.trim() };
+    const reviewed: Correction = { ...correction, responsibleName: blankCorrection(current, observationId).responsibleName, state, proposedState: state, decision: approve ? 'approved' : 'changes', note: note.trim() };
     return { ...current, updatedAt: new Date().toISOString(), delivery: { ...delivery, revision: delivery.revision + 1, corrections: { ...delivery.corrections, [observationId]: reviewed } } };
   });
 }

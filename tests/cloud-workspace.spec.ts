@@ -153,6 +153,7 @@ test('private drafts resume on another device and full approval replaces the ini
   await receiver.getByRole('button',{name:'Abrir menú',exact:true}).click();await receiver.getByRole('button',{name:/Inspecciones recibidas/}).click();await receiver.getByRole('button',{name:'Revisar inspección',exact:true}).click();
   await expect(receiver.locator('.breadcrumbs')).toContainText('Inspecciones recibidas');await expect(receiver.locator('.breadcrumbs')).toContainText('Pendientes');
   await expect(receiver.getByLabel('Apellidos y nombres del responsable del levantamiento')).toHaveValue('Bruno Responsable');
+  await expect(receiver.getByLabel('Apellidos y nombres del responsable del levantamiento')).toHaveAttribute('readonly','');
   expect(await receiver.evaluate(()=>localStorage.getItem('berry-last-submitted-texts'))).toBeNull();
   await receiver.waitForFunction(()=>document.querySelector('.sidebar')!.getBoundingClientRect().right<=0);
   await receiver.screenshot({path:'/tmp/berry-cloud-mobile.png',fullPage:true,animations:'disabled'});

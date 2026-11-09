@@ -2,6 +2,7 @@
 -- Hasta cuatro personas por lista. No modifica informes enviados ni archivos guardados.
 begin;
 do $$ begin
+ if public.berry_schema_status()->>'correction_identity_version' is not null then raise exception 'No repita el paso 8 después de instalar el paso 9' using errcode='55000';end if;
  if to_regprocedure('public.berry_admin_dashboard()') is null then raise exception 'Primero instale el paso 7 del panel' using errcode='55000';end if;
 end $$;
 create or replace function berry_private.registration_participants(p_data jsonb)

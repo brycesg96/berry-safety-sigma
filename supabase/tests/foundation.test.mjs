@@ -352,12 +352,13 @@ test('final replacement stays blocked until every observation has been approved,
 });
 
 const upgradeWorkspace=await readFile(new URL('../operations/upgrade-workspace.sql',import.meta.url),'utf8');
-test('single workspace upgrade installs steps 5 to 8 atomically from the current final-archive stage without changing reports or counters',async()=>{
+test('single workspace upgrade installs steps 5 to 9 atomically from the current final-archive stage without changing reports or counters',async()=>{
  const reportsBefore=(await db.query('select id,data,code from public.berry_inspections order by id')).rows;
  const countersBefore=(await db.query('select * from berry_private.report_counters order by year')).rows;
  await assert.rejects(()=>db.transaction(async tx=>{
   await tx.exec(upgradeWorkspace);
   assert.equal((await tx.query('select public.berry_schema_status() as value')).rows[0].value.registration_version,'202611090008');
+  assert.equal((await tx.query('select public.berry_schema_status() as value')).rows[0].value.correction_identity_version,'202611090009');
   assert.deepEqual((await tx.query('select id,data,code from public.berry_inspections order by id')).rows,reportsBefore);
   assert.deepEqual((await tx.query('select * from berry_private.report_counters order by year')).rows,countersBefore);
   throw new Error('ROLLBACK_UPGRADE_FIXTURE');
@@ -565,6 +566,43 @@ test('four inspection participants and four independent registrants preserve his
  assert.equal((await as('anon',null,'select public.berry_schema_status() as value')).rows[0].value.registration_version,'202611090008');
  const beforeReplay=(await db.query('select id,data,revision from public.berry_inspections order by id')).rows;await db.exec(upgradeWorkspace);assert.deepEqual((await db.query('select id,data,revision from public.berry_inspections order by id')).rows,beforeReplay);
  await assert.rejects(()=>db.exec(dashboardMigration),e=>e.code==='55000');await db.exec('rollback');
+});
+
+const correctionIdentityMigration=await readFile(new URL('../migrations/202611090009_correction_identity.sql',import.meta.url),'utf8');
+test('correction responsible is bound to the original assignment for recipients and reviewer; forged names cannot change it or bypass permissions',async()=>{
+ const previousReports=(await db.query('select id,data,revision from public.berry_inspections order by id')).rows;
+ const previousCounters=(await db.query('select * from berry_private.report_counters order by year')).rows;
+ await db.exec(correctionIdentityMigration);
+ assert.deepEqual((await db.query('select id,data,revision from public.berry_inspections order by id')).rows,previousReports);
+ assert.deepEqual((await db.query('select * from berry_private.report_counters order by year')).rows,previousCounters);
+ const id='98000000-0000-4000-8000-000000000001',lead='96000000-0000-4000-8000-000000000001',second='96000000-0000-4000-8000-000000000002',secondObservation='98000000-0000-4000-8000-000000000002';
+ await as('authenticated',users.author,'select public.berry_ensure_draft($1)',[id]);
+ const data={...cloudData(),id,responsibles:[{id:'first',personId:lead},{id:'second',personId:second}],observations:[...cloudData().observations,{...cloudData().observations[0],id:secondObservation}]};
+ let row=(await as('authenticated',users.author,'select public.berry_save_draft($1,1,$2) as value',[id,data])).rows[0].value;
+ row=(await storeAndCommit(row,await prepare(row),'2026/11-NOVIEMBRE')).inspection;
+ const assignedName=row.data.responsibles[0].name,code=row.code;
+ const change=async(actor,observation,action,value)=>{row=(await as('authenticated',actor,'select public.berry_change_correction($1,$2,$3,$4,$5) as value',[id,observation,row.revision,action,value])).rows[0].value;return row.data.delivery.corrections[observation];};
+ const input={responsibleName:'Nombre falso',action:'Corregir la condición.',date:'2026-11-09',photos:[],state:'Pendiente'};
+ let correction=await change(lead,cloudObservation,'save',input);
+ assert.equal(correction.responsibleName,assignedName);assert.equal(correction.actorId,lead);
+ correction=await change(users.author,secondObservation,'state',{state:'Pendiente',responsibleName:'Nombre del revisor'});
+ assert.equal(correction.responsibleName,assignedName);assert.equal(correction.actorId,lead);
+ // Later profile edits do not rewrite the identity recorded at assignment.
+ await db.query('update public.berry_profiles set full_name=$2 where id=$1',[lead,'Nombre actualizado del perfil']);
+ correction=await change(second,cloudObservation,'submit',{...input,responsibleName:'Otro responsable inventado'});
+ assert.equal(correction.responsibleName,assignedName);assert.equal(correction.actorId,second);
+ correction=await change(users.author,cloudObservation,'changes',{note:'Completar la descripción.',responsibleName:'Otro nombre'});assert.equal(correction.responsibleName,assignedName);
+ correction=await change(lead,cloudObservation,'submit',{...input,responsibleName:undefined});assert.equal(correction.responsibleName,assignedName);
+ correction=await change(users.author,cloudObservation,'approve',{note:'Conforme'});assert.equal(correction.responsibleName,assignedName);
+ await change(second,secondObservation,'submit',input);await change(users.author,secondObservation,'approve',{note:'Conforme'});
+ assert.equal(row.workflow,'closed');assert.equal(row.code,code);
+ const stored=(await db.query('select responsible_name,data from public.berry_corrections where inspection_id=$1',[id])).rows;
+ assert.equal(stored.length,2);assert.ok(stored.every(c=>c.responsible_name===assignedName&&c.data.responsibleName===assignedName));
+ await denied(()=>change(lead,cloudObservation,'save',input));
+ await denied(()=>as('authenticated',lead,'select berry_private.berry_change_correction_v4($1,$2,$3,$4,$5)',[id,cloudObservation,row.revision,'save',input]));
+ await denied(()=>as('anon',null,'select public.berry_change_correction($1,$2,$3,$4,$5)',[id,cloudObservation,row.revision,'save',input]));
+ assert.equal((await as('anon',null,'select public.berry_schema_status() as value')).rows[0].value.correction_identity_version,'202611090009');
+ await assert.rejects(()=>db.exec(registrationMigration),e=>e.code==='55000');await db.exec('rollback');
 });
 
 const restoreOwner = await readFile(new URL('../operations/restore-owner-access.sql',import.meta.url),'utf8');
