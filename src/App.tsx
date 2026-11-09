@@ -267,14 +267,18 @@ function WorkspaceApp({ initialAccounts, exit, onCloudAccess, cloud }: { initial
   };
   useEffect(() => {
     if (!cloud || !loaded || busy || !['list', 'received'].includes(view)) return;
-    let active = true, running = false;
+    let active = true, running = false, failures = 0, nextAttempt = 0;
     const refresh = async () => {
-      if (running || document.visibilityState === 'hidden') return;
+      if (running || document.visibilityState === 'hidden' || Date.now() < nextAttempt) return;
       running = true;
       try {
         const items = await loadInspections(account.id);
+        failures = 0; nextAttempt = 0;
         if (active) { setInspections(items.filter(i => i.ownerId === account.id)); setReceived(items.filter(i => isRecipient(i, account.id))); }
-      } catch { if (active) setToast('No pudimos actualizar la lista. Revisa tu conexión y vuelve a abrirla.'); }
+      } catch {
+        nextAttempt = Date.now() + Math.min(300000, 60000 * 2 ** failures); failures++;
+        if (active) setToast('El servicio de datos no pudo actualizar la lista. Conservamos la última consulta; vuelve a abrirla en unos momentos.');
+      }
       finally { running = false; }
     };
     const timer = window.setInterval(() => void refresh(), 20000);

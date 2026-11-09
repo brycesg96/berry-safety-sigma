@@ -14,7 +14,7 @@ export function CloudWorkspace({ profile, exit, onAccount }: { profile: CloudPro
   useEffect(() => {
     let active = true;
     const refresh = async () => {
-      const { data, error } = await supabaseClient().from('berry_profiles').select('*').eq('enabled', true);
+      const { data, error } = await supabaseClient().from('berry_profiles').select('*').eq('enabled', true).retry(false).abortSignal(AbortSignal.timeout(12000));
       if (!active) return;
       const directory = data?.filter(row => !row.deleted_at);
       if (error || !directory?.some(row => row.id === profile.id)) { setError('No pudimos abrir tu espacio de trabajo. Revisa tu conexión y tu acceso.'); return; }

@@ -12,7 +12,7 @@ const author='31000000-0000-4000-8000-000000000001',recipient='31000000-0000-400
 const profiles=[{id:author,email:'ana@example.com',full_name:'Ana Inspectora',area:'SIGMA',job_title:'Supervisora',role:'admin',enabled:true,must_change_password:false,supervisor_emails:[],can_create_inspections:true,can_receive_inspections:true},{id:recipient,email:'bruno@example.com',full_name:'Bruno Responsable',area:'Mantenimiento',job_title:'Jefe',role:'inspector',enabled:true,must_change_password:false,supervisor_emails:['jefe@example.com'],can_create_inspections:true,can_receive_inspections:true}];
 const png={name:'evidencia.png',mimeType:'image/png',buffer:Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=','base64')};
 type Row={id:string;author_id:string;workflow:string;revision:number;updated_at:string;deleted_at?:string|null;code?:string;data:any;final_excel_stored?:boolean};
-const stateOf=()=>({rows:new Map<string,Row>(),files:new Map<string,Buffer>(),documents:new Map<string,any>(),sends:0,saves:0,paths:[] as string[],retired:new Set<string>(),failSave:false,failFinal:false,schemaFails:false,finalizes:0,nextSequence:null as number|null,previewCalls:0,previewFails:false});
+const stateOf=()=>({rows:new Map<string,Row>(),files:new Map<string,Buffer>(),documents:new Map<string,any>(),sends:0,saves:0,paths:[] as string[],retired:new Set<string>(),failSave:false,failFinal:false,schemaFails:false,profileFails:false,finalizes:0,nextSequence:null as number|null,previewCalls:0,previewFails:false});
 type State=ReturnType<typeof stateOf>;
 async function mock(context:BrowserContext,state:State,actor:string,overrides:Partial<typeof profiles[number]>={}) {
   const profile={...profiles.find(p=>p.id===actor)!,...overrides};
@@ -29,7 +29,7 @@ async function mock(context:BrowserContext,state:State,actor:string,overrides:Pa
     if(path==='/rest/v1/rpc/berry_next_registration') { expect(req.headers().authorization).toBe(`Bearer ${token}`);state.previewCalls++;if(state.previewFails)return route.fulfill({status:503,json:{message:'offline'}});const sequence=state.nextSequence??state.sends+1;return route.fulfill({json:{code:`IH-2026-${String(sequence).padStart(3,'0')}`,year:2026,sequence,checked_at:'2026-11-09T12:00:00Z'}}); }
     if(path==='/rest/v1/rpc/berry_schema_status')return route.fulfill({status:state.schemaFails?503:200,json:state.schemaFails?{message:'offline'}:{schema_version:'202611070001',stage:'reports',sync_ready:true,reports_version:'202611080003'}});
     expect(req.headers().authorization).toBe(`Bearer ${token}`);
-    if(path==='/rest/v1/berry_profiles')return route.fulfill({json:url.searchParams.has('id')?profile:profiles.map(p=>p.id===actor?profile:p)});
+    if(path==='/rest/v1/berry_profiles')return route.fulfill({status:state.profileFails?503:200,json:state.profileFails?{code:'PGRST002',message:'Service unavailable'}:url.searchParams.has('id')?profile:profiles.map(p=>p.id===actor?profile:p)});
     if(path==='/rest/v1/berry_shared_texts')return route.fulfill({json:null});
     if(path==='/rest/v1/rpc/berry_cloud_tombstones')return route.fulfill({json:req.postDataJSON().p_ids.filter((id:string)=>state.retired.has(id))});
     if(path==='/rest/v1/rpc/berry_cloud_session')return route.fulfill({json:actor});
@@ -158,6 +158,23 @@ test('un fallo de conexión al abrir el espacio permite reintentar sin mandar al
   state.schemaFails=false;await page.getByRole('button',{name:'Reintentar',exact:true}).click();await expect(page.getByRole('heading',{name:'Mis inspecciones',exact:true})).toBeVisible();expect(state.rows.size).toBe(0);
 });
 
+test('un fallo del servicio de perfiles conserva la sesión y reintentar abre Mis inspecciones sin otro ingreso',async({page,context})=>{
+  const state=stateOf();state.profileFails=true;await mock(context,state,author);
+  await page.goto('./?acceso=cuenta');await page.getByLabel(/^Correo electrónico/).fill('ana@example.com');await page.getByLabel(/^Contraseña/).fill('Fictitious!47');await page.getByRole('button',{name:'Iniciar sesión',exact:true}).click();
+  await expect(page.getByRole('alert')).toContainText('El servicio de datos no pudo responder');await expect(page.getByRole('alert')).toContainText('Tu sesión sigue iniciada');
+  await expect(page.getByLabel('Nombres y apellidos')).toHaveCount(0);expect(state.paths.filter(path=>path==='/auth/v1/token')).toHaveLength(1);expect(state.paths.filter(path=>path==='/rest/v1/berry_profiles')).toHaveLength(1);expect(state.rows.size).toBe(0);
+  state.profileFails=false;await page.getByRole('button',{name:'Reintentar',exact:true}).click();await expect(page.getByRole('heading',{name:'Mis inspecciones',exact:true})).toBeVisible();expect(state.paths.filter(path=>path==='/auth/v1/token')).toHaveLength(1);
+});
+
+test('un servicio de numeración saturado espacia los intentos y se consulta otra vez al recuperar conexión',async({page,context})=>{
+  const state=stateOf();await mock(context,state,author);await enter(page,author);
+  const badge=page.getByRole('textbox',{name:'Código de inspección',exact:true});await expect(badge).toHaveValue('IH-2026-001');
+  state.previewFails=true;await page.evaluate(()=>window.dispatchEvent(new Event('focus')));await expect(badge).toHaveValue('Por confirmar');const calls=state.previewCalls;
+  // Observe a complete normal polling interval: a failed service must not be retried after five seconds.
+  await page.waitForTimeout(6000);await page.evaluate(()=>window.dispatchEvent(new Event('focus')));expect(state.previewCalls).toBe(calls);
+  state.previewFails=false;state.nextSequence=2;await page.evaluate(()=>window.dispatchEvent(new Event('online')));await expect(badge).toHaveValue('IH-2026-002');expect(state.previewCalls).toBe(calls+1);expect(state.sends).toBe(0);
+});
+
 test('private drafts resume on another device and full approval replaces the initial Excel with the stored final',async({browser,page,context})=>{
   test.setTimeout(90000);
   const state=stateOf();await mock(context,state,author);await enter(page,author);
@@ -171,7 +188,7 @@ test('private drafts resume on another device and full approval replaces the ini
   await page.getByLabel('Descripción').fill('Protección pendiente.');await page.getByLabel('Acción a tomar').fill('Instalar protección.');await page.getByLabel('Fecha de Cierre').fill('2026-11-20');
   await page.getByLabel('Añadir fotos a observación 1').setInputFiles(png);
   await expect(page.getByText('Guardado en tu cuenta',{exact:true})).toBeVisible();
-  const row=[...state.rows.values()].find(r=>!r.data.partial)!;expect(row.data.observations[0].photos[0].dataRef).toBeTruthy();
+  const row=[...state.rows.values()].find(r=>!r.data.partial)!;await expect.poll(()=>row.data.observations[0].photos[0]?.dataRef).toBeTruthy();
   expect(state.files.size).toBe(1);expect(await page.evaluate(()=>localStorage.getItem('berry-demo-accounts-v1'))).toBeNull();
   const imageReads=()=>state.paths.filter(path=>path.includes('/object/authenticated/berry-evidence/')).length;
   const reads=imageReads();

@@ -30,8 +30,13 @@ export async function loadCloudProfile(expectedUserId: string, isCurrent: () => 
   // editable user metadata supplies identity, role or access to this profile.
   const { data: identity, error: identityError } = await client.auth.getUser();
   if (!isCurrent() || identityError || identity.user?.id !== expectedUserId) throw new Error('No pudimos verificar tu sesión. Vuelve a iniciar sesión.');
-  const { data, error } = await client.from('berry_profiles').select(columns).eq('id', identity.user.id).maybeSingle();
-  if (error) throw new Error('No pudimos consultar tu perfil. Revisa tu conexión y vuelve a intentarlo.');
+  const { data, error, status } = await client.from('berry_profiles').select(columns).eq('id', identity.user.id).retry(false).abortSignal(AbortSignal.timeout(12000)).maybeSingle();
+  if (error) {
+    if (status === 401) throw new Error('Tu sesión ya no es válida. Cierra sesión y vuelve a entrar.');
+    if (status === 403 || error.code === '42501') throw new Error('El servidor no autorizó la consulta de tu perfil. Cierra sesión y vuelve a entrar; si continúa, contacta a un administrador.');
+    if (typeof navigator !== 'undefined' && !navigator.onLine) throw new Error('Este dispositivo está sin conexión. Reconéctate y pulsa Reintentar.');
+    throw new Error('El servicio de datos no pudo responder al consultar tu perfil. Tu sesión sigue iniciada. Espera un momento y pulsa Reintentar.');
+  }
   return profileRow(data, identity.user.id);
 }
 
