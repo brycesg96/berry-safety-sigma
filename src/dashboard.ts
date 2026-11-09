@@ -1,3 +1,4 @@
+import { inspectionClosed } from './follow-up';
 import type { Inspection } from './model';
 import type { CloudInspectionRow } from './cloud-store';
 import { cloudRpc, hydrateCloudInspection } from './cloud-store';
@@ -72,4 +73,10 @@ export async function buildConsolidated(rows: DashboardRow[]) {
 export function saveDashboardFile(file: { name: string; bytes: Uint8Array }) {
   const url = URL.createObjectURL(new Blob([file.bytes as BlobPart], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }));
   const link = document.createElement('a'); link.href = url; link.download = file.name; link.click(); setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+/** Dashboard cache stores text only; detailed images remain in the scoped file cache. */
+export function dashboardSnapshot(data: Inspection): DashboardRow {
+  const text = { ...data, observations: data.observations.map(item => ({ ...item, photos: [] })), registrationDetails: Object.fromEntries(Object.entries(data.registrationDetails || {}).map(([id, value]) => [id, { ...value, signature: undefined }])), ...(data.delivery ? { delivery: { ...data.delivery, corrections: Object.fromEntries(Object.entries(data.delivery.corrections).map(([id, value]) => [id, { ...value, photos: [] }])) } } : {}) };
+  return { id: data.id, author_id: data.ownerId, code: data.serverRegistration!.code, revision: data.cloudRevision!, updated_at: data.updatedAt, workflow: inspectionClosed(data) ? 'closed' : 'sent', final_excel_stored: data.finalExcelStored, active_edit_operation: data.archiveEditOperation, data: text };
 }

@@ -12,6 +12,7 @@ async function switchTo(page: Page, id: string) {
 async function createReport(page: Page) {
   await page.goto('./');
   await page.getByLabel('Área inspeccionada').fill('Taller - Armonía 2');
+  await page.getByRole('combobox', { name: 'Sede', exact: true }).selectOption('Fundo'); await page.getByRole('combobox', { name: 'Zona de inspección', exact: true }).selectOption('Armonía II');
   await page.getByLabel('Hora de inspección').fill('07:30'); await page.getByLabel('AM o PM').selectOption('AM');
   await page.getByRole('radio', { name: 'Planeada', exact: true }).check();
   await page.getByRole('textbox', { name: 'Objetivo de la inspección interna', exact: true }).fill('Verificar las condiciones de seguridad.');
@@ -34,7 +35,7 @@ async function createReport(page: Page) {
   await page.getByText('Compartir solo en este navegador', { exact: true }).click();
   await expect(page.getByText('No se ha enviado ningún correo.')).toBeVisible();
   await page.getByRole('button', { name: 'Enviar a destinatarios de prueba' }).click();
-  await expect(page.getByRole('heading', { name: 'Taller - Armonía 2', exact: true })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Fundo – Armonía II – Taller - Armonía 2', exact: true })).toBeVisible();
 }
 async function openReceived(page: Page) {
   await page.getByRole('button', { name: 'Inspecciones recibidas', exact: true }).click();
@@ -68,7 +69,7 @@ test('destinatario envía evidencias, autor pide ajustes y cierra solo al aproba
   await cards.nth(0).getByRole('button', { name: 'Enviar a revisión' }).click();
   await expect(cards.nth(0).getByRole('alert')).toContainText('Adjunta al menos una evidencia');
   for (let i = 0; i < 2; i++) {
-    const state = i === 0 ? 'Ejecutado' : 'Pendiente';
+    const state = 'Ejecutado';
     await cards.nth(i).getByLabel('Estado', { exact: true }).selectOption(state);
     await cards.nth(i).getByLabel('Acción realizada').fill(`Corrección ${i + 1} realizada`);
     await cards.nth(i).getByLabel('Añadir evidencias del levantamiento').setInputFiles(png);
@@ -85,21 +86,20 @@ test('destinatario envía evidencias, autor pide ajustes y cierra solo al aproba
   await page.getByRole('button', { name: 'Volver a Mis inspecciones', exact: true }).click();
   await expect(page.getByLabel('Filtrar por estado')).toHaveValue('review');
   await page.getByRole('button', { name: 'Revisar informe', exact: true }).click();
-  await cards.nth(0).getByLabel('Estado', { exact: true }).selectOption('Pendiente');
-  await cards.nth(0).getByRole('button', { name: 'Guardar estado', exact: true }).click();
-  await expect(cards.nth(0).getByText('Estado guardado.', { exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Guardar estado', exact: true })).toHaveCount(0);
+  await expect(cards.nth(0).getByLabel('Estado', { exact: true })).toBeDisabled();
+  const name = cards.nth(0).getByLabel('Apellidos y nombres del responsable del levantamiento');
+  await expect(name).toHaveAttribute('readonly', '');
+  expect(await name.evaluate(node => getComputedStyle(node).fontSize)).toBe(await cards.nth(0).getByLabel('Acción realizada').evaluate(node => getComputedStyle(node).fontSize));
+  expect(await name.evaluate(node => node.parentElement?.querySelector('svg') === null)).toBe(true);
   await page.reload(); await openReview(page);
-  await expect(cards.nth(0).getByLabel('Estado', { exact: true })).toHaveValue('Pendiente');
+  await expect(cards.nth(0).getByLabel('Estado', { exact: true })).toHaveValue('Ejecutado');
   await expect(cards.nth(0).getByLabel('Acción realizada')).toHaveValue('Corrección 1 realizada');
   await expect(cards.nth(0).locator('.followup-evidence img')).toHaveCount(1);
   await cards.nth(0).getByRole('button', { name: 'Aprobar levantamiento' }).click();
   await expect(cards.nth(0).locator('.observation-heading .list-status')).toHaveText('Ejecutado');
   await expect(cards.nth(0).getByLabel('Estado', { exact: true })).toHaveValue('Ejecutado');
-  await expect(cards.nth(0).getByLabel('Estado', { exact: true })).toBeEnabled();
-  await expect(page.getByText('Inspección cerrada: todos los estados están en Ejecutado.')).toHaveCount(0);
-  await cards.nth(1).getByLabel('Estado', { exact: true }).selectOption('Ejecutado');
-  await cards.nth(1).getByRole('button', { name: 'Guardar estado', exact: true }).click();
-  await expect(cards.nth(1).getByText('Estado guardado.', { exact: true })).toBeVisible();
+  await expect(cards.nth(0).getByLabel('Estado', { exact: true })).toBeDisabled();
   await expect(page.getByText('Inspección cerrada: todos los estados están en Ejecutado.')).toHaveCount(0);
   await cards.nth(1).getByLabel('Comentario de revisión').fill('Añadir evidencia del área completa.');
   await cards.nth(1).getByRole('button', { name: 'Solicitar ajustes' }).click();
@@ -258,12 +258,13 @@ test('permisos, versiones concurrentes y protección del informe enviado', async
     const staleBlocked = await reject(() => saveCorrection(report, report.observations[0].id, actor.id, correction, false));
     const selfReviewBlocked = await reject(() => reviewCorrection(updated, report.observations[0].id, actor.id, true, ''));
     const outsiderStateBlocked = await reject(() => saveCorrectionState(updated, report.observations[0].id, 'outsider', 'Ejecutado'));
-    const invalidStateBlocked = await reject(() => saveCorrectionState(updated, report.observations[0].id, report.ownerId, 'Otro' as any));
-    const changed = await saveCorrectionState(updated, report.observations[0].id, report.ownerId, 'Ejecutado');
+    const invalidStateBlocked = await reject(() => saveCorrectionState(updated, report.observations[0].id, actor.id, 'Otro' as any));
+    const ownerStateBlocked = await reject(() => saveCorrectionState(updated, report.observations[0].id, report.ownerId, 'Ejecutado'));
+    const changed = await saveCorrectionState(updated, report.observations[0].id, actor.id, 'Ejecutado');
     const staleStateBlocked = await reject(() => saveCorrectionState(updated, report.observations[0].id, actor.id, 'Pendiente'));
     const overwriteBlocked = await reject(() => persistInspection({ ...report, delivery: undefined }));
     const deletionBlocked = await reject(() => removeInspection(report.id));
-    return { identityPreserved, outsiderBlocked, staleBlocked, selfReviewBlocked, outsiderStateBlocked, invalidStateBlocked, staleStateBlocked, overwriteBlocked, deletionBlocked, closed: inspectionClosed(changed) };
+    return { ownerStateBlocked, identityPreserved, outsiderBlocked, staleBlocked, selfReviewBlocked, outsiderStateBlocked, invalidStateBlocked, staleStateBlocked, overwriteBlocked, deletionBlocked, closed: inspectionClosed(changed) };
   });
-  expect(result).toEqual({ identityPreserved: true, outsiderBlocked: true, staleBlocked: true, selfReviewBlocked: true, outsiderStateBlocked: true, invalidStateBlocked: true, staleStateBlocked: true, overwriteBlocked: true, deletionBlocked: true, closed: false });
+  expect(result).toEqual({ ownerStateBlocked: true, identityPreserved: true, outsiderBlocked: true, staleBlocked: true, selfReviewBlocked: true, outsiderStateBlocked: true, invalidStateBlocked: true, staleStateBlocked: true, overwriteBlocked: true, deletionBlocked: true, closed: false });
 });

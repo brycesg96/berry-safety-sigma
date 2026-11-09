@@ -146,9 +146,9 @@ La actualización incluye comprobaciones de versiones, protección del último a
 La interfaz actual agrupa crear y recibir en un único interruptor **Inspecciones**. **Administrador** incluye ambas funciones automáticamente. Activarlo envía ambas capacidades como verdaderas y desactivarlo envía ambas como falsas; activar Administrador habilita también Inspecciones y la base garantiza que un administrador habilitado conserve ambas capacidades. La base conserva sus comprobaciones actuales y las cuentas previas con acceso parcial conservan su permiso hasta una decisión explícita del administrador. El paso 5, todavía pendiente de instalación en el proyecto del propietario al comprobar su versión pública, incorpora esta regla; las actualizaciones posteriores se documentan a continuación.
 
 
-Actualización del espacio de trabajo (pasos 5 a 9)
+Actualización del espacio de trabajo (pasos 5 a 10)
 
-Para el proyecto que ya tiene instalado el archivo final del paso 4, ejecutar el **contenido completo** de [upgrade-workspace.sql](../supabase/operations/upgrade-workspace.sql) en una consulta nueva de Supabase SQL Editor. Es un instalador atómico: instala los pasos que faltan, conserva los registros y el correlativo, y al finalizar muestra `correction_identity_version: 202611090009`. Repetirlo después de completarlo no modifica datos. No ejecutar los scripts antiguos por separado sobre una versión posterior.
+Para el proyecto que ya tiene instalado el archivo final del paso 4, ejecutar el **contenido completo** de [upgrade-workspace.sql](../supabase/operations/upgrade-workspace.sql) en una consulta nueva de Supabase SQL Editor. Es un instalador atómico: instala los pasos que faltan, conserva los registros y el correlativo, y al finalizar muestra `admin_edit_version: 202611090010`. Repetirlo después de completarlo no modifica datos. No ejecutar los scripts antiguos por separado sobre una versión posterior.
 
 Después, en Render → berry-safety-api → Manual Deploy → Deploy latest commit, conservando las variables actuales. La publicación web se realiza por GitHub Pages. No se considera confirmada la instalación remota hasta consultar la versión y comprobar una operación real con el usuario.
 
@@ -160,3 +160,7 @@ La interfaz reutiliza en memoria las listas de administración, los datos del pa
 
 
 El [paso 9: identidad del responsable del levantamiento](../supabase/migrations/202611090009_correction_identity.sql) fija el nombre con la persona registrada como responsable principal al asignar el informe. Se muestra igual para destinatarios y revisor, sin edición manual. Las operaciones de guardar, enviar, cambiar estado y revisar lo obtienen del registro de asignación y descartan un nombre enviado por el cliente; `actorId` sigue registrando la cuenta que realizó cada operación. El cambio de nombre posterior del perfil no modifica esa identidad histórica. La instalación no reescribe inspecciones ni archivos existentes. Para una instalación que ya tiene el paso 8 basta ejecutar el contenido del nuevo paso 9; el instalador general también lo incorpora de forma idempotente. No requiere cambiar variables ni desplegar la API de Render.
+
+## Paso 10: correcciones administrativas y ubicación
+
+El [paso 10](../supabase/migrations/202611090010_admin_edit.sql) permite corregir informes abiertos de cualquier autor con una sesión administradora. Mantiene código, autoría, avances y auditoría, cambia asignaciones y reemplaza el Excel activo antes de retirar versiones anteriores. La nueva ruta de API es `/api/reports/revise`; requiere desplegar Render. Incluye la ubicación compuesta y limita el cambio directo del estado a los destinatarios. Véase [Edición administrativa](EDICION_INSPECCIONES.md). El instalador general se regenera con `node supabase/operations/build-upgrade.mjs`.

@@ -1,3 +1,5 @@
+import { locationErrors, locationText } from './inspection-location';
+import type { InspectionLocation } from './inspection-location';
 import type { PhotoEdit } from './photo-editing';
 import { EMPLOYER, OBJECTIVE_LIMIT } from './employer';
 import { migrateInspectionTime, validInspectionTime } from './inspection-time';
@@ -30,6 +32,7 @@ export type Inspection = {
   ruc: string;
   facility: string;
   area: string;
+  areaLocation?: InspectionLocation;
   type: '' | 'Planeada' | 'No planeada' | 'Otro';
   otherType: string;
   registrationNumber: string;
@@ -55,12 +58,19 @@ export type Inspection = {
   recommendations: string;
   inspector: string;
   inspectorEmail: string;
+  archiveEditOperation?: string;
   additionalInspectors: Responsible[];
   registrationParticipants?: Responsible[];
   step: number;
   updatedAt: string;
   status: 'draft' | 'ready';
 };
+
+export function patchInspectionField<K extends keyof Inspection>(draft: Inspection, key: K, value: Inspection[K]): Inspection {
+  const next = { ...draft, [key]: value };
+  if (key === 'areaLocation' && next.areaLocation) next.area = locationText(next.areaLocation);
+  return next;
+}
 
 export const id = () => crypto.randomUUID();
 export const newResponsible = (): Responsible => ({ id: id(), name: '', email: '' });
@@ -106,6 +116,7 @@ export const emailValid = (email: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e
 export function validateStep(d: Inspection, step: number): Record<string, string> {
   const errors: Record<string, string> = {};
   if (step === 0) {
+    if (d.areaLocation) Object.assign(errors, locationErrors(d.areaLocation));
     for (const [key, label] of [['area', 'el área inspeccionada'], ['date', 'la fecha'], ['inspectionTime', 'la hora de inspección'], ['inspector', 'el responsable de la inspección'], ['objective', 'el objetivo']] as const) {
       if (!d[key].trim()) errors[key] = `Completa ${label}.`;
     }
@@ -148,7 +159,7 @@ export function validateStep(d: Inspection, step: number): Record<string, string
 
 export function normalizeInspection(value: Inspection): Inspection {
   const type = ['Planeada', 'No planeada', 'Otro'].includes(value.type) ? value.type : '';
-  return { ...value, initialInspectionDate: value.initialInspectionDate ?? value.date, unfavorableCause: value.unfavorableCause || '', closingRemarks: closingRemarksOf(value), registrationDetails: value.registrationDetails || {}, additionalInspectors: value.additionalInspectors || [], registrationParticipants: registrationParticipantsOf(value), defaultClosingDate: value.defaultClosingDate ?? value.observations.find(o => o.dueDate)?.dueDate ?? '', ownerId: value.ownerId || 'demo-admin', type, otherType: value.otherType || '', registrationNumber: '', ...(value.registrationNumber ? { legacyRegistrationNumber: value.registrationNumber } : {}), ...migrateInspectionTime(value.inspectionTime || '', value.inspectionPeriod), ...(value.type && !type ? { legacyType: value.type } : {}) };
+  return { ...value, ...(value.areaLocation ? { area: locationText(value.areaLocation) } : {}), initialInspectionDate: value.initialInspectionDate ?? value.date, unfavorableCause: value.unfavorableCause || '', closingRemarks: closingRemarksOf(value), registrationDetails: value.registrationDetails || {}, additionalInspectors: value.additionalInspectors || [], registrationParticipants: registrationParticipantsOf(value), defaultClosingDate: value.defaultClosingDate ?? value.observations.find(o => o.dueDate)?.dueDate ?? '', ownerId: value.ownerId || 'demo-admin', type, otherType: value.otherType || '', registrationNumber: '', ...(value.registrationNumber ? { legacyRegistrationNumber: value.registrationNumber } : {}), ...migrateInspectionTime(value.inspectionTime || '', value.inspectionPeriod), ...(value.type && !type ? { legacyType: value.type } : {}) };
 }
 
 export const formatDate = (value: string) => value ? new Intl.DateTimeFormat('es-PE', { day: '2-digit', month: 'short', year: 'numeric' }).format(new Date(`${value}T12:00:00`)) : 'Sin definir';

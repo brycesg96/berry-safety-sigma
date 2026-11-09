@@ -17,7 +17,7 @@ test('hora de 12 horas y migración de borradores sin adivinar AM/PM nuevos', ()
 
 test('ubicación en el ejemplo, AM/PM requerido y conservación en revisión, recarga y Excel', async ({ page }) => {
   await mockDirectory(page); await page.goto('./');
-  await expect(page.getByLabel('Área inspeccionada')).toHaveAttribute('placeholder', 'Ej. Taller de Maquinaria - Armonía 2');
+  await expect(page.getByLabel('Área inspeccionada')).toHaveAttribute('placeholder', 'Ej. Taller de Maquinaria');
   await expect(page.getByLabel('Hora de inspección')).toHaveValue('');
   await expect(page.getByLabel('AM o PM')).toHaveValue('');
   await expect(page.getByRole('textbox', { name: 'Código de inspección', exact: true })).toHaveValue(/^IH-\d{4}-001$/);
@@ -26,6 +26,7 @@ test('ubicación en el ejemplo, AM/PM requerido y conservación en revisión, re
   await expect(page.getByRole('tooltip')).toContainText('El código definitivo aparecerá en Mis inspecciones');
   await page.getByLabel('Área inspeccionada').click();
   await page.getByLabel('Área inspeccionada').fill('Taller de Maquinaria - Armonía 2');
+  await page.getByRole('combobox', { name: 'Sede', exact: true }).selectOption('Fundo'); await page.getByRole('combobox', { name: 'Zona de inspección', exact: true }).selectOption('Armonía II');
   await page.getByRole('textbox', { name: 'Objetivo de la inspección interna', exact: true }).fill('Verificar las condiciones de maquinaria.');
   await page.getByRole('combobox', { name: /Nombre completo/ }).fill('Ana');
   await page.getByRole('listbox').getByRole('option', { name: /Ana Torres/ }).click();
@@ -63,6 +64,7 @@ test('ubicación en el ejemplo, AM/PM requerido y conservación en revisión, re
 test('Mis inspecciones distingue un código tentativo de un recibo definitivo', async ({ page }) => {
   await page.goto('./');
   await page.getByLabel('Área inspeccionada').fill('Registro confirmado de prueba');
+  await page.getByRole('combobox', { name: 'Sede', exact: true }).selectOption('Fundo'); await page.getByRole('combobox', { name: 'Zona de inspección', exact: true }).selectOption('Armonía II');
   await page.getByRole('button', { name: 'Guardar y salir' }).click();
   await expect(page.getByText('Código definitivo: pendiente de envío')).toBeVisible();
   await page.evaluate(async () => {
@@ -70,7 +72,7 @@ test('Mis inspecciones distingue un código tentativo de un recibo definitivo', 
     const db = await new Promise<IDBDatabase>((resolve, reject) => { request.onsuccess = () => resolve(request.result); request.onerror = reject; });
     const tx = db.transaction('inspections', 'readwrite'); const store = tx.objectStore('inspections');
     const requestAll = store.getAll(); requestAll.onsuccess = () => {
-      const draft = requestAll.result.find(d => d.area === 'Registro confirmado de prueba');
+      const draft = requestAll.result.find(d => d.area === 'Fundo – Armonía II – Registro confirmado de prueba');
       store.put({ ...draft, serverRegistration: { inspectionId: draft.id, code: 'IH-2026-008', acceptedAt: '2026-11-04T13:00:00Z' } });
     };
     await new Promise<void>((resolve, reject) => { tx.oncomplete = () => resolve(); tx.onerror = reject; tx.onabort = reject; }); db.close();

@@ -13,6 +13,7 @@ test('empleador fijo, tres tipos, Otro con detalle y máximo 560', async ({ page
   await expect(employer.getByText('Solo lectura')).toHaveCount(0);
   await expect(employer.locator('svg')).toHaveCount(0);
   await page.getByLabel('Área inspeccionada').fill('Taller');
+  await page.getByRole('combobox', { name: 'Sede', exact: true }).selectOption('Fundo'); await page.getByRole('combobox', { name: 'Zona de inspección', exact: true }).selectOption('Armonía II');
   await page.getByLabel('Hora de inspección').fill('08:40');
   await page.getByLabel('AM o PM').selectOption('AM');
   await expect(page.getByLabel('Responsable de la inspección')).toHaveAttribute('readonly', '');
@@ -87,4 +88,15 @@ test('borrador anterior conserva el objetivo largo y solicita corregirlo', async
   await page.getByRole('button', { name: 'Continuar', exact: true }).click();
   await expect(page.getByText('El objetivo debe tener como máximo 560 caracteres.')).toBeVisible();
   await expect(page.getByRole('radio', { checked: true })).toHaveCount(0);
+});
+
+test('sede y zona dependientes conservan un prefijo que no se puede borrar al completar el área', async ({ page }) => {
+ await page.goto('./');
+ const site=page.getByRole('combobox',{name:'Sede',exact:true}),zone=page.getByRole('combobox',{name:'Zona de inspección',exact:true}),area=page.getByRole('textbox',{name:'Área inspeccionada',exact:true});
+ await expect(zone).toBeDisabled();expect(await site.locator('option').allTextContents()).not.toContain('Puerto Morín');
+ await site.selectOption('Fundo');await zone.selectOption('Armonía II');await area.fill('Taller de Maquinaria');
+ await expect(page.locator('.inspection-area-prefix')).toHaveText('Fundo – Armonía II –');
+ await area.fill('Actividad corregida');await expect(page.locator('.inspection-area-prefix')).toHaveText('Fundo – Armonía II –');
+ await site.selectOption('Exteriores');await expect(zone).toHaveValue('');expect(await zone.locator('option').allTextContents()).toEqual(['Selecciona una zona','Chao','Otros','Semillero']);await zone.selectOption('Chao');
+ await expect(area).toHaveValue('Actividad corregida');await expect(page.getByText('Guardado en este navegador',{exact:true})).toBeVisible();await page.reload();await expect(site).toHaveValue('Exteriores');await expect(zone).toHaveValue('Chao');await expect(area).toHaveValue('Actividad corregida');
 });

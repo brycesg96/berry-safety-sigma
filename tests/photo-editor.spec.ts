@@ -6,6 +6,7 @@ import { mockDirectory } from './directory-fixture';
 async function prepareEditor(page: Page) {
   await mockDirectory(page); await page.goto('./');
   await page.getByLabel('Área inspeccionada').fill('Taller - Armonía 2');
+  await page.getByRole('combobox', { name: 'Sede', exact: true }).selectOption('Fundo'); await page.getByRole('combobox', { name: 'Zona de inspección', exact: true }).selectOption('Armonía II');
   await page.getByLabel('Hora de inspección').fill('07:30'); await page.getByLabel('AM o PM').selectOption('AM');
   await page.getByRole('radio', { name: 'Planeada', exact: true }).check();
   await page.getByRole('textbox', { name: 'Objetivo de la inspección interna', exact: true }).fill('Verificar seguridad.');
@@ -44,7 +45,7 @@ async function draw(page: Page, x1: number, y1: number, x2: number, y2: number) 
 async function storedPhoto(page: Page) {
   return page.evaluate(async () => {
     const req = indexedDB.open('berry-safety', 1); const db = await new Promise<IDBDatabase>(resolve => { req.onsuccess = () => resolve(req.result); });
-    const result = await new Promise<any>(resolve => { const reqAll = db.transaction('inspections', 'readonly').objectStore('inspections').getAll(); reqAll.onsuccess = () => resolve(reqAll.result.find(d => d.area === 'Taller - Armonía 2').observations[0].photos[0]); }); db.close(); return result;
+    const result = await new Promise<any>(resolve => { const reqAll = db.transaction('inspections', 'readonly').objectStore('inspections').getAll(); reqAll.onsuccess = () => resolve(reqAll.result.find(d => d.area === 'Fundo – Armonía II – Taller - Armonía 2').observations[0].photos[0]); }); db.close(); return result;
   });
 }
 test('edición con color, grosor, tamaño, recorte, persistencia y exportación de la imagen final', async ({ page }) => {

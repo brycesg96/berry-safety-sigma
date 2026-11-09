@@ -352,13 +352,14 @@ test('final replacement stays blocked until every observation has been approved,
 });
 
 const upgradeWorkspace=await readFile(new URL('../operations/upgrade-workspace.sql',import.meta.url),'utf8');
-test('single workspace upgrade installs steps 5 to 9 atomically from the current final-archive stage without changing reports or counters',async()=>{
+test('single workspace upgrade installs steps 5 to 10 atomically from the current final-archive stage without changing reports or counters',async()=>{
  const reportsBefore=(await db.query('select id,data,code from public.berry_inspections order by id')).rows;
  const countersBefore=(await db.query('select * from berry_private.report_counters order by year')).rows;
  await assert.rejects(()=>db.transaction(async tx=>{
   await tx.exec(upgradeWorkspace);
   assert.equal((await tx.query('select public.berry_schema_status() as value')).rows[0].value.registration_version,'202611090008');
   assert.equal((await tx.query('select public.berry_schema_status() as value')).rows[0].value.correction_identity_version,'202611090009');
+  assert.equal((await tx.query('select public.berry_schema_status() as value')).rows[0].value.admin_edit_version,'202611090010');
   assert.deepEqual((await tx.query('select id,data,code from public.berry_inspections order by id')).rows,reportsBefore);
   assert.deepEqual((await tx.query('select * from berry_private.report_counters order by year')).rows,countersBefore);
   throw new Error('ROLLBACK_UPGRADE_FIXTURE');
@@ -564,7 +565,7 @@ test('four inspection participants and four independent registrants preserve his
  const lease=await prepare(both);
  await as('service_role',null,'select public.berry_cancel_report($1,$2)',[lease.operation_id,users.author]);
  assert.equal((await as('anon',null,'select public.berry_schema_status() as value')).rows[0].value.registration_version,'202611090008');
- const beforeReplay=(await db.query('select id,data,revision from public.berry_inspections order by id')).rows;await db.exec(upgradeWorkspace);assert.deepEqual((await db.query('select id,data,revision from public.berry_inspections order by id')).rows,beforeReplay);
+ const beforeReplay=(await db.query('select id,data,revision from public.berry_inspections order by id')).rows;await db.exec(registrationMigration);assert.deepEqual((await db.query('select id,data,revision from public.berry_inspections order by id')).rows,beforeReplay);
  await assert.rejects(()=>db.exec(dashboardMigration),e=>e.code==='55000');await db.exec('rollback');
 });
 
@@ -607,6 +608,124 @@ test('correction responsible is bound to the original assignment for recipients 
  await denied(()=>as('anon',null,'select public.berry_change_correction($1,$2,$3,$4,$5)',[id,cloudObservation,row.revision,'save',input]));
  assert.equal((await as('anon',null,'select public.berry_schema_status() as value')).rows[0].value.correction_identity_version,'202611090009');
  await assert.rejects(()=>db.exec(registrationMigration),e=>e.code==='55000');await db.exec('rollback');
+});
+
+const adminEditMigration=await readFile(new URL('../migrations/202611090010_admin_edit.sql',import.meta.url),'utf8');
+test('administrative edit schema installs without changing existing reports or numbering',async()=>{
+ const before=(await db.query('select id,author_id,code,data,revision from public.berry_inspections order by id')).rows;
+ const counters=(await db.query('select * from berry_private.report_counters order by year')).rows;
+ await db.exec(adminEditMigration);
+ assert.deepEqual((await db.query('select id,author_id,code,data,revision from public.berry_inspections order by id')).rows,before);
+ assert.deepEqual((await db.query('select * from berry_private.report_counters order by year')).rows,counters);
+ assert.equal((await db.query('select public.berry_schema_status() as value')).rows[0].value.admin_edit_version,'202611090010');
+});
+
+const editCreator='96000000-0000-4000-8000-000000000006',editLead='96000000-0000-4000-8000-000000000001',editNew='96000000-0000-4000-8000-000000000002';
+async function editFixture(n) {
+ const id=`99000000-0000-4000-8000-${String(n).padStart(12,'0')}`,second=`99100000-0000-4000-8000-${String(n).padStart(12,'0')}`;
+ await as('authenticated',editCreator,'select public.berry_ensure_draft($1)',[id]);
+ let row=(await as('authenticated',editCreator,'select public.berry_save_draft($1,1,$2) as value',[id,{...cloudData(),id,responsibles:[{id:'r',personId:editLead}],observations:[...cloudData().observations,{...cloudData().observations[0],id:second}]}])).rows[0].value;
+ const lease=(await as('authenticated',editCreator,'select public.berry_prepare_report($1,$2,$3) as value',[id,row.revision,sourceHash])).rows[0].value.lease;
+ const doc={filename:'REG_INS_TALLER.xlsx',sha256:documentHash,byte_size:2000,storage_path:`2026/11-NOVIEMBRE/${id}/${documentHash}/REG_INS_TALLER.xlsx`};
+ await db.query('insert into storage.objects(bucket_id,name)values($1,$2)',['berry-documents',doc.storage_path]);
+ const committed=(await as('service_role',null,'select public.berry_commit_report($1,$2,100,$3) as value',[lease.operation_id,editCreator,doc])).rows[0].value;
+ return {row:committed.inspection,document:committed.document,second};
+}
+const prepareEdit=async(row,data,operation,actor=users.author)=>(await as('authenticated',actor,'select public.berry_prepare_admin_edit($1,$2,$3,$4) as value',[row.id,row.revision,data,operation])).rows[0].value;
+const editService=async(name,operation,extra=[],actor=users.author)=>(await as('service_role',null,`select public.${name}($1,$2,100${extra.map((_,i)=>`,$${i+3}`).join('')}) as value`,[operation,actor,...extra])).rows[0].value;
+const editDoc=(id,hash='e'.repeat(64))=>({filename:'REG_INS_ARREGLADO.xlsx',sha256:hash,byte_size:2400,storage_path:`2026/12-DICIEMBRE/${id}/${hash}/REG_INS_ARREGLADO.xlsx`});
+let adminFixture;
+test('admin stages edits to another author report, preserves corrections and identity, and cannot publish before a workbook exists',async()=>{
+ adminFixture=await editFixture(1);let row=adminFixture.row;
+ const change=async(obs,action,value,actor=editLead)=>{row=(await as('authenticated',actor,'select public.berry_change_correction($1,$2,$3,$4,$5) as value',[row.id,obs,row.revision,action,value])).rows[0].value;};
+ const path=`${row.id}/${cloudObservation}/${documentHash}.png`;
+ await as('authenticated',editLead,'insert into storage.objects(bucket_id,name)values($1,$2)',['berry-evidence',path]);
+ const progress={action:'Avance histórico',date:'2026-11-09',photos:[{id:cloudObservation,name:'evidencia.png',dataRef:path}],state:'Ejecutado'};
+ await change(cloudObservation,'submit',progress);await change(cloudObservation,'approve',{note:'Conforme'},editCreator);
+ await change(adminFixture.second,'save',{...progress,state:'Pendiente'});
+ await denied(()=>change(adminFixture.second,'state',{state:'Ejecutado'},editCreator));
+ adminFixture.row=row;adminFixture.counters=(await db.query('select * from berry_private.report_counters order by year')).rows;
+ const operation='99200000-0000-4000-8000-000000000001';adminFixture.operation=operation;
+ const input={...row.data,ownerId:users.author,inspector:'Falso',serverRegistration:{code:'FAKE'},delivery:{corrections:{}},date:'2026-12-01',area:'Texto manipulado',areaLocation:{site:'Fundo',zone:'Armonía II',detail:'Taller corregido'},responsibles:[{id:'r',personId:editNew}],observations:row.data.observations.map((o,i)=>i===0?{...o,description:'Descripción corregida'}:o)};
+ const prepared=await prepareEdit(row,input,operation),data=prepared.inspection.data;
+ assert.equal(data.ownerId,editCreator);assert.equal(data.inspector,row.data.inspector);assert.deepEqual(data.serverRegistration,row.data.serverRegistration);
+ assert.equal(data.area,'Fundo – Armonía II – Taller corregido');
+ const c=data.delivery.corrections[cloudObservation],unchanged=data.delivery.corrections[adminFixture.second];
+ assert.equal(c.state,'Pendiente');assert.equal(c.decision,'changes');assert.equal(c.action,progress.action);assert.deepEqual(c.photos,progress.photos);assert.equal(c.actorId,editLead);assert.equal(c.responsibleName,'Participante 2');
+ assert.deepEqual(unchanged,{...row.data.delivery.corrections[adminFixture.second],responsibleName:'Participante 2'});
+ assert.deepEqual((await db.query('select data from public.berry_inspections where id=$1',[row.id])).rows[0].data,row.data);
+ assert.equal((await prepareEdit(row,input,operation)).state,'prepared');
+ await assert.rejects(()=>prepareEdit(row,{...input,objective:'Otra edición'},operation),e=>e.code==='40001');
+ await denied(()=>prepareEdit(row,input,'99200000-0000-4000-8000-000000000002',editLead));
+ await denied(()=>as('anon',null,'select public.berry_prepare_admin_edit($1,$2,$3,$4)',[row.id,row.revision,input,operation]));
+ await denied(()=>as('authenticated',users.author,'select * from berry_private.admin_edits'));
+ await denied(()=>as('authenticated',users.author,'select public.berry_commit_admin_edit($1,$2,100,$3)',[operation,users.author,editDoc(row.id)]));
+ await assert.rejects(()=>editService('berry_commit_admin_edit',operation,[editDoc(row.id)]),e=>e.message==='DOCUMENT_NOT_STORED');
+ assert.equal((await db.query('select storage_path from public.berry_documents where inspection_id=$1',[row.id])).rows[0].storage_path,adminFixture.document.storage_path);
+ assert.deepEqual((await db.query('select * from berry_private.report_counters order by year')).rows,adminFixture.counters);
+});
+test('admin commit changes recipients atomically, retains history and code, audits the real administrator and removes only superseded workbooks',async()=>{
+ const f=adminFixture,doc=editDoc(f.row.id);await db.query('insert into storage.objects(bucket_id,name)values($1,$2)',['berry-documents',doc.storage_path]);
+ const committed=await editService('berry_commit_admin_edit',f.operation,[doc]);
+ assert.equal(committed.inspection.code,f.row.code);assert.equal(committed.inspection.author_id,editCreator);assert.equal(committed.inspection.sent_at,f.row.sent_at);assert.equal(committed.document.id,f.document.id);
+ assert.equal(committed.inspection.active_edit_operation,f.operation);assert.equal(committed.inspection.data.emailDelivery.state,'unconfirmed');
+ assert.equal((await as('authenticated',editLead,'select id from public.berry_inspections where id=$1',[f.row.id])).rows.length,0);
+ assert.equal((await as('authenticated',editNew,'select id from public.berry_inspections where id=$1',[f.row.id])).rows.length,1);
+ await denied(()=>as('authenticated',editLead,'select public.berry_change_correction($1,$2,$3,$4,$5)',[f.row.id,cloudObservation,committed.inspection.revision,'save',{state:'Pendiente',action:'Intento',date:'2026-12-01',photos:[]}]));
+ const corrected=(await as('authenticated',editNew,'select public.berry_change_correction($1,$2,$3,$4,$5) as value',[f.row.id,cloudObservation,committed.inspection.revision,'save',{state:'Pendiente',action:'Continuado por nuevo responsable',date:'2026-12-01',photos:[]}])).rows[0].value;
+ assert.equal(corrected.data.delivery.corrections[cloudObservation].responsibleName,'Participante 2');
+ const historical=(await db.query('select data from public.berry_corrections where inspection_id=$1 and observation_id=$2',[f.row.id,f.second])).rows[0].data;assert.equal(historical.actorId,editLead);assert.equal(historical.action,'Avance histórico');
+ assert.ok((await as('authenticated',users.author,"select actor_id from public.berry_audit where entity_id=$1 and action='update'",[f.row.id])).rows.some(a=>a.actor_id===users.author));
+ const abandoned=`2026/11-NOVIEMBRE/${f.row.id}/${'f'.repeat(64)}/ABANDONADO.xlsx`;
+ await db.query('insert into storage.objects(bucket_id,name)values($1,$2)',['berry-documents',abandoned]);
+ const cleanup=await editService('berry_admin_edit_cleanup',f.operation);assert.deepEqual(new Set(cleanup),new Set([abandoned,f.document.storage_path]));assert.ok(!cleanup.includes(doc.storage_path));
+ await assert.rejects(()=>editService('berry_finish_admin_edit',f.operation,[cleanup]),e=>e.message==='EDIT_CLEANUP_PENDING');
+ for(const path of cleanup)await db.query("delete from storage.objects where bucket_id='berry-documents' and name=$1",[path]);
+ const complete=await editService('berry_finish_admin_edit',f.operation,[cleanup]);assert.equal(complete.active_edit_operation,null);
+ assert.equal((await editService('berry_admin_edit_upload',f.operation)).state,'complete');
+ assert.equal((await db.query("select name from storage.objects where bucket_id='berry-documents' and split_part(name,'/',3)=$1",[f.row.id])).rows.length,1);
+ assert.deepEqual((await db.query('select * from berry_private.report_counters order by year')).rows,f.counters);
+});
+test('stale, expired, closed and revoked admin operations cannot replace an active document; recipient eligibility is rechecked at commit',async()=>{
+ const f=await editFixture(2),operation='99200000-0000-4000-8000-000000000003',data={...f.row.data,date:'2026-12-01',responsibles:[{id:'r',personId:editNew}]};
+ await prepareEdit(f.row,data,operation);const doc=editDoc(f.row.id);await db.query('insert into storage.objects(bucket_id,name)values($1,$2)',['berry-documents',doc.storage_path]);
+ await db.query('update public.berry_profiles set enabled=false where id=$1',[editNew]);
+ await assert.rejects(()=>editService('berry_commit_admin_edit',operation,[doc]),e=>e.message==='RECIPIENT_NOT_ALLOWED');
+ await db.query('update public.berry_profiles set enabled=true where id=$1',[editNew]);
+ await db.query('update public.berry_inspections set revision=revision+1 where id=$1',[f.row.id]);
+ await assert.rejects(()=>editService('berry_commit_admin_edit',operation,[doc]),e=>e.message==='REVISION_CONFLICT');
+ await db.query("update berry_private.admin_edits set expires_at=now()-interval '1 minute' where operation_id=$1",[operation]);
+ await assert.rejects(()=>editService('berry_admin_edit_upload',operation),e=>e.message==='EDIT_EXPIRED');
+ await denied(()=>editService('berry_admin_edit_upload',operation,[],editLead));
+ await db.query("update public.berry_inspections set workflow='closed',closed_at=now() where id=$1",[f.row.id]);
+ await denied(()=>prepareEdit({...f.row,revision:f.row.revision+1},data,'99200000-0000-4000-8000-000000000004'));
+ assert.equal((await db.query('select storage_path from public.berry_documents where inspection_id=$1',[f.row.id])).rows[0].storage_path,f.document.storage_path);
+});
+test('removing the last pending observation preserves approvals, closes with one final workbook and permits another current administrator to finish cleanup',async()=>{
+ const f=await editFixture(4),operation='99200000-0000-4000-8000-000000000005';let row=f.row;
+ for(const [actor,action,value] of [[editLead,'submit',{action:'Corregido',date:'2026-11-10',photos:[],state:'Pendiente'}],[editCreator,'approve',{note:'Conforme'}]])row=(await as('authenticated',actor,'select public.berry_change_correction($1,$2,$3,$4,$5) as value',[row.id,cloudObservation,row.revision,action,value])).rows[0].value;
+ const target=(await db.query('select access_revision from public.berry_profiles where id=$1',[editNew])).rows[0];await accessChange(users.author,editNew,target.access_revision,permissions(true,true,true));
+ const counters=(await db.query('select * from berry_private.report_counters order by year')).rows;
+ await prepareEdit(row,{...row.data,date:'2026-12-01',observations:[row.data.observations[0]]},operation);
+ await denied(()=>editService('berry_admin_edit_upload',operation,[],editNew));
+ const doc=editDoc(row.id);await db.query('insert into storage.objects(bucket_id,name)values($1,$2)',['berry-documents',doc.storage_path]);
+ const committed=await editService('berry_commit_admin_edit',operation,[doc]);assert.equal(committed.inspection.workflow,'closed');assert.equal(committed.document.is_final,true);assert.equal(committed.inspection.code,row.code);
+ const cleanup=await editService('berry_admin_edit_cleanup',operation,[],editNew);for(const path of cleanup)await db.query("delete from storage.objects where bucket_id='berry-documents' and name=$1",[path]);
+ const complete=await editService('berry_finish_admin_edit',operation,[cleanup],editNew);assert.equal(complete.final_excel_stored,true);assert.equal(complete.active_edit_operation,null);
+ await denied(()=>prepareEdit(complete,complete.data,'99200000-0000-4000-8000-000000000006'));
+ assert.deepEqual((await db.query('select * from berry_private.report_counters order by year')).rows,counters);
+});
+
+test('structured areas preserve the composed text in drafts, reject retired sites and wrong zones, and the installer can replay safely',async()=>{
+ const id='99000000-0000-4000-8000-000000000003';await as('authenticated',editCreator,'select public.berry_ensure_draft($1)',[id]);
+ const data={...cloudData(),id,responsibles:[{id:'r',personId:editNew}],area:'Inventado',areaLocation:{site:'Trujillo',zone:'Quintanas',detail:'Almacén'}};
+ const row=(await as('authenticated',editCreator,'select public.berry_save_draft($1,1,$2) as value',[id,data])).rows[0].value;assert.equal(row.data.area,'Trujillo – Quintanas – Almacén');
+ for(const location of [{site:'Puerto Morín',zone:'Puerto Morín',detail:'Taller'},{site:'Fundo',zone:'Quintanas',detail:'Taller'},'incorrecto',null])await assert.rejects(()=>as('authenticated',editCreator,'select public.berry_save_draft($1,$2,$3)',[id,row.revision,{...data,areaLocation:location}]),e=>e.message==='INVALID_LOCATION');
+ const partial=(await as('authenticated',editCreator,'select public.berry_save_draft($1,$2,$3) as value',[id,row.revision,{...data,areaLocation:{...data.areaLocation,zone:''}}])).rows[0].value;
+ await assert.rejects(()=>as('authenticated',editCreator,'select public.berry_prepare_report($1,$2,$3)',[id,partial.revision,sourceHash]),e=>e.message==='INCOMPLETE_LOCATION');
+ const before=(await db.query('select id,code,data,revision from public.berry_inspections order by id')).rows,counters=(await db.query('select * from berry_private.report_counters order by year')).rows;
+ await db.exec(upgradeWorkspace);assert.deepEqual((await db.query('select id,code,data,revision from public.berry_inspections order by id')).rows,before);assert.deepEqual((await db.query('select * from berry_private.report_counters order by year')).rows,counters);
+ await assert.rejects(()=>db.exec(correctionIdentityMigration),e=>e.code==='55000');await db.exec('rollback');
 });
 
 const restoreOwner = await readFile(new URL('../operations/restore-owner-access.sql',import.meta.url),'utf8');

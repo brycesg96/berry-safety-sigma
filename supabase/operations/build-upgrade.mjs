@@ -1,0 +1,21 @@
+import { readFile, writeFile } from 'node:fs/promises';
+const steps = [
+ ['202611080005_access_controls.sql', "to_regprocedure('berry_private.storage_filename(text)') is null"],
+ ['202611080006_storage_names.sql', "public.berry_schema_status()->>'storage_version' is distinct from '202611080006'"],
+ ['202611080007_dashboard.sql', "public.berry_schema_status()->>'dashboard_version' is distinct from '202611080007'"],
+ ['202611090008_registration_participants.sql', "public.berry_schema_status()->>'registration_version' is distinct from '202611090008'"],
+ ['202611090009_correction_identity.sql', "public.berry_schema_status()->>'correction_identity_version' is distinct from '202611090009'"],
+ ['202611090010_admin_edit.sql', "public.berry_schema_status()->>'admin_edit_version' is distinct from '202611090010'"],
+];
+let sql = `-- Berry Safety: instalar las actualizaciones pendientes de los pasos 5 a 10.
+-- Requiere el paso 4 ya instalado. Ejecutar como propietario en SQL Editor.
+-- Conserva cuentas, inspecciones, archivos y numeración. No envía correos.
+-- La operación es atómica; repetirla después de terminar no cambia datos.
+DO $berry_upgrade$
+BEGIN
+`;
+for (const [index, [file, condition]] of steps.entries()) {
+ const source = (await readFile(new URL('../migrations/'+file, import.meta.url),'utf8')).replace(/^begin;\s*$/m,'').replace(/^commit;\s*$/m,'').trim();
+ sql += ` IF ${condition} THEN\n  EXECUTE $berry_step${index+5}$\n${source}\n$berry_step${index+5}$;\n END IF;\n`;
+}
+await writeFile(new URL('upgrade-workspace.sql',import.meta.url),sql+`END $berry_upgrade$;\nSELECT public.berry_schema_status();\n`);

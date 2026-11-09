@@ -5,6 +5,9 @@ import type { CloudProfile } from './cloud-account';
 import type { Inspection } from './model';
 import { formatDate } from './model';
 import { inspectionPeople } from './registration';
+import { AdminInspectionEditor } from './AdminInspectionEditor';
+import { finishAdminEdit } from './admin-edit';
+import { dashboardSnapshot } from './dashboard';
 import { FollowUp } from './FollowUp';
 import { exportExcel } from './export';
 import { exportPdf } from './pdf';
@@ -16,10 +19,11 @@ export function InspectionDashboard({ actor, cache, isCurrent, onBusyChange }: {
   const previous = cache.current?.actorId === actor.id ? cache.current : null;
   const [rows, setRows] = useState(previous?.rows || []), [updatedAt, setUpdatedAt] = useState(previous?.updatedAt || '');
   const [filters, setFilters] = useState(emptyDashboardFilters), [loading, setLoading] = useState(!previous), [retry, setRetry] = useState(0);
+  const [editing, setEditing] = useState(false);
   const [busy, setBusy] = useState(false), [error, setError] = useState(''), [detail, setDetail] = useState<Inspection | null>(null);
   const detailBusy = useCallback((value: boolean) => { working.current = value; setBusy(value); onBusyChange(value); }, [onBusyChange]);
   const current = useRef(isCurrent); current.current = isCurrent;
-  const live = useRef(true), working = useRef(false); working.current = busy;
+  const live = useRef(true), working = useRef(false); working.current = busy || editing;
   useEffect(() => { live.current = true; return () => { live.current = false; onBusyChange(false); }; }, [onBusyChange]);
   useEffect(() => {
     let active = true, request = 0;
@@ -68,7 +72,13 @@ export function InspectionDashboard({ actor, cache, isCurrent, onBusyChange }: {
       else { setDetail(report); window.scrollTo({ top: 0 }); }
     });
   }
-  if (detail) return <section className="inspection-dashboard"><FollowUp key={detail.id} inspection={detail} actor={{ id: actor.id, name: actor.full_name, email: actor.email, area: actor.area, jobTitle: actor.job_title, role: 'admin', enabled: actor.enabled }} readOnly onChange={setDetail} onBack={() => setDetail(null)} onBusyChange={detailBusy}/></section>;
+  const saved = (updated: Inspection) => {
+    const snapshot = dashboardSnapshot(updated);
+    setRows(old => { const next = old.map(row => row.id === updated.id ? snapshot : row); cache.current = { actorId: actor.id, rows: next, updatedAt: new Date().toISOString() }; return next; });
+    setDetail(updated); setEditing(false); setRetry(value => value + 1); window.scrollTo({ top: 0 });
+  };
+  if (detail && editing) return <AdminInspectionEditor key={detail.id} inspection={detail} actor={actor} isCurrent={isCurrent} onCancel={() => { setEditing(false); void loadDashboardInspection(detail.id, actor.id).then(report => { if (live.current && current.current()) setDetail(report); }).catch(problem => { if (live.current) { setDetail(null); setError(problem.message); } }); }} onSaved={saved} onBusyChange={detailBusy}/>;
+  if (detail) return <section className="inspection-dashboard">{error && <p className="notice notice-error" role="alert">{error}</p>}<FollowUp key={detail.id} inspection={detail} actor={{ id: actor.id, name: actor.full_name, email: actor.email, area: actor.area, jobTitle: actor.job_title, role: 'admin', enabled: actor.enabled }} readOnly externalBusy={busy} onChange={setDetail} onBack={() => { setError(''); setDetail(null); }} onBusyChange={detailBusy} onEdit={() => setEditing(true)} onArchiveRetry={detail.archiveEditOperation ? () => void action(async () => { const updated = await finishAdminEdit({ inspectionId: detail.id, operationId: detail.archiveEditOperation! }, actor.id); if (live.current && current.current()) saved(updated); }) : undefined}/></section>;
   const monthMaximum = Math.max(1, ...metrics.months.map(([, count]) => count)), areaMaximum = Math.max(1, ...metrics.areas.map(area => area.count));
   return <section className="inspection-dashboard" aria-busy={busy}>
     <div className="dashboard-heading"><div><div className="eyebrow">VISIÓN GENERAL</div><h1>Panel de inspecciones</h1><p>Consulta los registros, revisa su avance y descarga el consolidado.</p></div><button type="button" className="button button-primary" disabled={busy || invalidDates || !filtered.length} onClick={() => void action(async () => { const file = await buildConsolidated(filtered); if (live.current && current.current()) saveDashboardFile(file); })}><Download size={17}/>Descargar consolidado</button></div>

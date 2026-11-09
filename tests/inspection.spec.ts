@@ -6,6 +6,7 @@ test.beforeEach(async ({ page }) => { await mockDirectory(page); });
 
 async function fillGeneral(page: Page) {
   await page.getByLabel('Área inspeccionada').fill('Almacén y despacho');
+  await page.getByRole('combobox', { name: 'Sede', exact: true }).selectOption('Fundo'); await page.getByRole('combobox', { name: 'Zona de inspección', exact: true }).selectOption('Armonía II');
   await page.getByLabel('Hora de inspección').fill('07:30');
   await page.getByLabel('AM o PM').selectOption('AM');
   await page.getByRole('radio', { name: 'Planeada', exact: true }).check();
@@ -65,7 +66,7 @@ test('recorrido completo con evidencia, persistencia y un Excel válido', async 
   const downloadEvent = page.waitForEvent('download');
   await page.getByRole('button', { name: 'Descargar Excel', exact: true }).click();
   const download = await downloadEvent;
-  expect(download.suggestedFilename()).toBe('REG_INS_ALMACÉN Y DESPACHO_03.11.2026.xlsx');
+  expect(download.suggestedFilename()).toBe('REG_INS_FUNDO – ARMONÍA II – ALMACÉN Y DESPACHO_03.11.2026.xlsx');
   const book = new ExcelJS.Workbook();
   await book.xlsx.readFile((await download.path())!);
   const sheet = book.getWorksheet('V.01')!;
@@ -132,10 +133,10 @@ test('móvil: menú, borradores, búsqueda y eliminación', async ({ page }) => 
   await page.getByRole('button', { name: 'Continuar', exact: true }).click();
   await expect(page.getByLabel('Área inspeccionada')).toHaveValue('Almacén y despacho');
   await page.getByRole('button', { name: 'Guardar y salir' }).click();
-  await page.getByRole('button', { name: 'Eliminar inspección Almacén y despacho', exact: true }).click();
+  await page.getByRole('button', { name: 'Eliminar inspección Fundo – Armonía II – Almacén y despacho', exact: true }).click();
   await page.getByRole('button', { name: 'Conservar inspección' }).click();
   await expect(page.locator('.inspection-list-row')).toHaveCount(1);
-  await page.getByRole('button', { name: 'Eliminar inspección Almacén y despacho', exact: true }).click();
+  await page.getByRole('button', { name: 'Eliminar inspección Fundo – Armonía II – Almacén y despacho', exact: true }).click();
   await page.getByRole('button', { name: 'Eliminar', exact: true }).click();
   await expect(page.locator('.inspection-list-info').getByText('Almacén y despacho')).toHaveCount(0);
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);

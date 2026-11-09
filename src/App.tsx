@@ -1,3 +1,4 @@
+import { patchInspectionField } from './model';
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { ArrowLeft, ArrowRight, ArrowUpRight, Building2, CalendarDays, Camera, Check, CheckCheck, ChevronRight, CircleCheck, ClipboardCheck, ClipboardList, Download, FileCheck2, FileSpreadsheet, FileText, HelpCircle, ImagePlus, Info, LayoutGrid, Leaf, ListFilter, LoaderCircle, LockKeyhole, LogOut, Mail, Menu, MoreHorizontal, Pencil, Plus, Save, Search, Send, ShieldCheck, Settings2, Sparkles, Trash2, X } from 'lucide-react';
 import { Badge, Brand, Field, Modal, Stepper } from './components';
@@ -223,7 +224,7 @@ function WorkspaceApp({ initialAccounts, exit, onCloudAccess, cloud }: { initial
   }, [menuOpen]);
 
   const patch = <K extends keyof Inspection>(key: K, value: Inspection[K]) => {
-    setDraft(d => ({ ...d, [key]: value, status: 'draft', updatedAt: new Date().toISOString() }));
+    setDraft(d => ({ ...patchInspectionField(d, key, value), status: 'draft', updatedAt: new Date().toISOString() }));
     setErrors(e => { const next = { ...e }; delete next[key]; if (key === 'responsibles') Object.keys(next).filter(k => k.startsWith('person-')).forEach(k => delete next[k]); if (key === 'additionalInspectors' || key === 'registrationParticipants') Object.keys(next).filter(k => k.startsWith(key === 'additionalInspectors' ? 'inspector-' : 'registrant-')).forEach(k => delete next[k]); return next; });
   };
   const changeObservation = (observationId: string, changes: Partial<Observation>) => {

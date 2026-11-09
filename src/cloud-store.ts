@@ -2,7 +2,7 @@ import { supabaseClient } from './supabase';
 import type { Evidence, Inspection } from './model';
 import type { Correction } from './follow-up';
 
-export type CloudInspectionRow = { id: string; author_id: string; data: Inspection & { partial?: boolean }; revision: number; updated_at: string; workflow: string; final_excel_stored?: boolean };
+export type CloudInspectionRow = { id: string; author_id: string; data: Inspection & { partial?: boolean }; revision: number; updated_at: string; workflow: string; final_excel_stored?: boolean; active_edit_operation?: string | null };
 type StoredEvidence = Evidence & { dataRef?: string; originalRef?: string };
 type Runtime = { actor: string; files: Map<string, Promise<string>>; revisions: Map<string, { base: number; saved: number }>; queues: Map<string, Promise<unknown>> };
 let runtime: Runtime | undefined;
@@ -78,7 +78,7 @@ async function mapImages(draft: Inspection, transform: (photo: StoredEvidence) =
 export async function hydrateCloudInspection(row: CloudInspectionRow, actor: string): Promise<Inspection> {
   await actorIs(actor);
   const state = forActor(actor);
-  const snapshot = { ...row.data, id: row.id, ownerId: row.author_id, storage: 'cloud' as const, cloudRevision: Number(row.revision), finalExcelStored: row.final_excel_stored, updatedAt: row.updated_at };
+  const snapshot = { ...row.data, id: row.id, ownerId: row.author_id, storage: 'cloud' as const, cloudRevision: Number(row.revision), finalExcelStored: row.final_excel_stored, archiveEditOperation: row.active_edit_operation || undefined, updatedAt: row.updated_at };
   return mapImages(snapshot, async photo => ({ ...photo, data: photo.dataRef ? await storedImage(photo.dataRef, state) : photo.data, ...(photo.originalRef ? { originalData: await storedImage(photo.originalRef, state) } : {}) }));
 }
 export async function loadCloudInspections(actor: string) {
@@ -129,6 +129,9 @@ async function encodeImages(draft: Inspection, state: Runtime): Promise<Inspecti
     const originalRef = photo.originalData ? await uploadImage(photo.originalData, draft.id, photo.id, state) : undefined;
     return { ...photo, data: undefined, originalData: undefined, dataRef, originalRef } as unknown as StoredEvidence;
   });
+}
+export async function encodeCloudImagesForActor(draft: Inspection, actor: string): Promise<Inspection> {
+  await actorIs(actor); return encodeImages(draft, forActor(actor));
 }
 export async function persistCloudInspection(draft: Inspection): Promise<Inspection> {
   const state = forActor(draft.ownerId);

@@ -56,7 +56,7 @@ export function CloudAccess({ exit, onReturn, onSessionChange, initialSection = 
   const reportWorking = useRef(false); reportWorking.current = reportBusy;
   useEffect(() => {
     if (section !== 'dashboard') return;
-    return exit.setBeforeLeave(async () => { if (reportWorking.current) throw new Error('Espera a que termine la descarga antes de cerrar la sesión.'); });
+    return exit.setBeforeLeave(async () => { if (reportWorking.current) throw new Error('Termina la operación del panel o guarda o cancela la edición antes de cerrar sesión.'); });
   }, [section, exit.setBeforeLeave]);
   const administrationCache = useRef<CloudAdministrationCache | null>(null);
   const sessionRef = useRef<Session | null>(null);

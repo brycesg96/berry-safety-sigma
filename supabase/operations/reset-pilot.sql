@@ -24,7 +24,7 @@ begin
     raise exception 'Primero vacíe ambos buckets desde Storage; no borre storage.objects con SQL.' using errcode='55000'; end if;
   perform 1 from public.berry_profiles where id=v_owner for update;
   insert into berry_private.retired_inspection_ids select id from public.berry_inspections on conflict do nothing;
-  foreach v_name in array array['berry_private.document_cleanup','berry_private.report_outbox','berry_private.report_leases','berry_private.report_counters','berry_private.account_requests','berry_private.password_operations','public.berry_shared_texts','public.berry_documents','public.berry_corrections','public.berry_recipients','public.berry_inspections','public.berry_audit'] loop
+  foreach v_name in array array['berry_private.admin_edits','berry_private.document_cleanup','berry_private.report_outbox','berry_private.report_leases','berry_private.report_counters','berry_private.account_requests','berry_private.password_operations','public.berry_shared_texts','public.berry_documents','public.berry_corrections','public.berry_recipients','public.berry_inspections','public.berry_audit'] loop
     if to_regclass(v_name) is not null then v_tables:=concat_ws(',',v_tables,v_name); end if;
   end loop;
   execute 'truncate table '||v_tables||' restart identity';

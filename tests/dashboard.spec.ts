@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 import { test, expect } from '@playwright/test';
 import type { BrowserContext, Page } from '@playwright/test';
 import ExcelJS from 'exceljs';
@@ -8,7 +9,8 @@ async function setup(page:Page,context:BrowserContext,admin=true) {
  const profile={id:actor,email:'admin@example.invalid',full_name:'Administradora',area:'Seguridad',job_title:'Supervisora',role:admin?'admin':'inspector',enabled:true,must_change_password:false,can_create_inspections:true,can_receive_inspections:true,access_revision:1};
  const user={id:actor,aud:'authenticated',role:'authenticated',email:profile.email,app_metadata:{provider:'email'},user_metadata:{},identities:[],created_at:new Date().toISOString()};
  const token=`eyJhbGciOiJIUzI1NiJ9.${Buffer.from(JSON.stringify({sub:actor,iat:100,exp:Math.floor(Date.now()/1000)+3600,role:'authenticated'})).toString('base64url')}.fictitious`;
- const state={rows:[] as any[],paths:[] as string[],fail:false,delay:null as Promise<void>|null};
+ const state={rows:[] as any[],paths:[] as string[],fail:false,delay:null as Promise<void>|null, editing:false, prepared:null as any, failEdit:false, editCalls:0,editBytes:null as Buffer|null,editDocument:null as any};
+ const newRecipient={...profile,id:'66000000-0000-4000-8000-000000000003',full_name:'Nueva Responsable',email:'nueva@example.invalid',role:'inspector'};
  await context.route(`${project}/**`,async route=>{
   const req=route.request(),path=new URL(req.url()).pathname;state.paths.push(path);
   if(req.method()==='OPTIONS')return route.fulfill({status:204,headers:{'access-control-allow-origin':'*','access-control-allow-headers':'*','access-control-allow-methods':'*'}});
@@ -16,15 +18,32 @@ async function setup(page:Page,context:BrowserContext,admin=true) {
   if(path==='/auth/v1/user')return route.fulfill({json:user});
   if(path==='/auth/v1/logout')return route.fulfill({status:204});
   if(path==='/rest/v1/rpc/berry_schema_status')return route.fulfill({json:{schema_version:'202611070001',stage:'reports',sync_ready:true}});
-  if(path==='/rest/v1/berry_profiles')return route.fulfill({json:profile});
+  if(path==='/rest/v1/berry_profiles')return route.fulfill({json:new URL(req.url()).searchParams.has('id')?profile:[profile,newRecipient]});
+  if(path==='/rest/v1/berry_documents' && state.editDocument)return route.fulfill({json:state.editDocument});
+  if(path.includes('/storage/v1/object/') && state.editBytes)return route.fulfill({body:state.editBytes,contentType:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});
   if(path==='/rest/v1/rpc/berry_admin_dashboard'){
    expect(admin).toBe(true);if(state.delay)await state.delay;
    return route.fulfill({status:state.fail?404:200,json:state.fail?{code:'PGRST202'}:state.rows.map(row=>({...row,data:{...row.data,registrationDetails:{},observations:row.data.observations.map((o:any)=>({...o,photos:[]}))}}))});
   }
+  if(path==='/rest/v1/rpc/berry_prepare_admin_edit') {
+   expect(admin && state.editing).toBe(true);const body=req.postDataJSON(),row=state.rows.find(r=>r.id===body.p_id);
+   expect(body.p_expected).toBe(row.revision);expect(body.p_data.ownerId).toBe(other);expect(body.p_data.inspector).toBe(row.data.inspector);
+   state.prepared={operation:body.p_operation,row:{...row,data:{...body.p_data,ownerId:other,inspector:row.data.inspector,inspectorEmail:row.data.inspectorEmail,serverRegistration:row.data.serverRegistration,delivery:{...row.data.delivery,recipientIds:body.p_data.responsibles.map((p:any)=>p.personId)}}}};
+   return route.fulfill({json:{state:'prepared',operation_id:body.p_operation,inspection:state.prepared.row}});
+  }
   if(path==='/rest/v1/rpc/berry_admin_inspection')return route.fulfill({json:state.rows.find(row=>row.id===req.postDataJSON().p_id)});
   throw new Error(`Unexpected operation: ${req.method()} ${path}`);
  });
- await context.route('**/api/**',route=>{throw new Error('Dashboard must not write: '+route.request().url());});
+ await context.route('**/api/**',async route=>{
+  if(state.editing && new URL(route.request().url()).pathname==='/api/reports/revise') {
+   state.editCalls++;const body=route.request().postDataJSON();expect(body.operationId).toBe(state.prepared.operation);
+   if(state.failEdit)return route.fulfill({status:503,json:{ok:false,code:'EDIT_ARCHIVE_FAILED',message:'No se pudo guardar el Excel actualizado. El informe anterior se conserva; vuelve a intentarlo.'}});
+   state.editBytes=Buffer.from(body.contentBase64,'base64');state.editDocument={filename:'EDITADO.xlsx',storage_path:'test-edit.xlsx',sha256:createHash('sha256').update(state.editBytes).digest('hex')};
+   const row={...state.prepared.row,revision:state.prepared.row.revision+1};state.rows=state.rows.map(r=>r.id===row.id?row:r);
+   return route.fulfill({json:{ok:true,inspection:row,document:{filename:'EDITADO.xlsx'}}});
+  }
+  throw new Error('Dashboard must not write: '+route.request().url());
+ });
  await page.goto('./?acceso=cuenta');
  state.rows=await page.evaluate(async({actor,other})=>{
   const {newInspection,newObservation}=await import('/src/model.ts');
@@ -72,4 +91,36 @@ test('caché del panel mantiene los datos al cambiar de sección y un rechazo de
 });
 test('cuenta sin administración no tiene pestaña ni consulta datos del panel',async({page,context})=>{
  const state=await setup(page,context,false);await expect(page.getByRole('button',{name:'Panel de inspecciones',exact:true})).toHaveCount(0);expect(state.paths.some(path=>path.includes('berry_admin_'))).toBe(false);
+});
+
+test('administrador corrige un informe abierto con código y autor intactos, conserva el original ante un fallo y reintenta la misma edición',async({page,context})=>{
+ test.setTimeout(90000);const errors:string[]=[];page.on('pageerror',error=>errors.push(error.message));
+ const state=await setup(page,context);state.editing=true;await panel(page);
+ await page.locator('.dashboard-results tbody tr').filter({hasText:'IH-2026-001'}).getByRole('button',{name:'Revisar',exact:true}).click();
+ await page.getByRole('button',{name:'Editar inspección',exact:true}).click();
+ const editor=page.locator('.admin-inspection-editor');await expect(editor.getByRole('heading',{name:'Editar inspección',exact:true})).toBeVisible();
+ await expect(editor.getByLabel('Responsable de la inspección')).toHaveAttribute('readonly','');
+ await editor.getByRole('button',{name:'Actualizar sede y zona'}).click();
+ await editor.getByLabel('Sede').selectOption('Fundo');await editor.getByLabel('Zona de inspección').selectOption('Armonía II');await editor.getByLabel('Área inspeccionada').fill('Taller de Maquinaria');
+ await editor.locator('.responsibles').getByRole('combobox',{name:/Nombre completo/}).first().fill('Nueva');await page.getByRole('option',{name:/nueva@example.invalid/}).click();
+ await page.setViewportSize({width:390,height:844});await page.screenshot({path:test.info().outputPath('editar-telefono.png'),fullPage:true});expect(await page.evaluate(()=>Array.from(document.querySelectorAll('main *')).filter(node=>node.getBoundingClientRect().right>innerWidth+1).map(node=>({tag:node.tagName,cls:node.className,right:node.getBoundingClientRect().right})).slice(0,15))).toEqual([]);
+ await editor.getByRole('tab',{name:'Observaciones',exact:true}).click();await editor.getByLabel('Descripción').fill('Descripción corregida por administración');
+ await editor.getByRole('tab',{name:'Cierre',exact:true}).click();await editor.getByRole('textbox',{name:'CONCLUSIONES Y RECOMENDACIONES',exact:true}).fill('Nuevo seguimiento verificado.');
+ state.failEdit=true;await editor.getByRole('button',{name:'Guardar cambios',exact:true}).click();await expect(editor.getByRole('alert')).toContainText('El informe anterior se conserva');
+ expect(state.rows[0].data.area).toBe('Maquinaria - Armonía 2');expect(state.rows[0].data.responsibles[0].personId).toBe(actor);
+ expect(state.paths.filter(p=>p.endsWith('berry_prepare_admin_edit'))).toHaveLength(1);
+ state.failEdit=false;await editor.getByRole('button',{name:'Reintentar guardado',exact:true}).click();
+ await expect(page.getByRole('heading',{name:'Fundo – Armonía II – Taller de Maquinaria',exact:true})).toBeVisible();
+ expect(state.editCalls).toBe(2);expect(state.paths.filter(p=>p.endsWith('berry_prepare_admin_edit'))).toHaveLength(1);
+ expect(state.rows[0].code).toBe('IH-2026-001');expect(state.rows[0].author_id).toBe(other);expect(state.rows[0].data.inspector).toBe('Ana Torres');expect(state.rows[0].data.responsibles[0].name).toBe('Nueva Responsable');
+ const download=page.waitForEvent('download');await page.getByRole('button',{name:'Descargar Excel',exact:true}).click();const book=new ExcelJS.Workbook();await book.xlsx.readFile((await (await download).path())!);const sheet=book.worksheets[0];expect(sheet.getCell('B5').text).toBe('IH-2026-001');expect(sheet.getCell('B11').text).toContain('Fundo – Armonía II – Taller de Maquinaria');
+ expect(errors).toEqual([]);
+});
+test('edición cancelada no escribe y un informe cerrado no ofrece editar',async({page,context})=>{
+ const state=await setup(page,context);state.editing=true;await panel(page);
+ await page.locator('.dashboard-results tbody tr').filter({hasText:'IH-2026-001'}).getByRole('button',{name:'Revisar',exact:true}).click();await page.getByRole('button',{name:'Editar inspección',exact:true}).click();
+ await page.locator('.admin-inspection-editor').getByLabel('Área inspeccionada').fill('Edición descartada');
+ await page.locator('.admin-inspection-editor').getByRole('button',{name:'Cancelar',exact:true}).click();await page.getByRole('dialog').getByRole('button',{name:'Volver al informe',exact:true}).click();
+ await expect(page.getByRole('heading',{name:'Maquinaria - Armonía 2',exact:true})).toBeVisible();expect(state.paths.some(p=>p.endsWith('berry_prepare_admin_edit'))).toBe(false);
+ await page.getByRole('button',{name:'Volver',exact:true}).click();await page.locator('.dashboard-results tbody tr').filter({hasText:'IH-2026-003'}).getByRole('button',{name:'Revisar',exact:true}).click();await expect(page.getByRole('button',{name:'Editar inspección',exact:true})).toHaveCount(0);expect(state.editCalls).toBe(0);
 });

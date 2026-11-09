@@ -2,6 +2,7 @@
 -- Requiere el paso 8. No modifica informes existentes, archivos ni correlativos.
 begin;
 do $$ begin
+ if public.berry_schema_status()->>'admin_edit_version' is not null then raise exception 'No repita el paso 9 después de instalar el paso 10' using errcode='55000';end if;
  if public.berry_schema_status()->>'registration_version' is distinct from '202611090008' then
   raise exception 'Primero instale la actualización del espacio de trabajo hasta el paso 8' using errcode='55000';end if;
 end $$;

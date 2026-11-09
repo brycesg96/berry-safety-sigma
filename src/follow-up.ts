@@ -86,7 +86,7 @@ export function saveCorrectionState(d: Inspection, observationId: string, actorI
   if (d.storage === 'cloud') return changeCloudCorrection(d, observationId, actorId, 'state', { state });
   return changeStored(d.id, current => {
     const delivery = current.delivery;
-    if (!delivery || (current.ownerId !== actorId && !isRecipient(current, actorId))) throw new Error('Esta inspección no está asignada a tu cuenta.');
+    if (!delivery || !isRecipient(current, actorId)) throw new Error('Esta inspección no está asignada a tu cuenta.');
     if (!current.observations.some(o => o.id === observationId)) throw new Error('No se encontró la observación.');
     if (delivery.revision !== d.delivery?.revision) throw new Error('La inspección cambió en otra sesión. Vuelve a abrirla antes de guardar.');
     if (inspectionClosed(current)) throw new Error('La inspección está cerrada.');

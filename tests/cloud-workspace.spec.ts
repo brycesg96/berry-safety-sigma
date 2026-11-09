@@ -117,6 +117,7 @@ test('private drafts resume on another device and full approval replaces the ini
   const state=stateOf();await mock(context,state,author);await enter(page,author);
   await expect(page.getByText('Modo de prueba',{exact:true})).toHaveCount(0);
   await page.getByLabel('Área inspeccionada').fill('Taller nube');await page.getByLabel('Fecha de inspección').fill('2026-11-05');
+  await page.getByRole('combobox', { name: 'Sede', exact: true }).selectOption('Fundo'); await page.getByRole('combobox', { name: 'Zona de inspección', exact: true }).selectOption('Armonía II');
   await page.getByLabel('Hora de inspección').fill('09:30');await page.getByLabel('AM o PM').selectOption('AM');await page.getByRole('radio',{name:'Planeada',exact:true}).check();
   await page.getByRole('textbox',{name:'Objetivo de la inspección interna',exact:true}).fill('Comprobar condiciones seguras.');
   await page.getByRole('combobox',{name:/Nombre completo/}).fill('Bruno');await page.getByRole('option',{name:/Bruno Responsable/}).click();
@@ -143,7 +144,7 @@ test('private drafts resume on another device and full approval replaces the ini
   await other.getByRole('button',{name:'Continuar',exact:true}).click();await other.getByRole('button',{name:'Enviar inspección',exact:true}).click();
   await expect(other.getByText('Compartir solo en este navegador')).toHaveCount(0);
   await other.getByRole('button',{name:'Enviar informe por correo',exact:true}).click();
-  await expect(other.getByRole('heading',{name:'Taller nube',exact:true})).toBeVisible();await expect(other.locator('.followup-heading')).toContainText('IH-2026-001');expect(state.sends).toBe(1);
+  await expect(other.getByRole('heading',{name:'Fundo – Armonía II – Taller nube',exact:true})).toBeVisible();await expect(other.locator('.followup-heading')).toContainText('IH-2026-001');expect(state.sends).toBe(1);
   await other.waitForFunction(()=>window.scrollY===0);
   await other.screenshot({path:'/tmp/berry-cloud-report.png',fullPage:true,animations:'disabled'});
   const downloadPromise=other.waitForEvent('download');await other.getByRole('button',{name:'Descargar Excel',exact:true}).click();const download=await downloadPromise;

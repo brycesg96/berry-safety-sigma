@@ -9,6 +9,8 @@ import { createCloudReportHandler } from './cloud-reports.mjs';
 const origin = 'https://berry.example', project = 'https://rwacygoxhkxxxkvushmb.supabase.co';
 const secret = 'sb_secret_fictitious_report_key_123456789012345';
 const actor = '60000000-0000-4000-8000-000000000001', id = '70000000-0000-4000-8000-000000000001';
+const editOperation='71000000-0000-4000-8000-000000000001';
+const editInput=()=>({inspectionId:id,operationId:editOperation,contentBase64:source.toString('base64')});
 const jwt = `eyJhbGciOiJIUzI1NiJ9.${Buffer.from(JSON.stringify({ sub: actor, iat: 100 })).toString('base64url')}.fictitious`;
 const source = await readFile(new URL('../public/templates/inspection.xlsx', import.meta.url));
 const hash = bytes => createHash('sha256').update(bytes).digest('hex');
@@ -44,6 +46,26 @@ async function setup(t, state=stateOf(), extraEnv={}) {
       for(const file of body.prefixes)state.files.delete('/storage/v1/object/berry-documents/'+file);
       if(state.deleteThrowsAfterRemove)throw new Error('response lost after deletion');
       return json(body.prefixes.map(name=>({name})));
+    }
+    if(path==='/rest/v1/rpc/berry_admin_edit_upload') {
+      assert.equal(body.p_actor,actor);assert.equal(body.p_iat,100);assert.equal(body.p_operation,editOperation);
+      if(state.editFailure)return json({code:state.editFailure,message:state.editFailureMessage},state.editFailure==='42501'?403:409);
+      const row=state.editState==='prepared'?{...state.row,data:state.editData}:state.row;
+      return json({state:state.editState,inspection:row,document:state.document});
+    }
+    if(path==='/rest/v1/rpc/berry_commit_admin_edit') {
+      assert.equal(body.p_actor,actor);assert.equal(body.p_iat,100);
+      assert.ok(state.files.has('/storage/v1/object/berry-documents/'+body.p_document.storage_path));
+      state.cleanup.push(state.document.storage_path);state.document={...body.p_document};
+      state.row={...state.row,data:state.editData,revision:state.row.revision+1,active_edit_operation:editOperation};state.editState='committed';
+      if(state.editCommitLost){state.editCommitLost=false;throw new Error('lost commit response');}
+      return json({inspection:state.row,document:state.document});
+    }
+    if(path==='/rest/v1/rpc/berry_admin_edit_cleanup')return json(state.cleanup);
+    if(path==='/rest/v1/rpc/berry_finish_admin_edit') {
+      assert.ok(state.cleanup.every(path=>!state.files.has('/storage/v1/object/berry-documents/'+path)));
+      state.cleanup=[];state.row.active_edit_operation=null;state.editState='complete';state.row.revision++;
+      return json(state.row);
     }
     if(path==='/rest/v1/rpc/berry_commit_final') {
       assert.equal(body.p_actor,actor);assert.equal(body.p_actor_iat,100);
@@ -91,7 +113,7 @@ async function setup(t, state=stateOf(), extraEnv={}) {
     const data=await response.json(); assert.ok(!JSON.stringify(data).includes(secret)); assert.ok(!JSON.stringify(data).includes('private'));
     return {status:response.status,data};
   };
-  return {state,send,finalize:(body=input(),headers={})=>send(body,headers,'/api/reports/finalize')};
+  return {state,send,revise:(body=editInput(),headers={})=>send(body,{'Idempotency-Key':editOperation,...headers},'/api/reports/revise'),finalize:(body=input(),headers={})=>send(body,headers,'/api/reports/finalize')};
 }
 test('cloud archive keeps the inspection month and sends exactly the stored, valid Excel with its committed code',async t=>{
   const api=await setup(t), result=await api.send(); assert.equal(result.status,200);
@@ -189,4 +211,41 @@ test('final storage accepts workbooks larger than the email limit without overfl
   const inputFile={...input(),contentBase64:(await zip.generateAsync({type:'nodebuffer',compression:'STORE'})).toString('base64')};
   assert.equal((await api.send(inputFile)).status,400);
   assert.equal((await api.finalize(inputFile)).status,200);assert.equal(api.state.files.size,1);
+});
+
+async function registeredEdit(t, options={}) {
+ const state=stateOf(),api=await setup(t,state);await api.send();
+ state.editState='prepared';state.editData={...state.row.data,area:'Fundo – Armonía II – Taller corregido',date:'2026-12-03',objective:'Objetivo corregido'};
+ return {state,api:await setup(t,state,options)};
+}
+test('administrator edit replaces the workbook in the inspection month with the same code, without registration or another email',async t=>{
+ const {state,api}=await registeredEdit(t,{MAKE_REPORTS_ENABLED:'false'}),mailCount=state.calls.filter(c=>c.path==='/fictitious').length;
+ const before=state.row,oldPath=state.document.storage_path,result=await api.revise();assert.equal(result.status,200);
+ assert.equal(result.data.inspection.code,before.code);assert.equal(result.data.inspection.author_id,before.author_id);
+ assert.equal(result.data.inspection.data.area,state.editData.area);assert.equal(state.files.size,1);assert.ok(!state.files.has('/storage/v1/object/berry-documents/'+oldPath));
+ assert.match(state.document.storage_path,/^2026\/12-DICIEMBRE\//);assert.match(state.document.storage_path,/ARMONIA II/);assert.match(state.document.filename,/ARMONÍA II/);
+ const bytes=[...state.files.values()][0],zip=await JSZip.loadAsync(bytes,{checkCRC32:true});assert.match(await zip.file('xl/worksheets/sheet1.xml').async('string'),/IH-2027-001/);
+ assert.equal(state.calls.filter(c=>c.path==='/rest/v1/rpc/berry_commit_report').length,1);assert.equal(state.calls.filter(c=>c.path==='/fictitious').length,mailCount);
+ const calls=state.calls.length;assert.equal((await api.revise({inspectionId:id,operationId:editOperation})).status,200);
+ assert.ok(!state.calls.slice(calls).some(c=>c.path.includes('cleanup')||c.path.includes('/storage/')));
+});
+test('upload failure leaves the original active; commit response loss and cleanup failure recover after restarting without reupload',async t=>{
+ const {state,api}=await registeredEdit(t),before=structuredClone(state.row),old=structuredClone(state.document);
+ state.uploadFails=true;assert.equal((await api.revise()).status,503);assert.deepEqual(state.row,before);assert.deepEqual(state.document,old);
+ state.uploadFails=false;state.editCommitLost=true;assert.equal((await api.revise()).status,503);assert.equal(state.editState,'committed');
+ const uploads=state.calls.filter(c=>c.method==='POST'&&c.path.startsWith('/storage/')).length;
+ state.deleteFails=true;const again=await setup(t,state);assert.equal((await again.revise({inspectionId:id,operationId:editOperation})).status,503);assert.equal(state.editState,'committed');
+ state.deleteFails=false;const restarted=await setup(t,state);assert.equal((await restarted.revise({inspectionId:id,operationId:editOperation})).status,200);
+ assert.equal(state.files.size,1);assert.equal(state.calls.filter(c=>c.method==='POST'&&c.path.startsWith('/storage/')).length,uploads);
+ assert.equal(state.calls.filter(c=>c.path==='/fictitious').length,1);
+});
+test('edit rejects wrong inspection, role, closed or stale report and expired operation before any file change',async t=>{
+ const {state,api}=await registeredEdit(t);const files=state.files.size;
+ for(const [code,message,status] of [['42501','REPORT_NOT_EDITABLE',403],['40001','REVISION_CONFLICT',409],['40001','EDIT_EXPIRED',409]]) {
+  state.editFailure=code;state.editFailureMessage=message;assert.equal((await api.revise()).status,status);assert.equal(state.files.size,files);
+ }
+ state.editFailure=null;
+ assert.equal((await api.revise({...editInput(),inspectionId:actor})).status,400);
+ for(const patch of [{operationId:'bad'},{actor_id:actor},{expectedRevision:2}])assert.equal((await api.revise({...editInput(),...patch})).status,400);
+ assert.equal((await api.revise(editInput(),{'Idempotency-Key':id})).status,400);
 });

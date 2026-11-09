@@ -8,6 +8,7 @@ async function general(page: Page) {
   await page.route('**/api/people?*', route => route.fulfill({ json: { people: [] } }));
   await page.goto('./');
   await page.getByLabel('Área inspeccionada').fill('Taller - Armonía 2');
+  await page.getByRole('combobox', { name: 'Sede', exact: true }).selectOption('Fundo'); await page.getByRole('combobox', { name: 'Zona de inspección', exact: true }).selectOption('Armonía II');
   await page.getByLabel('Hora de inspección').fill('07:30'); await page.getByLabel('AM o PM').selectOption('AM');
   await page.getByRole('radio', { name: 'Planeada', exact: true }).check();
   await page.getByRole('textbox', { name: 'Objetivo de la inspección interna', exact: true }).fill('Revisar condiciones de seguridad.');
