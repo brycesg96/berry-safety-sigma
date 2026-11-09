@@ -591,7 +591,11 @@ test('correction responsible is bound to the original assignment for recipients 
  await db.query('update public.berry_profiles set full_name=$2 where id=$1',[lead,'Nombre actualizado del perfil']);
  correction=await change(second,cloudObservation,'submit',{...input,responsibleName:'Otro responsable inventado'});
  assert.equal(correction.responsibleName,assignedName);assert.equal(correction.actorId,second);
+ await change(users.author,cloudObservation,'state',{state:'Ejecutado'});
  correction=await change(users.author,cloudObservation,'changes',{note:'Completar la descripción.',responsibleName:'Otro nombre'});assert.equal(correction.responsibleName,assignedName);
+ assert.equal(correction.state,'Pendiente');assert.equal(correction.proposedState,'Pendiente');assert.equal(correction.decision,'changes');
+ assert.equal(row.data.delivery.corrections[secondObservation].state,'Pendiente');
+ assert.equal((await db.query('select state from public.berry_corrections where inspection_id=$1 and observation_id=$2',[id,cloudObservation])).rows[0].state,'Pendiente');
  correction=await change(lead,cloudObservation,'submit',{...input,responsibleName:undefined});assert.equal(correction.responsibleName,assignedName);
  correction=await change(users.author,cloudObservation,'approve',{note:'Conforme'});assert.equal(correction.responsibleName,assignedName);
  await change(second,secondObservation,'submit',input);await change(users.author,secondObservation,'approve',{note:'Conforme'});
