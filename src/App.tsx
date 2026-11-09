@@ -1,3 +1,4 @@
+import { hasPendingChanges, inspectionEditKey, unsavedMessage, usePendingChanges } from './manual-save';
 import { useNextRegistration } from './useNextRegistration';
 import { patchInspectionField } from './model';
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
@@ -65,6 +66,9 @@ function WorkspaceApp({ initialAccounts, exit, onCloudAccess, cloud }: { initial
   const [followUp, setFollowUp] = useState<Inspection | null>(null);
   const [followUpOrigin, setFollowUpOrigin] = useState<'list' | 'received'>('list');
   const startedDraftIds = useRef(new Set<string>());
+  const savedKeys = useRef(new Map<string, string>());
+  const saving = useRef(false);
+  const allowUnsavedExit = useRef(false);
   const [loaded, setLoaded] = useState(false);
   const [view, setView] = useState<'editor' | 'list' | 'admin' | 'received' | 'followup'>(cloud ? 'list' : 'editor');
   const registrationPreview = useNextRegistration(cloud?.actorId, canCreate && loaded && view === 'editor' && !confirmedInspectionCode(draft));
@@ -77,6 +81,8 @@ function WorkspaceApp({ initialAccounts, exit, onCloudAccess, cloud }: { initial
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [saveState, setSaveState] = useState<'saved' | 'saving' | 'error' | 'empty'>('empty');
   const [storageError, setStorageError] = useState(false);
+  const draftDirty = loaded && !draft.delivery && view === 'editor' && (draft.pendingManualSave === true || inspectionEditKey(draft) !== savedKeys.current.get(draft.id));
+  usePendingChanges(draftDirty || saveState === 'saving');
   const [toast, setToast] = useState('');
   const [busy, setBusy] = useState(false);
   const [photoBusy, setPhotoBusy] = useState<string | null>(null);
@@ -97,11 +103,12 @@ function WorkspaceApp({ initialAccounts, exit, onCloudAccess, cloud }: { initial
     const observation = destination.observationId ? observationRefs.current.get(destination.observationId) : null;
     const anchor = observation || editorStartRef.current;
     if (!anchor) return;
-    const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-    anchor.scrollIntoView({ block: 'start', behavior: reducedMotion ? 'instant' : 'smooth' });
+    // Finish positioning before the next step can be clicked; overlapping smooth scrolls keep the old footer in view.
+    anchor.scrollIntoView({ block: 'start', behavior: 'instant' });
     observation?.querySelector<HTMLTextAreaElement>('textarea')?.focus({ preventScroll: true });
   });
   const sidebarRef = useRef<HTMLElement>(null);
+  const currentDraft = useRef(draft); currentDraft.current = draft;
 
   useEffect(() => {
     const media = window.matchMedia('(max-width: 899px)');
@@ -129,19 +136,31 @@ function WorkspaceApp({ initialAccounts, exit, onCloudAccess, cloud }: { initial
       if (!active) return;
       if (!cloud) for (const item of items) if (item.emailDelivery?.state === 'accepted') rememberInspectionTexts({ objective: item.objective, unfavorableCause: item.unfavorableCause || '', closingRemarks: closingRemarksOf(item) }, item.emailDelivery.updatedAt);
       const owned = items.filter(item => item.ownerId === account.id);
-      owned.filter(hasInspectionContent).forEach(item => startedDraftIds.current.add(item.id));
+      owned.filter(item => hasInspectionContent(item) || item.pendingManualSave).forEach(item => startedDraftIds.current.add(item.id));
       const existing = owned.find(i => !i.delivery), next = existing || newInspection(profile);
-      setInspections(owned); setReceived(items.filter(item => isRecipient(item, account.id))); setDraft(next); setFollowUp(null); setLoaded(true);
+      for (const item of owned) savedKeys.current.set(item.id, inspectionEditKey(item));
+      savedKeys.current.set(next.id, inspectionEditKey(next));
+      setInspections(owned); setReceived(items.filter(item => isRecipient(item, account.id))); setDraft(next); setFollowUp(null); setSaveState(next.pendingManualSave ? 'error' : existing ? 'saved' : 'empty'); setLoaded(true);
       void refreshInspectionTexts(!!cloud).then(texts => {
-        if (active && !existing) setDraft(current => current.id === next.id ? applyInspectionTexts(current, texts) : current);
+        if (active && !existing) setDraft(current => {
+          if (current.id !== next.id) return current;
+          const updated = applyInspectionTexts(current, texts);
+          if (inspectionEditKey(current) === savedKeys.current.get(current.id)) savedKeys.current.set(current.id, inspectionEditKey(updated));
+          return updated;
+        });
       });
-    }).catch(() => { if (active) { setInspections([]); setDraft(newInspection(profile)); setStorageError(true); setLoaded(true); } });
+    }).catch(() => { if (active) { const next = newInspection(profile); savedKeys.current.set(next.id, inspectionEditKey(next)); setInspections([]); setDraft(next); setSaveState('empty'); setStorageError(true); setLoaded(true); } });
     return () => { active = false; };
   }, [account.id]);
 
   useEffect(() => {
     if (!loaded || !canCreate) return;
-    setDraft(d => d.ownerId !== account.id || d.delivery || (d.inspector === account.name && d.inspectorEmail === account.email) ? d : { ...d, inspector: account.name, inspectorEmail: account.email, updatedAt: new Date().toISOString() });
+    setDraft(current => {
+      if (current.ownerId !== account.id || current.delivery || (current.inspector === account.name && current.inspectorEmail === account.email)) return current;
+      const updated = { ...current, inspector: account.name, inspectorEmail: account.email, updatedAt: new Date().toISOString() };
+      if (inspectionEditKey(current) === savedKeys.current.get(current.id)) savedKeys.current.set(current.id, inspectionEditKey(updated));
+      return updated;
+    });
   }, [loaded, account.id, account.name, account.email, draft.id]);
 
   useEffect(() => {
@@ -168,27 +187,25 @@ function WorkspaceApp({ initialAccounts, exit, onCloudAccess, cloud }: { initial
 
   const save = useCallback(async (item: Inspection) => {
     if (item.delivery || !canCreate) return true;
+    if (saving.current) return false;
+    saving.current = true;
+    const key = inspectionEditKey(item);
     const hasContent = hasInspectionContent(item);
-    if (!hasContent && !startedDraftIds.current.has(item.id)) { setSaveState('empty'); return true; }
+    if (!hasContent && !startedDraftIds.current.has(item.id)) { savedKeys.current.set(item.id, key); setDraft(current => current.id === item.id ? { ...current } : current); setSaveState('empty'); saving.current = false; return true; }
     startedDraftIds.current.add(item.id);
     setSaveState('saving');
     try {
       const stored = await persistInspection(item);
+      savedKeys.current.set(item.id, key);
+      if (stored) setDraft(current => current.id === item.id ? { ...current, cloudRevision: stored.cloudRevision, pendingManualSave: false } : current);
       item = stored || item;
       if (item.ownerId === activeIdRef.current) setInspections(items => (hasContent ? [item, ...items.filter(i => i.id !== item.id)] : items.filter(i => i.id !== item.id)).sort((a, b) => b.updatedAt.localeCompare(a.updatedAt)));
       if (!hasContent) startedDraftIds.current.delete(item.id);
       setSaveState(hasContent ? 'saved' : 'empty'); setStorageError(false);
       return true;
     } catch { setSaveState('error'); setStorageError(true); return false; }
+    finally { saving.current = false; }
   }, [canCreate]);
-
-  useEffect(() => {
-    if (!canCreate || !loaded || draft.ownerId !== account.id || draft.delivery) return;
-    if (!hasInspectionContent(draft) && !startedDraftIds.current.has(draft.id)) { setSaveState('empty'); return; }
-    setSaveState('saving');
-    const timer = window.setTimeout(() => { void save(draft); }, 650);
-    return () => clearTimeout(timer);
-  }, [draft, loaded, save, account.id, canCreate]);
 
   useEffect(() => {
     if (!canCreate && view === 'editor') setView(canReceive ? 'received' : 'list');
@@ -197,7 +214,7 @@ function WorkspaceApp({ initialAccounts, exit, onCloudAccess, cloud }: { initial
 
   useEffect(() => exit.setBeforeLeave(async () => {
     if (busy || photoBusy) throw new Error('Espera a que termine el envío o el archivo antes de cerrar la sesión.');
-    if (view === 'editor' && !await save(draft)) throw new Error('No pudimos guardar el borrador. Revisa tu conexión antes de cerrar la sesión.');
+    if (hasPendingChanges() && !allowUnsavedExit.current) throw new Error(unsavedMessage);
   }), [exit.setBeforeLeave, busy, photoBusy, view, save, draft]);
 
   useEffect(() => {
@@ -253,12 +270,23 @@ function WorkspaceApp({ initialAccounts, exit, onCloudAccess, cloud }: { initial
     pendingEditorScroll.current = { observationId };
     setErrors({}); patch('step', target);
   };
+  const canNavigate = () => {
+    if (saving.current || busy || photoBusy) { setToast('Espera a que termine la operación en curso.'); return false; }
+    if (hasPendingChanges()) { setToast(unsavedMessage); return false; }
+    return true;
+  };
   const startNew = async () => {
     if (!canCreate) return;
-    if (!await save(draft)) { setToast('No pudimos guardar tu inspección. Descarga el informe antes de salir.'); return; }
+    if (!canNavigate()) return;
     const next = newInspection(profile);
-    setDraft(next); setErrors({}); setView('editor'); setMenuOpen(false); top();
-    void refreshInspectionTexts(!!cloud).then(texts => setDraft(current => current.id === next.id ? applyInspectionTexts(current, texts) : current));
+    savedKeys.current.set(next.id, inspectionEditKey(next));
+    setDraft(next); setSaveState('empty'); setErrors({}); setView('editor'); setMenuOpen(false); top();
+    void refreshInspectionTexts(!!cloud).then(texts => setDraft(current => {
+      if (current.id !== next.id) return current;
+      const updated = applyInspectionTexts(current, texts);
+      if (inspectionEditKey(current) === savedKeys.current.get(current.id)) savedKeys.current.set(current.id, inspectionEditKey(updated));
+      return updated;
+    }));
   };
   const refreshInspections = async () => {
     const items = await loadInspections(cloud ? account.id : undefined);
@@ -287,12 +315,17 @@ function WorkspaceApp({ initialAccounts, exit, onCloudAccess, cloud }: { initial
     return () => { active = false; clearInterval(timer); window.removeEventListener('focus', refresh); window.removeEventListener('berry-cloud-inspections-changed', refresh); };
   }, [cloud?.actorId, loaded, view, busy, account.id]);
   const showList = async () => {
-    if (!await save(draft)) return;
+    if (!canNavigate()) return;
     try { await refreshInspections(); setView('list'); setMenuOpen(false); top(); } catch { setToast('No pudimos consultar tus inspecciones. Revisa tu conexión.'); }
+  };
+  const saveAndExit = async () => {
+    if (!await save(draft)) return;
+    if (inspectionEditKey(currentDraft.current) !== savedKeys.current.get(draft.id)) { setToast(unsavedMessage); return; }
+    try { await refreshInspections(); setView('list'); setMenuOpen(false); top(); } catch { setToast('No pudimos consultar la lista. Tu guardado fue confirmado.'); }
   };
   const showReceived = async () => {
     if (!canReceive) return;
-    if (!await save(draft)) return;
+    if (!canNavigate()) return;
     try { await refreshInspections(); setView('received'); setMenuOpen(false); top(); } catch { setToast('No pudimos consultar tus inspecciones recibidas. Revisa tu conexión.'); }
   };
   const openFollowUp = (item: Inspection, origin: 'list' | 'received') => {
@@ -307,7 +340,7 @@ function WorkspaceApp({ initialAccounts, exit, onCloudAccess, cloud }: { initial
   const sendInspection = async () => {
     setBusy(true);
     try {
-      if (!await save(draft)) throw new Error('No se pudo guardar el informe antes del envío.');
+      if (hasPendingChanges()) throw new Error('Guarda los cambios antes de enviar la inspección.');
       const sent = await deliverInspection(draft, account.id);
       rememberInspectionTexts(sent);
       setDraft(sent); setModal(null); await refreshInspections(); openFollowUp(sent, 'list');
@@ -335,7 +368,7 @@ function WorkspaceApp({ initialAccounts, exit, onCloudAccess, cloud }: { initial
     try {
       await exportExcel(draft);
       const ready: Inspection = { ...draft, status: 'ready', updatedAt: new Date().toISOString() };
-      setDraft(ready); await save(ready); setToast('Borrador descargado. El código definitivo se asignará al registrar el envío.');
+      setDraft(ready); setToast('Borrador descargado. El código definitivo se asignará al registrar el envío.');
     } catch { setToast('No pudimos generar el Excel. Inténtalo de nuevo; tus datos se conservan.'); }
     finally { setBusy(false); }
   };
@@ -350,12 +383,12 @@ function WorkspaceApp({ initialAccounts, exit, onCloudAccess, cloud }: { initial
   const switchAccount = async (id: string) => {
     if (id === account.id) return;
     if (busy || photoBusy) { setToast('Espera a que termine de procesarse el archivo antes de cambiar de cuenta.'); return; }
-    if (!await save(draft)) { setToast('Guarda el borrador antes de cambiar de cuenta.'); return; }
+    if (!canNavigate()) return;
     try { selectTestAccount(id); setLoaded(false); setActiveId(id); setView('editor'); setMenuOpen(false); setProfileError(''); }
     catch (error) { setToast(error instanceof Error ? error.message : 'No se pudo cambiar la cuenta.'); }
   };
-  const showAdmin = async () => { if (!isAdmin) return; if (cloud) { if (await save(draft)) onCloudAccess('admin'); return; } await save(draft); setView('admin'); setMenuOpen(false); top(); };
-  const openCloudAccess = async (section: 'profile' | 'admin' = 'profile') => { if (busy || photoBusy) return; if (await save(draft)) onCloudAccess(section); };
+  const showAdmin = async () => { if (!isAdmin || !canNavigate()) return; if (cloud) { onCloudAccess('admin'); return; } setView('admin'); setMenuOpen(false); top(); };
+  const openCloudAccess = async (section: 'profile' | 'admin' = 'profile') => { if (canNavigate()) onCloudAccess(section); };
   const pendingReceivedCount = received.filter(item => !inspectionClosed(item)).length;
   const visibleReceived = received.filter(item => receivedFilter === 'closed' ? inspectionClosed(item) : !inspectionClosed(item));
   const reviewCount = inspections.filter(needsReview).length;
@@ -384,17 +417,18 @@ function WorkspaceApp({ initialAccounts, exit, onCloudAccess, cloud }: { initial
     </aside>
 
     <div className="workspace">
-      <header className="topbar"><div className="topbar-left"><button className="menu-toggle icon-button" aria-label="Abrir menú" aria-expanded={menuOpen} onClick={() => setMenuOpen(v => !v)}><Menu size={23} /></button><nav className="breadcrumbs" aria-label="Ruta de navegación"><ol><li className="breadcrumb-parent"><span>Espacio de trabajo</span><ChevronRight className="breadcrumb-separator" size={14} aria-hidden="true"/></li>{following && <li><button type="button" className="breadcrumb-link" aria-label={followUpOrigin === 'received' ? 'Volver a Inspecciones recibidas' : 'Volver a Mis inspecciones'} onClick={() => void (followUpOrigin === 'received' ? showReceived() : showList())}>{followUpOrigin === 'received' ? 'Inspecciones recibidas' : 'Mis inspecciones'}</button><ChevronRight className="breadcrumb-separator" size={14} aria-hidden="true"/></li>}<li><span className="breadcrumb-current" aria-current="page">{breadcrumbSection}</span></li></ol></nav></div><div className="topbar-right">{!cloud && <span className="demo-badge header-demo-badge">Modo de prueba</span>}<span className={`save-status ${saveState === 'error' ? 'save-error' : ''}`} aria-live="polite">{view === 'followup' ? <Info size={15}/> : saveState === 'empty' ? <Pencil size={15}/> : saveState === 'saving' ? <LoaderCircle className="spin" size={15} /> : saveState === 'error' ? <Info size={15} /> : <CircleCheck size={16} />}<span>{view === 'followup' ? 'Guarda cada avance' : saveState === 'empty' ? 'Sin iniciar' : saveState === 'saving' ? 'Guardando…' : saveState === 'error' ? 'Sin guardar' : cloud ? 'Guardado en tu cuenta' : 'Guardado en este navegador'}</span></span>{cloud && <button type="button" className="text-button" onClick={exit.request}>Cerrar sesión</button>}<div className="topbar-separator" /><button className="top-avatar" aria-label="Mi perfil" onClick={() => { setProfileForm(profile); setProfileError(''); setModal('profile'); }}>{initials(profile.name)}</button></div></header>
+      <header className="topbar"><div className="topbar-left"><button className="menu-toggle icon-button" aria-label="Abrir menú" aria-expanded={menuOpen} onClick={() => setMenuOpen(v => !v)}><Menu size={23} /></button><nav className="breadcrumbs" aria-label="Ruta de navegación"><ol><li className="breadcrumb-parent"><span>Espacio de trabajo</span><ChevronRight className="breadcrumb-separator" size={14} aria-hidden="true"/></li>{following && <li><button type="button" className="breadcrumb-link" aria-label={followUpOrigin === 'received' ? 'Volver a Inspecciones recibidas' : 'Volver a Mis inspecciones'} onClick={() => void (followUpOrigin === 'received' ? showReceived() : showList())}>{followUpOrigin === 'received' ? 'Inspecciones recibidas' : 'Mis inspecciones'}</button><ChevronRight className="breadcrumb-separator" size={14} aria-hidden="true"/></li>}<li><span className="breadcrumb-current" aria-current="page">{breadcrumbSection}</span></li></ol></nav></div><div className="topbar-right">{!cloud && <span className="demo-badge header-demo-badge">Modo de prueba</span>}<span className={`save-status ${saveState === 'error' ? 'save-error' : ''}`} aria-live="polite">{view === 'followup' ? <Info size={15}/> : saveState === 'empty' ? <Pencil size={15}/> : saveState === 'saving' ? <LoaderCircle className="spin" size={15} /> : saveState === 'error' ? <Info size={15} /> : <CircleCheck size={16} />}<span>{view === 'followup' ? 'Guarda cada avance' : draftDirty && saveState !== 'saving' ? 'Cambios sin guardar' : saveState === 'empty' ? 'Sin iniciar' : saveState === 'saving' ? 'Guardando…' : saveState === 'error' || draftDirty ? 'Cambios sin guardar' : cloud ? 'Guardado en tu cuenta' : 'Guardado en este navegador'}</span></span>{cloud && <button type="button" className="text-button" onClick={exit.request}>Cerrar sesión</button>}<div className="topbar-separator" /><button className="top-avatar" aria-label="Mi perfil" onClick={() => { setProfileForm(profile); setProfileError(''); setModal('profile'); }}>{initials(profile.name)}</button></div></header>
 
       <main id="main-content" className="main-content" ref={contentRef}>
-        {storageError && <div className="notice notice-error" role="alert"><Info size={19} /><div><strong>No se ha podido guardar el borrador.</strong><p>{cloud ? 'Revisa tu conexión. Si lo editaste en otro dispositivo, abre la versión guardada antes de continuar.' : 'Comprueba el espacio y los permisos del navegador. Mantén esta pestaña abierta para conservar los datos.'}</p></div><button className="text-button" onClick={() => void save(draft)}>Reintentar</button>{cloud && <button className="text-button" onClick={() => setModal('reload')}>Abrir versión guardada</button>}</div>}
-        {view === 'followup' && followUp ? <FollowUp inspection={followUp} actor={account} onChange={updateFollowUp} onBack={() => void (followUpOrigin === 'received' ? showReceived() : showList())}/> : view === 'received' ? <>
+        {storageError && view === 'editor' && <div className="notice notice-error" role="alert"><Info size={19} /><div><strong>No se pudo confirmar el guardado del borrador.</strong><p>{cloud ? 'Revisa tu conexión. Si lo editaste en otro dispositivo, abre la versión guardada antes de continuar.' : 'Comprueba el espacio y los permisos del navegador. Mantén esta pestaña abierta para conservar los datos.'}</p></div><button className="text-button" disabled={saveState === 'saving' || !!photoBusy} onClick={() => void save(draft)}>Guardar</button>{cloud && <button className="text-button" onClick={() => setModal('reload')}>Abrir versión guardada</button>}</div>}
+        {view === 'followup' && followUp ? <FollowUp inspection={followUp} actor={account} onChange={updateFollowUp} onBusyChange={setBusy} onBack={() => void (followUpOrigin === 'received' ? showReceived() : showList())}/> : view === 'received' ? <>
           <div className="page-heading"><div><div className="eyebrow">SEGUIMIENTO DE HALLAZGOS</div><h1>Inspecciones recibidas</h1><p>Revisa los informes asignados a tu cuenta y registra sus levantamientos.</p></div></div>
           {!cloud && <div className="notice"><Info size={18}/><p>Prueba local: los informes aparecen al cambiar entre cuentas en este navegador. El estado del correo se consulta en cada informe. La sincronización de levantamientos entre dispositivos sigue pendiente.</p></div>}
           <div className="received-filters" role="group" aria-label="Estado de las inspecciones recibidas">{([['pending', 'Pendientes'], ['closed', 'Cerradas']] as const).map(([value, label]) => <button key={value} type="button" aria-label={label} aria-pressed={receivedFilter === value} onClick={() => setReceivedFilter(value)}>{label}</button>)}</div>
           <div className="list-card inspection-list">{visibleReceived.length === 0 ? <div className="empty-list"><Mail size={32}/><h3>{received.length === 0 ? 'No tienes inspecciones recibidas' : receivedFilter === 'pending' ? 'No tienes inspecciones pendientes' : 'No tienes inspecciones cerradas'}</h3><p>{receivedFilter === 'closed' ? 'Las inspecciones con todos sus hallazgos ejecutados aparecerán aquí.' : 'Los informes pendientes asignados a tu cuenta aparecerán aquí.'}</p></div> : visibleReceived.map(item => <div className="inspection-list-row" key={item.id}><div className="list-building"><ClipboardCheck size={23}/></div><div className="inspection-list-info"><strong>{item.area}</strong><span>{item.inspector} · {formatDate(item.date)}</span><small>{item.observations.length} observaciones · {workflowLabel(item)}</small></div><button className="button button-outline" onClick={() => openFollowUp(item, 'received')}>Revisar inspección<ArrowRight size={15}/></button></div>)}</div>
         </> : view === 'editor' && !loaded ? <p className="cloud-loading" role="status"><LoaderCircle size={18} className="spin"/>Abriendo tus inspecciones…</p> : view === 'editor' ? <div className="inspection-editor">
-          <div className="page-heading"><div><div className="eyebrow inspection-start" ref={editorStartRef}><span />SEGURIDAD Y SALUD EN EL TRABAJO</div><div className="title-row"><h1>Nueva inspección</h1><span className="draft-badge"><span />Borrador</span></div><p>{stepDescriptions[draft.step][0]}</p></div><button className="button button-outline save-exit" onClick={() => void showList()}><Save size={16} />Guardar y salir</button></div>
+          <div className="page-heading"><div><div className="eyebrow inspection-start" ref={editorStartRef}><span />SEGURIDAD Y SALUD EN EL TRABAJO</div><div className="title-row"><h1>Nueva inspección</h1><span className="draft-badge"><span />Borrador</span></div><p>{stepDescriptions[draft.step][0]}</p></div><div className="followup-downloads"><button className="button button-outline save-exit" disabled={!loaded || saveState === 'saving' || busy || !!photoBusy} onClick={() => void save(draft)}><Save size={16} />{saveState === 'saving' ? 'Guardando…' : 'Guardar'}</button><button className="button button-outline" disabled={!loaded || saveState === 'saving' || busy || !!photoBusy} onClick={() => void saveAndExit()}>Guardar y salir</button></div></div>
+          {draftDirty && <p className="inline-note" role="status">Tienes cambios pendientes. Pulsa Guardar para conservarlos antes de salir.</p>}
           <Stepper step={draft.step} names={stepNames} onStep={goToStep} />
           <div className="content-layout"><div className="form-column">
             <div className="form-card">
@@ -434,7 +468,7 @@ function WorkspaceApp({ initialAccounts, exit, onCloudAccess, cloud }: { initial
 
               <div className="form-footer"><span><span className="required">*</span> Campos obligatorios</span><span><LockKeyhole size={13} />{cloud ? 'Borrador privado en tu cuenta' : 'Borrador privado en este navegador'}</span></div>
             </div>
-            <div className="wizard-actions"><button className="button button-back" disabled={draft.step === 0} onClick={() => goToStep(draft.step - 1)}><ArrowLeft size={17} />Anterior</button><span className="step-counter">Paso {draft.step + 1} de 5</span>{draft.step < 4 ? <button className="button button-primary next-button" disabled={!!photoBusy || !loaded} onClick={() => goToStep(draft.step + 1)}>Continuar<ArrowRight size={17} /></button> : <button className="button button-primary next-button" onClick={() => setModal('send')}>Enviar inspección<Send size={16} /></button>}</div>
+            <div className="wizard-actions"><button className="button button-back" disabled={draft.step === 0} onClick={() => goToStep(draft.step - 1)}><ArrowLeft size={17} />Anterior</button><span className="step-counter">Paso {draft.step + 1} de 5</span>{draft.step < 4 ? <button className="button button-primary next-button" disabled={!!photoBusy || !loaded} onClick={() => goToStep(draft.step + 1)}>Continuar<ArrowRight size={17} /></button> : <button className="button button-primary next-button" onClick={() => { if (draftDirty) setToast('Guarda los cambios antes de enviar la inspección.'); else setModal('send'); }}>Enviar inspección<Send size={16} /></button>}</div>
           </div>
 
           <aside className="context-column"><div className="context-card"><div className="context-top"><span className="context-leaf"><Leaf size={21} strokeWidth={1.7} /></span><span>MENOS TRÁMITES, MÁS PREVENCIÓN</span></div><h3>Un espacio seguro<br />se construye<br /><span>paso a paso.</span></h3><p>Registra lo importante.<br />Nosotros te ayudamos a ordenarlo.</p><div className="context-illustration" aria-hidden="true"><div className="illustration-orbit orbit-1" /><div className="illustration-orbit orbit-2" /><div className="illustration-paper"><span /><span /><span /><span /><div><Check size={20} /></div></div><div className="illustration-shield"><ShieldCheck size={37} strokeWidth={1.4} /></div><span className="illustration-star star-1">✦</span><span className="illustration-star star-2">✦</span></div></div>
@@ -446,7 +480,7 @@ function WorkspaceApp({ initialAccounts, exit, onCloudAccess, cloud }: { initial
           <div className="page-heading"><div><div className="eyebrow"><span />TU ESPACIO DE SEGURIDAD</div><h1>Mis inspecciones</h1><p>Cada registro, un paso hacia un trabajo más seguro.</p></div>{canCreate && <button className="button button-primary" onClick={() => void startNew()}><Plus size={17} />Nueva inspección</button>}</div>
           <div className="list-stats"><div><span className="list-stat-icon"><ClipboardList size={22} /></span><div><strong>{inspections.length}</strong><span>Inspecciones</span></div></div><div><span className="list-stat-icon muted-icon"><Pencil size={22} /></span><div><strong>{draftCount}</strong><span>En borrador</span></div></div><div><span className="list-stat-icon"><Search size={22}/></span><div><strong>{reviewCount}</strong><span>Inspecciones a revisar</span></div></div><div><span className="list-stat-icon green-icon"><FileCheck2 size={22} /></span><div><strong>{inspections.filter(inspectionClosed).length}</strong><span>Inspecciones cerradas</span></div></div></div>
           <div className="list-card"><div className="list-toolbar"><div className="search-box"><Search size={18} /><input aria-label="Buscar inspecciones" placeholder="Buscar por instalación, por área, responsable" value={query} onChange={e => setQuery(e.target.value)} /></div><label className="filter-select"><ListFilter size={16} /><select aria-label="Filtrar por estado" value={filter} onChange={e => setFilter(e.target.value)}><option value="all">Todos los estados</option><option value="draft">Borradores</option><option value="pending">En levantamiento</option><option value="review">Inspecciones a revisar</option><option value="closed">Inspecciones cerradas</option></select></label></div>
-          <div className="inspection-list">{inspections.filter(matches).map(item => <div className="inspection-list-row" key={item.id}><div className="list-building"><Building2 size={23} /></div><div className="inspection-list-info"><strong className="list-inspected-area">{item.area || item.facility || 'Inspección sin título'}</strong><span className="list-responsibles">{item.responsibles.map(person => person.name.trim()).filter(Boolean).join(', ') || 'Responsable sin asignar'}</span><span className="list-responsible-areas">{responsibleAreas(item, accounts) || 'Área del responsable sin registrar'}</span><small>{formatDate(item.date)} · {formatInspectionTime(item.inspectionTime, item.inspectionPeriod) || 'Hora sin registrar'} — {item.observations.length} {item.observations.length === 1 ? 'observación' : 'observaciones'}</small><span className="registration-list-code">{confirmedInspectionCode(item) ? `Código definitivo: ${confirmedInspectionCode(item)}` : 'Código definitivo: pendiente de envío'}</span></div><span className={`list-status ${item.status === 'ready' ? 'status-ready' : ''}`}>{workflowLabel(item)}</span><button className="button button-outline" disabled={!canCreate && !item.delivery} onClick={() => { if (item.delivery) { openFollowUp(item, 'list'); return; } setDraft(item); setView('editor'); setErrors({}); top(); }}>{item.delivery ? 'Revisar informe' : item.status === 'ready' ? 'Ver informe' : 'Continuar'}<ArrowRight size={15} /></button>{canCreate && !item.delivery && <button className="icon-button delete-button" aria-label={`Eliminar inspección ${item.area || item.facility || 'sin título'}`} onClick={() => setDeleteTarget(item)}><Trash2 size={17} /></button>}</div>)}</div>
+          <div className="inspection-list">{inspections.filter(matches).map(item => <div className="inspection-list-row" key={item.id}><div className="list-building"><Building2 size={23} /></div><div className="inspection-list-info"><strong className="list-inspected-area">{item.area || item.facility || 'Inspección sin título'}</strong><span className="list-responsibles">{item.responsibles.map(person => person.name.trim()).filter(Boolean).join(', ') || 'Responsable sin asignar'}</span><span className="list-responsible-areas">{responsibleAreas(item, accounts) || 'Área del responsable sin registrar'}</span><small>{formatDate(item.date)} · {formatInspectionTime(item.inspectionTime, item.inspectionPeriod) || 'Hora sin registrar'} — {item.observations.length} {item.observations.length === 1 ? 'observación' : 'observaciones'}</small><span className="registration-list-code">{confirmedInspectionCode(item) ? `Código definitivo: ${confirmedInspectionCode(item)}` : 'Código definitivo: pendiente de envío'}</span></div><span className={`list-status ${item.status === 'ready' ? 'status-ready' : ''}`}>{workflowLabel(item)}</span><button className="button button-outline" disabled={!canCreate && !item.delivery} onClick={() => { if (item.delivery) { openFollowUp(item, 'list'); return; } savedKeys.current.set(item.id, inspectionEditKey(item)); setSaveState(item.pendingManualSave ? 'error' : 'saved'); setDraft(item); setView('editor'); setErrors({}); top(); }}>{item.delivery ? 'Revisar informe' : item.status === 'ready' ? 'Ver informe' : 'Continuar'}<ArrowRight size={15} /></button>{canCreate && !item.delivery && <button className="icon-button delete-button" aria-label={`Eliminar inspección ${item.area || item.facility || 'sin título'}`} onClick={() => setDeleteTarget(item)}><Trash2 size={17} /></button>}</div>)}</div>
           {inspections.filter(matches).length === 0 && <div className="empty-list"><Search size={32} /><h3>No encontramos inspecciones</h3><p>{canCreate ? 'Prueba con otra búsqueda o crea una nueva inspección.' : 'Prueba con otra búsqueda o consulta tus accesos con el administrador.'}</p></div>}</div>
           <div className="local-storage-note"><LockKeyhole size={15} />{cloud ? 'Tus inspecciones están disponibles en tu cuenta.' : 'Tus inspecciones se guardan solo en este navegador y dispositivo.'}</div>
         </>}
@@ -454,17 +488,16 @@ function WorkspaceApp({ initialAccounts, exit, onCloudAccess, cloud }: { initial
     </div>
 
     {toast && <div className="toast" role="status"><Info size={18} /><span>{toast}</span><button aria-label="Cerrar aviso" onClick={() => setToast('')}><X size={16} /></button></div>}
-    {modal === 'reload' && cloud && <Modal title="¿Abrir la versión guardada?" onClose={() => !busy && setModal(null)}><p className="modal-description">Los cambios de esta pestaña que no se hayan sincronizado se sustituirán por la versión guardada en tu cuenta.</p><div className="modal-actions"><button className="button button-outline" disabled={busy} onClick={() => setModal(null)}>Seguir editando</button><button className="button button-primary" disabled={busy} onClick={async () => { setBusy(true); try { await discardCloudPending(draft.id, account.id); const items = await loadInspections(account.id); const item = items.find(i => i.id === draft.id); setDraft(item || newInspection(profile)); setInspections(items.filter(i => i.ownerId === account.id)); setStorageError(false); setModal(null); if (item?.delivery) openFollowUp(item, 'list'); } catch { setToast('No pudimos consultar la versión guardada. Conserva esta pestaña y revisa tu conexión.'); } finally { setBusy(false); } }}>Abrir versión guardada</button></div></Modal>}
-    {modal === 'help' && <Modal title="Una inspección, paso a paso" onClose={() => setModal(null)}><p className="modal-description">Lo importante es lo que observas. Berry te ayuda a darle forma.</p><ol className="help-steps">{['Define la empresa, la instalación, el objetivo y los responsables.', 'Añade tus observaciones, fotos y medidas correctivas. Selecciona el nivel de riesgo y la Fecha de Cierre. La primera fecha se aplica a todas; después puedes ajustarlas por separado.', 'Revisa el resumen de los hallazgos.', 'Completa las conclusiones, recomendaciones y los datos del inspector.', 'Revisa los destinatarios y descarga el informe Excel.'].map((text, i) => <li key={text}><span>{i + 1}</span><div><strong>{stepNames[i]}</strong><p>{text}</p></div></li>)}</ol><div className="notice"><Info size={19} /><p>{cloud ? 'Los borradores y las evidencias se guardan en tu cuenta. Al enviar se asigna un código y se conserva el Excel en el archivo del mes de inspección.' : 'Los borradores se guardan automáticamente en este navegador. El Excel utiliza la plantilla de inspecciones internas. La recepción del correo se confirma en el buzón destinatario.'}</p></div><button className="button button-primary full-width" onClick={() => setModal(null)}>Entendido<Check size={16} /></button></Modal>}
+    {modal === 'reload' && cloud && <Modal title="¿Abrir la versión guardada?" onClose={() => !busy && setModal(null)}><p className="modal-description">Los cambios de esta pestaña que no se hayan sincronizado se sustituirán por la versión guardada en tu cuenta.</p><div className="modal-actions"><button className="button button-outline" disabled={busy} onClick={() => setModal(null)}>Seguir editando</button><button className="button button-primary" disabled={busy} onClick={async () => { setBusy(true); try { await discardCloudPending(draft.id, account.id); const items = await loadInspections(account.id); const item = items.find(i => i.id === draft.id); if (item) savedKeys.current.set(item.id, inspectionEditKey(item)); const next = item || newInspection(profile); savedKeys.current.set(next.id, inspectionEditKey(next)); setDraft(next); setSaveState(next.pendingManualSave ? 'error' : 'saved'); setInspections(items.filter(i => i.ownerId === account.id)); setStorageError(false); setModal(null); if (item?.delivery) openFollowUp(item, 'list'); } catch { setToast('No pudimos consultar la versión guardada. Conserva esta pestaña y revisa tu conexión.'); } finally { setBusy(false); } }}>Abrir versión guardada</button></div></Modal>}
+    {modal === 'help' && <Modal title="Una inspección, paso a paso" onClose={() => setModal(null)}><p className="modal-description">Lo importante es lo que observas. Berry te ayuda a darle forma.</p><ol className="help-steps">{['Define la empresa, la instalación, el objetivo y los responsables.', 'Añade tus observaciones, fotos y medidas correctivas. Selecciona el nivel de riesgo y la Fecha de Cierre. La primera fecha se aplica a todas; después puedes ajustarlas por separado.', 'Revisa el resumen de los hallazgos.', 'Completa las conclusiones, recomendaciones y los datos del inspector.', 'Revisa los destinatarios y descarga el informe Excel.'].map((text, i) => <li key={text}><span>{i + 1}</span><div><strong>{stepNames[i]}</strong><p>{text}</p></div></li>)}</ol><div className="notice"><Info size={19} /><p>{cloud ? 'Pulsa Guardar para conservar el borrador y las evidencias en tu cuenta. Al enviar se asigna un código y se conserva el Excel en el archivo del mes de inspección.' : 'Pulsa Guardar para conservar el borrador en este navegador. El Excel utiliza la plantilla de inspecciones internas. La recepción del correo se confirma en el buzón destinatario.'}</p></div><button className="button button-primary full-width" onClick={() => setModal(null)}>Entendido<Check size={16} /></button></Modal>}
     {modal === 'profile' && !cloud && <Modal title="Tu perfil" onClose={() => setModal(null)}><div className="profile-modal-avatar">{initials(profileForm.name)}</div><Field label="Cuenta de prueba" hint="Cambia entre las cuentas locales de prueba.">{props => <select {...props} value={account.id} disabled={!loaded || busy || photoBusy !== null} onChange={e => void switchAccount(e.target.value)}>{accounts.filter(a => a.enabled).map(a => <option key={a.id} value={a.id}>{a.name} — {a.email} ({a.role === 'admin' ? 'Administrador' : 'Inspecciones'})</option>)}</select>}</Field><form onSubmit={e => { e.preventDefault(); saveProfile(); }}><Field label="Nombres y apellidos" required>{props => <input {...props} autoComplete="name" placeholder="Nombres y apellidos completos" value={profileForm.name} maxLength={250} onChange={e => setProfileForm(p => ({ ...p, name: e.target.value }))}/>}</Field><Field label="Área" required>{props => <input {...props} placeholder="Área a la que perteneces" value={profileForm.area} maxLength={250} onChange={e => setProfileForm(p => ({ ...p, area: e.target.value }))}/>}</Field><Field label="Puesto">{props => <input {...props} placeholder="Puesto que desempeñas" value={profileForm.jobTitle} maxLength={250} onChange={e => setProfileForm(p => ({ ...p, jobTitle: e.target.value }))}/>}</Field><Field label="Correo de tu cuenta">{props => <input {...props} type="email" value={profileForm.email} readOnly/>}</Field>{profileError && <p className="error-message" role="alert">{profileError}</p>}<button type="submit" className="button button-primary full-width">Guardar perfil<Check size={16}/></button></form><div className="cloud-access-entry"><button type="button" className="button button-outline full-width" disabled={busy || photoBusy !== null} onClick={() => void openCloudAccess()}><LockKeyhole size={16}/>Iniciar sesión con correo</button><button type="button" className="button button-outline full-width profile-logout" disabled={busy || photoBusy !== null} onClick={() => { setModal(null); exit.request(); }}><LogOut size={16}/>Cerrar sesión</button></div></Modal>}
     {modal === 'profile' && cloud && <Modal title="Tu perfil" onClose={() => setModal(null)}><div className="profile-modal-avatar">{initials(profile.name)}</div><p className="modal-description">{profile.name}<br/>{profile.email}<br/>{profile.area}{profile.jobTitle ? ` · ${profile.jobTitle}` : ''}</p><button type="button" className="button button-primary full-width" disabled={busy || photoBusy !== null} onClick={() => void openCloudAccess()}>Ir a mi cuenta</button><button type="button" className="button button-outline full-width profile-logout" disabled={busy || photoBusy !== null} onClick={() => { setModal(null); exit.request(); }}><LogOut size={16}/>Cerrar sesión</button></Modal>}
-    {modal === 'send' && <Modal title="Enviar inspección" onClose={() => !busy && setModal(null)}><div className="send-illustration"><Mail size={34}/></div><h3 className="centered">Enviar informe a los responsables</h3><div className="send-recipients">{draft.responsibles.map(r => <div key={r.id}><Mail size={16}/><span><strong>{r.name}</strong><small>{r.email}</small></span></div>)}</div><ReportSendForm inspection={draft} actorId={account.id} onBusyChange={setBusy} onPrepare={async () => { if (!await save(draft)) throw new Error('No se pudo guardar el informe.'); return deliverInspection(draft, account.id); }} onChange={sent => { if (activeIdRef.current !== sent.ownerId) return; setDraft(sent); setModal(null); void refreshInspections().catch(() => {}); openFollowUp(sent, 'list'); setToast(sent.emailDelivery?.state === 'accepted' ? cloud ? 'Informe guardado y envío aceptado por el servicio de correo.' : 'Make aceptó el informe y el Excel. Confirma Outlook en el historial de Make.' : 'Informe guardado. El envío por correo no está confirmado.'); }}/>{!cloud && <details className="local-delivery-option"><summary>Compartir solo en este navegador</summary><p>Disponible en las cuentas destinatarias de este navegador. Esta opción no envía correo.</p><button className="button button-outline full-width" disabled={busy} onClick={() => void sendInspection()}>{busy ? <LoaderCircle className="spin" size={16}/> : <Send size={16}/>}Enviar a destinatarios de prueba</button><p className="send-status"><Info size={14}/>No se ha enviado ningún correo.</p></details>}</Modal>}
+    {modal === 'send' && <Modal title="Enviar inspección" onClose={() => !busy && setModal(null)}><div className="send-illustration"><Mail size={34}/></div><h3 className="centered">Enviar informe a los responsables</h3><div className="send-recipients">{draft.responsibles.map(r => <div key={r.id}><Mail size={16}/><span><strong>{r.name}</strong><small>{r.email}</small></span></div>)}</div><ReportSendForm inspection={draft} actorId={account.id} onBusyChange={setBusy} onPrepare={async () => { if (hasPendingChanges()) throw new Error('Guarda los cambios antes de enviar la inspección.'); return deliverInspection(draft, account.id); }} onChange={sent => { if (activeIdRef.current !== sent.ownerId) return; setDraft(sent); setModal(null); void refreshInspections().catch(() => {}); openFollowUp(sent, 'list'); setToast(sent.emailDelivery?.state === 'accepted' ? cloud ? 'Informe guardado y envío aceptado por el servicio de correo.' : 'Make aceptó el informe y el Excel. Confirma Outlook en el historial de Make.' : 'Informe guardado. El envío por correo no está confirmado.'); }}/>{!cloud && <details className="local-delivery-option"><summary>Compartir solo en este navegador</summary><p>Disponible en las cuentas destinatarias de este navegador. Esta opción no envía correo.</p><button className="button button-outline full-width" disabled={busy} onClick={() => void sendInspection()}>{busy ? <LoaderCircle className="spin" size={16}/> : <Send size={16}/>}Enviar a destinatarios de prueba</button><p className="send-status"><Info size={14}/>No se ha enviado ningún correo.</p></details>}</Modal>}
     {previewPhoto && <PhotoViewer photo={previewPhoto} onClose={() => setPreviewPhoto(null)} onSave={!draft.delivery && draft.observations.some(o => o.photos.some(p => p.id === previewPhoto.id)) ? async photo => {
       const updated = { ...draft, observations: draft.observations.map(o => ({ ...o, photos: o.photos.map(p => p.id === photo.id ? photo : p) })), updatedAt: new Date().toISOString(), status: 'draft' as const };
-      if (!await save(updated)) throw new Error('No se pudo guardar la imagen. Tus cambios siguen abiertos en el editor.');
       setDraft(updated); setPreviewPhoto(photo);
     } : undefined}/>}
     {deleteTarget && <Modal title="Eliminar inspección" onClose={() => setDeleteTarget(null)}><p className="modal-description">Se eliminará «{deleteTarget.area || deleteTarget.facility || 'Inspección sin título'}»{cloud ? ' de tus borradores' : ' y sus fotografías de este navegador'}. Esta acción no se puede deshacer.</p><div className="modal-actions"><button className="button button-outline" onClick={() => setDeleteTarget(null)}>Conservar inspección</button><button className="button button-danger" onClick={async () => { try { await removeInspection(deleteTarget.id, cloud ? account.id : undefined, deleteTarget.cloudRevision || 0); setInspections(items => items.filter(i => i.id !== deleteTarget.id)); if (draft.id === deleteTarget.id) setDraft(newInspection(profile)); setDeleteTarget(null); setToast('Inspección eliminada.'); } catch { setToast('No pudimos eliminar la inspección. Inténtalo de nuevo.'); } }}><Trash2 size={16} />Eliminar</button></div></Modal>}
-    {exit.requested && <Modal title="¿Estás seguro de salir?" onClose={exit.cancel}><p className="modal-description">{busy || photoBusy ? 'Espera a que termine el envío o el archivo antes de cerrar la sesión.' : 'Se guardará el borrador y volverás al inicio de sesión. Guarda primero cualquier levantamiento en edición.'}</p>{exit.error && <p className="error-message" role="alert">{exit.error}</p>}<div className="modal-actions"><button type="button" className="button button-outline" disabled={exit.leaving} onClick={exit.cancel}>Seguir en la aplicación</button><button type="button" className="button button-danger" disabled={exit.leaving || busy || photoBusy !== null} onClick={() => void exit.leave()}>{exit.leaving ? 'Cerrando sesión…' : 'Salir'}</button></div></Modal>}
+    {exit.requested && <Modal title="¿Estás seguro de salir?" onClose={exit.cancel}><p className="modal-description">{busy || photoBusy ? 'Espera a que termine el envío o el archivo antes de cerrar la sesión.' : hasPendingChanges() ? `${unsavedMessage} Si eliges Salir sin guardar, los cambios que solo estén en esta pantalla se perderán; los datos ya guardados se conservan.` : 'Se cerrará la sesión y volverás al inicio de sesión.'}</p>{exit.error && <p className="error-message" role="alert">{exit.error}</p>}<div className="modal-actions"><button type="button" className="button button-outline" disabled={exit.leaving} onClick={exit.cancel}>Seguir en la aplicación</button>{hasPendingChanges() && <button type="button" className="button button-danger" disabled={exit.leaving || busy || photoBusy !== null || saveState === 'saving'} onClick={async () => { allowUnsavedExit.current = true; try { await exit.leave(); } finally { allowUnsavedExit.current = false; } }}>Salir sin guardar</button>}<button type="button" className="button button-danger" disabled={exit.leaving || busy || photoBusy !== null || saveState === 'saving'} onClick={() => void exit.leave()}>{exit.leaving ? 'Cerrando sesión…' : 'Salir'}</button></div></Modal>}
   </div></AccountDirectory.Provider>;
 }

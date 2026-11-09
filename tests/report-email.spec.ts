@@ -30,7 +30,7 @@ async function prepare(page:Page, withTeam=false) {
  await page.getByRole('button',{name:'Continuar',exact:true}).click();await page.getByRole('button',{name:'Continuar',exact:true}).click();
  await page.getByRole('textbox',{name:'CONCLUSIONES Y RECOMENDACIONES',exact:true}).fill('Se requiere corregir el hallazgo.');
  await page.getByRole('button',{name:'Continuar',exact:true}).click();
- await page.getByRole('button',{name:'Enviar inspección',exact:true}).click();
+ await page.getByRole('button',{name:'Guardar',exact:true}).first().click();await page.getByRole('button',{name:'Enviar inspección',exact:true}).click();
 }
 test('envío sin claves adjunta Excel, responsables y CC de jefes y conserva el recibo',async({page})=>{
  let captured:any;

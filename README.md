@@ -69,3 +69,5 @@ Las pruebas de PDF necesitan `pdftotext`, `pdfinfo` y `pdfimages` (Poppler) para
 `npm run test:supabase` verifica la estructura inicial, RLS y permisos con PostgreSQL embebido y datos ficticios, sin modificar el proyecto real. `npx playwright test tests/cloud-access.spec.ts` prueba el acceso y el perfil con respuestas de Auth/API interceptadas. El [estado de la integración](docs/SUPABASE.md) distingue el acceso y perfil conectados de la sincronización de inspecciones todavía pendiente.
 
 El flujo de envío de inspecciones con Excel y copias automáticas de jefes/gerentes se describe en [Envío de informes](docs/ENVIO_INFORMES.md). Requiere completar el mapeo de Make y habilitar los informes en Render; las pruebas de conexión siguen sin enviar correo.
+
+El contenido de inspecciones y levantamientos se guarda mediante botones, con aviso de cambios pendientes. [Funcionamiento del guardado manual](docs/GUARDADO_MANUAL.md).

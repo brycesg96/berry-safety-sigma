@@ -19,7 +19,12 @@ export function supabaseConfig() {
 export function supabaseClient() {
   if (!client) {
     const { url, key } = supabaseConfig();
-    client = createClient(url, key, { auth: { storageKey: 'berry-supabase-auth-v1', flowType: 'pkce', persistSession: true, autoRefreshToken: true, detectSessionInUrl: true } });
+    client = createClient(url, key, { global: { fetch: (input, init) => {
+      // Bound both RPCs and evidence uploads; preserve any shorter caller limit.
+      const signal = init?.signal || (input instanceof Request ? input.signal : undefined);
+      const timeout = AbortSignal.timeout(30000);
+      return fetch(input, { ...init, signal: signal ? AbortSignal.any([signal, timeout]) : timeout });
+    } }, auth: { storageKey: 'berry-supabase-auth-v1', flowType: 'pkce', persistSession: true, autoRefreshToken: true, detectSessionInUrl: true } });
   }
   return client;
 }

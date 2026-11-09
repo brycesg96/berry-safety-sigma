@@ -29,6 +29,12 @@ test('Atrás permite cancelar sin perder el texto y salir sin acumular entradas 
     expect(Math.abs(await page.evaluate(() => scrollY) - scroll)).toBeLessThan(2);
     expect(await page.evaluate(() => history.length)).toBe(length);
   }
+  const pendingExit = await requestExit(page);
+  await pendingExit.getByRole('button', { name: 'Salir', exact: true }).click();
+  await expect(pendingExit.getByRole('alert')).toContainText('Hay cambios sin guardar');
+  await pendingExit.getByRole('button', { name: 'Seguir en la aplicación', exact: true }).click();
+  await page.getByRole('button', { name: 'Guardar', exact: true }).first().click();
+  await expect(page.getByText('Guardado en este navegador', { exact: true })).toBeVisible();
   let nativeDialogs = 0;
   page.on('dialog', async dialog => { nativeDialogs++; await dialog.accept(); });
   await (await requestExit(page)).getByRole('button', { name: 'Salir', exact: true }).click();
@@ -73,6 +79,8 @@ test('recargar permite cancelar con el aviso nativo y salir funciona también en
   await page.evaluate(() => location.reload());
   await expect.poll(() => reloadWarning).toBe(1);
   await expect(page.getByLabel('Área inspeccionada')).toHaveValue('No salir todavía');
+  await page.getByRole('button', { name: 'Guardar', exact: true }).first().click();
+  await expect(page.getByText('Guardado en este navegador', { exact: true })).toBeVisible();
   await (await requestExit(page)).getByRole('button', { name: 'Salir', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'Inicia sesión', exact: true })).toBeVisible();
 });

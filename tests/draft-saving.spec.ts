@@ -17,10 +17,13 @@ test('contenido real: los datos automáticos y las filas vacías no inician una 
   for (const change of [{ area: 'Taller' }, { type: 'Planeada' as const }, { inspectionPeriod: 'PM' as const }, { inspectionTime: '07:30' }, { date: empty.date === '2026-11-03' ? '2026-11-04' : '2026-11-03' }, { responsibles: [{ id: 'person', personId: 'demo-inspector', name: 'Bryan', email: 'bcespedes@hortifrut.com' }] }, { observations: [{ ...newObservation(), description: 'Hallazgo' }] }, { closingRemarks: 'Recomendaciones de seguimiento.' }, { registrationDetails: { 'demo-admin': { jobTitle: 'Cargo escrito a mano', initialJobTitle: 'Supervisor', date: empty.date } } }]) expect(hasInspectionContent({ ...empty, ...change })).toBe(true);
 });
 
-test('abrir, navegar y cambiar de cuenta no crea borradores; escribir guarda y vaciar retira el borrador', async ({ page }) => {
+test('abrir, navegar y cambiar de cuenta no crea borradores; escribir no guarda; Guardar conserva y vaciar solo retira al guardar', async ({ page }) => {
   await page.clock.install(); await page.goto('./');
   await expect(page.getByRole('button', { name: 'Continuar', exact: true })).toBeEnabled();
   const nav = page.locator('.sidebar-nav');
+  await page.getByLabel('Área inspeccionada').fill('   ');
+  await page.getByRole('button', { name: 'Guardar', exact: true }).first().click();
+  await expect(page.getByText('Sin iniciar', { exact: true })).toBeVisible();
   await page.clock.runFor(1000); await expect(page.getByText('Sin iniciar', { exact: true })).toBeVisible();
   expect(await storedCount(page)).toBe(0);
   for (const destination of ['Mis inspecciones', 'Administración', 'Inspecciones recibidas']) {
@@ -38,7 +41,7 @@ test('abrir, navegar y cambiar de cuenta no crea borradores; escribir guarda y v
   await expect(page.getByRole('button', { name: 'Continuar', exact: true })).toBeEnabled();
   await page.clock.runFor(1000); expect(await storedCount(page)).toBe(0);
   await page.getByLabel('Área inspeccionada').fill('Taller - Armonía 2');
-  await page.clock.runFor(1000); await expect(page.getByText('Guardado en este navegador', { exact: true })).toBeVisible();
+  await page.clock.runFor(1000); await expect(page.getByText('Cambios sin guardar',{exact:true})).toBeVisible(); await page.getByRole('button',{name:'Guardar',exact:true}).first().click(); await expect(page.getByText('Guardado en este navegador', { exact: true })).toBeVisible();
   expect(await storedCount(page)).toBe(1);
   await nav.getByRole('button', { name: 'Mis inspecciones', exact: true }).click();
   await expect(page.locator('.inspection-list-row')).toHaveCount(1);
@@ -47,14 +50,14 @@ test('abrir, navegar y cambiar de cuenta no crea borradores; escribir guarda y v
   await nav.getByRole('button', { name: 'Mis inspecciones', exact: true }).click();
   await page.getByRole('button', { name: 'Continuar', exact: true }).click();
   await page.getByLabel('Área inspeccionada').fill('   ');
-  await page.clock.runFor(1000); await expect(page.getByText('Sin iniciar', { exact: true })).toBeVisible();
+  await page.clock.runFor(1000); await page.getByRole('button',{name:'Guardar',exact:true}).first().click(); await expect(page.getByText('Sin iniciar', { exact: true })).toBeVisible();
   await nav.getByRole('button', { name: 'Mis inspecciones', exact: true }).click();
   await expect(page.locator('.inspection-list-row')).toHaveCount(0); expect(await storedCount(page)).toBe(0);
   await nav.getByRole('button', { name: 'Nueva inspección', exact: true }).click();
   const date = page.getByLabel('Fecha de inspección'); const initial = await date.inputValue();
   await date.fill(initial === '2026-11-03' ? '2026-11-04' : '2026-11-03');
-  await page.clock.runFor(1000); await expect(page.getByText('Guardado en este navegador', { exact: true })).toBeVisible();
+  await page.clock.runFor(1000); await expect(page.getByText('Cambios sin guardar',{exact:true})).toBeVisible(); await page.getByRole('button',{name:'Guardar',exact:true}).first().click(); await expect(page.getByText('Guardado en este navegador', { exact: true })).toBeVisible();
   expect(await storedCount(page)).toBe(1);
-  await date.fill(initial); await page.clock.runFor(1000);
+  await date.fill(initial); await page.clock.runFor(1000); await page.getByRole('button',{name:'Guardar',exact:true}).first().click();
   await expect(page.getByText('Sin iniciar', { exact: true })).toBeVisible(); expect(await storedCount(page)).toBe(0);
 });

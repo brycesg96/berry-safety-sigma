@@ -12,7 +12,7 @@ function forActor(actor: string): Runtime {
 }
 export function clearCloudRuntime() { runtime = undefined; }
 export async function cloudRpc<T>(name: string, params: Record<string, unknown>): Promise<T> {
-  const { data, error } = await supabaseClient().rpc(name, params);
+  const { data, error } = await supabaseClient().rpc(name, params).retry(false);
   if (error) {
     if (error.code === '40001') throw new Error('La inspección cambió en otro dispositivo. Vuelve a abrirla antes de guardar; tu edición se conserva en este navegador.');
     if (error.code === '42501') throw new Error('Tu sesión no tiene acceso a esta operación. Revisa tu cuenta y vuelve a iniciar sesión.');
@@ -105,7 +105,7 @@ export async function loadCloudInspections(actor: string) {
     const existing = remote.find(item => item.id === draft.id);
     if (existing?.delivery) { await cachePut(null, draft.id); continue; }
     const index = remote.findIndex(item => item.id === draft.id);
-    if (index >= 0) remote[index] = draft; else remote.push(draft);
+    if (index >= 0) remote[index] = { ...draft, pendingManualSave: true }; else remote.push({ ...draft, pendingManualSave: true });
   }
   return remote.sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
 }
@@ -147,6 +147,7 @@ export async function persistCloudInspection(draft: Inspection): Promise<Inspect
     try { await cachePut({ ...draft, cloudRevision: version.saved }, draft.id); } catch { /* Keep the expected revision with the offline edit whenever possible. */ }
     const encoded = await encodeImages(draft, state);
     delete encoded.finalExcelStored;
+    delete encoded.pendingManualSave;
     await actorIs(draft.ownerId);
     const saved = await cloudRpc<CloudInspectionRow>('berry_save_draft', { p_id: draft.id, p_expected: version.saved, p_data: encoded });
     version.saved = Number(saved.revision);

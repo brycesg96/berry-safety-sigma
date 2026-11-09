@@ -125,6 +125,8 @@ test('responsables del registro independientes, autor de la cuenta bloqueado, se
     updateOwnProfile(readAccounts().find(a => a.email === 'ana@example.com')!.id, 'Ana Torres', 'Operaciones', 'Jefa de Operaciones');
   });
   await expect(page.locator('.inspection-team .inspector-signature').filter({ hasText: 'Ana Torres' })).toContainText('Jefa de Operaciones');
+  await page.getByRole('button', { name: 'Guardar', exact: true }).first().click();
+  await expect(page.getByText('Guardado en este navegador', { exact: true })).toBeAttached();
   await page.getByRole('button', { name: 'Enviar inspección', exact: true }).click();
   await page.getByText('Compartir solo en este navegador', { exact: true }).click();
   await page.getByRole('button', { name: 'Enviar a destinatarios de prueba', exact: true }).click();
@@ -183,6 +185,8 @@ test('cada autor aparece en ambas listas; cuatro inspectores y cuatro firmantes 
   expect(sheet.getCell('A34').value).toBe('Nombre: Carla Rivera');expect(sheet.getCell('A35').value).toBe('Nombre: Ana Torres');expect(sheet.getCell('A37').value).toBe('Nombre: Marta Díaz');
   expect(sheet.getRow(37).height).toBeCloseTo(105.3,3);expect(sheet.getCell('J37').isMerged).toBe(true);expect(sheet.pageSetup.printArea).toBe('A1:L37');
   expect(sheet.getImages().some(image=>image.range.tl.nativeRow===36 && image.range.ext!.height>60)).toBe(true);
+  await page.getByRole('button',{name:'Guardar',exact:true}).first().click();
+  await expect(page.getByText('Guardado en este navegador',{exact:true})).toBeAttached();
   const pdfEvent=page.waitForEvent('download');
   await page.evaluate(async()=>{
     const {loadInspections}=await import('/src/model.ts'),{exportPdf}=await import('/src/pdf.ts');

@@ -33,6 +33,10 @@ test('lista responsables y sus áreas, y busca instalación, área y responsable
   await page.getByRole('button', { name: 'Mis inspecciones', exact: true }).click();
   const rows = page.locator('.inspection-list-row');
   await expect(rows).toHaveCount(3);
+  expect(await page.evaluate(async () => {
+    const { loadInspections } = await import('/src/model.ts');
+    return (await loadInspections()).map(item => item.inspector);
+  })).toEqual(['Autora', 'Autora', 'Autora']);
   const workshop = rows.filter({ hasText: 'Taller de bombas' });
   await expect(workshop.locator('.list-responsibles')).toHaveText('María Salazar, Ana Castillo');
   await expect(workshop.locator('.list-responsible-areas')).toHaveText('Operaciones / Prevención de Riesgos');

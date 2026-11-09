@@ -32,7 +32,7 @@ async function createReport(page: Page) {
   await page.getByRole('textbox', { name: 'CONCLUSIONES Y RECOMENDACIONES', exact: true }).fill('Dos condiciones por corregir.');
   await page.getByRole('textbox', { name: 'DESCRIPCIÓN DE LA CAUSA ANTE RESULTADOS DESFAVORABLES DE LA INSPECCIÓN', exact: true }).fill('Verificar el levantamiento.');
   await page.getByRole('button', { name: 'Continuar', exact: true }).click();
-  await page.getByRole('button', { name: 'Enviar inspección', exact: true }).click();
+  await page.getByRole('button', { name: 'Guardar', exact: true }).first().click();await page.getByRole('button', { name: 'Enviar inspección', exact: true }).click();
   await page.getByText('Compartir solo en este navegador', { exact: true }).click();
   await expect(page.getByText('No se ha enviado ningún correo.')).toBeVisible();
   await page.getByRole('button', { name: 'Enviar a destinatarios de prueba' }).click();
@@ -67,7 +67,7 @@ test('destinatario envía evidencias, autor pide ajustes y cierra solo al aproba
   await expect(cards.nth(0).getByLabel('Estado', { exact: true })).toHaveValue('Pendiente');
   await cards.nth(0).getByLabel('Estado', { exact: true }).selectOption('Ejecutado');
   await cards.nth(0).getByLabel('Acción realizada').fill('Se corrigió el primer hallazgo.');
-  await cards.nth(0).getByRole('button', { name: 'Enviar a revisión' }).click();
+  await cards.nth(0).getByRole('button', { name: 'Guardar avance' }).click();await cards.nth(0).getByRole('button', { name: 'Enviar a revisión' }).click();
   await expect(cards.nth(0).getByRole('alert')).toContainText('Adjunta al menos una evidencia');
   for (let i = 0; i < 2; i++) {
     const state = 'Ejecutado';
@@ -75,7 +75,7 @@ test('destinatario envía evidencias, autor pide ajustes y cierra solo al aproba
     await cards.nth(i).getByLabel('Acción realizada').fill(`Corrección ${i + 1} realizada`);
     await cards.nth(i).getByLabel('Añadir evidencias del levantamiento').setInputFiles(png);
     await expect(cards.nth(i).locator('.followup-evidence img')).toHaveCount(1);
-    await cards.nth(i).getByRole('button', { name: 'Enviar a revisión' }).click();
+    await cards.nth(i).getByRole('button', { name: 'Guardar avance' }).click();await cards.nth(i).getByRole('button', { name: 'Enviar a revisión' }).click();
     await expect(cards.nth(i).getByText('Levantamiento enviado. Pendiente de revisión del autor.')).toBeVisible();
     await expect(cards.nth(i).locator('.observation-heading .list-status')).toHaveText(state);
     await expect(cards.nth(i).getByLabel('Estado', { exact: true })).toBeEnabled();
@@ -128,7 +128,7 @@ test('destinatario envía evidencias, autor pide ajustes y cierra solo al aproba
   await expect(cards.nth(0).locator('.observation-heading .list-status')).toHaveText('Ejecutado');
   await cards.nth(1).getByLabel('Acción realizada').fill('Corrección completada y verificada.');
   await cards.nth(1).getByLabel('Estado', { exact: true }).selectOption('Ejecutado');
-  await cards.nth(1).getByRole('button', { name: 'Enviar a revisión' }).click();
+  await cards.nth(1).getByRole('button', { name: 'Guardar avance' }).click();await cards.nth(1).getByRole('button', { name: 'Enviar a revisión' }).click();
   await expect(cards.nth(1).getByText('Levantamiento enviado. Pendiente de revisión del autor.')).toBeVisible();
   await expect(page.getByText('Inspección cerrada: todos los estados están en Ejecutado.')).toHaveCount(0);
   await switchTo(page, 'demo-admin'); await openReview(page);
@@ -268,4 +268,15 @@ test('permisos, versiones concurrentes y protección del informe enviado', async
     return { ownerStateBlocked, identityPreserved, outsiderBlocked, staleBlocked, selfReviewBlocked, outsiderStateBlocked, invalidStateBlocked, staleStateBlocked, overwriteBlocked, deletionBlocked, closed: inspectionClosed(changed) };
   });
   expect(result).toEqual({ ownerStateBlocked: true, identityPreserved: true, outsiderBlocked: true, staleBlocked: true, selfReviewBlocked: true, outsiderStateBlocked: true, invalidStateBlocked: true, staleStateBlocked: true, overwriteBlocked: true, deletionBlocked: true, closed: false });
+});
+
+test('levantamiento manual conserva cambios en pantalla y solo persiste al pulsar Guardar avance',async({page})=>{
+ await createReport(page);await switchTo(page,'demo-inspector');await openReceived(page);
+ const card=page.locator('.followup-card').first();await card.getByLabel('Acción realizada').fill('Avance manual pendiente');
+ await page.waitForTimeout(1200);
+ const read=()=>page.evaluate(async()=>{const {loadInspections}=await import('/src/model.ts');const d=(await loadInspections()).find(d=>d.delivery)!;return d.delivery!.corrections[d.observations[0].id]?.action;});
+ expect(await read()).not.toBe('Avance manual pendiente');await page.getByRole('button',{name:'Volver',exact:true}).click();await expect(page.getByRole('alert')).toContainText('Hay cambios sin guardar');
+ await card.getByRole('button',{name:'Guardar avance',exact:true}).click();await expect(card.getByText('Avance guardado.',{exact:true})).toBeVisible();expect(await read()).toBe('Avance manual pendiente');
+ await card.getByLabel('Acción realizada').fill('Cambio posterior sin guardar');await page.waitForTimeout(1200);expect(await read()).toBe('Avance manual pendiente');
+ await card.getByRole('button',{name:'Enviar a revisión'}).click();await expect(card.getByRole('alert')).toContainText('Pulsa Guardar avance');expect(await read()).toBe('Avance manual pendiente');
 });

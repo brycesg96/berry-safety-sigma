@@ -36,6 +36,11 @@ test('firma con mouse: deshacer, limpiar, guardar con transparencia y conservar 
   expect(preview.width).toBeLessThanOrEqual(280);
   expect(Math.abs(imagePreview.x + imagePreview.width / 2 - preview.x - preview.width / 2)).toBeLessThan(2);
   await page.screenshot({ path: test.info().outputPath('firma-compacta.png') });
+  expect(await page.evaluate(async () => {
+    const { loadInspections } = await import('/src/model.ts');
+    return !!(await loadInspections()).find(item => item.area === 'Firma de prueba')?.registrationDetails?.['demo-admin']?.signature;
+  })).toBe(false);
+  await page.getByRole('button', { name: 'Guardar', exact: true }).first().click();
   await expect.poll(() => page.evaluate(async () => {
     const { loadInspections } = await import('/src/model.ts');
     return !!(await loadInspections()).find(item => item.area === 'Firma de prueba')?.registrationDetails?.['demo-admin']?.signature;

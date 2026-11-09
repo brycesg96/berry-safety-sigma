@@ -43,7 +43,7 @@ test('recorrido completo con evidencia, persistencia y un Excel válido', async 
   await secondObservation.getByLabel('Acción a tomar').fill('Instalar la etiqueta de identificación.');
   await secondObservation.getByRole('button', { name: 'Baja', exact: true }).click();
   await secondObservation.getByLabel('Fecha de Cierre').fill('2026-11-10');
-  await expect(page.getByText('Guardado en este navegador', { exact: true })).toBeVisible();
+  await page.getByRole('button',{name:'Guardar',exact:true}).first().click();await expect(page.getByText('Guardado en este navegador',{exact:true})).toBeVisible();
   await page.reload();
   await expect(page.getByLabel('Descripción').first()).toHaveValue('Ruta de evacuación obstruida por cajas en el almacén.');
   await expect(page.locator('.observation-card')).toHaveCount(2);
@@ -60,7 +60,7 @@ test('recorrido completo con evidencia, persistencia y un Excel válido', async 
   await expect(page.getByText('Ana Torres', { exact: true })).toBeVisible();
   const requestUrls: string[] = [];
   page.on('request', request => { if (request.method() === 'POST') requestUrls.push(request.url()); });
-  await page.getByRole('button', { name: 'Enviar inspección', exact: true }).click();
+  await page.getByRole('button',{name:'Guardar',exact:true}).first().click();await page.getByRole('button', { name: 'Enviar inspección', exact: true }).click();
   await page.getByText('Compartir solo en este navegador', { exact: true }).click();
   await expect(page.getByText('No se ha enviado ningún correo.')).toBeVisible();
   await page.getByRole('button', { name: 'Cerrar ventana' }).click();
@@ -121,6 +121,7 @@ test('móvil: menú, borradores, búsqueda y eliminación', async ({ page }) => 
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto('./');
   await fillGeneral(page);
+  await page.getByRole('button',{name:'Guardar',exact:true}).first().click();
   await page.getByRole('button', { name: 'Abrir menú' }).click();
   await expect(page.getByRole('dialog', { name: 'Menú principal' })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Editar mi perfil' })).toBeVisible();
@@ -176,7 +177,7 @@ test('Fecha de Cierre compartida una sola vez, nuevas observaciones y diseño co
   await dates.nth(0).fill('2026-11-20');
   await expect(dates.nth(1)).toHaveValue('2026-11-15');
   await expect(dates.nth(2)).toHaveValue('2026-11-15');
-  await expect(page.getByText('Guardado en este navegador', { exact: true })).toBeVisible();
+  await page.getByRole('button',{name:'Guardar',exact:true}).first().click();await expect(page.getByText('Guardado en este navegador',{exact:true})).toBeVisible();
   await page.reload();
   await expect(dates.nth(0)).toHaveValue('2026-11-20');
   await add.click(); await expect(dates.nth(3)).toHaveValue('2026-11-15');

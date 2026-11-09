@@ -22,6 +22,8 @@ test('administración conserva los datos existentes y ofrece una sola gestión d
   await page.addInitScript(value => localStorage.setItem('berry-demo-accounts-v1', value), historical);
   await page.goto('./');
   await page.getByLabel('Área inspeccionada').fill('Borrador anterior a la gestión de usuarios');
+  await page.getByRole('button', { name: 'Guardar', exact: true }).first().click();
+  await expect(page.getByText('Guardado en este navegador', { exact: true })).toBeAttached();
   await page.getByRole('button', { name: 'Administración', exact: true }).click();
   await expect(page.getByRole('button', { name: 'Administrar usuarios', exact: true })).toHaveCount(1);
   await expect(page.getByRole('button', { name: 'Añadir cuenta', exact: true })).toHaveCount(0);
@@ -45,6 +47,8 @@ test('cambio de rol de prueba sin login, perfil separado y borradores de cada cu
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto('./');
   await page.getByLabel('Área inspeccionada').fill('Borrador personal administrador');
+  await page.getByRole('button', { name: 'Guardar', exact: true }).first().click();
+  await expect(page.getByText('Guardado en este navegador', { exact: true })).toBeAttached();
   await page.getByRole('button', { name: 'Mi perfil', exact: true }).click();
   await expect(page.getByLabel('Correo de tu cuenta')).toHaveValue(adminEmail);
   await expect(page.getByRole('button', { name: /Microsoft/ })).toHaveCount(0);

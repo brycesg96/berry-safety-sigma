@@ -184,10 +184,12 @@ test('cerrar sesión mientras llega el perfil no restaura datos de una cuenta an
   await expect(page.getByText('Nombre privado')).toHaveCount(0);
 });
 
-test('el acceso interno guarda el borrador local, conserva la confirmación de salida y vuelve al espacio de pruebas', async ({ page, context }) => {
+test('el acceso interno conserva el borrador guardado manualmente y vuelve al espacio de pruebas', async ({ page, context }) => {
   await mock(context);
   await page.goto('./');
   await page.getByLabel('Área inspeccionada').fill('Borrador que debe conservarse');
+  await page.getByRole('button', { name: 'Guardar', exact: true }).first().click();
+  await expect(page.getByText('Guardado en este navegador', { exact: true })).toBeVisible();
   await page.getByRole('button', { name: 'Mi perfil', exact: true }).click();
   await page.getByRole('button', { name: 'Iniciar sesión con correo', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'Inicia sesión', exact: true })).toBeVisible();

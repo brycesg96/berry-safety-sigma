@@ -36,7 +36,7 @@ test('empleador fijo, tres tipos, Otro con detalle y máximo 560', async ({ page
   await expect(page.getByRole('radio', { name: 'Planeada', exact: true })).not.toBeChecked();
   await page.getByRole('radio', { name: 'Otro', exact: true }).check();
   await expect(page.getByLabel('Detalle de otro tipo de inspección')).toHaveValue('Verificación extraordinaria');
-  await expect(page.getByText('Guardado en este navegador', { exact: true })).toBeVisible();
+  await page.getByRole('button',{name:'Guardar',exact:true}).first().click();await expect(page.getByText('Guardado en este navegador',{exact:true})).toBeVisible();
   await page.reload();
   await expect(page.getByRole('radio', { name: 'Otro', exact: true })).toBeChecked();
   await expect(page.getByRole('combobox', { name: /Nombre completo/ })).toHaveValue('Ana Torres');
@@ -99,7 +99,7 @@ test('sede y zona dependientes conservan la etiqueta y el texto editable al guar
  await expect(page.locator('.inspection-area-prefix')).toHaveText('Fundo – Armonía II –');
  await area.fill('Actividad corregida');await expect(page.locator('.inspection-area-prefix')).toHaveText('Fundo – Armonía II –');
  await selectLocation(page,'Sede','Exteriores');await expect(zone).toHaveText('Selecciona una zona');await zone.click();expect(await page.getByRole('listbox').getByRole('option').allTextContents()).toEqual(['Selecciona una zona','Chao','Otros','Semillero']);await selectLocation(page,'Zona de inspección','Chao');
- await expect(area).toHaveValue('Actividad corregida');await expect(page.getByText('Guardado en este navegador',{exact:true})).toBeVisible();await page.reload();await expect(site).toHaveText('Exteriores');await expect(zone).toHaveText('Chao');await expect(area).toHaveValue('Actividad corregida');
+ await expect(area).toHaveValue('Actividad corregida');await page.getByRole('button',{name:'Guardar',exact:true}).first().click();await expect(page.getByText('Guardado en este navegador',{exact:true})).toBeVisible();await page.reload();await expect(site).toHaveText('Exteriores');await expect(zone).toHaveText('Chao');await expect(area).toHaveValue('Actividad corregida');
 });
 
 test('menús de ubicación con teclado y Escape, sin desbordamiento y con opción seleccionada visible',async({page})=>{

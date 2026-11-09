@@ -21,6 +21,7 @@ export function Badge({ severity }: { severity: 'alta' | 'media' | 'baja' }) {
 export function Modal({ title, children, onClose, wide = false }: { title: string; children: ReactNode; onClose: () => void; wide?: boolean }) {
   const ref = useRef<HTMLDivElement>(null);
   const titleId = useId();
+  const backdropPress = useRef(false);
   const closeRef = useRef(onClose); closeRef.current = onClose;
   useEffect(() => {
     const previous = document.activeElement as HTMLElement | null;
@@ -42,7 +43,7 @@ export function Modal({ title, children, onClose, wide = false }: { title: strin
     document.addEventListener('keydown', keydown);
     return () => { document.body.style.overflow = oldOverflow; document.removeEventListener('keydown', keydown); previous?.focus({ preventScroll: true }); };
   }, []);
-  return <div className="modal-backdrop" onClick={e => { if (e.target === e.currentTarget) onClose(); }}><div ref={ref} tabIndex={-1} className={`modal ${wide ? 'modal-wide' : ''}`} role="dialog" aria-modal="true" aria-labelledby={titleId}><div className="modal-header"><h2 id={titleId}>{title}</h2><button className="icon-button" aria-label="Cerrar ventana" onClick={onClose}><X size={20} /></button></div>{children}</div></div>;
+  return <div className="modal-backdrop" onPointerDown={e => { backdropPress.current = e.target === e.currentTarget; }} onClick={e => { if (e.target === e.currentTarget && backdropPress.current) onClose(); }}><div ref={ref} tabIndex={-1} className={`modal ${wide ? 'modal-wide' : ''}`} role="dialog" aria-modal="true" aria-labelledby={titleId}><div className="modal-header"><h2 id={titleId}>{title}</h2><button className="icon-button" aria-label="Cerrar ventana" onClick={onClose}><X size={20} /></button></div>{children}</div></div>;
 }
 export function Stepper({ step, names, onStep }: { step: number; names: string[]; onStep: (index: number) => void }) {
   return <nav className="stepper" aria-label="Pasos de la inspección">{names.map((name, i) => <button key={name} onClick={() => onStep(i)} className={`step ${step === i ? 'step-active' : ''} ${i < step ? 'step-complete' : ''}`} aria-current={step === i ? 'step' : undefined}><span className="step-number">{i < step ? <Check size={15} strokeWidth={2.5} /> : `0${i + 1}`}</span><span className="step-label">{name}</span>{i === step && <ChevronDown className="step-chevron" size={13} />}</button>)}</nav>;

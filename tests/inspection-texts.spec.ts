@@ -30,7 +30,7 @@ test('otra cuenta sin historial recibe los textos compartidos, puede cambiarlos 
   const remarks = page.getByRole('textbox', { name: 'CONCLUSIONES Y RECOMENDACIONES', exact: true });
   await expect(cause).toHaveValue(texts.unfavorableCause); await expect(remarks).toHaveValue(texts.closingRemarks);
   await cause.fill(''); await remarks.fill('Recomendación propia del borrador.');
-  await expect(page.getByText('Guardado en este navegador', { exact: true })).toBeVisible();
+  await page.getByRole('button',{name:'Guardar',exact:true}).first().click();await expect(page.getByText('Guardado en este navegador',{exact:true})).toBeVisible();
   shared = { objective: 'Otro objetivo enviado', unfavorableCause: 'Otra causa enviada', closingRemarks: 'Otras recomendaciones enviadas' };
   await page.reload();
   await expect(cause).toHaveValue(''); await expect(remarks).toHaveValue('Recomendación propia del borrador.');
@@ -45,7 +45,7 @@ test('respuesta lenta no sobrescribe texto recién escrito y la precarga sola no
   await objective.fill('Texto que acabo de escribir.'); release();
   await expect(objective).toHaveValue('Texto que acabo de escribir.');
   await page.getByRole('button', { name: 'Guardar y salir', exact: true }).click();
-  await page.getByRole('button', { name: 'Nueva inspección', exact: true }).click();
+  await page.locator('.sidebar-nav').getByRole('button', { name: 'Nueva inspección', exact: true }).click();
   await expect(objective).toHaveValue(texts.objective);
   await expect(page.getByText('Sin iniciar', { exact: true })).toBeVisible();
   await page.getByRole('button', { name: 'Guardar y salir', exact: true }).click();

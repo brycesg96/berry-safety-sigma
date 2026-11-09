@@ -187,7 +187,9 @@ test('private drafts resume on another device and full approval replaces the ini
   await page.getByRole('button',{name:'Continuar',exact:true}).click();await page.getByRole('button',{name:'Añadir observación',exact:true}).click();
   await page.getByLabel('Descripción').fill('Protección pendiente.');await page.getByLabel('Acción a tomar').fill('Instalar protección.');await page.getByLabel('Fecha de Cierre').fill('2026-11-20');
   await page.getByLabel('Añadir fotos a observación 1').setInputFiles(png);
-  await expect(page.getByText('Guardado en tu cuenta',{exact:true})).toBeVisible();
+  await expect(page.locator('.photo-thumb img')).toBeVisible();
+  await page.waitForTimeout(1200);expect(state.rows.size).toBe(0);expect(state.files.size).toBe(0);
+  await page.getByRole('button',{name:'Guardar',exact:true}).first().click();await expect(page.getByText('Guardado en tu cuenta',{exact:true})).toBeVisible();
   const row=[...state.rows.values()].find(r=>!r.data.partial)!;await expect.poll(()=>row.data.observations[0].photos[0]?.dataRef).toBeTruthy();
   expect(state.files.size).toBe(1);expect(await page.evaluate(()=>localStorage.getItem('berry-demo-accounts-v1'))).toBeNull();
   const imageReads=()=>state.paths.filter(path=>path.includes('/object/authenticated/berry-evidence/')).length;
@@ -205,7 +207,7 @@ test('private drafts resume on another device and full approval replaces the ini
   await other.getByRole('button',{name:'Continuar',exact:true}).click();await other.getByRole('button',{name:'Continuar',exact:true}).click();
   await other.getByRole('textbox',{name:'CONCLUSIONES Y RECOMENDACIONES',exact:true}).fill('Gestionar la medida indicada.');
   await expect(other.getByLabel('Puesto',{exact:true})).toHaveValue('Supervisora');await expect(other.getByLabel('Puesto',{exact:true})).toHaveAttribute('readonly','');
-  await other.getByRole('button',{name:'Continuar',exact:true}).click();await other.getByRole('button',{name:'Enviar inspección',exact:true}).click();
+  await other.getByRole('button',{name:'Continuar',exact:true}).click();await other.getByRole('button',{name:'Guardar',exact:true}).first().click();await expect(other.getByText('Guardado en tu cuenta',{exact:true})).toBeVisible();await other.getByRole('button',{name:'Enviar inspección',exact:true}).click();
   await expect(other.getByText('Compartir solo en este navegador')).toHaveCount(0);
   await other.getByRole('button',{name:'Enviar informe por correo',exact:true}).click();
   await expect(other.getByRole('heading',{name:'Fundo – Armonía II – Taller nube',exact:true})).toBeVisible();await expect(other.locator('.followup-heading')).toContainText('IH-2026-001');expect(state.sends).toBe(1);
@@ -222,7 +224,7 @@ test('private drafts resume on another device and full approval replaces the ini
   expect(await receiver.evaluate(()=>localStorage.getItem('berry-last-submitted-texts'))).toBeNull();
   await receiver.waitForFunction(()=>document.querySelector('.sidebar')!.getBoundingClientRect().right<=0);
   await receiver.screenshot({path:'/tmp/berry-cloud-mobile.png',fullPage:true,animations:'disabled'});
-  await receiver.getByLabel('Acción realizada').fill('Protección instalada.');await receiver.getByRole('button',{name:'Enviar a revisión',exact:true}).click();await expect(receiver.getByText('Levantamiento enviado a revisión.',{exact:true})).toBeVisible();
+  await receiver.getByLabel('Acción realizada').fill('Protección instalada.');await receiver.getByRole('button',{name:'Guardar avance',exact:true}).click();await receiver.getByRole('button',{name:'Enviar a revisión',exact:true}).click();await expect(receiver.getByText('Levantamiento enviado a revisión.',{exact:true})).toBeVisible();
   await other.getByRole('button',{name:'Volver',exact:true}).click();await other.getByRole('button',{name:'Revisar informe',exact:true}).click();
   await expect(other.getByLabel('Apellidos y nombres del responsable del levantamiento')).toHaveValue('Bruno Responsable');
   state.failFinal=true;const originalPath=state.documents.get(row.id).storage_path;
@@ -238,14 +240,14 @@ test('private drafts resume on another device and full approval replaces the ini
 });
 
 test('offline edits stay recoverable and an obsolete device cannot overwrite a newer draft',async({browser,page,context})=>{
-  const state=stateOf();await mock(context,state,author);await enter(page,author);await page.getByLabel('Área inspeccionada').fill('Primera versión');await expect(page.getByText('Guardado en tu cuenta',{exact:true})).toBeVisible();
+  const state=stateOf();await mock(context,state,author);await enter(page,author);await page.getByLabel('Área inspeccionada').fill('Primera versión');await page.getByRole('button',{name:'Guardar',exact:true}).first().click();await expect(page.getByText('Guardado en tu cuenta',{exact:true})).toBeVisible();
   const device=await browser.newContext();await mock(device,state,author);const second=await device.newPage();await enter(second,author);
-  await second.getByLabel('Área inspeccionada').fill('Versión nueva');await expect(second.getByText('Guardado en tu cuenta',{exact:true})).toBeVisible();
-  await page.getByLabel('Área inspeccionada').fill('Edición obsoleta');await expect(page.getByText('Sin guardar',{exact:true})).toBeVisible();
+  await second.getByLabel('Área inspeccionada').fill('Versión nueva');await second.getByRole('button',{name:'Guardar',exact:true}).first().click();await expect(second.getByText('Guardado en tu cuenta',{exact:true})).toBeVisible();
+  await page.getByLabel('Área inspeccionada').fill('Edición obsoleta');await page.getByRole('button',{name:'Guardar',exact:true}).first().click();await expect(page.getByText('Cambios sin guardar',{exact:true})).toBeVisible();
   expect([...state.rows.values()][0].data.area).toBe('Versión nueva');await expect(page.getByLabel('Área inspeccionada')).toHaveValue('Edición obsoleta');
   await page.getByRole('button',{name:'Abrir versión guardada',exact:true}).click();await page.getByRole('dialog').getByRole('button',{name:'Abrir versión guardada',exact:true}).click();await expect(page.getByLabel('Área inspeccionada')).toHaveValue('Versión nueva');
-  state.failSave=true;await second.getByLabel('Área inspeccionada').fill('Edición sin conexión');await expect(second.getByText('Sin guardar',{exact:true})).toBeVisible();state.failSave=false;
-  await second.reload();await openEditor(second);await expect(second.getByLabel('Área inspeccionada')).toHaveValue('Edición sin conexión');await expect(second.getByText('Guardado en tu cuenta',{exact:true})).toBeVisible();
+  state.failSave=true;await second.getByLabel('Área inspeccionada').fill('Edición sin conexión');await second.getByRole('button',{name:'Guardar',exact:true}).first().click();await expect(second.getByText('Cambios sin guardar',{exact:true})).toBeVisible();state.failSave=false;
+  await second.reload();await openEditor(second);await expect(second.getByLabel('Área inspeccionada')).toHaveValue('Edición sin conexión');await second.getByRole('button',{name:'Guardar',exact:true}).first().click();await expect(second.getByText('Guardado en tu cuenta',{exact:true})).toBeVisible();
   await device.close();
 });
 
@@ -267,8 +269,8 @@ test('un usuario que solo recibe no crea borradores ni ve controles de creación
 
 test('un borrador pendiente retirado por el administrador o el reinicio no reaparece al recargar',async({page,context})=>{
   const state=stateOf();await mock(context,state,author);await enter(page,author);
-  state.failSave=true;await page.getByLabel('Área inspeccionada').fill('Borrador retirado');
-  await expect(page.getByRole('alert').filter({hasText:'No se ha podido guardar el borrador.'})).toBeVisible();
+  state.failSave=true;await page.getByLabel('Área inspeccionada').fill('Borrador retirado');await page.getByRole('button',{name:'Guardar',exact:true}).first().click();
+  await expect(page.getByRole('alert').filter({hasText:'No se pudo confirmar el guardado del borrador.'})).toBeVisible();
   const pending=await page.evaluate(async()=>{const db=await new Promise<IDBDatabase>((resolve,reject)=>{const r=indexedDB.open('berry-cloud-pending-v1');r.onsuccess=()=>resolve(r.result);r.onerror=()=>reject(r.error);});return new Promise<any[]>(resolve=>{const tx=db.transaction('drafts');const r=tx.objectStore('drafts').getAll();r.onsuccess=()=>resolve(r.result);tx.oncomplete=()=>db.close();});});
   expect(pending.length).toBe(1);state.retired.add(pending[0].id);state.failSave=false;
   page.once('dialog',dialog=>dialog.accept());await page.reload();
@@ -278,16 +280,16 @@ test('un borrador pendiente retirado por el administrador o el reinicio no reapa
   expect(state.paths).toContain('/rest/v1/rpc/berry_cloud_tombstones');
 });
 
-test('Salir conserva el borrador y no cierra sesión si falla su guardado',async({page,context})=>{
+test('Salir advierte cambios pendientes sin guardar automáticamente ni cerrar sesión',async({page,context})=>{
   const state=stateOf();await mock(context,state,author);await enter(page,author);
   state.failSave=true;await page.getByLabel('Área inspeccionada').fill('Borrador antes de salir');
   await page.getByRole('button',{name:'Mi perfil',exact:true}).click();
   await page.getByRole('dialog',{name:'Tu perfil',exact:true}).getByRole('button',{name:'Cerrar sesión',exact:true}).click();
   const dialog=page.getByRole('dialog',{name:'¿Estás seguro de salir?',exact:true});
   await dialog.getByRole('button',{name:'Salir',exact:true}).click();
-  await expect(dialog.getByRole('alert')).toContainText('No pudimos guardar el borrador');
+  await expect(dialog.getByRole('alert')).toContainText('Hay cambios sin guardar');expect(state.saves).toBe(0);
   expect(state.paths).not.toContain('/auth/v1/logout');
-  state.failSave=false;await dialog.getByRole('button',{name:'Salir',exact:true}).click();
+  state.failSave=false;await dialog.getByRole('button',{name:'Seguir en la aplicación'}).click();await page.getByRole('button',{name:'Guardar',exact:true}).first().click();await expect(page.getByText('Guardado en tu cuenta',{exact:true})).toBeVisible();await page.getByRole('button',{name:'Cerrar sesión',exact:true}).click();await page.getByRole('dialog',{name:'¿Estás seguro de salir?',exact:true}).getByRole('button',{name:'Salir',exact:true}).click();
   await expect(page.getByRole('heading',{name:'Inicia sesión',exact:true})).toBeVisible();
   expect([...state.rows.values()].some(row=>row.data.area==='Borrador antes de salir')).toBe(true);
   expect(state.paths).toContain('/auth/v1/logout');
@@ -296,7 +298,7 @@ test('Salir conserva el borrador y no cierra sesión si falla su guardado',async
 test('siguiente correlativo compartido se refresca al recibir foco y cada cinco segundos sin reservar ni alterar el borrador',async({browser,page,context})=>{
  test.setTimeout(60000);const state=stateOf();state.nextSequence=21;await mock(context,state,author);await enter(page,author);
  const badge=page.getByRole('textbox',{name:'Código de inspección',exact:true});await expect(badge).toHaveValue('IH-2026-021');await expect(badge).toHaveAttribute('readonly','');
- await page.getByRole('textbox',{name:'Objetivo de la inspección interna',exact:true}).fill('Objetivo que debe conservarse.');await expect(page.getByText('Guardado en tu cuenta',{exact:true})).toBeVisible();
+ await page.getByRole('textbox',{name:'Objetivo de la inspección interna',exact:true}).fill('Objetivo que debe conservarse.');await page.getByRole('button',{name:'Guardar',exact:true}).first().click();await expect(page.getByText('Guardado en tu cuenta',{exact:true})).toBeVisible();
  const row=[...state.rows.values()].find(row=>row.author_id===author&&!row.data.partial)!;expect(row.code).toBeUndefined();expect(row.data.serverRegistration).toBeUndefined();expect(row.data.registrationNumber).toBe('');expect(state.sends).toBe(0);
  const second=await browser.newContext();try {
   await mock(second,state,recipient);const other=await second.newPage();await enter(other,recipient);await expect(other.getByRole('textbox',{name:'Código de inspección',exact:true})).toHaveValue('IH-2026-021');
@@ -306,4 +308,60 @@ test('siguiente correlativo compartido se refresca al recibir foco y cada cinco 
   state.previewFails=true;await page.bringToFront();await page.evaluate(()=>window.dispatchEvent(new Event('focus')));await expect(badge).toHaveValue('Por confirmar');
   state.previewFails=false;state.nextSequence=24;await page.evaluate(()=>window.dispatchEvent(new Event('online')));await expect(badge).toHaveValue('IH-2026-024');expect(state.sends).toBe(0);expect(row.data.objective).toBe('Objetivo que debe conservarse.');
  }finally{await second.close();}
+});
+
+test('guardado manual: escribir y navegar no escriben; Guardar conserva el borrador y el código sigue pendiente',async({page,context})=>{
+ const state=stateOf();await mock(context,state,author);await enter(page,author);
+ await page.getByLabel('Área inspeccionada').fill('Borrador manual');
+ await page.waitForTimeout(1200);expect(state.rows.size).toBe(0);expect(state.saves).toBe(0);expect(state.files.size).toBe(0);
+ await page.getByRole('button',{name:'Mis inspecciones',exact:true}).click();await expect(page.getByText(/Hay cambios sin guardar/)).toBeVisible();await expect(page.getByLabel('Área inspeccionada')).toHaveValue('Borrador manual');
+ await page.getByRole('button',{name:'Guardar',exact:true}).first().click();await expect(page.getByText('Guardado en tu cuenta',{exact:true})).toBeVisible();expect(state.saves).toBe(1);
+ const row=[...state.rows.values()].find(r=>!r.data.partial)!;expect(row.data.area).toBe('Borrador manual');expect(row.code).toBeUndefined();expect(state.sends).toBe(0);
+ await page.getByRole('button',{name:'Mis inspecciones',exact:true}).click();await page.reload();await openEditor(page);await expect(page.getByLabel('Área inspeccionada')).toHaveValue('Borrador manual');
+ await page.waitForTimeout(1200);expect(state.saves).toBe(1);
+});
+
+test('editar durante Guardar mantiene el cambio nuevo pendiente hasta el siguiente guardado explícito',async({page,context})=>{
+ const state=stateOf();await mock(context,state,author);await enter(page,author);
+ let release!:()=>void;const held=new Promise<void>(resolve=>release=resolve);let waiting=false;
+ await page.route('**/rest/v1/rpc/berry_save_draft',async route=>{waiting=true;await held;await route.fallback();});
+ await page.getByLabel('Área inspeccionada').fill('Primera edición');await page.getByRole('button',{name:'Guardar',exact:true}).first().click();await expect.poll(()=>waiting).toBe(true);
+ await page.getByLabel('Área inspeccionada').fill('Segunda edición');release();await expect.poll(()=>state.saves).toBe(1);
+ await expect(page.getByText('Cambios sin guardar',{exact:true})).toBeVisible();await page.waitForTimeout(1200);expect(state.saves).toBe(1);
+ await page.getByRole('button',{name:'Guardar',exact:true}).first().click();await expect(page.getByText('Guardado en tu cuenta',{exact:true})).toBeVisible();expect(state.saves).toBe(2);expect([...state.rows.values()].find(r=>!r.data.partial)!.data.area).toBe('Segunda edición');
+});
+
+
+test('un servicio que no responde termina el guardado, conserva el intento y permite salir sin guardar cambios nuevos',async({page,context})=>{
+ test.setTimeout(60000);const state=stateOf();await mock(context,state,author);await enter(page,author);
+ await page.evaluate(()=>{
+  const transport=window.fetch;let attempts=0;
+  Object.assign(window,{stalledSaveAttempts:()=>attempts});
+  window.fetch=(input,init)=>{
+   const url=typeof input==='string'?input:input instanceof URL?input.href:input.url;
+   if(!url.includes('/rpc/berry_save_draft'))return transport(input,init);
+   attempts++;
+   return new Promise<Response>((_,reject)=>{
+    const signal=init?.signal;
+    if(!signal)return;
+    if(signal.aborted)reject(signal.reason);
+    else signal.addEventListener('abort',()=>reject(signal.reason),{once:true});
+   });
+  };
+ });
+ await page.getByLabel('Área inspeccionada').fill('Intento recuperable tras tiempo agotado');
+ await page.getByRole('button',{name:'Guardar',exact:true}).first().click();
+ await expect(page.getByRole('button',{name:'Guardando…',exact:true})).toBeVisible();
+ await expect(page.getByRole('alert').filter({hasText:'No se pudo confirmar el guardado'})).toBeVisible({timeout:35000});
+ await expect(page.getByRole('button',{name:'Guardar',exact:true}).first()).toBeEnabled();
+ await expect(page.getByLabel('Área inspeccionada')).toHaveValue('Intento recuperable tras tiempo agotado');
+ expect(await page.evaluate(()=>(window as any).stalledSaveAttempts())).toBe(1);expect(state.saves).toBe(0);
+ await page.getByLabel('Área inspeccionada').fill('Cambio nuevo que elijo descartar');
+ await page.getByRole('button',{name:'Cerrar sesión',exact:true}).click();
+ const dialog=page.getByRole('dialog',{name:'¿Estás seguro de salir?',exact:true});
+ await expect(dialog).toContainText('los datos ya guardados se conservan');
+ await dialog.getByRole('button',{name:'Salir sin guardar',exact:true}).click();
+ await expect(page.getByRole('heading',{name:'Inicia sesión',exact:true})).toBeVisible();
+ await enter(page,author);await expect(page.getByLabel('Área inspeccionada')).toHaveValue('Intento recuperable tras tiempo agotado');
+ await expect(page.getByText('Cambios sin guardar',{exact:true})).toBeVisible();expect(state.saves).toBe(0);
 });

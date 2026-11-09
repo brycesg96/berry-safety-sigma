@@ -72,12 +72,15 @@ test('edición con color, grosor, tamaño, recorte, persistencia y exportación 
   await page.getByRole('dialog').screenshot({ path: 'test-results/photo-editor-desktop.png' });
   await page.getByRole('button', { name: 'Guardar cambios', exact: true }).click();
   await expect(page.getByRole('button', { name: 'Editar imagen', exact: true })).toBeVisible();
+  const dimensions = await page.locator('.photo-full').evaluate((img: HTMLImageElement) => ({ width: img.naturalWidth, height: img.naturalHeight })); expect(dimensions).toEqual({ width: 480, height: 320 });
+  await page.getByRole('button', { name: 'Cerrar ventana', exact: true }).click();
+  await page.getByRole('button', { name: 'Guardar', exact: true }).first().click();
+  await expect(page.getByText('Guardado en este navegador', { exact: true })).toBeAttached();
   const saved = await storedPhoto(page);
   expect(saved.originalData).toBeTruthy(); expect(saved.editState.shapes).toHaveLength(2);
   expect(Math.round(saved.editState.crop.width)).toBeCloseTo(480, 0); expect(Math.round(saved.editState.crop.height)).toBeCloseTo(320, 0);
   expect(saved.data).not.toBe(saved.originalData);
-  const dimensions = await page.locator('.photo-full').evaluate((img: HTMLImageElement) => ({ width: img.naturalWidth, height: img.naturalHeight })); expect(dimensions).toEqual({ width: 480, height: 320 });
-  await page.getByRole('button', { name: 'Cerrar ventana', exact: true }).click(); await page.reload();
+  await page.reload();
   await page.getByRole('button', { name: 'Ver foto 1 de observación 1', exact: true }).click(); await page.getByRole('button', { name: 'Editar imagen', exact: true }).click();
   await expect(page.locator('[data-shape-type]')).toHaveCount(2);
   await page.getByRole('button', { name: 'Restaurar original', exact: true }).click(); await expect(page.locator('[data-shape-type]')).toHaveCount(0);
@@ -123,6 +126,9 @@ test.describe('uso táctil', () => {
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
     await page.getByRole('dialog').screenshot({ path: 'test-results/photo-editor-mobile.png' });
     await page.getByRole('button', { name: 'Guardar cambios', exact: true }).tap();
+    await page.getByRole('button', { name: 'Cerrar ventana', exact: true }).tap();
+    await page.getByRole('button', { name: 'Guardar', exact: true }).first().tap();
+    await expect(page.getByText('Guardado en este navegador', { exact: true })).toBeAttached();
     expect((await storedPhoto(page)).editState.shapes).toHaveLength(1);
   });
 });

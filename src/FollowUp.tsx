@@ -1,3 +1,4 @@
+import { hasPendingChanges, unsavedMessage, usePendingChanges } from './manual-save';
 import { useEffect, useRef, useState } from 'react';
 import { ArrowLeft, Camera, Check, Download, ImagePlus, LoaderCircle, Pencil, RefreshCw, Send, X } from 'lucide-react';
 import { Badge, Field, Modal } from './components';
@@ -29,14 +30,9 @@ export function FollowUp({ inspection, actor, onChange, onBack, readOnly = false
     catch (problem) { setError(problem instanceof Error ? problem.message : 'No se pudo guardar el Excel final. Vuelve a intentarlo.'); }
     finally { setFinalizing(false); }
   };
-  useEffect(() => {
-    if (readOnly || inspection.storage !== 'cloud' || !closed || inspection.finalExcelStored !== false) { setFinalizing(false); return; }
-    let active = true; setFinalizing(true); setError('');
-    void storeFinalExcel(inspection).then(value => { if (active) currentChange.current(value); }).catch(problem => { if (active) setError(problem instanceof Error ? problem.message : 'No se confirmó el Excel final. Vuelve a intentarlo.'); }).finally(() => { if (active) setFinalizing(false); });
-    return () => { active = false; };
-  }, [inspection.id, inspection.cloudRevision, inspection.finalExcelStored, closed, readOnly]);
   useEffect(() => { onBusyChange?.(busy || finalizing); }, [busy, finalizing, onBusyChange]);
   async function download(format: 'excel' | 'pdf') {
+    if (hasPendingChanges()) { setError(unsavedMessage); return; }
     setBusy(true); setError('');
     try { await (format === 'pdf' ? exportPdf(inspection) : exportExcel(inspection, { readOnly })); }
     catch { setError(`No se pudo descargar el ${format === 'pdf' ? 'PDF' : 'Excel'}. Vuelve a intentarlo.`); }
@@ -44,8 +40,8 @@ export function FollowUp({ inspection, actor, onChange, onBack, readOnly = false
   }
   if (!owner && !recipient && !(readOnly && actor.role === 'admin')) return <p role="alert">No tienes esta inspección asignada.</p>;
   return <>
-    <button className="button button-back" disabled={busy || finalizing || externalBusy} onClick={onBack}><ArrowLeft size={17}/>Volver</button>
-    <div className="page-heading followup-heading"><div><div className="eyebrow">SEGUIMIENTO DE HALLAZGOS</div><h1>{inspection.area}</h1><p>{workflowLabel(inspection)} · {confirmedInspectionCode(inspection) || 'Código definitivo pendiente'} · {formatDate(inspection.date)}</p></div><div className="followup-downloads">{onArchiveRetry && <button type="button" className="button button-primary" disabled={busy || externalBusy} onClick={onArchiveRetry}><RefreshCw size={16}/>Completar actualización del Excel</button>}{onEdit && !closed && !inspection.archiveEditOperation && <button type="button" className="button button-primary" disabled={busy || externalBusy} onClick={onEdit}><Pencil size={16}/>Editar inspección</button>}<button className="button button-outline" disabled={busy || externalBusy} onClick={() => void download('excel')}><Download size={16}/>Descargar Excel</button>{closed && <button className="button button-outline" disabled={busy || externalBusy} onClick={() => void download('pdf')}><Download size={16}/>Descargar PDF</button>}</div></div>
+    <button className="button button-back" disabled={busy || finalizing || externalBusy} onClick={() => { if (hasPendingChanges()) setError(unsavedMessage); else onBack(); }}><ArrowLeft size={17}/>Volver</button>
+    <div className="page-heading followup-heading"><div><div className="eyebrow">SEGUIMIENTO DE HALLAZGOS</div><h1>{inspection.area}</h1><p>{workflowLabel(inspection)} · {confirmedInspectionCode(inspection) || 'Código definitivo pendiente'} · {formatDate(inspection.date)}</p></div><div className="followup-downloads">{onArchiveRetry && <button type="button" className="button button-primary" disabled={busy || externalBusy} onClick={onArchiveRetry}><RefreshCw size={16}/>Completar actualización del Excel</button>}{onEdit && !closed && !inspection.archiveEditOperation && <button type="button" className="button button-primary" disabled={busy || externalBusy} onClick={() => { if (hasPendingChanges()) setError(unsavedMessage); else onEdit?.(); }}><Pencil size={16}/>Editar inspección</button>}<button className="button button-outline" disabled={busy || externalBusy} onClick={() => void download('excel')}><Download size={16}/>Descargar Excel</button>{closed && <button className="button button-outline" disabled={busy || externalBusy} onClick={() => void download('pdf')}><Download size={16}/>Descargar PDF</button>}</div></div>
     <div className="notice"><p><strong>{readOnly ? 'Consulta del informe' : closed ? 'Inspección cerrada: todos los estados están en Ejecutado.' : 'Levantamiento de resultados de la inspección'}</strong><br/>{readOnly ? 'Revisa los datos y las evidencias del informe.' : closed ? 'Puedes descargar el registro final en Excel o PDF.' : owner ? 'Revisa las evidencias y aprueba cada levantamiento o solicita ajustes.' : 'Registra la acción realizada y sus evidencias. El autor revisará el levantamiento.'}</p></div>
     {reviewer && inspection.storage === 'cloud' && inspection.emailDelivery?.state !== 'accepted' && <button type="button" className="button button-outline" onClick={() => setMailOpen(true)}>Comprobar envío por correo</button>}
     <div className="followup-context"><p><strong>Objetivo</strong> {inspection.objective}</p><div><strong>RESPONSABLE DE LA INSPECCIÓN</strong>{[{ id: inspection.ownerId, name: inspection.inspector, email: inspection.inspectorEmail }, ...(inspection.additionalInspectors || [])].map(p => <p key={p.id}>{p.name} · {p.email}</p>)}</div><p><strong>Descripción de la causa</strong> {inspection.unfavorableCause || 'Sin indicar'}</p><p><strong>Conclusiones y recomendaciones</strong> {closingRemarksOf(inspection)}</p></div>
@@ -67,14 +63,32 @@ function CorrectionForm({ inspection, observationId, actor, owner, recipient, on
   const saved = inspection.delivery?.corrections[observationId];
   const [value, setValue] = useState<Correction>(() => saved || blankCorrection(inspection, observationId));
   const savedSnapshot = JSON.stringify(saved);
-  useEffect(() => { if (saved) setValue(saved); }, [savedSnapshot]);
+  const baseline = useRef(JSON.stringify(value));
+  const observed = useRef(savedSnapshot);
+  const valueDirty = JSON.stringify(value) !== baseline.current;
+  const dirtyRef = useRef(valueDirty); dirtyRef.current = valueDirty;
+  useEffect(() => {
+    if (observed.current === savedSnapshot) return;
+    if (!dirtyRef.current && saved) { baseline.current = JSON.stringify(saved); setValue(saved); observed.current = savedSnapshot; }
+  }, [savedSnapshot]);
   const [note, setNote] = useState(''); const [message, setMessage] = useState(''); const [error, setError] = useState(''); const [busy, setBusy] = useState(false);
+  usePendingChanges(valueDirty || note.length > 0 || busy);
+  const actionPending = useRef(false);
   const closed = inspectionClosed(inspection);
   const locked = !recipient || saved?.decision === 'review' || saved?.decision === 'approved' || closed;
   const update = <K extends keyof Correction>(key: K, v: Correction[K]) => { setMessage(''); setValue(c => ({ ...c, [key]: v })); };
   async function act(action: () => Promise<Inspection>, success: string) {
+    if (actionPending.current) return;
+    actionPending.current = true;
     setBusy(true); setError(''); setMessage('');
-    try { onChange(await action()); setMessage(success); } catch (e) { setError(e instanceof Error ? e.message : 'No se pudo guardar.'); } finally { setBusy(false); }
+    try {
+      if (valueDirty && observed.current !== savedSnapshot) throw new Error('Este levantamiento cambió en otra sesión. Conserva tus cambios y vuelve a abrir la versión guardada.');
+      let next = await action();
+      const stored = next.delivery?.corrections[observationId];
+      if (stored) { baseline.current = JSON.stringify(stored); setValue(stored); observed.current = JSON.stringify(stored); }
+      setNote(''); onChange(next); setMessage(success);
+      if (next.storage === 'cloud' && inspectionClosed(next) && next.finalExcelStored === false) { next = await storeFinalExcel(next); onChange(next); }
+    } catch (e) { setError(e instanceof Error ? e.message : 'No se pudo guardar.'); } finally { actionPending.current = false; setBusy(false); }
   }
   return <div className="correction-form"><h3>Levantamiento de resultados de la inspección</h3>
     {saved?.decision === 'review' && <p className="notice">Levantamiento enviado. Pendiente de revisión del autor.</p>}
@@ -86,9 +100,10 @@ function CorrectionForm({ inspection, observationId, actor, owner, recipient, on
     <div className="evidence-label"><span>Registro fotográfico del levantamiento</span><span>{value.photos.length} / 8</span></div>
     <div className="followup-evidence">{value.photos.map(p => <div key={p.id}><button aria-label={`Ver levantamiento ${p.name}`} onClick={() => onPreview(p)}><img src={p.data} alt={p.name}/></button>{!locked && <button className="photo-remove" aria-label={`Quitar evidencia ${p.name}`} disabled={busy} onClick={() => update('photos', value.photos.filter(x => x.id !== p.id))}><X size={13}/></button>}</div>)}</div>
     {!locked && <label className="button button-outline evidence-upload"><ImagePlus size={16}/>Añadir evidencias<input aria-label="Añadir evidencias del levantamiento" type="file" accept="image/jpeg,image/png,image/webp" multiple disabled={busy} onChange={async e => { const files = Array.from(e.target.files || []); e.target.value = ''; if (files.length + value.photos.length > 8) { setError('Máximo 8 evidencias por hallazgo.'); return; } setBusy(true); setError(''); try { const photos = await Promise.all(files.map(preparePhoto)); setValue(c => ({ ...c, photos: [...c.photos, ...photos] })); } catch (err) { setError(err instanceof Error ? err.message : 'No se pudo cargar la imagen.'); } finally { setBusy(false); } }}/></label>}</div></div>
-    {!locked && <><p className="inline-note">Guarda el avance de este hallazgo antes de salir o cambiar de cuenta.</p><div className="followup-actions"><button className="button button-outline" disabled={busy} onClick={() => void act(() => saveCorrection(inspection, observationId, actor.id, value, false), 'Avance guardado.')}>Guardar avance</button><button className="button button-primary" disabled={busy} onClick={() => void act(() => saveCorrection(inspection, observationId, actor.id, value, true), 'Levantamiento enviado a revisión.')}><Send size={16}/>Enviar a revisión</button></div></>}
+    {valueDirty && <p role="status" className="inline-note">Cambios sin guardar. {locked ? 'Pulsa Guardar estado.' : 'Pulsa Guardar avance.'}</p>}
+    {!locked && <><p className="inline-note">Guarda el avance de este hallazgo antes de salir o cambiar de cuenta.</p><div className="followup-actions"><button className="button button-outline" disabled={busy} onClick={() => void act(() => saveCorrection(inspection, observationId, actor.id, value, false), 'Avance guardado.')}>Guardar avance</button><button className="button button-primary" disabled={busy} onClick={() => { if (valueDirty || !saved) { setError('Pulsa Guardar avance antes de enviar a revisión.'); return; } void act(() => saveCorrection(inspection, observationId, actor.id, value, true), 'Levantamiento enviado a revisión.'); }}><Send size={16}/>Enviar a revisión</button></div></>}
     {locked && !closed && recipient && <div className="followup-actions"><button className="button button-outline" disabled={busy} onClick={() => void act(() => saveCorrectionState(inspection, observationId, actor.id, value.state), 'Estado guardado.')}>Guardar estado</button></div>}
-    {owner && saved?.decision === 'review' && !closed && <div className="review-actions"><Field label="Comentario de revisión">{props => <textarea {...props} value={note} maxLength={5000} rows={2} onChange={e => setNote(e.target.value)} placeholder="Indica los ajustes necesarios, si corresponde."/>}</Field><div className="followup-actions"><button className="button button-outline" disabled={busy} onClick={() => void act(() => reviewCorrection(inspection, observationId, actor.id, false, note), 'Ajustes solicitados. La observación volvió a Pendiente.')}>Solicitar ajustes</button><button className="button button-primary" disabled={busy} onClick={() => void act(() => reviewCorrection(inspection, observationId, actor.id, true, note), 'Levantamiento aprobado.')}><Check size={16}/>Aprobar levantamiento</button></div></div>}
+    {owner && saved?.decision === 'review' && !closed && <div className="review-actions"><Field label="Comentario de revisión">{props => <textarea {...props} value={note} maxLength={5000} rows={2} readOnly={busy} onChange={e => setNote(e.target.value)} placeholder="Indica los ajustes necesarios, si corresponde."/>}</Field><div className="followup-actions"><button className="button button-outline" disabled={busy} onClick={() => void act(() => reviewCorrection(inspection, observationId, actor.id, false, note), 'Ajustes solicitados. La observación volvió a Pendiente.')}>Solicitar ajustes</button><button className="button button-primary" disabled={busy} onClick={() => void act(() => reviewCorrection(inspection, observationId, actor.id, true, note), 'Levantamiento aprobado.')}><Check size={16}/>Aprobar levantamiento</button></div></div>}
     {busy && <p className="inline-note"><LoaderCircle className="spin" size={16}/>Guardando…</p>}{error && <p className="error-message" role="alert">{error}</p>}{message && <p role="status">{message}</p>}
     {!saved && !recipient && <p className="inline-note"><Camera size={16}/>El destinatario aún no ha registrado su levantamiento.</p>}
   </div>;
