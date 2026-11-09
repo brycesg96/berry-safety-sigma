@@ -38,14 +38,15 @@ test('el cuerpo menciona los tres compañeros SIGMA sin convertirlos en destinat
  assert.ok(p.cuerpo_html.includes('<strong>Compañeros SIGMA:</strong> Ana, Luis &lt;SST&gt; y María &amp; José'));
  assert.deepEqual(p.destinatarios.para,['uno@example.com','dos@example.com']);
  assert.equal(p.inspectores.length,3);
+ const four=body();four.inspection.inspectors=[four.inspection.inspector,...Array.from({length:3},(_,i)=>({name:`Inspector ${i}`,email:`team${i}@example.com`}))];assert.equal((await send(four)).status,200);
  const duplicated=body();duplicated.inspection.inspectors=[duplicated.inspection.inspector,duplicated.inspection.inspector];
  assert.equal((await send(duplicated)).status,400);
- const excessive=body();excessive.inspection.inspectors=[excessive.inspection.inspector,...Array.from({length:3},(_,i)=>({name:'Extra',email:`extra${i}@example.com`}))];
+ const excessive=body();excessive.inspection.inspectors=[excessive.inspection.inspector,...Array.from({length:4},(_,i)=>({name:'Extra',email:`extra${i}@example.com`}))];
  assert.equal((await send(excessive)).status,400);
  const invalid=body();invalid.inspection.inspectors=[invalid.inspection.inspector,{name:'Extra',email:'invalid'}];
  assert.equal((await send(invalid)).status,400);
  const changed=structuredClone(input);changed.inspection.inspectors[1].name='Otro nombre';
- assert.equal((await send(changed)).status,409);assert.equal(calls.length,1);
+ assert.equal((await send(changed)).status,409);assert.equal(calls.length,2);
 });
 test('informe desactivado o sin clave nunca llama Make; check habilitado solo consulta configuración',async t=>{
  const disabled=await api(t,{env:{...env,MAKE_REPORTS_ENABLED:'false'}});assert.equal((await disabled.send()).status,503);assert.equal(disabled.calls.length,0);

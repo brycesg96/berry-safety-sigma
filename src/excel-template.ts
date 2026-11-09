@@ -1,7 +1,7 @@
 import JSZip from 'jszip';
 import type { Evidence, Inspection } from './model';
 import { formatInspectionTime } from './inspection-time';
-import { closingRemarksOf, registrationPeople } from './registration';
+import { closingRemarksOf, inspectionPeople, registrationPeople } from './registration';
 import { confirmedInspectionCode } from './inspection-code';
 
 // Patch the original OOXML package rather than round-tripping it through a
@@ -97,6 +97,23 @@ class InspectionForm {
       for (const element of elements(this.sheet, S, tag)) element.setAttribute('sqref', shifted(element.getAttribute('sqref')!, extra));
     }
     first(this.sheet, S, 'dimension').setAttribute('ref', `A1:P${36 + extra}`);
+    this.indexCells();
+  }
+
+  extendSignatures(count: number, observationExtra: number) {
+    if (count <= 3) return;
+    const last = 36 + observationExtra;
+    const source = elements(this.data, S, 'row').find(row => Number(row.getAttribute('r')) === last)!;
+    const merges = first(this.sheet, S, 'mergeCells');
+    for (let index = 0; index < count - 3; index++) {
+      const rowNumber = last + index + 1, row = source.cloneNode(true) as Element;
+      row.setAttribute('r', String(rowNumber));
+      for (const cell of elements(row, S, 'c')) cell.setAttribute('r', cell.getAttribute('r')!.replace(/\d+$/, String(rowNumber)));
+      this.data.appendChild(row);
+      for (const [left, right] of [['A','D'],['E','G'],['H','I'],['J','L']]) merges.appendChild(node(this.sheet,S,'mergeCell',{ref:`${left}${rowNumber}:${right}${rowNumber}`}));
+    }
+    merges.setAttribute('count', String(elements(merges,S,'mergeCell').length));
+    first(this.sheet,S,'dimension').setAttribute('ref', `A1:P${last + count - 3}`);
     this.indexCells();
   }
 
@@ -255,7 +272,7 @@ export async function fillInspectionTemplate(d: Inspection): Promise<Uint8Array>
   form.text('D11', printedDate(d.date));
   form.text('G11', d.responsibles.map(p => p.name).join('\n'));
   const people = registrationPeople(d);
-  form.text('J11', people.map(p => p.name).join('\n'));
+  form.text('J11', inspectionPeople(d).map(p => p.name).join('\n'));
   form.text('A14', formatInspectionTime(d.inspectionTime, d.inspectionPeriod));
   form.text('D14', d.type === 'Planeada' ? 'X' : '');
   form.text('F14', d.type === 'No planeada' ? 'X' : '');
@@ -276,6 +293,7 @@ export async function fillInspectionTemplate(d: Inspection): Promise<Uint8Array>
   }
   form.text(`A${26 + extra}`, d.unfavorableCause || '');
   form.text(`A${29 + extra}`, closingRemarksOf(d));
+  form.extendSignatures(people.length, extra);
   for (let index = 0; index < people.length; index++) form.enlargeSignatureRow(34 + extra + index);
   for (const [index, person] of people.entries()) {
     const row = 34 + extra + index;
@@ -286,7 +304,7 @@ export async function fillInspectionTemplate(d: Inspection): Promise<Uint8Array>
     for (const column of ['A', 'E', 'H']) form.wrap(`${column}${row}`);
     if (details?.signature) await form.pictures([details.signature], row, 9, 3, true);
   }
-  first(book, S, 'definedName').textContent = `V.01!$A$1:$L$${36 + extra}`;
+  first(book, S, 'definedName').textContent = `V.01!$A$1:$L$${Math.max(36, 33 + people.length) + extra}`;
   const serializer = new XMLSerializer();
   for (const [index, path] of paths.entries()) zip.file(path, serializer.serializeToString(documents[index]), { date: ENTRY_DATE, createFolders: false });
   return zip.generateAsync({ type: 'uint8array', compression: 'DEFLATE', compressionOptions: { level: 6 } });

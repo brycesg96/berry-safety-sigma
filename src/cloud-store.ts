@@ -85,10 +85,12 @@ export async function loadCloudInspections(actor: string) {
   await actorIs(actor);
   const ready = await cloudRpc<string>('berry_cloud_session', {});
   if (ready !== actor) throw new Error('La sesión cambió. Vuelve a iniciar sesión para continuar.');
-  const { data, error } = await supabaseClient().from('berry_inspections').select('*').is('deleted_at', null).order('updated_at', { ascending: false });
+  const { data, error } = await supabaseClient().from('berry_inspections').select('*').is('deleted_at', null).or(`author_id.eq.${actor},data->delivery->recipientIds.cs.${JSON.stringify([actor])}`).order('updated_at', { ascending: false });
   if (error) throw new Error('No pudimos consultar tus inspecciones. Revisa tu conexión.');
   const rows = (data || []) as CloudInspectionRow[];
-  const remote = await Promise.all(rows.filter(row => !row.data.partial).map(row => hydrateCloudInspection(row, actor)));
+  // The administration panel has wider read permissions. The personal workspace
+  // loads only authored or assigned reports and their images.
+  const remote = await Promise.all(rows.filter(row => !row.data.partial && (row.author_id === actor || row.workflow !== 'draft' && row.data.delivery?.recipientIds.includes(actor))).map(row => hydrateCloudInspection(row, actor)));
   const pending = await pendingDrafts(actor).catch(() => []);
   const retired = new Set<string>();
   if (pending.length) {

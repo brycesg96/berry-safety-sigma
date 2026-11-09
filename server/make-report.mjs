@@ -17,7 +17,7 @@ export function reportPayload(input) {
   const inspector = { nombre: text(d.inspector?.name, 250), correo: email(d.inspector?.email) };
   let team = [inspector];
   if (d.inspectors !== undefined) {
-    if (!Array.isArray(d.inspectors) || d.inspectors.length < 1 || d.inspectors.length > 3) throw new Error('INVALID_REPORT');
+    if (!Array.isArray(d.inspectors) || d.inspectors.length < 1 || d.inspectors.length > 4) throw new Error('INVALID_REPORT');
     team = d.inspectors.map(p => ({ nombre: text(p?.name,250), correo: email(p?.email) }));
     if (team[0].correo !== inspector.correo || team[0].nombre !== inspector.nombre || new Set(team.map(p => p.correo)).size !== team.length) throw new Error('INVALID_REPORT');
   }

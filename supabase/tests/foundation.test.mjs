@@ -351,6 +351,20 @@ test('final replacement stays blocked until every observation has been approved,
   assert.equal((await as('authenticated',users.recipient,'select public.berry_prepare_final($1,$2) as value',[row.id,row.revision])).rows[0].value.complete,false);
 });
 
+const upgradeWorkspace=await readFile(new URL('../operations/upgrade-workspace.sql',import.meta.url),'utf8');
+test('single workspace upgrade installs steps 5 to 8 atomically from the current final-archive stage without changing reports or counters',async()=>{
+ const reportsBefore=(await db.query('select id,data,code from public.berry_inspections order by id')).rows;
+ const countersBefore=(await db.query('select * from berry_private.report_counters order by year')).rows;
+ await assert.rejects(()=>db.transaction(async tx=>{
+  await tx.exec(upgradeWorkspace);
+  assert.equal((await tx.query('select public.berry_schema_status() as value')).rows[0].value.registration_version,'202611090008');
+  assert.deepEqual((await tx.query('select id,data,code from public.berry_inspections order by id')).rows,reportsBefore);
+  assert.deepEqual((await tx.query('select * from berry_private.report_counters order by year')).rows,countersBefore);
+  throw new Error('ROLLBACK_UPGRADE_FIXTURE');
+ }),e=>e.message==='ROLLBACK_UPGRADE_FIXTURE');
+ assert.equal((await db.query('select public.berry_schema_status() as value')).rows[0].value.registration_version,undefined);
+});
+
 const accessMigration=await readFile(new URL('../migrations/202611080005_access_controls.sql',import.meta.url),'utf8');
 let receiverRevision;
 const permissions=(create,receive,admin=false,enabled=true)=>({enabled,role:admin?'admin':'inspector',can_create_inspections:create,can_receive_inspections:receive});
@@ -516,6 +530,41 @@ test('admin dashboard includes historical registered reports, strips photos and 
  const status=(await as('anon',null,'select public.berry_schema_status() as value')).rows[0].value;
  assert.equal(status.storage_version,'202611080006');assert.equal(status.dashboard_version,'202611080007');
  await assert.rejects(()=>db.exec(storageMigration),e=>e.code==='55000');await db.exec('rollback');
+});
+
+const registrationMigration=await readFile(new URL('../migrations/202611090008_registration_participants.sql',import.meta.url),'utf8');
+test('four inspection participants and four independent registrants preserve historical reports, bind profile data and validate eligibility',async()=>{
+ const history=(await db.query("select id,data from public.berry_inspections where workflow<>'draft' order by id")).rows;
+ await db.exec(registrationMigration);
+ assert.deepEqual((await db.query("select id,data from public.berry_inspections where workflow<>'draft' order by id")).rows,history);
+ const people=[];
+ for(let n=1;n<=6;n++){
+  const id=`96000000-0000-4000-8000-${String(n).padStart(12,'0')}`;
+  await db.query('insert into auth.users(id,email)values($1,$2)',[id,`participant${n}@example.invalid`]);
+  await db.query("update public.berry_profiles set full_name=$2,job_title=$3,enabled=true,must_change_password=false,can_create_inspections=true,can_receive_inspections=true where id=$1",[id,`Participante ${n}`,`Puesto ${n}`]);
+  people.push({id,personId:id,name:'Forged name',email:'forged@example.invalid'});
+ }
+ const id='96000000-0000-4000-8000-000000000010';
+ await as('authenticated',users.author,'select public.berry_ensure_draft($1)',[id]);
+ const payload={...cloudData(),id,additionalInspectors:people.slice(0,3),registrationParticipants:people.slice(3),responsibles:[{id:'recipient',personId:temporaryUser}],registrationDetails:{[people[0].id]:{jobTitle:'Unselected',date:'2026-11-05'},[people[3].id]:{jobTitle:'Forged title',date:'2026-11-06'}}};
+ const row=(await as('authenticated',users.author,'select public.berry_save_draft($1,1,$2) as value',[id,payload])).rows[0].value;
+ assert.equal(row.data.additionalInspectors.length,3);assert.equal(row.data.registrationParticipants.length,3);
+ assert.deepEqual(row.data.registrationParticipants.map(p=>p.name),['Participante 4','Participante 5','Participante 6']);
+ assert.equal(row.data.registrationDetails[people[3].id].jobTitle,'Puesto 4');assert.ok(!row.data.registrationDetails[people[0].id]);
+ for(const patch of [{additionalInspectors:people.slice(0,4)},{registrationParticipants:people.slice(2)},{registrationParticipants:[people[3],people[3]]},{registrationParticipants:[{id:users.author,personId:users.author}]},{registrationParticipants:null}])
+  await assert.rejects(()=>as('authenticated',users.author,'select public.berry_save_draft($1,$2,$3)',[id,row.revision,{...payload,...patch}]),e=>e.code==='22023');
+ // A person may legitimately be selected once in each separate list.
+ const both=(await as('authenticated',users.author,'select public.berry_save_draft($1,$2,$3) as value',[id,row.revision,{...payload,registrationParticipants:[people[0],people[3],people[4]]}])).rows[0].value;
+ assert.equal(both.data.registrationParticipants[0].personId,both.data.additionalInspectors[0].personId);
+ const target=(await db.query('select access_revision from public.berry_profiles where id=$1',[people[3].id])).rows[0];
+ const disabled=await accessChange(users.author,people[3].id,target.access_revision,permissions(true,true,false,false));
+ await assert.rejects(()=>prepare(both),e=>e.code==='22023');
+ await accessChange(users.author,people[3].id,disabled.access_revision,permissions(true,true));
+ const lease=await prepare(both);
+ await as('service_role',null,'select public.berry_cancel_report($1,$2)',[lease.operation_id,users.author]);
+ assert.equal((await as('anon',null,'select public.berry_schema_status() as value')).rows[0].value.registration_version,'202611090008');
+ const beforeReplay=(await db.query('select id,data,revision from public.berry_inspections order by id')).rows;await db.exec(upgradeWorkspace);assert.deepEqual((await db.query('select id,data,revision from public.berry_inspections order by id')).rows,beforeReplay);
+ await assert.rejects(()=>db.exec(dashboardMigration),e=>e.code==='55000');await db.exec('rollback');
 });
 
 const restoreOwner = await readFile(new URL('../operations/restore-owner-access.sql',import.meta.url),'utf8');

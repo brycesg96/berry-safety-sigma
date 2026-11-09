@@ -1,8 +1,11 @@
 import { test, expect } from '@playwright/test';
 import ExcelJS from 'exceljs';
+import { execFile } from 'node:child_process';
+import { promisify } from 'node:util';
+const run = promisify(execFile);
 import { mockDirectory, people } from './directory-fixture';
 
-test('hasta tres inspectores, autor de la cuenta bloqueado, selección sin duplicados y exportación', async ({ page }) => {
+test('responsables del registro independientes, autor de la cuenta bloqueado, selección sin duplicados y exportación', async ({ page }) => {
   test.setTimeout(90000);
   await mockDirectory(page, people.map(person => ({ ...person, jobTitle: person.id === 'test-ana' ? 'Jefa de Operaciones' : 'Inspector SIGMA' }))); await page.goto('./');
   await page.evaluate(async () => {
@@ -17,15 +20,15 @@ test('hasta tres inspectores, autor de la cuenta bloqueado, selección sin dupli
     await persistInspection({ ...d, additionalInspectors: undefined, closingRemarks: undefined, area: 'Taller - Armonía 2', date: '2026-11-04', inspectionTime: '07:30', inspectionPeriod: 'AM', type: 'Planeada', objective: 'Verificar la seguridad.', responsibles: [{ id: 'recipient', personId: 'test-ana', name: 'Ana Torres', email: 'ana@example.com' }], observations: [{ ...newObservation(), description: 'Hallazgo', correctiveAction: 'Corregir hallazgo', dueDate: '2026-11-15' }], registrationDetails: { 'demo-admin': { jobTitle: 'Cargo manual antiguo', initialJobTitle: 'Cargo manual antiguo', date: '2026-11-04' } }, conclusions: 'Requiere seguimiento.', recommendations: 'Verificar corrección.', step: 3, updatedAt: '2099-01-01T00:00:00Z' });
   });
   await page.reload();
-  const section = page.getByRole('region', { name: 'RESPONSABLE DE LA INSPECCIÓN', exact: true });
+  const section = page.getByRole('region', { name: 'RESPONSABLE DEL REGISTRO', exact: true });
   const primary = section.locator('.primary-inspector');
   await expect(primary.getByLabel('Nombre completo')).toHaveValue('Brian Céspedes');
-  await expect(primary.getByLabel('Correo del inspector')).toHaveValue('bryx.96@gmail.com');
+  await expect(primary.getByLabel('Correo del responsable')).toHaveValue('bryx.96@gmail.com');
   await expect(primary.getByLabel('Nombre completo')).toHaveAttribute('readonly', '');
-  await expect(primary.getByLabel('Correo del inspector')).toHaveAttribute('readonly', '');
-  await primary.getByLabel('Correo del inspector').focus();
+  await expect(primary.getByLabel('Correo del responsable')).toHaveAttribute('readonly', '');
+  await primary.getByLabel('Correo del responsable').focus();
   await page.keyboard.press('ControlOrMeta+A'); await page.keyboard.insertText('cambio-no-permitido@example.com');
-  await expect(primary.getByLabel('Correo del inspector')).toHaveValue('bryx.96@gmail.com');
+  await expect(primary.getByLabel('Correo del responsable')).toHaveValue('bryx.96@gmail.com');
   await expect(primary.getByRole('button')).toHaveCount(0);
   const primaryJobTitle = section.locator('.registration-fields').first().getByLabel('Puesto', { exact: true });
   await expect(primaryJobTitle).toHaveValue('Supervisor inicial');
@@ -33,34 +36,34 @@ test('hasta tres inspectores, autor de la cuenta bloqueado, selección sin dupli
   await primaryJobTitle.focus();
   await page.keyboard.press('ControlOrMeta+A'); await page.keyboard.insertText('Cargo no permitido');
   await expect(primaryJobTitle).toHaveValue('Supervisor inicial');
-  const add = section.getByRole('button', { name: 'Añadir inspector', exact: true });
+  const add = section.getByRole('button', { name: 'Añadir responsable', exact: true });
   await add.click();
   const extras = section.locator('.additional-inspector');
   await extras.nth(0).getByRole('combobox').fill('Ana');
   await page.getByRole('listbox').getByRole('option', { name: /Ana Torres/ }).click();
-  await expect(extras.nth(0).getByLabel('Correo del inspector')).toHaveValue('ana@example.com');
+  await expect(extras.nth(0).getByLabel('Correo del responsable')).toHaveValue('ana@example.com');
   await expect(section.locator('.inspector-entry').nth(0).getByLabel('Puesto', { exact: true })).toHaveValue('Jefa de Operaciones');
   await expect(section.locator('.inspector-entry').nth(0).getByLabel('Puesto', { exact: true })).toHaveAttribute('readonly', '');
-  await expect(extras.nth(0).getByLabel('Correo del inspector')).toHaveAttribute('readonly', '');
-  await extras.nth(0).getByLabel('Correo del inspector').focus();
+  await expect(extras.nth(0).getByLabel('Correo del responsable')).toHaveAttribute('readonly', '');
+  await extras.nth(0).getByLabel('Correo del responsable').focus();
   await page.keyboard.press('ControlOrMeta+A'); await page.keyboard.insertText('cambio-no-permitido@example.com');
-  await expect(extras.nth(0).getByLabel('Correo del inspector')).toHaveValue('ana@example.com');
-  await add.click(); await expect(add).toHaveCount(0);
+  await expect(extras.nth(0).getByLabel('Correo del responsable')).toHaveValue('ana@example.com');
+  await add.click(); await expect(add).toHaveCount(1);
   await extras.nth(1).getByRole('combobox').fill('Ana');
   await expect(page.getByText('No hay personas disponibles con ese nombre.')).toBeVisible();
   await extras.nth(1).getByRole('combobox').fill('José');
   await page.getByRole('listbox').getByRole('option', { name: /José Rojas/ }).click();
   await page.getByRole('button', { name: 'Guardar y salir' }).click(); await page.reload();
   await expect(section.locator('.responsible-row')).toHaveCount(3);
-  await expect(extras.nth(1).getByLabel('Correo del inspector')).toHaveValue('jose@example.com');
-  await section.getByRole('button', { name: 'Eliminar inspector 2' }).click();
+  await expect(extras.nth(1).getByLabel('Correo del responsable')).toHaveValue('jose@example.com');
+  await section.getByRole('button', { name: 'Eliminar responsable 2' }).click();
   await add.click();
   await page.getByRole('button', { name: 'Continuar', exact: true }).click();
   await expect(page.getByText('Selecciona una persona del directorio.', { exact: true })).toBeVisible();
-  await page.locator('.general-inspectors .additional-inspector').nth(1).getByRole('combobox').fill('Ana');
+  await extras.nth(1).getByRole('combobox').fill('Ana');
   await page.getByRole('listbox').getByRole('option', { name: /Ana Torres/ }).click();
   await page.getByRole('button', { name: '04 Cierre', exact: true }).click();
-  await expect(extras.nth(1).getByLabel('Correo del inspector')).toHaveValue('ana@example.com');
+  await expect(extras.nth(1).getByLabel('Correo del responsable')).toHaveValue('ana@example.com');
   const closing = page.getByRole('textbox', { name: 'CONCLUSIONES Y RECOMENDACIONES', exact: true });
   const cause = page.getByRole('textbox', { name: 'DESCRIPCIÓN DE LA CAUSA ANTE RESULTADOS DESFAVORABLES DE LA INSPECCIÓN', exact: true });
   await expect(closing).toHaveValue(/Requiere seguimiento/);
@@ -137,4 +140,58 @@ test('hasta tres inspectores, autor de la cuenta bloqueado, selección sin dupli
   const frozenContent = JSON.stringify(frozenWorkbook.getWorksheet('V.01')!.getSheetValues());
   expect(frozenContent).toContain('Supervisor SST'); expect(frozenContent).toContain('Jefa de Operaciones');
   expect(frozenContent).not.toContain('Nuevo cargo tras el envío'); expect(frozenContent).not.toContain('Otro cargo tras el envío');
+});
+
+test('cada autor aparece en ambas listas; cuatro inspectores y cuatro firmantes se eligen por separado y el Excel conserva cada grupo', async ({ page }) => {
+  await mockDirectory(page, [...people, { id: 'test-marta', name: 'Marta Díaz', email: 'marta@example.com' }]);
+  await page.goto('./');
+  await page.evaluate(async () => {
+    const { newInspection, newObservation, persistInspection } = await import('/src/model.ts');
+    const { updateOwnProfile, addAccount, selectTestAccount, readAccounts } = await import('/src/accounts.ts');
+    for (const [name,email] of [['Ana Torres','ana@example.com'],['José Rojas','jose@example.com'],['Marta Díaz','marta@example.com']]) addAccount('demo-admin',{name,email,role:'inspector'});
+    updateOwnProfile('demo-inspector','Carla Rivera','Operaciones','Supervisora'); selectTestAccount('demo-inspector');
+    const account=readAccounts().find(p=>p.id==='demo-inspector')!,d=newInspection({name:account.name,email:account.email,accountId:account.id});
+    await persistInspection({...d,area:'Listas independientes',date:'2026-11-09',inspectionTime:'09:30',inspectionPeriod:'AM',type:'Planeada',objective:'Verificar condiciones.',closingRemarks:'Corregir y verificar.',responsibles:[{id:'recipient',personId:'test-ana',name:'Ana Torres',email:'ana@example.com'}],observations:[{...newObservation(),description:'Hallazgo',correctiveAction:'Corregir.',dueDate:'2026-11-20'}]});
+  });
+  await page.reload();
+  await expect(page.getByRole('textbox',{name:'Responsable de la inspección',exact:true})).toHaveValue('Carla Rivera');
+  for (const [index,name] of ['Ana','José','Marta'].entries()) {
+    await page.getByRole('button',{name:'Añadir inspector',exact:true}).click();
+    await page.locator('.general-inspectors .additional-inspector').nth(index).getByRole('combobox').fill(name);
+    await page.getByRole('listbox').getByRole('option').click();
+  }
+  await expect(page.getByRole('button',{name:'Añadir inspector',exact:true})).toHaveCount(0);
+  for(let n=0;n<3;n++)await page.getByRole('button',{name:'Continuar',exact:true}).click();
+  const closing=page.getByRole('region',{name:'RESPONSABLE DEL REGISTRO',exact:true});
+  await expect(closing.locator('.responsible-row')).toHaveCount(1);await expect(closing.getByRole('textbox',{name:'Nombre completo',exact:true})).toHaveValue('Carla Rivera');
+  for (const [index,name] of ['Ana','José','Marta'].entries()) {
+    await closing.getByRole('button',{name:'Añadir responsable',exact:true}).click();
+    await closing.locator('.additional-inspector').nth(index).getByRole('combobox').fill(name);
+    await page.getByRole('listbox').getByRole('option').click();
+  }
+  await expect(closing.getByRole('button',{name:'Añadir responsable',exact:true})).toHaveCount(0);
+  await closing.getByLabel('Adjuntar firma',{exact:true}).nth(3).setInputFiles({name:'firma.png',mimeType:'image/png',buffer:Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=','base64')});
+  // Removing an inspector never removes an independently selected registrant.
+  for(let n=0;n<3;n++)await page.getByRole('button',{name:'Anterior',exact:true}).click();
+  await page.getByRole('button',{name:'Eliminar inspector 2',exact:true}).click();
+  for(let n=0;n<3;n++)await page.getByRole('button',{name:'Continuar',exact:true}).click();
+  await expect(closing.locator('.responsible-row')).toHaveCount(4);await expect(closing.locator('.additional-inspector').first().getByRole('combobox')).toHaveValue('Ana Torres');
+  await page.getByRole('button',{name:'Continuar',exact:true}).click();
+  const event=page.waitForEvent('download');await page.getByRole('button',{name:'Descargar Excel',exact:true}).click();
+  const book=new ExcelJS.Workbook();await book.xlsx.readFile((await (await event).path())!);const sheet=book.getWorksheet('V.01')!;
+  expect(sheet.getCell('J11').value).toBe('Carla Rivera\nJosé Rojas\nMarta Díaz');
+  expect(sheet.getCell('A34').value).toBe('Nombre: Carla Rivera');expect(sheet.getCell('A35').value).toBe('Nombre: Ana Torres');expect(sheet.getCell('A37').value).toBe('Nombre: Marta Díaz');
+  expect(sheet.getRow(37).height).toBeCloseTo(105.3,3);expect(sheet.getCell('J37').isMerged).toBe(true);expect(sheet.pageSetup.printArea).toBe('A1:L37');
+  expect(sheet.getImages().some(image=>image.range.tl.nativeRow===36 && image.range.ext!.height>60)).toBe(true);
+  const pdfEvent=page.waitForEvent('download');
+  await page.evaluate(async()=>{
+    const {loadInspections}=await import('/src/model.ts'),{exportPdf}=await import('/src/pdf.ts');
+    const report=(await loadInspections()).find(d=>d.area==='Listas independientes')!;
+    report.delivery={sentAt:new Date().toISOString(),recipientIds:['test-ana'],revision:1,corrections:Object.fromEntries(report.observations.map(o=>[o.id,{actorId:'test-ana',responsibleName:'Ana Torres',action:'Corregido.',date:'2026-11-09',photos:[],state:'Ejecutado',proposedState:'Ejecutado',decision:'approved',note:''}]))};
+    await exportPdf(report);
+  });
+  const path=test.info().outputPath('cuatro-firmantes.pdf');await(await pdfEvent).saveAs(path);
+  const text=(await run('pdftotext',[path,'-'])).stdout.replace(/\s+/g,' '),block=text.slice(text.indexOf('RESPONSABLE DEL REGISTRO'));
+  for(const name of ['Carla Rivera','Ana Torres','José Rojas','Marta Díaz'])expect(block).toContain(name);
+
 });

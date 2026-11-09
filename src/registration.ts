@@ -4,8 +4,16 @@ export type RegistrationDetails = { jobTitle: string; initialJobTitle?: string; 
 export function closingRemarksOf(d: Inspection): string {
   return d.closingRemarks ?? [d.conclusions?.trim() ? `Conclusiones:\n${d.conclusions}` : '', d.recommendations?.trim() ? `Recomendaciones:\n${d.recommendations}` : ''].filter(Boolean).join('\n\n');
 }
-export function registrationPeople(d: Inspection) {
+export function inspectionPeople(d: Inspection) {
   return [{ id: d.ownerId, name: d.inspector, email: d.inspectorEmail, personId: d.ownerId }, ...(d.additionalInspectors || []).map(p => ({ ...p, id: p.personId || p.id }))];
+}
+export function registrationParticipantsOf(d: Inspection) {
+  // Preserve the signer list of historical reports and signatures already saved
+  // in older drafts; new reports keep an explicit, independent list.
+  return d.registrationParticipants ?? (d.delivery ? d.additionalInspectors || [] : (d.additionalInspectors || []).filter(person => d.registrationDetails?.[person.personId || person.id]?.signature));
+}
+export function registrationPeople(d: Inspection) {
+  return [{ id: d.ownerId, name: d.inspector, email: d.inspectorEmail, personId: d.ownerId }, ...registrationParticipantsOf(d).map(p => ({ ...p, id: p.personId || p.id }))];
 }
 
 /** Signatures keep transparency; GIFs are captured as a static first frame. */

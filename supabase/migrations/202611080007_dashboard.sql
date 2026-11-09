@@ -2,6 +2,7 @@
 -- Requiere el paso 6. Conserva las cuentas, inspecciones, archivos y correlativos.
 begin;
 do $$ begin
+ if public.berry_schema_status()->>'registration_version' is not null then raise exception 'No repita el paso 7 después de instalar el paso 8' using errcode='55000';end if;
  if to_regprocedure('berry_private.storage_filename(text)') is null then
   raise exception 'Primero instale el paso 6 de nombres de archivo' using errcode='55000';
  end if;

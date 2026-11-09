@@ -33,6 +33,7 @@ async function mock(context:BrowserContext,state:State,actor:string,overrides:Pa
     if(path==='/rest/v1/rpc/berry_cloud_session')return route.fulfill({json:actor});
     if(path==='/rest/v1/berry_inspections'){
       const id=url.searchParams.get('id')?.slice(3);
+      if(!id)expect(url.searchParams.get('or')).toBe(`(author_id.eq.${actor},data->delivery->recipientIds.cs.${JSON.stringify([actor])})`);
       const rows=[...state.rows.values()].filter(r=>canRead(r)&&!r.deleted_at);
       return route.fulfill({json:id?rows.find(r=>r.id===id):rows});
     }

@@ -2,7 +2,7 @@ import type { Inspection } from './model';
 import type { CloudInspectionRow } from './cloud-store';
 import { cloudRpc, hydrateCloudInspection } from './cloud-store';
 import { supabaseClient } from './supabase';
-import { closingRemarksOf, registrationPeople } from './registration';
+import { closingRemarksOf, inspectionPeople } from './registration';
 import { formatInspectionTime } from './inspection-time';
 
 export type DashboardRow = CloudInspectionRow & { code: string };
@@ -14,7 +14,7 @@ export type DashboardFilters = { code: string; from: string; to: string; inspect
 export const emptyDashboardFilters = (): DashboardFilters => ({ code: '', from: '', to: '', inspector: '', area: '', responsible: '', state: '' });
 export function filterDashboard(rows: DashboardRow[], filters: DashboardFilters) {
   return rows.filter(row => dashboardText(row.code).includes(dashboardText(filters.code)) && (!filters.from || row.data.date >= filters.from) && (!filters.to || row.data.date <= filters.to)
-    && (!filters.area || dashboardText(row.data.area) === filters.area) && (!filters.inspector || registrationPeople(row.data).some(person => person.email === filters.inspector))
+    && (!filters.area || dashboardText(row.data.area) === filters.area) && (!filters.inspector || inspectionPeople(row.data).some(person => person.email === filters.inspector))
     && (!filters.responsible || row.data.responsibles.some(person => person.email === filters.responsible)) && (!filters.state || dashboardState(row) === filters.state));
 }
 export function dashboardMetrics(rows: DashboardRow[], today: string) {
@@ -50,7 +50,7 @@ export async function buildConsolidated(rows: DashboardRow[]) {
   const observationHeaders = ['Código', 'Fecha de inspección', 'Área inspeccionada', 'Observación', 'Descripción', 'Nivel de riesgo', 'Medida correctiva', 'Cierre previsto', 'Estado', 'Responsable del levantamiento', 'Acción realizada', 'Fecha de cierre', 'Decisión del revisor', 'Comentario del revisor'];
   summary.addRow(summaryHeaders); observations.addRow(observationHeaders);
   for (const row of rows) {
-    const data = row.data, people = registrationPeople(data), metrics = dashboardMetrics([row], '');
+    const data = row.data, people = inspectionPeople(data), metrics = dashboardMetrics([row], '');
     summary.addRow([row.code, data.date, formatInspectionTime(data.inspectionTime, data.inspectionPeriod), data.facility, data.area, people.map(p => p.name).join('; '), people.map(p => p.email).join('; '), data.responsibles.map(p => p.name).join('; '), data.responsibles.map(p => p.email).join('; '), dashboardStateLabel(row), data.observations.length, metrics.executed, data.objective, data.unfavorableCause, closingRemarksOf(data)]);
     data.observations.forEach((observation, index) => {
       const correction = data.delivery?.corrections[observation.id];

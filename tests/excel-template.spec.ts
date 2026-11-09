@@ -28,6 +28,7 @@ async function build(page: Page, count: number, type = 'Planeada') {
     ctx.beginPath(); ctx.moveTo(20, 90); ctx.bezierCurveTo(40, 0, 100, 120, 220, 35); ctx.stroke();
     const blob = await (await fetch(signature.toDataURL('image/png'))).blob();
     const prepared = await prepareSignature(new File([blob], 'firma.png', { type: 'image/png' }));
+    delete draft.registrationParticipants; // Historical reports retain their original signer list.
     draft.registrationDetails = { 'test-inspector': { jobTitle: 'Supervisora SST', date: '2026-11-06', signature: prepared }, second: { jobTitle: 'Inspectora', date: '2026-11-06' }, third: { jobTitle: 'Inspector', date: '2026-11-06' } };
     draft.delivery = { sentAt: '2026-11-06T15:00:00Z', revision: 1, recipientIds: ['test-responsible'], corrections: { [`observation-${count - 1}`]: { actorId: 'test-responsible', responsibleName: 'Responsable que levantó el hallazgo', action: 'Corrección realizada.', date: '2026-11-18', photos: Array.from({ length: 8 }, (_, i) => photo(i + 8)), state: 'Ejecutado', proposedState: 'Ejecutado', decision: 'approved', note: '' } } };
     const file = await buildExcel(draft);
