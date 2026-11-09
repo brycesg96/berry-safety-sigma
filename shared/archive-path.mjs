@@ -7,8 +7,12 @@ export function inspectionArchiveFolder(date) {
   const month = Number(date.slice(5, 7));
   return `${date.slice(0, 4)}/${date.slice(5, 7)}-${months[month - 1]}`;
 }
+// Storage keys are ASCII; the original filename remains the download/attachment name.
+export function storageFilename(filename) {
+  return filename.normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^A-Za-z0-9._ -]/g, '_');
+}
 export function inspectionArchivePath(date, inspectionId, hash, filename) {
   if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(inspectionId) ||
     !/^[a-f0-9]{64}$/.test(hash) || typeof filename !== 'string' || !filename || /[\\/\u0000-\u001f]/.test(filename) || filename === '.' || filename === '..') throw new Error('Ruta del informe inválida.');
-  return `${inspectionArchiveFolder(date)}/${inspectionId.toLowerCase()}/${hash}/${filename}`;
+  return `${inspectionArchiveFolder(date)}/${inspectionId.toLowerCase()}/${hash}/${storageFilename(filename)}`;
 }

@@ -7,6 +7,8 @@ import type { CloudProfile } from './cloud-account';
 import { supabaseClient } from './supabase';
 import type { ExitConfirmation } from './useExitConfirmation';
 import './cloud-account.css';
+import { InspectionDashboard } from './InspectionDashboard';
+import type { DashboardCache } from './dashboard';
 import { CloudAdministration } from './CloudAdministration';
 import type { CloudAdministrationCache } from './CloudAdministration';
 import { clearCloudRuntime } from './cloud-store';
@@ -22,7 +24,7 @@ function rememberEmail(email: string) { try { if (email) localStorage.setItem(re
 const blank = (): ProfileForm => ({ full_name: '', area: '', job_title: '' });
 const fieldsOf = (profile: CloudProfile): ProfileForm => ({ full_name: profile.full_name, area: profile.area, job_title: profile.job_title });
 
-export function CloudAccess({ exit, onReturn, onSessionChange, initialSection = 'profile' }: { exit: ExitConfirmation; onReturn?: () => void; onSessionChange?: (authenticated: boolean) => void; initialSection?: 'profile' | 'admin' }) {
+export function CloudAccess({ exit, onReturn, onSessionChange, initialSection = 'profile' }: { exit: ExitConfirmation; onReturn?: () => void; onSessionChange?: (authenticated: boolean) => void; initialSection?: 'profile' | 'admin' | 'dashboard' }) {
   const [ready, setReady] = useState(false);
   const [session, setSession] = useState<Session | null>(null);
   const [profile, setProfile] = useState<CloudProfile | null>(null);
@@ -42,13 +44,20 @@ export function CloudAccess({ exit, onReturn, onSessionChange, initialSection = 
   const [formError, setFormError] = useState('');
   const [saved, setSaved] = useState(false);
   const [busy, setBusy] = useState<'login' | 'save' | 'logout' | 'password' | 'recovery' | null>(null);
-  const [section, setSection] = useState<'profile' | 'admin' | 'workspace'>(initialSection);
+  const [section, setSection] = useState<'profile' | 'admin' | 'dashboard' | 'workspace'>(initialSection);
   const [workspaceReady, setWorkspaceReady] = useState(false);
   const [newPassword, setNewPassword] = useState('');
   const [repeatPassword, setRepeatPassword] = useState('');
   const [passwordError, setPasswordError] = useState('');
   const [loginNotice, setLoginNotice] = useState('');
   const [confirmLeave, setConfirmLeave] = useState<'return' | 'logout' | null>(null);
+  const dashboardCache = useRef<DashboardCache | null>(null);
+  const [reportBusy, setReportBusy] = useState(false);
+  const reportWorking = useRef(false); reportWorking.current = reportBusy;
+  useEffect(() => {
+    if (section !== 'dashboard') return;
+    return exit.setBeforeLeave(async () => { if (reportWorking.current) throw new Error('Espera a que termine la descarga antes de cerrar la sesión.'); });
+  }, [section, exit.setBeforeLeave]);
   const administrationCache = useRef<CloudAdministrationCache | null>(null);
   const sessionRef = useRef<Session | null>(null);
   const generation = useRef(0);
@@ -68,7 +77,7 @@ export function CloudAccess({ exit, onReturn, onSessionChange, initialSection = 
     const accept = (next: Session | null) => {
       if (!active) return;
       if (next?.user.id !== sessionRef.current?.user.id) {
-        generation.current++; administrationCache.current = null; clearCloudRuntime();
+        generation.current++; administrationCache.current = null; dashboardCache.current = null; clearCloudRuntime();
         setProfile(null); setProfileError(''); setForm(blank()); setFormError(''); setSaved(false); setPassword('');
         setShowPassword(false);
         setNewPassword(''); setRepeatPassword(''); setPasswordError(''); setSection(next ? initialSection : 'profile');
@@ -105,7 +114,7 @@ export function CloudAccess({ exit, onReturn, onSessionChange, initialSection = 
     void loadCloudProfile(userId, () => active && generation.current === requestGeneration).then(next => {
       if (!active || generation.current !== requestGeneration) return;
       if (!next.enabled || next.deleted_at) clearCloudRuntime();
-      if (!next.enabled || next.deleted_at || next.role !== 'admin') administrationCache.current = null;
+      if (!next.enabled || next.deleted_at || next.role !== 'admin') { administrationCache.current = null; dashboardCache.current = null; }
       setProfile(next); setForm(fieldsOf(next)); setFormError('');
     }).catch(error => {
       if (active && generation.current === requestGeneration) setProfileError(error instanceof Error ? error.message : 'No pudimos consultar tu perfil.');
@@ -159,7 +168,7 @@ export function CloudAccess({ exit, onReturn, onSessionChange, initialSection = 
     finally { setBusy(null); }
   };
   const logout = async () => {
-    if (busy) return;
+    if (busy || reportWorking.current) return;
     setBusy('logout'); setFormError(''); setProfileError('');
     try {
       const { error } = await supabaseClient().auth.signOut({ scope: 'local' });
@@ -192,12 +201,13 @@ export function CloudAccess({ exit, onReturn, onSessionChange, initialSection = 
 
   const hasModules = !!ownProfile && (ownProfile.role === 'admin' || ownProfile.can_create_inspections !== false || ownProfile.can_receive_inspections !== false);
   const showAdmin = !!ownProfile?.enabled && !ownProfile.must_change_password && !passwordRecovery && ownProfile.role === 'admin' && section === 'admin';
+  const showDashboard = !!ownProfile?.enabled && !ownProfile.must_change_password && !passwordRecovery && ownProfile.role === 'admin' && section === 'dashboard';
   if (section === 'workspace' && hasModules && ownProfile?.enabled && !ownProfile.must_change_password && !passwordRecovery) return <CloudWorkspace profile={ownProfile} exit={exit} onAccount={target => { setSection(target || 'profile'); setRetry(value => value + 1); }}/>;
   return <div className="cloud-account-page" spellCheck={false}>
     <header className="cloud-account-header"><Brand/>{onReturn && !ownProfile?.must_change_password && !passwordRecovery && <button type="button" className="cloud-return" disabled={!!busy} onClick={() => dirty ? setConfirmLeave('return') : onReturn()}><ArrowLeft size={17}/>Espacio de pruebas</button>}</header>
-    <main className={`cloud-account-main ${showAdmin ? 'cloud-account-admin-main' : ''}`}>
-      {ownProfile?.enabled && !ownProfile.must_change_password && !passwordRecovery && ownProfile.role === 'admin' && <nav className="admin-tabs" aria-label="Cuenta y administración"><button type="button" aria-current={section === 'profile' ? 'page' : undefined} disabled={!!busy} onClick={() => setSection('profile')}>Tu perfil</button><button type="button" aria-current={section === 'admin' ? 'page' : undefined} disabled={!!busy || dirty} onClick={() => setSection('admin')}>Gestión de Cuentas</button></nav>}
-      {showAdmin ? <><CloudAdministration key={ownProfile!.id} actor={ownProfile!} cache={administrationCache} isCurrent={() => sessionRef.current?.user.id === ownProfile!.id} onSelfChange={next => { setProfile(next); setForm(fieldsOf(next)); if (next.role !== 'admin') { administrationCache.current = null; setSection('profile'); } }}/><button type="button" className="cloud-logout" disabled={!!busy} onClick={() => void logout()}><LogOut size={17}/>Cerrar sesión en este dispositivo</button>{formError && <p role="alert" className="error-message cloud-message">{formError}</p>}</> : <section className="cloud-account-card" aria-busy={!ready || profileLoading || !!busy}>
+    <main className={`cloud-account-main ${showDashboard ? 'cloud-account-dashboard-main' : showAdmin ? 'cloud-account-admin-main' : ''}`}>
+      {ownProfile?.enabled && !ownProfile.must_change_password && !passwordRecovery && ownProfile.role === 'admin' && <nav className="admin-tabs" aria-label="Cuenta y administración"><button type="button" aria-current={section === 'profile' ? 'page' : undefined} disabled={!!busy || reportBusy} onClick={() => setSection('profile')}>Tu perfil</button><button type="button" aria-current={section === 'admin' ? 'page' : undefined} disabled={!!busy || dirty || reportBusy} onClick={() => setSection('admin')}>Gestión de Cuentas</button><button type="button" aria-current={section === 'dashboard' ? 'page' : undefined} disabled={!!busy || dirty || reportBusy} onClick={() => setSection('dashboard')}>Panel de inspecciones</button></nav>}
+      {showDashboard ? <><InspectionDashboard actor={ownProfile!} cache={dashboardCache} isCurrent={() => sessionRef.current?.user.id === ownProfile!.id} onBusyChange={setReportBusy}/><button type="button" className="cloud-logout" disabled={!!busy || reportBusy} onClick={() => void logout()}><LogOut size={17}/>Cerrar sesión en este dispositivo</button></> : showAdmin ? <><CloudAdministration key={ownProfile!.id} actor={ownProfile!} cache={administrationCache} isCurrent={() => sessionRef.current?.user.id === ownProfile!.id} onSelfChange={next => { setProfile(next); setForm(fieldsOf(next)); if (next.role !== 'admin') { administrationCache.current = null; dashboardCache.current = null; setSection('profile'); } }}/><button type="button" className="cloud-logout" disabled={!!busy} onClick={() => void logout()}><LogOut size={17}/>Cerrar sesión en este dispositivo</button>{formError && <p role="alert" className="error-message cloud-message">{formError}</p>}</> : <section className="cloud-account-card" aria-busy={!ready || profileLoading || !!busy}>
         <div className="cloud-account-icon"><ShieldCheck size={27}/></div>
         {!ready ? <><h1 ref={heading} tabIndex={-1}>Tu cuenta</h1><p className="cloud-loading" role="status"><LoaderCircle size={18} className="spin"/>Comprobando tu sesión…</p></> : !session && recoveryRequest ? <>
           <h1 ref={heading} tabIndex={-1}>Recupera tu contraseña</h1><p className="cloud-account-intro">Recibe un enlace en el correo de tu cuenta.</p>

@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { inspectionArchiveFolder, inspectionArchivePath } from '../shared/archive-path.mjs';
+import { inspectionArchiveFolder, inspectionArchivePath, storageFilename } from '../shared/archive-path.mjs';
 test('archive folders follow inspection date across month, leap-day and year boundaries', () => {
   assert.equal(inspectionArchiveFolder('2026-11-30'), '2026/11-NOVIEMBRE');
   assert.equal(inspectionArchiveFolder('2026-12-01'), '2026/12-DICIEMBRE');
@@ -11,7 +11,13 @@ test('archive folders follow inspection date across month, leap-day and year bou
 test('immutable paths separate reports and byte versions without trusting filename paths', () => {
   const id = '80000000-0000-4000-8000-000000000001', hash = 'a'.repeat(64);
   const path = inspectionArchivePath('2026-11-05', id, hash, 'REG_INS_ÁREA_05.11.2026.xlsx');
-  assert.equal(path, `2026/11-NOVIEMBRE/${id}/${hash}/REG_INS_ÁREA_05.11.2026.xlsx`);
+  assert.equal(path, `2026/11-NOVIEMBRE/${id}/${hash}/REG_INS_AREA_05.11.2026.xlsx`);
   assert.notEqual(path, inspectionArchivePath('2026-11-05', id, 'b'.repeat(64), 'REG_INS_ÁREA_05.11.2026.xlsx'));
   for (const name of ['../registro.xlsx', 'carpeta/registro.xlsx', 'carpeta\\registro.xlsx', '..']) assert.throws(() => inspectionArchivePath('2026-11-05', id, hash, name));
+});
+
+test('storage basename supports accented areas while display filename remains intact', () => {
+  assert.equal(storageFilename('REG_INS_MAQUINARIA - ARMONÍA 2_05.11.2026.xlsx'), 'REG_INS_MAQUINARIA - ARMONIA 2_05.11.2026.xlsx');
+  assert.equal(storageFilename('REG_INS_AÑÓ%#_05.11.2026.xlsx'), 'REG_INS_ANO___05.11.2026.xlsx');
+  assert.equal(storageFilename('AÑO'), storageFilename('AN\u0303O'));
 });

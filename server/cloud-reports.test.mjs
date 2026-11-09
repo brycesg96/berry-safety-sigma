@@ -59,6 +59,7 @@ async function setup(t, state=stateOf(), extraEnv={}) {
     }
     if(path.startsWith('/storage/v1/object/berry-documents/')) {
       if(state.uploadFails) return json({message:'private storage error'},503);
+      if(!/^[\x20-\x7e]+$/.test(path)) return json({error:'InvalidKey'},400);
       assert.equal(options.headers['x-upsert'],'false');
       if(state.files.has(path)) return json({error:'Duplicate',statusCode:'409'},400);
       state.files.set(path,Buffer.from(body)); return json({Key:path});
@@ -103,6 +104,18 @@ test('cloud archive keeps the inspection month and sends exactly the stored, val
   assert.equal(mail.adjuntos[0].nombre,'REG_INS_TALLER_05.11.2026.xlsx');
   assert.equal(mail.numero,'IH-2027-001'); assert.equal(mail.codigo_reservado,true);
   assert.match(mail.cuerpo_html,/Compañero SIGMA/); assert.equal(result.data.inspection.data.emailDelivery.state,'accepted');
+});
+test('accented area stores an ASCII object key and retains the original name in both initial email and final workbook',async t=>{
+  const state=stateOf(); state.row.data.area='Maquinaria - Armonía 2';
+  const api=await setup(t,state), initial=await api.send(); assert.equal(initial.status,200);
+  assert.match(initial.data.document.storage_path,/REG_INS_MAQUINARIA - ARMONIA 2_05.11.2026.xlsx$/);
+  assert.equal(initial.data.document.filename,'REG_INS_MAQUINARIA - ARMONÍA 2_05.11.2026.xlsx');
+  const mail=state.calls.find(c=>c.path==='/fictitious').body;
+  assert.equal(mail.adjuntos[0].nombre,initial.data.document.filename);
+  assert.deepEqual(Buffer.from(mail.adjuntos[0].contenido_base64,'base64'),state.files.values().next().value);
+  state.row.workflow='closed'; const final=await api.finalize(await finalInput()); assert.equal(final.status,200);
+  assert.equal(final.data.document.filename,initial.data.document.filename); assert.match(final.data.document.storage_path,/ARMONIA 2/);
+  assert.equal(state.files.size,1); assert.equal(state.calls.filter(c=>c.path==='/fictitious').length,1);
 });
 test('retries and a restarted API retain the original document and cannot send a second email or register different bytes',async t=>{
   const api=await setup(t); await api.send();

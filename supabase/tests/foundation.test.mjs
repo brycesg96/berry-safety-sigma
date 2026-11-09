@@ -82,7 +82,7 @@ test('profile edits preserve roles, identity and other users, while creating aud
 });
 
 test('workflow and audit mutations wait for the protected server functions', async () => {
-  await denied(() => as('authenticated', users.author, "update public.berry_inspections set workflow='closed' where id=$1", [reports.sent]));
+  await denied(() => as('authenticated', users.author, "update public.berry_inspections set workflow='closed',closed_at=now() where id=$1", [reports.sent]));
   await denied(() => as('authenticated', users.author, 'delete from public.berry_inspections where id=$1', [reports.draft]));
   await denied(() => as('authenticated', users.recipient, "update public.berry_corrections set decision='approved',state='Ejecutado' where inspection_id=$1", [reports.sent]));
   await denied(() => as('authenticated', users.author, 'delete from public.berry_audit'));
@@ -461,6 +461,61 @@ test('capabilities cannot be bypassed through old workflow functions, earlier se
  await assert.rejects(()=>db.exec(finalMigration),error=>error.code==='55000');await db.exec('rollback');
  await db.exec(accessMigration);
  assert.equal((await as('anon',null,'select public.berry_schema_status() as value')).rows[0].value.permissions_version,'202611080005');
+});
+
+const storageMigration=await readFile(new URL('../migrations/202611080006_storage_names.sql',import.meta.url),'utf8');
+const dashboardMigration=await readFile(new URL('../migrations/202611080007_dashboard.sql',import.meta.url),'utf8');
+let accentedReport;
+test('accented filenames commit ASCII storage keys, preserve visible names and consume a code only after storage succeeds',async()=>{
+ await db.exec(storageMigration);
+ const {storageFilename,inspectionArchivePath}=await import('../../shared/archive-path.mjs');
+ for(const name of ['REG_INS_MAQUINARIA - ARMONÍA 2.xlsx','AÑO.xlsx','AN\u0303O.xlsx','A%#漢字.xlsx'])
+  assert.equal((await db.query('select berry_private.storage_filename($1) as value',[name])).rows[0].value,storageFilename(name));
+ await as('authenticated',users.author,'select public.berry_ensure_draft($1)',['95000000-0000-4000-8000-000000000001']);
+ const payload={...cloudData(),id:'95000000-0000-4000-8000-000000000001',area:'Maquinaria - Armonía 2',responsibles:[{id:'recipient',personId:temporaryUser}]};
+ const row=(await as('authenticated',users.author,'select public.berry_save_draft($1,1,$2) as value',[payload.id,payload])).rows[0].value;
+ const lease=await prepare(row), before=(await db.query('select last_sequence from berry_private.report_counters where year=2026')).rows[0].last_sequence;
+ const name='REG_INS_MAQUINARIA - ARMONÍA 2_05.11.2026.xlsx',path=inspectionArchivePath(row.data.date,row.id,documentHash,name);
+ const doc={filename:name,storage_path:path,sha256:documentHash,byte_size:2000};
+ await assert.rejects(()=>as('service_role',null,'select public.berry_commit_report($1,$2,100,$3)',[lease.operation_id,users.author,doc]),e=>e.message==='DOCUMENT_NOT_STORED');
+ assert.equal((await db.query('select last_sequence from berry_private.report_counters where year=2026')).rows[0].last_sequence,before);
+ await db.query('insert into storage.objects(bucket_id,name) values($1,$2)',['berry-documents',path]);
+ const committed=(await as('service_role',null,'select public.berry_commit_report($1,$2,100,$3) as value',[lease.operation_id,users.author,doc])).rows[0].value;
+ assert.equal(committed.document.filename,name);assert.equal(committed.document.storage_path,path);
+ assert.equal(Number(committed.inspection.code.split('-').at(-1)),Number(before)+1); accentedReport=committed.inspection;
+ await db.query("update public.berry_inspections set workflow='closed',closed_at=now() where id=$1",[row.id]);
+ const finalDoc={...doc,sha256:'f'.repeat(64),storage_path:inspectionArchivePath(row.data.date,row.id,'f'.repeat(64),name)};
+ await db.query('insert into storage.objects(bucket_id,name) values($1,$2)',['berry-documents',finalDoc.storage_path]);
+ const final=(await as('service_role',null,'select public.berry_commit_final($1,$2,100,$3,$4) as value',[row.id,users.author,committed.inspection.revision,finalDoc])).rows[0].value;
+ assert.equal(final.document.filename,name);assert.equal(final.document.storage_path,finalDoc.storage_path);assert.equal(final.document.is_final,true);
+ assert.equal((await db.query('select count(*) as total from public.berry_documents where inspection_id=$1',[row.id])).rows[0].total,1);
+ assert.ok((await db.query('select storage_path from berry_private.document_cleanup where inspection_id=$1',[row.id])).rows.some(r=>r.storage_path===path));
+ await denied(()=>as('authenticated',users.author,'select berry_private.storage_filename($1)',['AÑO.xlsx']));
+ await assert.rejects(()=>db.exec(accessMigration),e=>e.code==='55000');await db.exec('rollback');
+});
+test('admin dashboard includes historical registered reports, strips photos and signatures, and keeps other authors drafts private',async()=>{
+ await db.exec(dashboardMigration);
+ // A retired author's report remains searchable and downloadable by administrators.
+ await db.query("update public.berry_inspections set author_id=$2,data=jsonb_set(data,'{registrationDetails}',$3) where id=$1",[accentedReport.id,users.other,{[users.other]:{signature:{data:'private-signature'},jobTitle:'Inspector'}}]);
+ const rows=(await as('authenticated',users.author,'select public.berry_admin_dashboard() as value')).rows[0].value;
+ assert.ok(rows.some(r=>r.id===accentedReport.id && r.author_id===users.other));
+ assert.ok(rows.every(r=>r.code && ['sent','closed'].includes(r.workflow) && !r.deleted_at));
+ assert.ok(!JSON.stringify(rows).includes('private-signature'));
+ assert.ok(rows.every(r=>r.data.observations.every(o=>o.photos.length===0)));
+ const detail=(await as('authenticated',users.author,'select public.berry_admin_inspection($1) as value',[accentedReport.id])).rows[0].value;
+ assert.equal(detail.data.registrationDetails[users.other].signature.data,'private-signature');
+ assert.equal((await as('authenticated',users.author,'select id from public.berry_inspections where id=$1',[accentedReport.id])).rows.length,1);
+ const foreignDraft='95000000-0000-4000-8000-000000000002';
+ await db.query("insert into public.berry_inspections(id,author_id,data)values($1,$2,'{}')",[foreignDraft,users.other]);
+ assert.equal((await as('authenticated',users.author,'select id from public.berry_inspections where id=$1',[foreignDraft])).rows.length,0);
+ await denied(()=>as('authenticated',users.author,'select public.berry_admin_inspection($1)',[foreignDraft]));
+ await denied(()=>as('anon',null,'select public.berry_admin_dashboard()'));
+ const cutoff=(await db.query('select credentials_valid_after from public.berry_profiles where id=$1',[temporaryUser])).rows[0].credentials_valid_after;
+ await denied(()=>as('authenticated',temporaryUser,'select public.berry_admin_dashboard()',[],{iat:Number(cutoff)+1}));
+ await denied(()=>as('authenticated',temporaryUser,'select public.berry_admin_inspection($1)',[accentedReport.id],{iat:Number(cutoff)+1}));
+ const status=(await as('anon',null,'select public.berry_schema_status() as value')).rows[0].value;
+ assert.equal(status.storage_version,'202611080006');assert.equal(status.dashboard_version,'202611080007');
+ await assert.rejects(()=>db.exec(storageMigration),e=>e.code==='55000');await db.exec('rollback');
 });
 
 const restoreOwner = await readFile(new URL('../operations/restore-owner-access.sql',import.meta.url),'utf8');

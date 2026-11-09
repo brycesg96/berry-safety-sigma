@@ -13,7 +13,7 @@ import { confirmedInspectionCode } from './inspection-code';
 import { CloudReportSendForm } from './CloudReportSendForm';
 import { storeFinalExcel } from './cloud-final';
 
-export function FollowUp({ inspection, actor, onChange, onBack }: { inspection: Inspection; actor: DemoAccount; onChange: (d: Inspection) => void; onBack: () => void }) {
+export function FollowUp({ inspection, actor, onChange, onBack, readOnly = false, onBusyChange }: { inspection: Inspection; actor: DemoAccount; onChange: (d: Inspection) => void; onBack: () => void; readOnly?: boolean; onBusyChange?: (busy: boolean) => void }) {
   const [error, setError] = useState(''); const [busy, setBusy] = useState(false);
   const [preview, setPreview] = useState<{ data: string; name: string } | null>(null);
   const [mailOpen, setMailOpen] = useState(false);
@@ -21,7 +21,7 @@ export function FollowUp({ inspection, actor, onChange, onBack }: { inspection: 
   const currentChange = useRef(onChange); currentChange.current = onChange;
   const owner = inspection.ownerId === actor.id;
   const recipient = isRecipient(inspection, actor.id) && actor.canReceiveInspections !== false;
-  const reviewer = owner && actor.canCreateInspections !== false;
+  const reviewer = owner && actor.canCreateInspections !== false && !readOnly;
   const closed = inspectionClosed(inspection);
   const finalize = async () => {
     setFinalizing(true); setError('');
@@ -30,33 +30,34 @@ export function FollowUp({ inspection, actor, onChange, onBack }: { inspection: 
     finally { setFinalizing(false); }
   };
   useEffect(() => {
-    if (inspection.storage !== 'cloud' || !closed || inspection.finalExcelStored !== false) { setFinalizing(false); return; }
+    if (readOnly || inspection.storage !== 'cloud' || !closed || inspection.finalExcelStored !== false) { setFinalizing(false); return; }
     let active = true; setFinalizing(true); setError('');
     void storeFinalExcel(inspection).then(value => { if (active) currentChange.current(value); }).catch(problem => { if (active) setError(problem instanceof Error ? problem.message : 'No se confirmó el Excel final. Vuelve a intentarlo.'); }).finally(() => { if (active) setFinalizing(false); });
     return () => { active = false; };
-  }, [inspection.id, inspection.cloudRevision, inspection.finalExcelStored, closed]);
+  }, [inspection.id, inspection.cloudRevision, inspection.finalExcelStored, closed, readOnly]);
+  useEffect(() => { onBusyChange?.(busy || finalizing); }, [busy, finalizing, onBusyChange]);
   async function download(format: 'excel' | 'pdf') {
     setBusy(true); setError('');
-    try { await (format === 'pdf' ? exportPdf(inspection) : exportExcel(inspection)); }
+    try { await (format === 'pdf' ? exportPdf(inspection) : exportExcel(inspection, { readOnly })); }
     catch { setError(`No se pudo descargar el ${format === 'pdf' ? 'PDF' : 'Excel'}. Vuelve a intentarlo.`); }
     finally { setBusy(false); }
   }
-  if (!owner && !recipient) return <p role="alert">No tienes esta inspección asignada.</p>;
+  if (!owner && !recipient && !(readOnly && actor.role === 'admin')) return <p role="alert">No tienes esta inspección asignada.</p>;
   return <>
-    <button className="button button-back" onClick={onBack}><ArrowLeft size={17}/>Volver</button>
+    <button className="button button-back" disabled={busy || finalizing} onClick={onBack}><ArrowLeft size={17}/>Volver</button>
     <div className="page-heading followup-heading"><div><div className="eyebrow">SEGUIMIENTO DE HALLAZGOS</div><h1>{inspection.area}</h1><p>{workflowLabel(inspection)} · {confirmedInspectionCode(inspection) || 'Código definitivo pendiente'} · {formatDate(inspection.date)}</p></div><div className="followup-downloads"><button className="button button-outline" disabled={busy} onClick={() => void download('excel')}><Download size={16}/>Descargar Excel</button>{closed && <button className="button button-outline" disabled={busy} onClick={() => void download('pdf')}><Download size={16}/>Descargar PDF</button>}</div></div>
-    <div className="notice"><p><strong>{closed ? 'Inspección cerrada: todos los estados están en Ejecutado.' : 'Levantamiento de resultados de la inspección'}</strong><br/>{closed ? 'Puedes descargar el registro final en Excel o PDF.' : owner ? 'Revisa las evidencias y aprueba cada levantamiento o solicita ajustes.' : 'Registra la acción realizada y sus evidencias. El autor revisará el levantamiento.'}</p></div>
+    <div className="notice"><p><strong>{readOnly ? 'Consulta del informe' : closed ? 'Inspección cerrada: todos los estados están en Ejecutado.' : 'Levantamiento de resultados de la inspección'}</strong><br/>{readOnly ? 'Revisa los datos y las evidencias del informe.' : closed ? 'Puedes descargar el registro final en Excel o PDF.' : owner ? 'Revisa las evidencias y aprueba cada levantamiento o solicita ajustes.' : 'Registra la acción realizada y sus evidencias. El autor revisará el levantamiento.'}</p></div>
     {reviewer && inspection.storage === 'cloud' && inspection.emailDelivery?.state !== 'accepted' && <button type="button" className="button button-outline" onClick={() => setMailOpen(true)}>Comprobar envío por correo</button>}
     <div className="followup-context"><p><strong>Objetivo</strong> {inspection.objective}</p><div><strong>RESPONSABLE DE LA INSPECCIÓN</strong>{[{ id: inspection.ownerId, name: inspection.inspector, email: inspection.inspectorEmail }, ...(inspection.additionalInspectors || [])].map(p => <p key={p.id}>{p.name} · {p.email}</p>)}</div><p><strong>Descripción de la causa</strong> {inspection.unfavorableCause || 'Sin indicar'}</p><p><strong>Conclusiones y recomendaciones</strong> {closingRemarksOf(inspection)}</p></div>
     {finalizing && <p className="inline-note" role="status"><LoaderCircle size={16} className="spin"/>Guardando Excel final…</p>}
     {error && <p className="notice notice-error" role="alert">{error}</p>}
-    {closed && inspection.storage === 'cloud' && inspection.finalExcelStored === false && !finalizing && <button type="button" className="button button-outline" disabled={busy} onClick={() => void finalize()}>Reintentar guardar Excel final</button>}
+    {!readOnly && closed && inspection.storage === 'cloud' && inspection.finalExcelStored === false && !finalizing && <button type="button" className="button button-outline" disabled={busy} onClick={() => void finalize()}>Reintentar guardar Excel final</button>}
     {inspection.observations.map((o, i) => <section className="followup-card" key={o.id}>
       <div className="observation-heading"><span className="observation-index">{i + 1}</span><h2>Observación {i + 1}</h2><Badge severity={o.severity}/><span className="list-status">{inspection.delivery?.corrections[o.id]?.state || 'Pendiente'}</span></div>
       <div className="followup-original-layout"><div className="followup-original"><p><strong>Descripción</strong>{o.description}</p><p><strong>Acción a tomar</strong>{o.correctiveAction}</p></div><div className="followup-original-side"><p className="followup-planned-date"><strong>Fecha de Cierre prevista</strong>{formatDate(o.dueDate)}</p>
       {o.photos.length > 0 && <div className="followup-evidence" aria-label="Registro fotográfico original">{o.photos.map(p => <button key={p.id} onClick={() => setPreview(p)} aria-label={`Ver evidencia original ${p.name}`}><img src={p.data} alt={p.name}/></button>)}</div>}
       </div></div>
-      <CorrectionForm key={o.id} inspection={inspection} observationId={o.id} actor={actor} owner={reviewer} recipient={recipient} onChange={onChange} onPreview={setPreview}/>
+      <CorrectionForm key={o.id} inspection={inspection} observationId={o.id} actor={actor} owner={reviewer} recipient={recipient && !readOnly} onChange={onChange} onPreview={setPreview}/>
     </section>)}
     {preview && <Modal title="Evidencia del informe" wide onClose={() => setPreview(null)}><img className="photo-full" src={preview.data} alt={preview.name}/></Modal>}
     {mailOpen && <Modal title="Envío por correo" onClose={() => !busy && setMailOpen(false)}><CloudReportSendForm inspection={inspection} actorId={actor.id} onBusyChange={setBusy} onChange={updated => { onChange(updated); setMailOpen(false); }}/></Modal>}

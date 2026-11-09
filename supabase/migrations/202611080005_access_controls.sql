@@ -2,6 +2,7 @@
 -- Requiere los pasos 3 y 4. No borra cuentas, inspecciones ni reinicia números.
 begin;
 do $$ begin
+  if to_regprocedure('berry_private.storage_filename(text)') is not null then raise exception 'No repita el paso 5 después de instalar el paso 6' using errcode='55000';end if;
   if not exists(select 1 from information_schema.columns where table_schema='public' and table_name='berry_inspections' and column_name='final_excel_stored') then
     raise exception 'Primero instale el paso 4 del archivo final' using errcode='55000';
   end if;

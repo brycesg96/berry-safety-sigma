@@ -6,7 +6,7 @@ import { supabaseClient } from './supabase';
 
 export default function Application() {
   const allowLegacy = new URL(location.href).searchParams.get('modo') === 'prueba' || import.meta.env.DEV && import.meta.env.VITE_LEGACY_DEMO_START === 'true';
-  const [accountSection, setAccountSection] = useState<'profile' | 'admin'>(() => new URL(location.href).searchParams.get('seccion') === 'usuarios' ? 'admin' : 'profile');
+  const [accountSection, setAccountSection] = useState<'profile' | 'admin' | 'dashboard'>(() => { const section = new URL(location.href).searchParams.get('seccion'); return section === 'usuarios' ? 'admin' : section === 'panel' ? 'dashboard' : 'profile'; });
   const [accountView, setAccountView] = useState(() => {
     const url = new URL(location.href);
     if (new URLSearchParams(url.hash.slice(1)).get('type') === 'recovery') {

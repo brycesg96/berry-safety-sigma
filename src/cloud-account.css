@@ -72,3 +72,6 @@
 .account-support .cloud-loading, .account-support .cloud-account-hint { margin: 0; }
 
 .account-row-person>small{display:block;line-height:1.6}
+
+.cloud-account-dashboard-main{width:min(100%,1320px)}
+@media(max-width:600px){.cloud-account-main>.admin-tabs{gap:4px}.cloud-account-main>.admin-tabs button{font-size:11px;padding:13px 8px}}
