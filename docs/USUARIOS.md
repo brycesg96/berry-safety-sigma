@@ -14,6 +14,8 @@ Hasta completar los pasos 1–4, la pantalla muestra el error de configuración 
 
 ## Uso desde la app
 
+Al iniciar sesión normalmente, una cuenta habilitada entra directamente al espacio de trabajo en **Mis inspecciones**. Recargar esa vista mantiene la lista; abrirla no crea un borrador vacío. **Nueva inspección** inicia el formulario y **Continuar** recupera un borrador guardado. El perfil se abre voluntariamente desde **Tu perfil → Ir a mi cuenta**; los administradores encuentran allí **Gestión de Cuentas** y **Panel de inspecciones**. Volver desde la cuenta abre otra vez **Mis inspecciones**. Los enlaces explícitos a perfil o administración conservan su destino al recargar, con los mismos controles de permisos. El cambio de contraseña obligatorio, la recuperación y las cuentas inhabilitadas mantienen sus pantallas previas al espacio de trabajo.
+
 El administrador introduce nombre, correo, área, puesto, los accesos Administrador e Inspecciones y, si corresponde, correos de administradores en copia. Nombre y correo son obligatorios. La contraseña temporal solicitada es `0123456789`; se muestra de solo lectura con opción para verla. No se envían invitaciones por correo.
 
 En el primer ingreso, el usuario solo puede actualizar esa contraseña o cerrar sesión. La nueva debe tener al menos diez caracteres, ser distinta de `0123456789` y confirmarse en un segundo campo. Tras el cambio se solicita iniciar sesión con la nueva contraseña. La cuenta inicial del propietario no recibe la contraseña temporal ni pierde su acceso.

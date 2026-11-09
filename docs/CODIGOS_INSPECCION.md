@@ -14,7 +14,7 @@ Si falla el guardado o la transacción, no se consume un número. Un reintento d
 
 ## Borradores y espacio de pruebas
 
-El campo de Información general sigue mostrando una estimación, inicialmente 001; puede variar según el orden de registro. Los borradores y las descargas no consumen correlativos. El definitivo aparece después de la transacción, en Mis inspecciones, el seguimiento y el Excel archivado.
+El campo de Información general consulta el próximo correlativo compartido de Supabase: si el último número confirmado es 020, muestra 021. Se actualiza cada cinco segundos mientras el editor está visible, al volver a la pestaña, recuperar conexión o recibir un cambio de inspecciones en la sesión. La revisión final utiliza la misma consulta. El número puede variar según el orden de registro; varias cuentas pueden ver el mismo candidato, y la transacción de envío conserva la asignación definitiva sin duplicados. La vista no reserva números ni escribe el candidato en el borrador. Si no se puede consultar el servidor, muestra «Por confirmar». Los borradores y las descargas no consumen correlativos. El definitivo aparece después de la transacción, en Mis inspecciones, el seguimiento y el Excel archivado.
 
 El prototipo local no reserva códigos oficiales. Los números manuales antiguos se conservan como `legacyRegistrationNumber` y no se presentan como definitivos. Los registros antiguos del navegador no se importan silenciosamente.
 
@@ -25,3 +25,9 @@ La interfaz reconoce el recibo `inspectionId`, `code`, `acceptedAt`, pero la val
 `npm run test:supabase` comprueba permisos, revisión, contador, reintentos, archivo antes de confirmar, meses, cambio anual en Perú y secuencia 1000. `npm run test:api` verifica que el archivo adjunto coincide byte por byte con el archivado y que B5 contiene el código confirmado. Se usan datos y proveedores ficticios; no se envían correos reales.
 
 La referencia SQLite original permanece en `reference/registry.py`, con pruebas de concurrencia ejecutables mediante `python3 -m unittest discover -s reference -p 'test_*.py' -v`. No es la base operativa de la aplicación.
+
+## Activar la consulta del siguiente número
+
+El [paso 12](../supabase/migrations/202611090012_next_registration.sql) instala `berry_next_registration()` para cuentas habilitadas con permiso de crear inspecciones. Solo devuelve año, siguiente secuencia, código y fecha de consulta; el contador privado sigue sin acceso directo. Usa el año del servidor en Lima y el último número confirmado, incluyendo los números de informes eliminados. No crea filas de contador ni consume correlativos al consultar.
+
+Para la instalación actual del propietario, el [SQL breve de actualización](../supabase/operations/upgrade-registration-preview.sql) instala únicamente los pasos 11 y 12 pendientes sobre el paso 10. Conserva usuarios, inspecciones, archivos y secuencias; repetirlo es seguro. No necesita modificar la API de Render.

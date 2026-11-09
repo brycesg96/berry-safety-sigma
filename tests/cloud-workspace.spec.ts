@@ -1,3 +1,4 @@
+import { selectLocation } from './location-fixture';
 import { test, expect } from '@playwright/test';
 import type { BrowserContext, Page } from '@playwright/test';
 import { createHash } from 'node:crypto';
@@ -11,7 +12,7 @@ const author='31000000-0000-4000-8000-000000000001',recipient='31000000-0000-400
 const profiles=[{id:author,email:'ana@example.com',full_name:'Ana Inspectora',area:'SIGMA',job_title:'Supervisora',role:'admin',enabled:true,must_change_password:false,supervisor_emails:[],can_create_inspections:true,can_receive_inspections:true},{id:recipient,email:'bruno@example.com',full_name:'Bruno Responsable',area:'Mantenimiento',job_title:'Jefe',role:'inspector',enabled:true,must_change_password:false,supervisor_emails:['jefe@example.com'],can_create_inspections:true,can_receive_inspections:true}];
 const png={name:'evidencia.png',mimeType:'image/png',buffer:Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=','base64')};
 type Row={id:string;author_id:string;workflow:string;revision:number;updated_at:string;deleted_at?:string|null;code?:string;data:any;final_excel_stored?:boolean};
-const stateOf=()=>({rows:new Map<string,Row>(),files:new Map<string,Buffer>(),documents:new Map<string,any>(),sends:0,saves:0,paths:[] as string[],retired:new Set<string>(),failSave:false,failFinal:false,finalizes:0});
+const stateOf=()=>({rows:new Map<string,Row>(),files:new Map<string,Buffer>(),documents:new Map<string,any>(),sends:0,saves:0,paths:[] as string[],retired:new Set<string>(),failSave:false,failFinal:false,schemaFails:false,finalizes:0,nextSequence:null as number|null,previewCalls:0,previewFails:false});
 type State=ReturnType<typeof stateOf>;
 async function mock(context:BrowserContext,state:State,actor:string,overrides:Partial<typeof profiles[number]>={}) {
   const profile={...profiles.find(p=>p.id===actor)!,...overrides};
@@ -25,7 +26,8 @@ async function mock(context:BrowserContext,state:State,actor:string,overrides:Pa
     if(path==='/auth/v1/token')return route.fulfill({json:{access_token:token,token_type:'bearer',expires_in:3600,refresh_token:'fictitious-refresh',user}});
     if(path==='/auth/v1/user')return route.fulfill({json:user});
     if(path==='/auth/v1/logout')return route.fulfill({status:204});
-    if(path==='/rest/v1/rpc/berry_schema_status')return route.fulfill({json:{schema_version:'202611070001',stage:'reports',sync_ready:true,reports_version:'202611080003'}});
+    if(path==='/rest/v1/rpc/berry_next_registration') { expect(req.headers().authorization).toBe(`Bearer ${token}`);state.previewCalls++;if(state.previewFails)return route.fulfill({status:503,json:{message:'offline'}});const sequence=state.nextSequence??state.sends+1;return route.fulfill({json:{code:`IH-2026-${String(sequence).padStart(3,'0')}`,year:2026,sequence,checked_at:'2026-11-09T12:00:00Z'}}); }
+    if(path==='/rest/v1/rpc/berry_schema_status')return route.fulfill({status:state.schemaFails?503:200,json:state.schemaFails?{message:'offline'}:{schema_version:'202611070001',stage:'reports',sync_ready:true,reports_version:'202611080003'}});
     expect(req.headers().authorization).toBe(`Bearer ${token}`);
     if(path==='/rest/v1/berry_profiles')return route.fulfill({json:url.searchParams.has('id')?profile:profiles.map(p=>p.id===actor?profile:p)});
     if(path==='/rest/v1/berry_shared_texts')return route.fulfill({json:null});
@@ -106,18 +108,62 @@ async function mock(context:BrowserContext,state:State,actor:string,overrides:Pa
     await route.fulfill({json:{ok:true,inspection:row,document}});
   });
 }
-async function enter(page:Page,actor:string){
+async function login(page:Page,actor:string){
   await page.goto('./?acceso=cuenta');await page.getByLabel(/^Correo electrónico/).fill(profiles.find(p=>p.id===actor)!.email);
   await page.getByLabel(/^Contraseña/).fill('Fictitious!47');await page.getByRole('button',{name:'Iniciar sesión',exact:true}).click();
-  await page.getByRole('button',{name:'Entrar al espacio de trabajo'}).click();
+  await expect(page.getByRole('heading',{name:'Mis inspecciones',exact:true})).toBeVisible();
+}
+async function openEditor(page:Page){
+  await expect(page.getByRole('heading',{name:'Mis inspecciones',exact:true})).toBeVisible();
+  const resume=page.locator('.inspection-list-row').getByRole('button',{name:'Continuar',exact:true});
+  if(await resume.count())await resume.first().click();
+  else await page.locator('.page-heading').getByRole('button',{name:'Nueva inspección',exact:true}).click();
   await expect(page.locator('.card-eyebrow')).toBeVisible();
 }
+async function enter(page:Page,actor:string){await login(page,actor);await openEditor(page);}
+
+for(const actor of [author,recipient])test(`el ingreso de ${actor===author?'administrador':'inspector'} abre Mis inspecciones y conserva el acceso voluntario al perfil`,async({page,context})=>{
+  const state=stateOf();await mock(context,state,actor);
+  await page.addInitScript(()=>{
+    (window as any).profileShown=false;
+    new MutationObserver(()=>{if(document.querySelector('.cloud-profile-heading'))(window as any).profileShown=true;}).observe(document,{subtree:true,childList:true});
+  });
+  await login(page,actor);
+  expect(await page.evaluate(()=>(window as any).profileShown)).toBe(false);
+  await expect(page.locator('.sidebar-nav').getByRole('button',{name:'Mis inspecciones',exact:true})).toHaveClass('active');
+  await expect(page.locator('.card-eyebrow')).toHaveCount(0);expect(state.rows.size).toBe(0);expect(state.previewCalls).toBe(0);
+  await page.reload();await expect(page.getByRole('heading',{name:'Mis inspecciones',exact:true})).toBeVisible();
+  expect(await page.evaluate(()=>(window as any).profileShown)).toBe(false);
+  await page.getByRole('button',{name:'Mi perfil',exact:true}).click();
+  const profile=page.getByRole('dialog',{name:'Tu perfil',exact:true});await expect(profile).toContainText(profiles.find(p=>p.id===actor)!.full_name);
+  await profile.getByRole('button',{name:'Ir a mi cuenta',exact:true}).click();
+  await expect(page.getByRole('heading',{name:'Tu perfil',exact:true})).toBeVisible();await expect(page).toHaveURL(/seccion=perfil/);
+  await expect(page.getByLabel('Nombres y apellidos')).toHaveValue(profiles.find(p=>p.id===actor)!.full_name);
+  await expect(page.getByRole('button',{name:'Gestión de Cuentas',exact:true})).toHaveCount(actor===author?1:0);
+  await expect(page.getByRole('button',{name:'Panel de inspecciones',exact:true})).toHaveCount(actor===author?1:0);
+  await page.reload();await expect(page.getByRole('heading',{name:'Tu perfil',exact:true})).toBeVisible();
+  await page.getByRole('button',{name:'Entrar al espacio de trabajo'}).click();await expect(page.getByRole('heading',{name:'Mis inspecciones',exact:true})).toBeVisible();
+  await expect(page).not.toHaveURL(/seccion=/);
+  await page.getByRole('button',{name:'Mi perfil',exact:true}).click();await page.getByRole('button',{name:'Ir a mi cuenta',exact:true}).click();
+  await page.getByRole('button',{name:'Cerrar sesión en este dispositivo',exact:true}).click();
+  await expect(page.getByRole('heading',{name:'Inicia sesión',exact:true})).toBeVisible();await expect(page).not.toHaveURL(/seccion=/);
+  await page.getByLabel(/^Correo electrónico/).fill(profiles.find(p=>p.id===actor)!.email);await page.getByLabel(/^Contraseña/).fill('Fictitious!47');await page.getByRole('button',{name:'Iniciar sesión',exact:true}).click();
+  await expect(page.getByRole('heading',{name:'Mis inspecciones',exact:true})).toBeVisible();expect(state.rows.size).toBe(0);expect(state.saves).toBe(0);
+});
+
+test('un fallo de conexión al abrir el espacio permite reintentar sin mandar al formulario de perfil',async({page,context})=>{
+  const state=stateOf();state.schemaFails=true;await mock(context,state,author);
+  await page.goto('./?acceso=cuenta');await page.getByLabel(/^Correo electrónico/).fill('ana@example.com');await page.getByLabel(/^Contraseña/).fill('Fictitious!47');await page.getByRole('button',{name:'Iniciar sesión',exact:true}).click();
+  await expect(page.getByRole('alert')).toContainText('No pudimos abrir tu espacio de trabajo');await expect(page.getByLabel('Nombres y apellidos')).toHaveCount(0);
+  state.schemaFails=false;await page.getByRole('button',{name:'Reintentar',exact:true}).click();await expect(page.getByRole('heading',{name:'Mis inspecciones',exact:true})).toBeVisible();expect(state.rows.size).toBe(0);
+});
+
 test('private drafts resume on another device and full approval replaces the initial Excel with the stored final',async({browser,page,context})=>{
   test.setTimeout(90000);
   const state=stateOf();await mock(context,state,author);await enter(page,author);
   await expect(page.getByText('Modo de prueba',{exact:true})).toHaveCount(0);
   await page.getByLabel('Área inspeccionada').fill('Taller nube');await page.getByLabel('Fecha de inspección').fill('2026-11-05');
-  await page.getByRole('combobox', { name: 'Sede', exact: true }).selectOption('Fundo'); await page.getByRole('combobox', { name: 'Zona de inspección', exact: true }).selectOption('Armonía II');
+  await selectLocation(page, 'Sede', 'Fundo'); await selectLocation(page, 'Zona de inspección', 'Armonía II');
   await page.getByLabel('Hora de inspección').fill('09:30');await page.getByLabel('AM o PM').selectOption('AM');await page.getByRole('radio',{name:'Planeada',exact:true}).check();
   await page.getByRole('textbox',{name:'Objetivo de la inspección interna',exact:true}).fill('Comprobar condiciones seguras.');
   await page.getByRole('combobox',{name:/Nombre completo/}).fill('Bruno');await page.getByRole('option',{name:/Bruno Responsable/}).click();
@@ -131,6 +177,7 @@ test('private drafts resume on another device and full approval replaces the ini
   const reads=imageReads();
   await page.getByRole('button',{name:'Mi perfil',exact:true}).click();await page.getByRole('button',{name:'Ir a mi cuenta',exact:true}).click();
   await page.getByRole('button',{name:'Entrar al espacio de trabajo'}).click();
+  await openEditor(page);
   await expect(page.locator('.photo-thumb img').first()).toBeVisible();expect(imageReads()).toBe(reads);
   const device=await browser.newContext();await mock(device,state,author);const other=await device.newPage();await enter(other,author);
   await expect(other.getByLabel('Descripción')).toHaveValue('Protección pendiente.');
@@ -150,7 +197,7 @@ test('private drafts resume on another device and full approval replaces the ini
   const downloadPromise=other.waitForEvent('download');await other.getByRole('button',{name:'Descargar Excel',exact:true}).click();const download=await downloadPromise;
   const bytes=await readFile((await download.path())!);expect(bytes.equals(state.files.get('berry-documents/'+state.documents.get(row.id).storage_path)!)).toBe(true);
   // Same recipient device now sees the sent record, without local account switching or copied IndexedDB data.
-  await receiver.reload();await receiver.getByRole('button',{name:'Entrar al espacio de trabajo'}).click();
+  await receiver.reload();await expect(receiver.getByRole('heading',{name:'Mis inspecciones',exact:true})).toBeVisible();
   await receiver.getByRole('button',{name:'Abrir menú',exact:true}).click();await receiver.getByRole('button',{name:/Inspecciones recibidas/}).click();await receiver.getByRole('button',{name:'Revisar inspección',exact:true}).click();
   await expect(receiver.locator('.breadcrumbs')).toContainText('Inspecciones recibidas');await expect(receiver.locator('.breadcrumbs')).toContainText('Pendientes');
   await expect(receiver.getByLabel('Apellidos y nombres del responsable del levantamiento')).toHaveValue('Bruno Responsable');
@@ -181,7 +228,7 @@ test('offline edits stay recoverable and an obsolete device cannot overwrite a n
   expect([...state.rows.values()][0].data.area).toBe('Versión nueva');await expect(page.getByLabel('Área inspeccionada')).toHaveValue('Edición obsoleta');
   await page.getByRole('button',{name:'Abrir versión guardada',exact:true}).click();await page.getByRole('dialog').getByRole('button',{name:'Abrir versión guardada',exact:true}).click();await expect(page.getByLabel('Área inspeccionada')).toHaveValue('Versión nueva');
   state.failSave=true;await second.getByLabel('Área inspeccionada').fill('Edición sin conexión');await expect(second.getByText('Sin guardar',{exact:true})).toBeVisible();state.failSave=false;
-  await second.reload();await second.getByRole('button',{name:'Entrar al espacio de trabajo'}).click();await expect(second.getByLabel('Área inspeccionada')).toHaveValue('Edición sin conexión');await expect(second.getByText('Guardado en tu cuenta',{exact:true})).toBeVisible();
+  await second.reload();await openEditor(second);await expect(second.getByLabel('Área inspeccionada')).toHaveValue('Edición sin conexión');await expect(second.getByText('Guardado en tu cuenta',{exact:true})).toBeVisible();
   await device.close();
 });
 
@@ -189,7 +236,8 @@ test('offline edits stay recoverable and an obsolete device cannot overwrite a n
 test('un usuario que solo recibe no crea borradores ni ve controles de creación o administración',async({page,context})=>{
   const state=stateOf();await mock(context,state,recipient,{can_create_inspections:false,can_receive_inspections:true,role:'inspector'});
   await page.goto('./?acceso=cuenta');await page.getByLabel(/^Correo electrónico/).fill('bruno@example.com');await page.getByLabel(/^Contraseña/).fill('Fictitious!47');await page.getByRole('button',{name:'Iniciar sesión',exact:true}).click();
-  await page.getByRole('button',{name:'Entrar al espacio de trabajo'}).click();
+  await expect(page.getByRole('heading',{name:'Mis inspecciones',exact:true})).toBeVisible();
+  await page.getByRole('button',{name:'Inspecciones recibidas',exact:true}).click();
   await expect(page.getByRole('heading',{name:'Inspecciones recibidas',exact:true})).toBeVisible();
   await expect(page.getByRole('button',{name:'Nueva inspección',exact:true})).toHaveCount(0);
   await expect(page.getByRole('button',{name:'Gestión de Cuentas',exact:true})).toHaveCount(0);
@@ -207,7 +255,7 @@ test('un borrador pendiente retirado por el administrador o el reinicio no reapa
   const pending=await page.evaluate(async()=>{const db=await new Promise<IDBDatabase>((resolve,reject)=>{const r=indexedDB.open('berry-cloud-pending-v1');r.onsuccess=()=>resolve(r.result);r.onerror=()=>reject(r.error);});return new Promise<any[]>(resolve=>{const tx=db.transaction('drafts');const r=tx.objectStore('drafts').getAll();r.onsuccess=()=>resolve(r.result);tx.oncomplete=()=>db.close();});});
   expect(pending.length).toBe(1);state.retired.add(pending[0].id);state.failSave=false;
   page.once('dialog',dialog=>dialog.accept());await page.reload();
-  await page.getByRole('button',{name:'Entrar al espacio de trabajo'}).click();
+  await openEditor(page);
   await expect(page.getByLabel('Área inspeccionada')).toHaveValue('');
   expect(state.rows.has(pending[0].id)).toBe(false);
   expect(state.paths).toContain('/rest/v1/rpc/berry_cloud_tombstones');
@@ -226,4 +274,19 @@ test('Salir conserva el borrador y no cierra sesión si falla su guardado',async
   await expect(page.getByRole('heading',{name:'Inicia sesión',exact:true})).toBeVisible();
   expect([...state.rows.values()].some(row=>row.data.area==='Borrador antes de salir')).toBe(true);
   expect(state.paths).toContain('/auth/v1/logout');
+});
+
+test('siguiente correlativo compartido se refresca al recibir foco y cada cinco segundos sin reservar ni alterar el borrador',async({browser,page,context})=>{
+ test.setTimeout(60000);const state=stateOf();state.nextSequence=21;await mock(context,state,author);await enter(page,author);
+ const badge=page.getByRole('textbox',{name:'Código de inspección',exact:true});await expect(badge).toHaveValue('IH-2026-021');await expect(badge).toHaveAttribute('readonly','');
+ await page.getByRole('textbox',{name:'Objetivo de la inspección interna',exact:true}).fill('Objetivo que debe conservarse.');await expect(page.getByText('Guardado en tu cuenta',{exact:true})).toBeVisible();
+ const row=[...state.rows.values()].find(row=>row.author_id===author&&!row.data.partial)!;expect(row.code).toBeUndefined();expect(row.data.serverRegistration).toBeUndefined();expect(row.data.registrationNumber).toBe('');expect(state.sends).toBe(0);
+ const second=await browser.newContext();try {
+  await mock(second,state,recipient);const other=await second.newPage();await enter(other,recipient);await expect(other.getByRole('textbox',{name:'Código de inspección',exact:true})).toHaveValue('IH-2026-021');
+  state.nextSequence=22;await page.bringToFront();await page.evaluate(()=>window.dispatchEvent(new Event('focus')));await expect(badge).toHaveValue('IH-2026-022');
+  state.nextSequence=23;await expect(badge).toHaveValue('IH-2026-023',{timeout:7500});await expect(page.getByRole('textbox',{name:'Objetivo de la inspección interna',exact:true})).toHaveValue('Objetivo que debe conservarse.');
+  await other.bringToFront();await other.evaluate(()=>window.dispatchEvent(new Event('focus')));await expect(other.getByRole('textbox',{name:'Código de inspección',exact:true})).toHaveValue('IH-2026-023');
+  state.previewFails=true;await page.bringToFront();await page.evaluate(()=>window.dispatchEvent(new Event('focus')));await expect(badge).toHaveValue('Por confirmar');
+  state.previewFails=false;state.nextSequence=24;await page.evaluate(()=>window.dispatchEvent(new Event('online')));await expect(badge).toHaveValue('IH-2026-024');expect(state.sends).toBe(0);expect(row.data.objective).toBe('Objetivo que debe conservarse.');
+ }finally{await second.close();}
 });

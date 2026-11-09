@@ -4,7 +4,7 @@
 
 El propietario creó la organización Free Berry Safety y el proyecto `berry-safety`, disponible en `https://rwacygoxhkxxxkvushmb.supabase.co`. Proporcionó su clave pública Publishable. El 7 de noviembre ejecutó la migración inicial desde SQL Editor: `berry_schema_status()` respondió HTTP 200 con versión `202611070001`, etapa `foundation` y `sync_ready: false`. Después creó y confirmó su primera cuenta de Auth y mostró el resultado de habilitarla como administradora.
 
-La ruta `?acceso=cuenta` conecta el inicio de sesión por correo/contraseña y el perfil propio con Supabase. La tercera etapa conecta las nuevas inspecciones, evidencias y levantamientos al espacio de trabajo autenticado. Su activación requiere el script 3 y desplegar la API actualizada. Las inspecciones y cuentas anteriores del espacio de pruebas permanecen en su navegador y no se importan automáticamente. Entrar al portal de cuenta no cambia las identidades ni los informes de prueba.
+La ruta `?acceso=cuenta` conecta el inicio de sesión por correo/contraseña con Supabase. En la etapa de informes, el ingreso normal abre directamente **Mis inspecciones**; el perfil y la administración se abren desde **Tu perfil → Ir a mi cuenta**. La tercera etapa conecta las nuevas inspecciones, evidencias y levantamientos al espacio de trabajo autenticado. Su activación requiere el script 3 y desplegar la API actualizada. Las inspecciones y cuentas anteriores del espacio de pruebas permanecen en su navegador y no se importan automáticamente. Entrar al portal de cuenta no cambia las identidades ni los informes de prueba.
 
 La prueba debe empezar en el plan Free, sin contratar servicios de pago ni cambiar de plan automáticamente. Referencia oficial consultada: [precios](https://supabase.com/pricing), 1 GB de archivos y 500 MB de base de datos. La duración deseada de la prueba es de aproximadamente dos meses. Controlar especialmente el volumen de fotos, sus originales, firmas y versiones de Excel; conservar información no debe depender de borrados automáticos silenciosos. Un proyecto Free puede pausarse tras una semana de inactividad.
 
@@ -146,9 +146,9 @@ La actualización incluye comprobaciones de versiones, protección del último a
 La interfaz actual agrupa crear y recibir en un único interruptor **Inspecciones**. **Administrador** incluye ambas funciones automáticamente. Activarlo envía ambas capacidades como verdaderas y desactivarlo envía ambas como falsas; activar Administrador habilita también Inspecciones y la base garantiza que un administrador habilitado conserve ambas capacidades. La base conserva sus comprobaciones actuales y las cuentas previas con acceso parcial conservan su permiso hasta una decisión explícita del administrador. El paso 5, todavía pendiente de instalación en el proyecto del propietario al comprobar su versión pública, incorpora esta regla; las actualizaciones posteriores se documentan a continuación.
 
 
-Actualización del espacio de trabajo (pasos 5 a 11)
+Actualización del espacio de trabajo (pasos 5 a 12)
 
-Para el proyecto que ya tiene instalado el archivo final del paso 4, ejecutar el **contenido completo** de [upgrade-workspace.sql](../supabase/operations/upgrade-workspace.sql) en una consulta nueva de Supabase SQL Editor. Es un instalador atómico: instala los pasos que faltan, conserva los registros y el correlativo, y al finalizar muestra `account_copies_version: 202611090011`. Repetirlo después de completarlo no modifica datos. No ejecutar los scripts antiguos por separado sobre una versión posterior.
+Para el proyecto que ya tiene instalado el archivo final del paso 4, ejecutar el **contenido completo** de [upgrade-workspace.sql](../supabase/operations/upgrade-workspace.sql) en una consulta nueva de Supabase SQL Editor. Es un instalador atómico: instala los pasos que faltan, conserva los registros y el correlativo, y al finalizar muestra `next_registration_version: 202611090012`. Repetirlo después de completarlo no modifica datos. No ejecutar los scripts antiguos por separado sobre una versión posterior.
 
 Después, en Render → berry-safety-api → Manual Deploy → Deploy latest commit, conservando las variables actuales. La publicación web se realiza por GitHub Pages. No se considera confirmada la instalación remota hasta consultar la versión y comprobar una operación real con el usuario.
 
@@ -168,3 +168,9 @@ El [paso 10](../supabase/migrations/202611090010_admin_edit.sql) permite corregi
 ## Paso 11: Administradores (CC) editables
 
 El [paso 11](../supabase/migrations/202611090011_account_copies.sql) amplía la función autenticada `berry_manage_account` con una lista opcional `supervisor_emails`. Conserva permisos, estado y versiones cuando solo se editan copias, valida hasta 50 correos y normaliza duplicados. Omitir la lista conserva el valor anterior y enviar `[]` lo vacía. Solo un administrador vigente puede cambiarla; el historial de inspecciones y documentos permanece intacto. La API existente transmite este campo sin cambios de rutas, configuración ni despliegue. Sobre el paso 10 basta ejecutar el archivo 11 completo; el instalador general también lo incorpora.
+
+## Paso 12: siguiente correlativo en el editor
+
+El [paso 12](../supabase/migrations/202611090012_next_registration.sql) añade una consulta autenticada del siguiente correlativo anual compartido. Exige una cuenta habilitada que pueda crear inspecciones y respeta el año de Lima. No reserva números ni escribe en el contador. La interfaz consulta cada cinco segundos mientras se completa el informe y al recuperar foco/conexión; el envío conserva la reserva y confirmación transaccionales existentes.
+
+Sobre el paso 10 ya instalado se puede ejecutar únicamente el [instalador breve](../supabase/operations/upgrade-registration-preview.sql), que incorpora los pasos 11 y 12 pendientes de forma atómica. No requiere otro despliegue de Render.

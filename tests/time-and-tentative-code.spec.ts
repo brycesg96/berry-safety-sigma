@@ -1,3 +1,4 @@
+import { selectLocation } from './location-fixture';
 import { test, expect } from '@playwright/test';
 import ExcelJS from 'exceljs';
 import { mockDirectory } from './directory-fixture';
@@ -26,7 +27,7 @@ test('ubicación en el ejemplo, AM/PM requerido y conservación en revisión, re
   await expect(page.getByRole('tooltip')).toContainText('El código definitivo aparecerá en Mis inspecciones');
   await page.getByLabel('Área inspeccionada').click();
   await page.getByLabel('Área inspeccionada').fill('Taller de Maquinaria - Armonía 2');
-  await page.getByRole('combobox', { name: 'Sede', exact: true }).selectOption('Fundo'); await page.getByRole('combobox', { name: 'Zona de inspección', exact: true }).selectOption('Armonía II');
+  await selectLocation(page, 'Sede', 'Fundo'); await selectLocation(page, 'Zona de inspección', 'Armonía II');
   await page.getByRole('textbox', { name: 'Objetivo de la inspección interna', exact: true }).fill('Verificar las condiciones de maquinaria.');
   await page.getByRole('combobox', { name: /Nombre completo/ }).fill('Ana');
   await page.getByRole('listbox').getByRole('option', { name: /Ana Torres/ }).click();
@@ -64,7 +65,7 @@ test('ubicación en el ejemplo, AM/PM requerido y conservación en revisión, re
 test('Mis inspecciones distingue un código tentativo de un recibo definitivo', async ({ page }) => {
   await page.goto('./');
   await page.getByLabel('Área inspeccionada').fill('Registro confirmado de prueba');
-  await page.getByRole('combobox', { name: 'Sede', exact: true }).selectOption('Fundo'); await page.getByRole('combobox', { name: 'Zona de inspección', exact: true }).selectOption('Armonía II');
+  await selectLocation(page, 'Sede', 'Fundo'); await selectLocation(page, 'Zona de inspección', 'Armonía II');
   await page.getByRole('button', { name: 'Guardar y salir' }).click();
   await expect(page.getByText('Código definitivo: pendiente de envío')).toBeVisible();
   await page.evaluate(async () => {

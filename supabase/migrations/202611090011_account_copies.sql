@@ -2,6 +2,7 @@
 -- Requiere el paso 10. Conserva usuarios, permisos, inspecciones y numeración.
 begin;
 do $$ begin
+ if public.berry_schema_status()->>'next_registration_version' is not null then raise exception 'No repita el paso 11 después de instalar el paso 12' using errcode='55000';end if;
  if public.berry_schema_status()->>'admin_edit_version' is distinct from '202611090010' then
   raise exception 'Primero instale el paso 10' using errcode='55000';end if;
 end $$;

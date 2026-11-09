@@ -53,3 +53,7 @@ Sin endpoint configurado se usan las cuentas locales habilitadas de prueba. Ante
 Los borradores siguen en IndexedDB. Se añaden los nuevos campos al cargar borradores anteriores sin descartar sus textos o fotografías. El tipo antiguo de inspección se conserva como referencia en `legacyType` y se pide elegir uno de los tres tipos nuevos.
 
 Esta actualización no publica la web ni modifica la configuración de GitHub Pages. Para usarlo como control de acceso real y compartir las altas entre dispositivos sigue siendo necesario conectar Microsoft y el servicio de cuentas del administrador.
+
+## Presentación de la ubicación
+
+Sede y Zona de inspección usan menús propios de la plataforma, con opciones verdes, marca de selección y soporte de teclado/tacto. La zona depende de la sede; volver a elegir la misma sede conserva la zona actual. El prefijo de la ubicación se muestra como una etiqueta redondeada junto al texto editable. La información sigue exportándose completa en la celda existente del Excel.

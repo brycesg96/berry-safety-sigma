@@ -1,3 +1,4 @@
+import { selectLocation } from './location-fixture';
 import { test, expect } from '@playwright/test';
 import type { Page } from '@playwright/test';
 import ExcelJS from 'exceljs';
@@ -6,19 +7,21 @@ import { reportFilename } from '../shared/report-filename.mjs';
 async function prepare(page:Page, withTeam=false) {
  await page.route('**/api/people?*',r=>r.fulfill({json:{people:[]}}));
  await page.goto('./');
- await page.evaluate(async()=>{
-  const {readAccounts,editAccount,supervisorEmails}=await import('/src/accounts.ts');
+ await page.evaluate(async withTeam=>{
+  const {readAccounts,editAccount,supervisorEmails,addAccount}=await import('/src/accounts.ts');
   const person=readAccounts().find(account=>account.id==='demo-inspector')!;
   editAccount('demo-admin',person.id,{...person,supervisorEmails:supervisorEmails('JEFE@example.com, jefe@example.com, gerente@example.com, bcespedes@hortifrut.com')});
- });
+  if(withTeam){addAccount('demo-admin',{name:'Ana Torres',email:'ana@example.com',role:'inspector'});addAccount('demo-admin',{name:'José Rojas',email:'jose@example.com',role:'inspector'});}
+ },withTeam);
  await page.reload();
  await page.getByLabel('Área inspeccionada').fill('Taller - Armonía 2');
-  await page.getByRole('combobox', { name: 'Sede', exact: true }).selectOption('Fundo'); await page.getByRole('combobox', { name: 'Zona de inspección', exact: true }).selectOption('Armonía II');
+  await selectLocation(page, 'Sede', 'Fundo'); await selectLocation(page, 'Zona de inspección', 'Armonía II');
  await page.getByLabel('Hora de inspección').fill('07:30');await page.getByLabel('AM o PM').selectOption('AM');
  await page.getByRole('radio',{name:'Planeada',exact:true}).check();
  await page.getByRole('textbox',{name:'Objetivo de la inspección interna',exact:true}).fill('Revisar condiciones seguras.');
  await page.getByRole('combobox',{name:/Nombre completo/}).fill('Bryan');
  await page.getByRole('listbox').getByRole('option',{name:/bcespedes@hortifrut.com/}).click();
+ if(withTeam)for(const name of ['Ana Torres','José Rojas']){await page.getByRole('button',{name:'Añadir inspector',exact:true}).click();await page.locator('.general-inspectors .additional-inspector').last().getByRole('combobox').fill(name);await page.getByRole('listbox').getByRole('option',{name:new RegExp(name)}).click();}
  await page.getByRole('button',{name:'Continuar',exact:true}).click();
  await page.getByRole('button',{name:'Añadir observación',exact:true}).click();
  await page.getByLabel('Descripción').fill('Falta señalización.');
@@ -27,15 +30,6 @@ async function prepare(page:Page, withTeam=false) {
  await page.getByRole('button',{name:'Continuar',exact:true}).click();await page.getByRole('button',{name:'Continuar',exact:true}).click();
  await page.getByRole('textbox',{name:'CONCLUSIONES Y RECOMENDACIONES',exact:true}).fill('Se requiere corregir el hallazgo.');
  await page.getByRole('button',{name:'Continuar',exact:true}).click();
- if(withTeam){
-  await page.getByRole('button',{name:'Guardar y salir',exact:true}).click();
-  await page.evaluate(async()=>{
-   const {loadInspections,persistInspection}=await import('/src/model.ts');
-   const draft=(await loadInspections()).find(d=>d.area==='Fundo – Armonía II – Taller - Armonía 2')!;
-   await persistInspection({...draft,additionalInspectors:[{id:'ana',personId:'ana',name:'Ana Torres',email:'ana@example.com'},{id:'jose',personId:'jose',name:'José Rojas',email:'jose@example.com'}]});
-  });
-  await page.reload();
- }
  await page.getByRole('button',{name:'Enviar inspección',exact:true}).click();
 }
 test('envío sin claves adjunta Excel, responsables y CC de jefes y conserva el recibo',async({page})=>{

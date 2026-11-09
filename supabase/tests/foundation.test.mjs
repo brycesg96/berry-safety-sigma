@@ -352,7 +352,7 @@ test('final replacement stays blocked until every observation has been approved,
 });
 
 const upgradeWorkspace=await readFile(new URL('../operations/upgrade-workspace.sql',import.meta.url),'utf8');
-test('single workspace upgrade installs steps 5 to 11 atomically from the current final-archive stage without changing reports or counters',async()=>{
+test('single workspace upgrade installs steps 5 to 12 atomically from the current final-archive stage without changing reports or counters',async()=>{
  const reportsBefore=(await db.query('select id,data,code from public.berry_inspections order by id')).rows;
  const countersBefore=(await db.query('select * from berry_private.report_counters order by year')).rows;
  await assert.rejects(()=>db.transaction(async tx=>{
@@ -361,6 +361,7 @@ test('single workspace upgrade installs steps 5 to 11 atomically from the curren
   assert.equal((await tx.query('select public.berry_schema_status() as value')).rows[0].value.correction_identity_version,'202611090009');
   assert.equal((await tx.query('select public.berry_schema_status() as value')).rows[0].value.admin_edit_version,'202611090010');
   assert.equal((await tx.query('select public.berry_schema_status() as value')).rows[0].value.account_copies_version,'202611090011');
+  assert.equal((await tx.query('select public.berry_schema_status() as value')).rows[0].value.next_registration_version,'202611090012');
   assert.deepEqual((await tx.query('select id,data,code from public.berry_inspections order by id')).rows,reportsBefore);
   assert.deepEqual((await tx.query('select * from berry_private.report_counters order by year')).rows,countersBefore);
   throw new Error('ROLLBACK_UPGRADE_FIXTURE');
@@ -725,7 +726,7 @@ test('structured areas preserve the composed text in drafts, reject retired site
  const partial=(await as('authenticated',editCreator,'select public.berry_save_draft($1,$2,$3) as value',[id,row.revision,{...data,areaLocation:{...data.areaLocation,zone:''}}])).rows[0].value;
  await assert.rejects(()=>as('authenticated',editCreator,'select public.berry_prepare_report($1,$2,$3)',[id,partial.revision,sourceHash]),e=>e.message==='INCOMPLETE_LOCATION');
  const before=(await db.query('select id,code,data,revision from public.berry_inspections order by id')).rows,counters=(await db.query('select * from berry_private.report_counters order by year')).rows;
- await db.exec(upgradeWorkspace);assert.deepEqual((await db.query('select id,code,data,revision from public.berry_inspections order by id')).rows,before);assert.deepEqual((await db.query('select * from berry_private.report_counters order by year')).rows,counters);
+ await assert.rejects(()=>db.transaction(async tx=>{await tx.exec(upgradeWorkspace);assert.deepEqual((await tx.query('select id,code,data,revision from public.berry_inspections order by id')).rows,before);assert.deepEqual((await tx.query('select * from berry_private.report_counters order by year')).rows,counters);throw new Error('ROLLBACK_UPGRADE_FIXTURE');}),e=>e.message==='ROLLBACK_UPGRADE_FIXTURE');
  await assert.rejects(()=>db.exec(correctionIdentityMigration),e=>e.code==='55000');await db.exec('rollback');
 });
 
@@ -733,6 +734,15 @@ const copiesMigration=await readFile(new URL('../migrations/202611090011_account
 test('account copy migration preserves profiles, report history, documents and numbering, and blocks obsolete setup',async()=>{
  const before=(await db.query('select * from public.berry_profiles order by id')).rows;
  const history=(await db.query('select id,code,data,revision from public.berry_inspections order by id')).rows,documents=(await db.query('select * from public.berry_documents order by id')).rows,counters=(await db.query('select * from berry_private.report_counters order by year')).rows;
+ await assert.rejects(()=>db.transaction(async tx=>{
+  await tx.exec(shortUpgrade);
+  assert.equal((await tx.query('select public.berry_schema_status() as value')).rows[0].value.next_registration_version,'202611090012');
+  assert.deepEqual((await tx.query('select * from public.berry_profiles order by id')).rows,before);
+  assert.deepEqual((await tx.query('select id,code,data,revision from public.berry_inspections order by id')).rows,history);
+  assert.deepEqual((await tx.query('select * from public.berry_documents order by id')).rows,documents);
+  assert.deepEqual((await tx.query('select * from berry_private.report_counters order by year')).rows,counters);
+  throw new Error('ROLLBACK_SHORT_UPGRADE_FIXTURE');
+ }),e=>e.message==='ROLLBACK_SHORT_UPGRADE_FIXTURE');
  await db.exec(copiesMigration);
  assert.deepEqual((await db.query('select * from public.berry_profiles order by id')).rows,before);
  assert.deepEqual((await db.query('select id,code,data,revision from public.berry_inspections order by id')).rows,history);assert.deepEqual((await db.query('select * from public.berry_documents order by id')).rows,documents);assert.deepEqual((await db.query('select * from berry_private.report_counters order by year')).rows,counters);
@@ -770,6 +780,36 @@ test('CC edits affect future registrations, preserve sent reports and can clear 
  assert.deepEqual((await db.query('select id,code,data,revision from public.berry_inspections order by id')).rows,history);assert.deepEqual((await db.query('select * from public.berry_documents order by id')).rows,documents);assert.deepEqual((await db.query('select * from berry_private.report_counters order by year')).rows,counters);
  const next=await editFixture(6);assert.deepEqual(next.row.data.emailCc,[]);assert.equal((await db.query('select data from public.berry_inspections where id=$1',[f.row.id])).rows[0].data.emailCc.length,2);
  const beforeReplay=(await db.query('select * from public.berry_profiles order by id')).rows;await db.exec(upgradeWorkspace);assert.deepEqual((await db.query('select * from public.berry_profiles order by id')).rows,beforeReplay);
+});
+
+const previewMigration=await readFile(new URL('../migrations/202611090012_next_registration.sql',import.meta.url),'utf8');
+const shortUpgrade=await readFile(new URL('../operations/upgrade-registration-preview.sql',import.meta.url),'utf8');
+const previewCreator='a1000000-0000-4000-8000-000000000001',previewReceiver='a1000000-0000-4000-8000-000000000002';
+const nextCode=async actor=>(await as('authenticated',actor,'select public.berry_next_registration() as value')).rows[0].value;
+test('registration preview migration preserves data and exposes only the global next code to enabled creators',async()=>{
+ const before=(await db.query('select id,code,data,revision from public.berry_inspections order by id')).rows,counters=(await db.query('select * from berry_private.report_counters order by year')).rows;
+ await db.exec(previewMigration);
+ for(const [id,create] of [[previewCreator,true],[previewReceiver,false]]){await db.query('insert into auth.users(id,email)values($1,$2)',[id,`${id}@example.invalid`]);await db.query('update public.berry_profiles set enabled=true,must_change_password=false,can_create_inspections=$2,can_receive_inspections=true where id=$1',[id,create]);}
+ const result=await nextCode(previewCreator);assert.deepEqual(Object.keys(result).sort(),['checked_at','code','sequence','year']);
+ await denied(()=>nextCode(previewReceiver));await denied(()=>as('anon',null,'select public.berry_next_registration()'));await denied(()=>as('authenticated',previewCreator,'select * from berry_private.report_counters'));
+ assert.deepEqual((await db.query('select id,code,data,revision from public.berry_inspections order by id')).rows,before);assert.deepEqual((await db.query('select * from berry_private.report_counters order by year')).rows,counters);
+ assert.equal((await db.query('select public.berry_schema_status() as value')).rows[0].value.next_registration_version,'202611090012');
+});
+test('twenty committed numbers preview 021 for multiple accounts, registration advances both previews and deletion never fills a gap',async()=>{
+ await clock('2030-11-09T12:00:00Z');await db.query('insert into berry_private.report_counters(year,last_sequence)values(2030,20)');
+ const counter=(await db.query('select * from berry_private.report_counters order by year')).rows;
+ for(let n=0;n<2;n++)for(const actor of [previewCreator,editCreator])assert.equal((await nextCode(actor)).code,'IH-2030-021');
+ assert.deepEqual((await db.query('select * from berry_private.report_counters order by year')).rows,counter);
+ const first=await editFixture(7);assert.equal(first.row.code,'IH-2030-021');for(const actor of [previewCreator,editCreator])assert.equal((await nextCode(actor)).code,'IH-2030-022');
+ await as('authenticated',users.author,'select public.berry_admin_delete_inspection($1,$2)',[first.row.id,first.row.revision]);assert.equal((await nextCode(previewCreator)).code,'IH-2030-022');
+});
+test('preview follows the Lima year, supports 1000, writes no empty-year counter and rejects disabled or temporary accounts',async()=>{
+ await db.query('update berry_private.report_counters set last_sequence=999 where year=2030');await clock('2031-01-01T04:59:59Z');assert.equal((await nextCode(previewCreator)).code,'IH-2030-1000');
+ await clock('2031-01-01T05:00:01Z');assert.equal((await nextCode(previewCreator)).code,'IH-2031-001');assert.equal((await db.query('select * from berry_private.report_counters where year=2031')).rows.length,0);
+ await db.query('update public.berry_profiles set enabled=false where id=$1',[previewCreator]);await denied(()=>nextCode(previewCreator));await db.query('update public.berry_profiles set enabled=true,must_change_password=true where id=$1',[previewCreator]);await denied(()=>nextCode(previewCreator));await db.query('update public.berry_profiles set must_change_password=false where id=$1',[previewCreator]);
+ const profiles=(await db.query('select * from public.berry_profiles order by id')).rows,counters=(await db.query('select * from berry_private.report_counters order by year')).rows;
+ await db.exec(shortUpgrade);assert.deepEqual((await db.query('select * from public.berry_profiles order by id')).rows,profiles);assert.deepEqual((await db.query('select * from berry_private.report_counters order by year')).rows,counters);
+ await assert.rejects(()=>db.exec(copiesMigration),e=>e.code==='55000');await db.exec('rollback');await clock('2026-11-08T10:00:00Z');
 });
 
 const restoreOwner = await readFile(new URL('../operations/restore-owner-access.sql',import.meta.url),'utf8');

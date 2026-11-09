@@ -1,3 +1,4 @@
+import { selectLocation } from './location-fixture';
 import { test, expect } from '@playwright/test';
 import type { Page } from '@playwright/test';
 import ExcelJS from 'exceljs';
@@ -6,7 +7,7 @@ test.beforeEach(async ({ page }) => { await mockDirectory(page); });
 
 async function fillGeneral(page: Page) {
   await page.getByLabel('Área inspeccionada').fill('Almacén y despacho');
-  await page.getByRole('combobox', { name: 'Sede', exact: true }).selectOption('Fundo'); await page.getByRole('combobox', { name: 'Zona de inspección', exact: true }).selectOption('Armonía II');
+  await selectLocation(page, 'Sede', 'Fundo'); await selectLocation(page, 'Zona de inspección', 'Armonía II');
   await page.getByLabel('Hora de inspección').fill('07:30');
   await page.getByLabel('AM o PM').selectOption('AM');
   await page.getByRole('radio', { name: 'Planeada', exact: true }).check();

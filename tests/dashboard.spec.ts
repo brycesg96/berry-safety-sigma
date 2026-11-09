@@ -1,3 +1,4 @@
+import { selectLocation } from './location-fixture';
 import { createHash } from 'node:crypto';
 import { test, expect } from '@playwright/test';
 import type { BrowserContext, Page } from '@playwright/test';
@@ -49,7 +50,7 @@ async function setup(page:Page,context:BrowserContext,admin=true) {
   }
   throw new Error('Dashboard must not write: '+route.request().url());
  });
- await page.goto('./?acceso=cuenta');
+ await page.goto('./?acceso=cuenta&seccion=perfil');
  state.rows=await page.evaluate(async({actor,other})=>{
   const {newInspection,newObservation}=await import('/src/model.ts');
   return [0,1,2].map((n)=>{
@@ -106,7 +107,7 @@ test('administrador corrige un informe abierto con código y autor intactos, con
  const editor=page.locator('.admin-inspection-editor');await expect(editor.getByRole('heading',{name:'Editar inspección',exact:true})).toBeVisible();
  await expect(editor.getByLabel('Responsable de la inspección')).toHaveAttribute('readonly','');
  await editor.getByRole('button',{name:'Actualizar sede y zona'}).click();
- await editor.getByLabel('Sede').selectOption('Fundo');await editor.getByLabel('Zona de inspección').selectOption('Armonía II');await editor.getByLabel('Área inspeccionada').fill('Taller de Maquinaria');
+ await selectLocation(editor, 'Sede', 'Fundo');await selectLocation(editor, 'Zona de inspección', 'Armonía II');await editor.getByLabel('Área inspeccionada').fill('Taller de Maquinaria');
  await editor.locator('.responsibles').getByRole('combobox',{name:/Nombre completo/}).first().fill('Nueva');await page.getByRole('option',{name:/nueva@example.invalid/}).click();
  await page.setViewportSize({width:390,height:844});await page.screenshot({path:test.info().outputPath('editar-telefono.png'),fullPage:true});expect(await page.evaluate(()=>Array.from(document.querySelectorAll('main *')).filter(node=>node.getBoundingClientRect().right>innerWidth+1).map(node=>({tag:node.tagName,cls:node.className,right:node.getBoundingClientRect().right})).slice(0,15))).toEqual([]);
  await editor.getByRole('tab',{name:'Observaciones',exact:true}).click();await editor.getByLabel('Descripción').fill('Descripción corregida por administración');

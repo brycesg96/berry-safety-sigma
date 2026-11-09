@@ -1,3 +1,4 @@
+import { selectLocation } from './location-fixture';
 import { test, expect } from '@playwright/test';
 import { mockDirectory } from './directory-fixture';
 
@@ -15,7 +16,7 @@ test('otra cuenta sin historial recibe los textos compartidos, puede cambiarlos 
   await page.getByRole('button', { name: 'Cerrar ventana', exact: true }).click();
   await expect(page.getByRole('textbox', { name: 'Objetivo de la inspección interna', exact: true })).toHaveValue(texts.objective);
   await page.getByLabel('Área inspeccionada').fill('Área nueva');
-  await page.getByRole('combobox', { name: 'Sede', exact: true }).selectOption('Fundo'); await page.getByRole('combobox', { name: 'Zona de inspección', exact: true }).selectOption('Armonía II');
+  await selectLocation(page, 'Sede', 'Fundo'); await selectLocation(page, 'Zona de inspección', 'Armonía II');
   await page.getByLabel('Hora de inspección').fill('07:30'); await page.getByLabel('AM o PM').selectOption('AM');
   await page.getByRole('radio', { name: 'Planeada', exact: true }).check();
   await page.getByRole('combobox', { name: /Nombre completo/ }).fill('Ana');
