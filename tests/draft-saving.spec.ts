@@ -24,7 +24,7 @@ test('abrir, navegar y cambiar de cuenta no crea borradores; escribir no guarda;
   await expect(page.getByRole('button', { name: 'Continuar', exact: true })).toBeEnabled();
   await expect(page.getByRole('button', { name: 'Guardar', exact: true })).toHaveCount(1);
   await expect(page.getByRole('button', { name: 'Guardar y salir', exact: true })).toHaveCount(0);
-  await expect(page.getByText('SEGURIDAD INDUSTRIAL Y GESTIÓN DEL MEDIO AMBIENTAL', { exact: true })).toBeVisible();
+  await expect(page.getByText('SEGURIDAD INDUSTRIAL Y GESTIÓN MEDIO AMBIENTAL', { exact: true })).toBeVisible();
   const nav = page.locator('.sidebar-nav');
   await page.getByLabel('Área inspeccionada').fill('   ');
   await page.getByRole('button', { name: 'Guardar', exact: true }).first().click();
