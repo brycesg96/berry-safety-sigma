@@ -1,3 +1,5 @@
+import { selectValue } from './select-fixture';
+import { saveAndOpenList } from './save-fixture';
 import { test, expect } from '@playwright/test';
 import type { Page } from '@playwright/test';
 import { hasInspectionContent, newInspection, newObservation, newResponsible } from '../src/model';
@@ -20,6 +22,9 @@ test('contenido real: los datos automáticos y las filas vacías no inician una 
 test('abrir, navegar y cambiar de cuenta no crea borradores; escribir no guarda; Guardar conserva y vaciar solo retira al guardar', async ({ page }) => {
   await page.clock.install(); await page.goto('./');
   await expect(page.getByRole('button', { name: 'Continuar', exact: true })).toBeEnabled();
+  await expect(page.getByRole('button', { name: 'Guardar', exact: true })).toHaveCount(1);
+  await expect(page.getByRole('button', { name: 'Guardar y salir', exact: true })).toHaveCount(0);
+  await expect(page.getByText('SEGURIDAD INDUSTRIAL Y GESTIÓN DEL MEDIO AMBIENTAL', { exact: true })).toBeVisible();
   const nav = page.locator('.sidebar-nav');
   await page.getByLabel('Área inspeccionada').fill('   ');
   await page.getByRole('button', { name: 'Guardar', exact: true }).first().click();
@@ -31,11 +36,11 @@ test('abrir, navegar y cambiar de cuenta no crea borradores; escribir no guarda;
     await nav.getByRole('button', { name: 'Nueva inspección', exact: true }).click();
     await page.clock.runFor(1000); expect(await storedCount(page)).toBe(0);
   }
-  await page.getByRole('button', { name: 'Guardar y salir', exact: true }).click();
+  await saveAndOpenList(page);
   await expect(page.locator('.inspection-list-row')).toHaveCount(0);
   await expect(nav.getByRole('button', { name: 'Mis inspecciones', exact: true }).locator('.nav-count')).toHaveCount(0);
   await page.getByRole('button', { name: 'Mi perfil', exact: true }).click();
-  await page.getByLabel('Cuenta de prueba').selectOption('demo-inspector');
+  await selectValue(page.getByLabel('Cuenta de prueba'), 'demo-inspector');
   await expect(page.getByLabel('Correo de tu cuenta')).toHaveValue('bcespedes@hortifrut.com');
   await page.getByRole('button', { name: 'Cerrar ventana', exact: true }).click();
   await expect(page.getByRole('button', { name: 'Continuar', exact: true })).toBeEnabled();

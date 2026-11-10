@@ -1,3 +1,5 @@
+import { selectValue } from './select-fixture';
+import { saveAndOpenList } from './save-fixture';
 import { test, expect } from '@playwright/test';
 
 const adminEmail = 'bryx.96@gmail.com', inspectorEmail = 'bcespedes@hortifrut.com';
@@ -39,7 +41,9 @@ test('administración conserva los datos existentes y ofrece una sola gestión d
   await page.getByRole('button', { name: 'Espacio de pruebas', exact: true }).click();
   await expect(page.getByLabel('Área inspeccionada')).toHaveValue('Borrador anterior a la gestión de usuarios');
   await page.getByRole('button', { name: 'Mi perfil', exact: true }).click();
-  await expect(page.getByLabel('Cuenta de prueba').getByRole('option', { name: /Laura Existente/ })).toHaveCount(1);
+  await page.getByLabel('Cuenta de prueba').click();
+  await expect(page.getByRole('option', { name: /Laura Existente/ })).toHaveCount(1);
+  await page.getByLabel('Cuenta de prueba').press('Escape');
   expect(await page.evaluate(() => localStorage.getItem('berry-demo-accounts-v1'))).toBe(historical);
 });
 
@@ -52,7 +56,7 @@ test('cambio de rol de prueba sin login, perfil separado y borradores de cada cu
   await page.getByRole('button', { name: 'Mi perfil', exact: true }).click();
   await expect(page.getByLabel('Correo de tu cuenta')).toHaveValue(adminEmail);
   await expect(page.getByRole('button', { name: /Microsoft/ })).toHaveCount(0);
-  await page.getByLabel('Cuenta de prueba').selectOption('demo-inspector');
+  await selectValue(page.getByLabel('Cuenta de prueba'), 'demo-inspector');
   await expect(page.getByLabel('Correo de tu cuenta')).toHaveValue(inspectorEmail);
   await page.getByLabel('Nombres y apellidos').fill('Bryan de Inspecciones');
   await page.getByRole('dialog', { name: 'Tu perfil' }).getByLabel('Área').fill('Prevención');
@@ -62,13 +66,13 @@ test('cambio de rol de prueba sin login, perfil separado y borradores de cada cu
   await expect(page.getByRole('button', { name: 'Administración', exact: true })).toHaveCount(0);
   await page.getByRole('button', { name: 'Cerrar menú', exact: true }).click();
   await page.getByLabel('Área inspeccionada').fill('Borrador del inspector');
-  await page.getByRole('button', { name: 'Guardar y salir' }).click();
+  await saveAndOpenList(page);
   await page.reload();
   await expect(page.getByLabel('Área inspeccionada')).toHaveValue('Borrador del inspector');
   await page.getByRole('button', { name: 'Mi perfil', exact: true }).click();
   await expect(page.getByLabel('Nombres y apellidos')).toHaveValue('Bryan de Inspecciones');
   await expect(page.getByRole('dialog', { name: 'Tu perfil' }).getByLabel('Área')).toHaveValue('Prevención');
-  await page.getByLabel('Cuenta de prueba').selectOption('demo-admin');
+  await selectValue(page.getByLabel('Cuenta de prueba'), 'demo-admin');
   await expect(page.getByLabel('Correo de tu cuenta')).toHaveValue(adminEmail);
   await expect(page.getByRole('dialog', { name: 'Tu perfil' }).getByLabel('Área')).toHaveValue('');
   await page.getByRole('button', { name: 'Cerrar ventana', exact: true }).click();
@@ -101,7 +105,7 @@ test('área y cargo del perfil reemplazan la leyenda del directorio y se conserv
   await page.getByRole('button', { name: 'Guardar perfil', exact: true }).click();
   await expect(page.getByText('Seguridad y Salud — Supervisor SST', { exact: true })).toBeVisible();
   await expect(page.getByText('Persona seleccionada del directorio.', { exact: true })).toHaveCount(0);
-  await page.getByRole('button', { name: 'Guardar y salir' }).click(); await page.reload();
+  await saveAndOpenList(page); await page.reload();
   await expect(page.getByText('Seguridad y Salud — Supervisor SST', { exact: true })).toBeVisible();
   await page.getByRole('button', { name: 'Mi perfil', exact: true }).click();
   await expect(profile.getByLabel('Puesto', { exact: true })).toHaveValue('Supervisor SST');

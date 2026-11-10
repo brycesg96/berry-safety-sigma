@@ -1,3 +1,4 @@
+import { selectValue } from './select-fixture';
 import { test, expect } from '@playwright/test';
 import { readFile } from 'node:fs/promises';
 import { execFile } from 'node:child_process';
@@ -33,7 +34,7 @@ for (const count of [1, 7]) test(`PDF descargable del registro cerrado con ${cou
     await persistInspection(report);
   }, count);
   await page.getByRole('button', { name: 'Mis inspecciones', exact: true }).click();
-  await page.getByLabel('Filtrar por estado').selectOption('closed');
+  await selectValue(page.getByLabel('Filtrar por estado'), 'closed');
   await page.getByRole('button', { name: 'Revisar informe', exact: true }).click();
   await expect(page.getByRole('navigation', { name: 'Ruta de navegación' }).locator('li')).toHaveText(['Espacio de trabajo', 'Mis inspecciones', 'Inspecciones cerradas']);
   const downloadEvent = page.waitForEvent('download');

@@ -1,3 +1,4 @@
+import { selectValue } from './select-fixture';
 import { expect, test } from '@playwright/test';
 
 test('lista responsables y sus áreas, y busca instalación, área y responsable en escritorio y móvil', async ({ page }) => {
@@ -61,9 +62,9 @@ test('lista responsables y sus áreas, y busca instalación, área y responsable
     for (const area of areas) await expect(rows.filter({ hasText: area })).toBeVisible();
   }
   await search.fill('Planta Norte');
-  await page.getByLabel('Filtrar por estado').selectOption('review');
+  await selectValue(page.getByLabel('Filtrar por estado'), 'review');
   await expect(rows).toHaveCount(0);
-  await page.getByLabel('Filtrar por estado').selectOption('draft');
+  await selectValue(page.getByLabel('Filtrar por estado'), 'draft');
   await expect(rows).toHaveCount(1);
   await page.setViewportSize({ width: 390, height: 844 });
   await expect(workshop.locator('.list-responsibles')).toBeVisible();

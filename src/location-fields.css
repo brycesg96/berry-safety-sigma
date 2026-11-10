@@ -25,3 +25,23 @@
 .inspection-area-control+.field-help{display:block;margin-top:8px;color:#89968b;font-size:12px;line-height:1.5}
 @media(max-width:600px){.location-select-trigger{min-height:48px;font-size:14px;padding:11px 12px}.location-select-option{min-height:42px}.inspection-area-control{gap:7px;padding:7px 9px}.inspection-area-control+.field-help{font-size:11px}}
 @media(prefers-reduced-motion:reduce){.location-select-trigger,.location-select-chevron{transition:none}}
+
+.platform-select-menu{display:flex;flex-direction:column;overflow:hidden}
+.platform-select-options{overflow-y:auto;overscroll-behavior:contain;min-height:0;scrollbar-width:thin;scrollbar-color:#c9d7c0 transparent}
+.platform-select-search{display:flex;align-items:center;gap:8px;flex-shrink:0;margin:3px 3px 7px;padding:0 10px;border:1px solid #dce4d7;border-radius:8px;background:#f8faf5;color:#829b78}
+.platform-select-search input,.field .platform-select-search input{width:100%;min-width:0;min-height:40px;margin:0;padding:8px 0;border:0;background:transparent;outline:none;box-shadow:none;font-size:14px}
+.platform-select-search:focus-within{border-color:#91ae88;box-shadow:0 0 0 2px #e9f1e5}
+.location-select-option small{display:block;font-size:11px;font-weight:400;color:#83927e;margin-top:3px;overflow-wrap:anywhere}
+.platform-select-footer{display:flex;justify-content:space-between;gap:10px;flex-shrink:0;border-top:1px solid #e5eddf;padding:10px 8px 4px;margin-top:5px}
+.platform-select-footer button{border:0;background:none;color:#27674f;font-family:inherit;font-size:12px;padding:5px;cursor:pointer}
+.platform-select-footer button:last-child{font-weight:700}
+.platform-select-footer button:disabled{color:#a1ada2;cursor:default}
+.platform-select-empty{font-size:13px;color:#82937c;padding:10px 12px;margin:0}
+.inspection-time-control>.location-select{flex:0 0 100px}
+.filter-select>.location-select{min-width:190px}
+@media(max-width:600px){.filter-select>.location-select{min-width:170px}.platform-select-search input{font-size:16px}}
+.person-picker .directory-dropdown{top:calc(100% + 7px);padding:6px;border:1px solid #dce6d5;border-radius:12px;box-shadow:0 14px 35px #173d2c1c;z-index:45}
+.person-picker .directory-dropdown [role=option]{border:0;border-radius:7px;padding:10px 12px;gap:3px;font-size:14px;line-height:1.45}
+.person-picker .directory-dropdown [role=option] strong{color:#365846;font-size:14px;font-weight:500}
+.person-picker .directory-dropdown [role=option] span{font-size:11px;color:#83927e}
+.person-picker .directory-dropdown [role=option]:hover,.person-picker .directory-dropdown [role=option].highlighted{background:#eef5e7;color:#24654b}

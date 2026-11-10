@@ -1,3 +1,4 @@
+import { selectValue } from './select-fixture';
 import { selectLocation } from './location-fixture';
 import { test, expect } from '@playwright/test';
 import type { Page } from '@playwright/test';
@@ -16,7 +17,7 @@ async function prepare(page:Page, withTeam=false) {
  await page.reload();
  await page.getByLabel('Área inspeccionada').fill('Taller - Armonía 2');
   await selectLocation(page, 'Sede', 'Fundo'); await selectLocation(page, 'Zona de inspección', 'Armonía II');
- await page.getByLabel('Hora de inspección').fill('07:30');await page.getByLabel('AM o PM').selectOption('AM');
+ await page.getByLabel('Hora de inspección').fill('07:30');await selectValue(page.getByLabel('AM o PM'), 'AM');
  await page.getByRole('radio',{name:'Planeada',exact:true}).check();
  await page.getByRole('textbox',{name:'Objetivo de la inspección interna',exact:true}).fill('Revisar condiciones seguras.');
  await page.getByRole('combobox',{name:/Nombre completo/}).fill('Bryan');
@@ -30,7 +31,7 @@ async function prepare(page:Page, withTeam=false) {
  await page.getByRole('button',{name:'Continuar',exact:true}).click();await page.getByRole('button',{name:'Continuar',exact:true}).click();
  await page.getByRole('textbox',{name:'CONCLUSIONES Y RECOMENDACIONES',exact:true}).fill('Se requiere corregir el hallazgo.');
  await page.getByRole('button',{name:'Continuar',exact:true}).click();
- await page.getByRole('button',{name:'Guardar',exact:true}).first().click();await page.getByRole('button',{name:'Enviar inspección',exact:true}).click();
+ await page.getByRole('button',{name:'Enviar inspección',exact:true}).click();
 }
 test('envío sin claves adjunta Excel, responsables y CC de jefes y conserva el recibo',async({page})=>{
  let captured:any;

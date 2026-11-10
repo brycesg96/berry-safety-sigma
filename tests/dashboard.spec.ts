@@ -1,3 +1,4 @@
+import { selectValue } from './select-fixture';
 import { selectLocation } from './location-fixture';
 import { createHash } from 'node:crypto';
 import { test, expect } from '@playwright/test';
@@ -55,7 +56,7 @@ async function setup(page:Page,context:BrowserContext,admin=true) {
   const {newInspection,newObservation}=await import('/src/model.ts');
   return [0,1,2].map((n)=>{
    const id=`67000000-0000-4000-8000-${String(n+1).padStart(12,'0')}`,observation=newObservation(),code=`IH-2026-00${n+1}`;
-   const data={...newInspection({name:n===2?'Luis Pérez':'Ana Torres',email:n===2?'luis@example.invalid':'ana@example.invalid',accountId:other}),id,ownerId:other,area:n===2?'Almacén':'Maquinaria - Armonía 2',date:n===0?'2026-11-08':n===1?'2026-12-02':'2026-11-15',type:'Planeada',facility:'Armonía',objective:'Verificar las condiciones de seguridad.',unfavorableCause:'Condición insegura.',closingRemarks:'Realizar seguimiento.',inspectionTime:'09:30',inspectionPeriod:'AM',responsibles:[{id:'responsible',personId:actor,name:'Responsable del área',email:'responsable@example.invalid'}],additionalInspectors:n===0?[{id:'assistant',personId:'assistant',name:'Inspectora adicional',email:'adicional@example.invalid'}]:[],status:'ready',observations:[{...observation,description:'Hallazgo de prueba',correctiveAction:'Aplicar la medida.',dueDate:'2026-11-01',severity:n===2?'alta':'media',photos:[]}],serverRegistration:{inspectionId:id,code,acceptedAt:'2026-11-08T12:00:00Z'},delivery:{sentAt:'2026-11-08T12:00:00Z',recipientIds:[actor],revision:3,corrections:n===2?{[observation.id]:{actorId:actor,responsibleName:'Responsable',action:'Se corrigió.',date:'2026-11-08',photos:[],proposedState:'Ejecutado',state:'Ejecutado',decision:'approved',note:''}}:{}}};
+   const data={...newInspection({name:n===2?'Luis Pérez':'Ana Torres',email:n===2?'luis@example.invalid':'ana@example.invalid',accountId:other}),id,ownerId:other,area:n===2?'Almacén':'Maquinaria - Armonía 2',date:n===0?'2026-11-08':n===1?'2026-12-02':'2026-11-15',type:'Planeada',facility:'Armonía',objective:'Verificar las condiciones de seguridad.',unfavorableCause:'Condición insegura.',closingRemarks:'Realizar seguimiento.',inspectionTime:'09:30',inspectionPeriod:'AM',responsibles:[{id:'responsible',personId:actor,name:'Responsable del área',email:'responsable@example.invalid',area:n===0?'SS.GG':n===1?'Recursos Humanos':'Producción'}],additionalInspectors:n===0?[{id:'assistant',personId:'assistant',name:'Inspectora adicional',email:'adicional@example.invalid'}]:[],status:'ready',observations:[{...observation,description:'Hallazgo de prueba',correctiveAction:'Aplicar la medida.',dueDate:'2026-11-01',severity:n===2?'alta':'media',photos:[]}],serverRegistration:{inspectionId:id,code,acceptedAt:'2026-11-08T12:00:00Z'},delivery:{sentAt:'2026-11-08T12:00:00Z',recipientIds:[actor],revision:3,corrections:n===2?{[observation.id]:{actorId:actor,responsibleName:'Responsable',action:'Se corrigió.',date:'2026-11-08',photos:[],proposedState:'Ejecutado',state:'Ejecutado',decision:'approved',note:''}}:{}}};
    return{id,author_id:other,code,workflow:n===2?'closed':'sent',revision:3,updated_at:'2026-11-08T12:00:00Z',data};
   });
  },{actor,other});
@@ -66,10 +67,10 @@ async function setup(page:Page,context:BrowserContext,admin=true) {
 async function panel(page:Page){await page.getByRole('button',{name:'Panel de inspecciones',exact:true}).click();await expect(page.locator('.dashboard-results tbody tr')).toHaveCount(3);}
 test('panel filtra estadísticas y consolidado por fecha, código, área, inspector adicional y responsable; Excel sin imágenes',async({page,context})=>{
  const state=await setup(page,context);await panel(page);
- await page.getByLabel('Inspector',{exact:true}).selectOption('adicional@example.invalid');await expect(page.locator('.dashboard-results tbody tr')).toHaveCount(1);
+ await selectValue(page.getByLabel('Inspector',{exact:true}), 'adicional@example.invalid');await expect(page.locator('.dashboard-results tbody tr')).toHaveCount(1);
  await page.getByRole('button',{name:'Limpiar filtros'}).click();await page.getByLabel('Desde',{exact:true}).fill('2026-11-01');await page.getByLabel('Hasta',{exact:true}).fill('2026-11-30');await expect(page.locator('.dashboard-results tbody tr')).toHaveCount(2);
- await page.getByLabel('Área inspeccionada',{exact:true}).selectOption('maquinaria - armonia 2');await expect(page.locator('.dashboard-results tbody tr')).toHaveCount(1);
- await page.getByLabel('Responsable del área',{exact:true}).selectOption('responsable@example.invalid');
+ await selectValue(page.getByLabel('Área del responsable',{exact:true}), 'ss.gg');await expect(page.locator('.dashboard-results tbody tr')).toHaveCount(1);
+ await selectValue(page.getByLabel('Responsable del área',{exact:true}), 'responsable@example.invalid');
  await page.getByLabel('Código de inspección').fill('001');
  const download=page.waitForEvent('download');await page.getByRole('button',{name:'Descargar consolidado'}).click();const file=await download,path=(await file.path())!;
  const book=new ExcelJS.Workbook();await book.xlsx.readFile(path);const sheet=book.getWorksheet('Inspecciones')!;
@@ -140,4 +141,32 @@ test('eliminar desde la última columna confirma, conserva los otros códigos y 
  expect(state.rows.map(r=>r.code)).toEqual(['IH-2026-001','IH-2026-003']);await expect(page.getByRole('button',{name:'Filtrar mes 2026-12: 1 inspecciones',exact:true})).toHaveCount(0);
  const download=page.waitForEvent('download');await page.getByRole('button',{name:'Descargar consolidado'}).click();const book=new ExcelJS.Workbook();await book.xlsx.readFile((await (await download).path())!);expect(book.getWorksheet('Inspecciones')!.getColumn(1).values.filter(Boolean)).toEqual(['Código','IH-2026-001','IH-2026-003']);
  await page.getByRole('button',{name:'Tu perfil',exact:true}).click();await page.getByRole('button',{name:'Panel de inspecciones',exact:true}).click();await expect(page.locator('.dashboard-results tbody tr')).toHaveCount(2);await expect(page.getByText('IH-2026-002',{exact:true})).toHaveCount(0);
+});
+
+
+test('filtros con búsqueda y varias personas usan las áreas de cada responsable, combinan criterios y funcionan con teclado en móvil',async({page,context})=>{
+ const state=await setup(page,context);
+ state.rows[0].data.responsibles.push({id:'juan',name:'Juan López',email:'juan@example.invalid',area:'SS.GG'},{id:'maria',name:'María de Recursos Humanos',email:'maria@example.invalid',area:'Recursos Humanos'});
+ state.rows[2].data.responsibles[0]={...state.rows[2].data.responsibles[0],name:'Rocío Producción',email:'rocio@example.invalid'};
+ await panel(page);const rows=page.locator('.dashboard-results tbody tr');
+ const areaChart=page.locator('.dashboard-chart').filter({has:page.getByRole('heading',{name:'Inspecciones por área responsable',exact:true})});
+ await expect(areaChart.getByRole('button',{name:'Filtrar área SS.GG',exact:true})).toContainText('1');
+ await expect(areaChart.getByRole('button',{name:'Filtrar área Recursos Humanos',exact:true})).toContainText('2');
+ await page.getByLabel('Inspector',{exact:true}).click();const search=page.getByRole('searchbox',{name:'Buscar inspectores',exact:true});
+ await search.fill('adicion');await page.getByRole('option',{name:/Inspectora adicional/}).click();await expect(rows).toHaveCount(1);
+ await search.fill('luis');await page.getByRole('option',{name:/Luis Pérez/}).click();await expect(rows).toHaveCount(2);await page.getByRole('button',{name:'Listo',exact:true}).click();
+ await page.getByLabel('Responsable del área',{exact:true}).click();const responsibleSearch=page.getByRole('searchbox',{name:'Buscar responsables',exact:true});
+ await responsibleSearch.fill('juan lopez');await page.getByRole('option',{name:/Juan López/}).click();await expect(rows).toHaveCount(1);
+ await responsibleSearch.fill('rocio');await page.getByRole('option',{name:/Rocío Producción/}).click();await expect(rows).toHaveCount(2);await page.getByRole('button',{name:'Listo',exact:true}).click();
+ await selectValue(page.getByLabel('Área del responsable',{exact:true}),'ss.gg');await expect(rows).toHaveCount(1);await expect(rows).toContainText('IH-2026-001');
+ await selectValue(page.getByLabel('Área del responsable',{exact:true}),'recursos humanos');await expect(rows).toHaveCount(0);
+ await page.getByLabel('Responsable del área',{exact:true}).click();await page.getByRole('button',{name:'Limpiar selección',exact:true}).click();await page.getByRole('button',{name:'Listo',exact:true}).click();await expect(rows).toHaveCount(1);
+ await page.getByRole('button',{name:'Limpiar filtros',exact:true}).click();await expect(rows).toHaveCount(3);
+ await page.getByLabel('Área del responsable',{exact:true}).click();expect(await page.getByRole('option').allTextContents()).not.toContain('Maquinaria - Armonía 2');await page.getByRole('searchbox',{name:'Buscar áreas',exact:true}).press('Escape');
+ await page.setViewportSize({width:390,height:844});await page.getByLabel('Inspector',{exact:true}).click();await search.fill('adicional');await search.press('Enter');
+ await expect(page.getByRole('option',{name:/Inspectora adicional/})).toHaveAttribute('aria-selected','true');
+ expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
+ await page.screenshot({path:test.info().outputPath('filtro-inspectores-movil.png'),fullPage:true});await search.press('Escape');await expect(page.getByLabel('Inspector',{exact:true})).toBeFocused();await expect(rows).toHaveCount(1);
+ await rows.getByRole('button',{name:'Eliminar inspección IH-2026-001',exact:true}).click();await page.getByRole('dialog').getByRole('button',{name:'Eliminar inspección',exact:true}).click();await expect(rows).toHaveCount(0);
+ await expect(page.getByLabel('Inspector',{exact:true})).toHaveText('adicional@example.invalid');await page.getByLabel('Inspector',{exact:true}).click();await page.getByRole('button',{name:'Limpiar selección',exact:true}).click();await page.getByRole('button',{name:'Listo',exact:true}).click();await expect(rows).toHaveCount(2);
 });

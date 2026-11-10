@@ -1,3 +1,4 @@
+import { selectValue } from './select-fixture';
 import { selectLocation } from './location-fixture';
 import { test, expect } from '@playwright/test';
 import type { Locator, Page } from '@playwright/test';
@@ -10,7 +11,7 @@ async function general(page: Page) {
   await page.goto('./');
   await page.getByLabel('Área inspeccionada').fill('Taller - Armonía 2');
   await selectLocation(page, 'Sede', 'Fundo'); await selectLocation(page, 'Zona de inspección', 'Armonía II');
-  await page.getByLabel('Hora de inspección').fill('07:30'); await page.getByLabel('AM o PM').selectOption('AM');
+  await page.getByLabel('Hora de inspección').fill('07:30'); await selectValue(page.getByLabel('AM o PM'), 'AM');
   await page.getByRole('radio', { name: 'Planeada', exact: true }).check();
   await page.getByRole('textbox', { name: 'Objetivo de la inspección interna', exact: true }).fill('Revisar condiciones de seguridad.');
   await page.getByRole('combobox', { name: /Nombre completo/ }).fill('Bryan');
@@ -21,7 +22,7 @@ for (const viewport of [{ width: 1366, height: 900 }, { width: 390, height: 844 
     await page.setViewportSize(viewport);
     if (viewport.width < 500) await page.emulateMedia({ reducedMotion: 'reduce' });
     await general(page);
-    const start = page.getByText('SEGURIDAD Y SALUD EN EL TRABAJO', { exact: true });
+    const start = page.getByText('SEGURIDAD INDUSTRIAL Y GESTIÓN DEL MEDIO AMBIENTAL', { exact: true });
     await page.getByRole('button', { name: 'Continuar', exact: true }).click();
     await atStart(start);
     for (let index = 0; index < 3; index++) {
@@ -71,7 +72,7 @@ test('un resumen corto también deja el encabezado arriba en una pantalla alta',
   await page.setViewportSize({ width: 1440, height: 1400 });
   await page.emulateMedia({ reducedMotion: 'reduce' });
   await general(page);
-  const start = page.getByText('SEGURIDAD Y SALUD EN EL TRABAJO', { exact: true });
+  const start = page.getByText('SEGURIDAD INDUSTRIAL Y GESTIÓN DEL MEDIO AMBIENTAL', { exact: true });
   await page.getByRole('button', { name: 'Continuar', exact: true }).click();
   await page.getByRole('button', { name: 'Añadir observación', exact: true }).click();
   await page.getByLabel('Descripción').fill('Un único hallazgo breve.');

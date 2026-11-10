@@ -1,3 +1,5 @@
+import { selectValue } from './select-fixture';
+import { saveAndOpenList } from './save-fixture';
 import { selectLocation } from './location-fixture';
 import { test, expect } from '@playwright/test';
 import type { Page } from '@playwright/test';
@@ -9,7 +11,7 @@ async function fillGeneral(page: Page) {
   await page.getByLabel('Área inspeccionada').fill('Almacén y despacho');
   await selectLocation(page, 'Sede', 'Fundo'); await selectLocation(page, 'Zona de inspección', 'Armonía II');
   await page.getByLabel('Hora de inspección').fill('07:30');
-  await page.getByLabel('AM o PM').selectOption('AM');
+  await selectValue(page.getByLabel('AM o PM'), 'AM');
   await page.getByRole('radio', { name: 'Planeada', exact: true }).check();
   await page.getByLabel('Fecha de inspección').fill('2026-11-03');
   await page.getByRole('textbox', { name: 'Objetivo de la inspección interna', exact: true }).fill('Verificar las condiciones de almacenamiento y las rutas de evacuación.');
@@ -83,7 +85,7 @@ test('recorrido completo con evidencia, persistencia y un Excel válido', async 
   expect(sheet.getCell('E21').value).toBe('Bajo');
   expect(sheet.getImages()).toHaveLength(2); // Logo and evidence.
   expect(requestUrls).toEqual([]);
-  await page.getByRole('button', { name: 'Guardar y salir' }).click();
+  await saveAndOpenList(page);
   await expect(page.locator('.inspection-list-row')).toHaveCount(1);
   await expect(page.locator('.list-status')).toHaveText('Sin enviar');
   expect(errors).toEqual([]);
@@ -134,7 +136,7 @@ test('móvil: menú, borradores, búsqueda y eliminación', async ({ page }) => 
   await expect(page.locator('.inspection-list-row')).toHaveCount(1);
   await page.getByRole('button', { name: 'Continuar', exact: true }).click();
   await expect(page.getByLabel('Área inspeccionada')).toHaveValue('Almacén y despacho');
-  await page.getByRole('button', { name: 'Guardar y salir' }).click();
+  await saveAndOpenList(page);
   await page.getByRole('button', { name: 'Eliminar inspección Fundo – Armonía II – Almacén y despacho', exact: true }).click();
   await page.getByRole('button', { name: 'Conservar inspección' }).click();
   await expect(page.locator('.inspection-list-row')).toHaveCount(1);

@@ -1,3 +1,5 @@
+import { selectValue } from './select-fixture';
+import { saveAndOpenList } from './save-fixture';
 import { selectLocation } from './location-fixture';
 import { test, expect } from '@playwright/test';
 import ExcelJS from 'exceljs';
@@ -20,7 +22,7 @@ test('ubicación en el ejemplo, AM/PM requerido y conservación en revisión, re
   await mockDirectory(page); await page.goto('./');
   await expect(page.getByLabel('Área inspeccionada')).toHaveAttribute('placeholder', 'Ej. Taller de Maquinaria');
   await expect(page.getByLabel('Hora de inspección')).toHaveValue('');
-  await expect(page.getByLabel('AM o PM')).toHaveValue('');
+  await expect(page.getByLabel('AM o PM')).toHaveAttribute('data-value', '');
   await expect(page.getByRole('textbox', { name: 'Código de inspección', exact: true })).toHaveValue(/^IH-\d{4}-001$/);
   await expect(page.getByRole('tooltip')).toBeHidden();
   await page.getByRole('button', { name: 'Información del código de inspección', exact: true }).hover();
@@ -36,15 +38,15 @@ test('ubicación en el ejemplo, AM/PM requerido y conservación en revisión, re
   await page.getByLabel('Hora de inspección').fill('07:30');
   await page.getByRole('button', { name: 'Continuar', exact: true }).click();
   await expect(page.getByText('Selecciona AM o PM.')).toBeVisible();
-  await page.getByLabel('AM o PM').selectOption('PM');
+  await selectValue(page.getByLabel('AM o PM'), 'PM');
   await page.getByLabel('Hora de inspección').fill('13:00');
   await page.getByRole('button', { name: 'Continuar', exact: true }).click();
   await expect(page.getByText('Escribe una hora entre 01:00 y 12:59 (hh:mm).')).toBeVisible();
   await page.getByLabel('Hora de inspección').fill('07:30');
   await page.getByRole('radio', { name: 'Planeada', exact: true }).check();
-  await page.getByRole('button', { name: 'Guardar y salir' }).click();
+  await saveAndOpenList(page);
   await page.reload();
-  await expect(page.getByLabel('AM o PM')).toHaveValue('PM');
+  await expect(page.getByLabel('AM o PM')).toHaveAttribute('data-value', 'PM');
   await page.getByRole('button', { name: 'Continuar', exact: true }).click();
   await page.getByRole('button', { name: 'Añadir observación', exact: true }).click();
   await page.getByLabel('Descripción').fill('Falta señalización.');
@@ -66,7 +68,7 @@ test('Mis inspecciones distingue un código tentativo de un recibo definitivo', 
   await page.goto('./');
   await page.getByLabel('Área inspeccionada').fill('Registro confirmado de prueba');
   await selectLocation(page, 'Sede', 'Fundo'); await selectLocation(page, 'Zona de inspección', 'Armonía II');
-  await page.getByRole('button', { name: 'Guardar y salir' }).click();
+  await saveAndOpenList(page);
   await expect(page.getByText('Código definitivo: pendiente de envío')).toBeVisible();
   await page.evaluate(async () => {
     const request = indexedDB.open('berry-safety', 1);
@@ -78,6 +80,6 @@ test('Mis inspecciones distingue un código tentativo de un recibo definitivo', 
     };
     await new Promise<void>((resolve, reject) => { tx.oncomplete = () => resolve(); tx.onerror = reject; tx.onabort = reject; }); db.close();
   });
-  await page.reload(); await page.getByRole('button', { name: 'Guardar y salir' }).click();
+  await page.reload(); await saveAndOpenList(page);
   await expect(page.getByText('Código definitivo: IH-2026-008')).toBeVisible();
 });

@@ -8,11 +8,11 @@ import { saveEmailReceipt } from './follow-up';
 import { rememberInspectionTexts } from './inspection-texts';
 import { inspectionPeople } from './registration';
 import { CloudReportSendForm } from './CloudReportSendForm';
-export function ReportSendForm({ inspection, actorId, onPrepare, onChange, onBusyChange }: { inspection: Inspection; actorId: string; onPrepare: () => Promise<Inspection>; onChange: (d: Inspection) => void; onBusyChange?: (busy: boolean) => void }) {
-  if (inspection.storage === 'cloud') return <CloudReportSendForm inspection={inspection} actorId={actorId} onChange={onChange} onBusyChange={onBusyChange}/>;
-  return <LocalReportSendForm inspection={inspection} actorId={actorId} onPrepare={onPrepare} onChange={onChange} onBusyChange={onBusyChange}/>;
+export function ReportSendForm({ inspection, actorId, onPrepare, onChange, onBusyChange, onSave }: { inspection: Inspection; actorId: string; onPrepare: () => Promise<Inspection>; onChange: (d: Inspection) => void; onBusyChange?: (busy: boolean) => void; onSave?: () => Promise<Inspection> }) {
+  if (inspection.storage === 'cloud') return <CloudReportSendForm inspection={inspection} actorId={actorId} onChange={onChange} onBusyChange={onBusyChange} onSave={onSave}/>;
+  return <LocalReportSendForm inspection={inspection} actorId={actorId} onPrepare={onPrepare} onChange={onChange} onBusyChange={onBusyChange} onSave={onSave}/>;
 }
-function LocalReportSendForm({ inspection, actorId, onPrepare, onChange, onBusyChange }: { inspection: Inspection; actorId: string; onPrepare: () => Promise<Inspection>; onChange: (d: Inspection) => void; onBusyChange?: (busy: boolean) => void }) {
+function LocalReportSendForm({ inspection, actorId, onPrepare, onChange, onBusyChange, onSave }: { inspection: Inspection; actorId: string; onPrepare: () => Promise<Inspection>; onChange: (d: Inspection) => void; onBusyChange?: (busy: boolean) => void; onSave?: () => Promise<Inspection> }) {
   const [busy,setBusy]=useState(false), [error,setError]=useState('');
   const lock=useRef(false), api=mailEndpoint('/api/inspections/send'), receipt=inspection.emailDelivery;
   const cc=receipt ? inspection.emailCc ?? inspectionCopies(inspection.responsibles) : inspectionCopies(inspection.responsibles);
@@ -25,12 +25,13 @@ function LocalReportSendForm({ inspection, actorId, onPrepare, onChange, onBusyC
       const data=await response.json();return {response,data};
     };
     try {
+      const saved = !inspection.delivery && onSave ? await onSave() : inspection;
       const check=await request({action:'inspection.check'});
       if(!check.response.ok || check.data.enabled!==true) {
         const messages:Record<string,string>={REPORTS_DISABLED:'Falta habilitar MAKE_REPORTS_ENABLED=true en Render, después de mapear Para, CC y el adjunto en Make.',UNAUTHORIZED:'Render aún utiliza la versión que pide autorización. Actualiza el backend con Manual Deploy → Deploy latest commit para habilitar el prototipo sin claves.',ORIGIN_NOT_ALLOWED:'Render no permite la conexión desde esta web.',RATE_LIMITED:'Espera un minuto antes de repetir.'};
         throw new Error(messages[check.data.code] || 'No se pudo comprobar el servicio. El informe conserva su estado actual.');
       }
-      const file=await buildExcel(inspection);
+      const file=await buildExcel(saved);
       if(file.bytes.length>3*1024*1024)throw new Error('El Excel supera 3 MB. Reduce las fotos antes de enviar.');
       let binary='';for(let i=0;i<file.bytes.length;i+=32768)binary+=String.fromCharCode(...file.bytes.subarray(i,i+32768));
       frozen=await onPrepare();

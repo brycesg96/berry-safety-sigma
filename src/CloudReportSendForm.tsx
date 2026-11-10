@@ -1,17 +1,16 @@
-import { hasPendingChanges } from './manual-save';
 import { useContext, useRef, useState } from 'react';
 import { LoaderCircle, Send } from 'lucide-react';
 import { AccountDirectory } from './AccountDirectory';
 import { inspectionCopies } from './accounts';
 import { buildExcel } from './export';
-import { hydrateCloudInspection } from './cloud-store';
+import { hydrateCloudInspection, persistCloudInspection } from './cloud-store';
 import type { CloudInspectionRow } from './cloud-store';
 import { supabaseClient } from './supabase';
 import { mailEndpoint } from './mail-api';
 import type { Inspection } from './model';
 import { validateStep } from './model';
 
-export function CloudReportSendForm({ inspection, actorId, onChange, onBusyChange }: { inspection: Inspection; actorId: string; onChange: (inspection: Inspection) => void; onBusyChange?: (busy: boolean) => void }) {
+export function CloudReportSendForm({ inspection, actorId, onChange, onBusyChange, onSave }: { inspection: Inspection; actorId: string; onChange: (inspection: Inspection) => void; onBusyChange?: (busy: boolean) => void; onSave?: () => Promise<Inspection> }) {
   const [busy, setBusy] = useState(false), [error, setError] = useState('');
   const lock = useRef(false), accounts = useContext(AccountDirectory);
   const cc = inspection.emailCc || inspectionCopies(inspection.responsibles, accounts || []);
@@ -22,8 +21,7 @@ export function CloudReportSendForm({ inspection, actorId, onChange, onBusyChang
       let input: { inspectionId: string; expectedRevision?: number; contentBase64?: string } = { inspectionId: inspection.id };
       if (!inspection.delivery) {
         for (const step of [0,1,3]) if (Object.keys(validateStep(inspection, step)).length) throw new Error('Completa los datos de la inspección antes de enviarla.');
-        if (hasPendingChanges() || !inspection.cloudRevision) throw new Error('Guarda los cambios antes de enviar la inspección.');
-        const saved = inspection;
+        const saved = onSave ? await onSave() : await persistCloudInspection(inspection);
         const file = await buildExcel(saved);
         if (file.bytes.length > 3 * 1024 * 1024) throw new Error('El Excel supera 3 MB. Reduce las fotografías antes de enviar.');
         let binary = ''; for (let i = 0; i < file.bytes.length; i += 32768) binary += String.fromCharCode(...file.bytes.subarray(i, i + 32768));

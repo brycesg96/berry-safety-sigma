@@ -70,4 +70,6 @@ Las pruebas de PDF necesitan `pdftotext`, `pdfinfo` y `pdfimages` (Poppler) para
 
 El flujo de envío de inspecciones con Excel y copias automáticas de jefes/gerentes se describe en [Envío de informes](docs/ENVIO_INFORMES.md). Requiere completar el mapeo de Make y habilitar los informes en Render; las pruebas de conexión siguen sin enviar correo.
 
-El contenido de inspecciones y levantamientos se guarda mediante botones, con aviso de cambios pendientes. [Funcionamiento del guardado manual](docs/GUARDADO_MANUAL.md).
+Las inspecciones se conservan con Guardar y también al confirmar el envío; los levantamientos usan Guardar avance, con aviso de cambios pendientes. [Funcionamiento del guardado manual](docs/GUARDADO_MANUAL.md).
+
+Los desplegables comparten el diseño de Sede/Zona. [Búsqueda múltiple y áreas organizativas en el panel](docs/FILTROS_PANEL.md).

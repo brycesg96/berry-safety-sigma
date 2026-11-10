@@ -1,3 +1,4 @@
+import { saveAndOpenList } from './save-fixture';
 import { test, expect } from '@playwright/test';
 import ExcelJS from 'exceljs';
 import { execFile } from 'node:child_process';
@@ -53,7 +54,7 @@ test('responsables del registro independientes, autor de la cuenta bloqueado, se
   await expect(page.getByText('No hay personas disponibles con ese nombre.')).toBeVisible();
   await extras.nth(1).getByRole('combobox').fill('José');
   await page.getByRole('listbox').getByRole('option', { name: /José Rojas/ }).click();
-  await page.getByRole('button', { name: 'Guardar y salir' }).click(); await page.reload();
+  await saveAndOpenList(page); await page.reload();
   await expect(section.locator('.responsible-row')).toHaveCount(3);
   await expect(extras.nth(1).getByLabel('Correo del responsable')).toHaveValue('jose@example.com');
   await section.getByRole('button', { name: 'Eliminar responsable 2' }).click();
@@ -88,7 +89,7 @@ test('responsables del registro independientes, autor de la cuenta bloqueado, se
     await expect(section.locator('.registration-fields').first().getByLabel('Fecha', { exact: true })).toHaveValue('2026-11-05');
     await expect(section.locator('.signature-preview img')).toHaveCount(1);
   }
-  await page.getByRole('button', { name: 'Guardar y salir' }).click(); await page.reload();
+  await saveAndOpenList(page); await page.reload();
   await expect(section.locator('.signature-preview img')).toHaveCount(1);
   await expect(section.locator('.registration-fields').first().getByLabel('Puesto', { exact: true })).toHaveValue('Supervisor SST');
   await page.setViewportSize({ width: 390, height: 844 });

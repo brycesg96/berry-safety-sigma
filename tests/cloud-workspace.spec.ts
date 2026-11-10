@@ -1,3 +1,4 @@
+import { selectValue } from './select-fixture';
 import { selectLocation } from './location-fixture';
 import { test, expect } from '@playwright/test';
 import type { BrowserContext, Page } from '@playwright/test';
@@ -96,15 +97,16 @@ async function mock(context:BrowserContext,state:State,actor:string,overrides:Pa
   });
   await context.route('**/api/reports/send',async route=>{
     const req=route.request(),input=req.postDataJSON(),row=state.rows.get(input.inspectionId)!;
-    expect(req.headers().authorization).toBe(`Bearer ${token}`);expect(actor).toBe(author);
-    state.sends++;
-    const bytes=registeredExcel(Buffer.from(input.contentBase64,'base64'),'IH-2026-001');
+    expect(req.headers().authorization).toBe(`Bearer ${token}`);expect(row.author_id).toBe(actor);expect(input.expectedRevision).toBe(row.revision);
+    const sequence=state.nextSequence??state.sends+1,code=`IH-2026-${String(sequence).padStart(3,'0')}`;
+    state.sends++;if(state.nextSequence!==null)state.nextSequence++;
+    const bytes=registeredExcel(Buffer.from(input.contentBase64,'base64'),code);
     const hash=createHash('sha256').update(bytes).digest('hex'),name='REG_INS_TALLER NUBE_05.11.2026.xlsx';
     const storage_path=`2026/11-NOVIEMBRE/${row.id}/${hash}/${name}`;
     state.files.set('berry-documents/'+storage_path,bytes);
     const document={filename:name,storage_path,sha256:hash};state.documents.set(row.id,document);
-    row.workflow='sent';row.code='IH-2026-001';row.revision++;
-    row.data={...row.data,serverRegistration:{inspectionId:row.id,code:row.code,acceptedAt:'2026-11-08T12:00:00Z'},delivery:{sentAt:'2026-11-08T12:00:00Z',recipientIds:[recipient],revision:row.revision,corrections:{}},emailCc:['jefe@example.com'],emailDelivery:{state:'accepted',message:'Informe guardado y envío aceptado.',updatedAt:'2026-11-08T12:00:00Z'}};
+    row.workflow='sent';row.code=code;row.revision++;
+    row.data={...row.data,serverRegistration:{inspectionId:row.id,code:row.code,acceptedAt:'2026-11-08T12:00:00Z'},delivery:{sentAt:'2026-11-08T12:00:00Z',recipientIds:row.data.responsibles.map((p:any)=>p.personId),revision:row.revision,corrections:{}},emailCc:['jefe@example.com'],emailDelivery:{state:'accepted',message:'Informe guardado y envío aceptado.',updatedAt:'2026-11-08T12:00:00Z'}};
     await route.fulfill({json:{ok:true,inspection:row,document}});
   });
 }
@@ -181,7 +183,7 @@ test('private drafts resume on another device and full approval replaces the ini
   await expect(page.getByText('Modo de prueba',{exact:true})).toHaveCount(0);
   await page.getByLabel('Área inspeccionada').fill('Taller nube');await page.getByLabel('Fecha de inspección').fill('2026-11-05');
   await selectLocation(page, 'Sede', 'Fundo'); await selectLocation(page, 'Zona de inspección', 'Armonía II');
-  await page.getByLabel('Hora de inspección').fill('09:30');await page.getByLabel('AM o PM').selectOption('AM');await page.getByRole('radio',{name:'Planeada',exact:true}).check();
+  await page.getByLabel('Hora de inspección').fill('09:30');await selectValue(page.getByLabel('AM o PM'), 'AM');await page.getByRole('radio',{name:'Planeada',exact:true}).check();
   await page.getByRole('textbox',{name:'Objetivo de la inspección interna',exact:true}).fill('Comprobar condiciones seguras.');
   await page.getByRole('combobox',{name:/Nombre completo/}).fill('Bruno');await page.getByRole('option',{name:/Bruno Responsable/}).click();
   await page.getByRole('button',{name:'Continuar',exact:true}).click();await page.getByRole('button',{name:'Añadir observación',exact:true}).click();
@@ -207,9 +209,11 @@ test('private drafts resume on another device and full approval replaces the ini
   await other.getByRole('button',{name:'Continuar',exact:true}).click();await other.getByRole('button',{name:'Continuar',exact:true}).click();
   await other.getByRole('textbox',{name:'CONCLUSIONES Y RECOMENDACIONES',exact:true}).fill('Gestionar la medida indicada.');
   await expect(other.getByLabel('Puesto',{exact:true})).toHaveValue('Supervisora');await expect(other.getByLabel('Puesto',{exact:true})).toHaveAttribute('readonly','');
-  await other.getByRole('button',{name:'Continuar',exact:true}).click();await other.getByRole('button',{name:'Guardar',exact:true}).first().click();await expect(other.getByText('Guardado en tu cuenta',{exact:true})).toBeVisible();await other.getByRole('button',{name:'Enviar inspección',exact:true}).click();
+  await other.getByRole('button',{name:'Continuar',exact:true}).click();await other.getByRole('button',{name:'Enviar inspección',exact:true}).click();
   await expect(other.getByText('Compartir solo en este navegador')).toHaveCount(0);
-  await other.getByRole('button',{name:'Enviar informe por correo',exact:true}).click();
+  state.failSave=true;await other.getByRole('button',{name:'Enviar informe por correo',exact:true}).click();
+  await expect(other.getByRole('dialog').getByRole('alert')).toContainText('No se pudo confirmar el guardado');expect(state.sends).toBe(0);expect(row.code).toBeUndefined();
+  state.failSave=false;await other.getByRole('button',{name:'Enviar informe por correo',exact:true}).click();
   await expect(other.getByRole('heading',{name:'Fundo – Armonía II – Taller nube',exact:true})).toBeVisible();await expect(other.locator('.followup-heading')).toContainText('IH-2026-001');expect(state.sends).toBe(1);
   await other.waitForFunction(()=>window.scrollY===0);
   await other.screenshot({path:'/tmp/berry-cloud-report.png',fullPage:true,animations:'disabled'});
@@ -364,4 +368,30 @@ test('un servicio que no responde termina el guardado, conserva el intento y per
  await expect(page.getByRole('heading',{name:'Inicia sesión',exact:true})).toBeVisible();
  await enter(page,author);await expect(page.getByLabel('Área inspeccionada')).toHaveValue('Intento recuperable tras tiempo agotado');
  await expect(page.getByText('Cambios sin guardar',{exact:true})).toBeVisible();expect(state.saves).toBe(0);
+});
+
+
+test('Enviar guarda sin un Guardar previo y dos cuentas reciben 051 y 052 según el orden de envío',async({browser,page,context})=>{
+ test.setTimeout(60000);const state=stateOf();state.nextSequence=51;await mock(context,state,author);await enter(page,author);
+ const device=await browser.newContext();try {
+  await mock(device,state,recipient);const other=await device.newPage();await enter(other,recipient);
+  for(const current of [page,other])await expect(current.getByRole('textbox',{name:'Código de inspección',exact:true})).toHaveValue('IH-2026-051');
+  async function complete(current:Page,responsible:string){
+   await current.getByLabel('Área inspeccionada').fill('Taller nube');await selectLocation(current,'Sede','Fundo');await selectLocation(current,'Zona de inspección','Armonía II');
+   await current.getByLabel('Hora de inspección').fill('09:30');await selectValue(current.getByLabel('AM o PM'), 'AM');await current.getByRole('radio',{name:'Planeada',exact:true}).check();
+   await current.getByRole('textbox',{name:'Objetivo de la inspección interna',exact:true}).fill('Objetivo guardado al enviar.');
+   await current.getByRole('combobox',{name:/Nombre completo/}).fill(responsible);await current.getByRole('option',{name:new RegExp(responsible)}).click();
+   await current.getByRole('button',{name:'Continuar',exact:true}).click();await current.getByRole('button',{name:'Añadir observación',exact:true}).click();
+   await current.getByLabel('Descripción').fill('Hallazgo guardado al enviar.');await current.getByLabel('Acción a tomar').fill('Corregir el hallazgo.');await current.getByLabel('Fecha de Cierre').fill('2026-12-01');
+   await current.getByRole('button',{name:'Continuar',exact:true}).click();await current.getByRole('button',{name:'Continuar',exact:true}).click();
+   await current.getByRole('textbox',{name:'CONCLUSIONES Y RECOMENDACIONES',exact:true}).fill('Última edición antes del envío.');await current.getByRole('button',{name:'Continuar',exact:true}).click();
+  }
+  await complete(page,'Bruno');await complete(other,'Ana');expect(state.rows.size).toBe(0);expect(state.saves).toBe(0);
+  await other.getByRole('button',{name:'Enviar inspección',exact:true}).click();await other.getByRole('button',{name:'Enviar informe por correo',exact:true}).click();
+  await expect(other.locator('.followup-heading')).toContainText('IH-2026-051');
+  await page.bringToFront();await page.evaluate(()=>window.dispatchEvent(new Event('focus')));await expect(page.locator('.details-grid')).toContainText('IH-2026-052');
+  await page.getByRole('button',{name:'Enviar inspección',exact:true}).click();await page.getByRole('button',{name:'Enviar informe por correo',exact:true}).click();
+  await expect(page.locator('.followup-heading')).toContainText('IH-2026-052');expect(state.sends).toBe(2);expect(state.saves).toBe(2);
+  for(const row of state.rows.values()){expect(row.data.closingRemarks).toBe('Última edición antes del envío.');expect(row.data.observations[0].description).toBe('Hallazgo guardado al enviar.');expect(row.data.delivery.recipientIds).toHaveLength(1);}
+ }finally{await device.close();}
 });

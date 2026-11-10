@@ -11,19 +11,26 @@ export type DashboardCache = { actorId: string; rows: DashboardRow[]; updatedAt:
 export const dashboardText = (value: string) => value.normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim().toLocaleLowerCase('es');
 export const dashboardState = (row: DashboardRow) => row.workflow === 'closed' ? 'closed' : Object.values(row.data.delivery?.corrections || {}).some(item => item.decision === 'review') ? 'review' : 'open';
 export const dashboardStateLabel = (row: DashboardRow) => ({ closed: 'Cerrada', review: 'En revisión', open: 'En levantamiento' })[dashboardState(row)];
-export type DashboardFilters = { code: string; from: string; to: string; inspector: string; area: string; responsible: string; state: string };
-export const emptyDashboardFilters = (): DashboardFilters => ({ code: '', from: '', to: '', inspector: '', area: '', responsible: '', state: '' });
+export type DashboardFilters = { code: string; from: string; to: string; inspector: string[]; area: string; responsible: string[]; state: string };
+export const emptyDashboardFilters = (): DashboardFilters => ({ code: '', from: '', to: '', inspector: [], area: '', responsible: [], state: '' });
+export const responsibleArea = (person: { area?: string }) => person.area?.trim() || 'Sin área registrada';
+export function dashboardAreas(row: DashboardRow) {
+  const names = row.data.responsibles.length ? row.data.responsibles.map(responsibleArea) : ['Sin área registrada'];
+  return [...new Map(names.map(name => [dashboardText(name), name])).entries()].map(([key, name]) => ({ key, name }));
+}
 export function filterDashboard(rows: DashboardRow[], filters: DashboardFilters) {
   return rows.filter(row => dashboardText(row.code).includes(dashboardText(filters.code)) && (!filters.from || row.data.date >= filters.from) && (!filters.to || row.data.date <= filters.to)
-    && (!filters.area || dashboardText(row.data.area) === filters.area) && (!filters.inspector || inspectionPeople(row.data).some(person => person.email === filters.inspector))
-    && (!filters.responsible || row.data.responsibles.some(person => person.email === filters.responsible)) && (!filters.state || dashboardState(row) === filters.state));
+    && (!filters.inspector.length || inspectionPeople(row.data).some(person => filters.inspector.includes(person.email.trim().toLowerCase())))
+    && ((!filters.area && !filters.responsible.length) || (row.data.responsibles.length ? row.data.responsibles : [{ email: '', area: '' }]).some(person =>
+      (!filters.area || dashboardText(responsibleArea(person)) === filters.area) && (!filters.responsible.length || filters.responsible.includes(person.email.trim().toLowerCase()))))
+    && (!filters.state || dashboardState(row) === filters.state));
 }
 export function dashboardMetrics(rows: DashboardRow[], today: string) {
   let observations = 0, executed = 0, overdue = 0;
   const months = new Map<string, number>(), areas = new Map<string, { name: string; count: number }>(), risk = { baja: 0, media: 0, alta: 0 };
   for (const row of rows) {
     const month = row.data.date.slice(0, 7); months.set(month, (months.get(month) || 0) + 1);
-    const key = dashboardText(row.data.area), area = areas.get(key) || { name: row.data.area, count: 0 }; area.count++; areas.set(key, area);
+    for (const { key, name } of dashboardAreas(row)) { const area = areas.get(key) || { name, count: 0 }; area.count++; areas.set(key, area); }
     for (const observation of row.data.observations) {
       observations++; if (observation.severity in risk) risk[observation.severity]++;
       const done = row.data.delivery?.corrections[observation.id]?.state === 'Ejecutado' || row.workflow === 'closed';

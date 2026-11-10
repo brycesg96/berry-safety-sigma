@@ -1,3 +1,5 @@
+import { selectValue } from './select-fixture';
+import { saveAndOpenList } from './save-fixture';
 import { selectLocation } from './location-fixture';
 import { test, expect } from '@playwright/test';
 import { mockDirectory } from './directory-fixture';
@@ -12,12 +14,12 @@ test('otra cuenta sin historial recibe los textos compartidos, puede cambiarlos 
   await expect(page.getByRole('textbox', { name: 'Objetivo de la inspección interna', exact: true })).toHaveValue(texts.objective);
   await expect(page.getByText('Sin iniciar', { exact: true })).toBeVisible();
   await page.getByRole('button', { name: 'Mi perfil', exact: true }).click();
-  await page.getByLabel('Cuenta de prueba').selectOption('demo-inspector');
+  await selectValue(page.getByLabel('Cuenta de prueba'), 'demo-inspector');
   await page.getByRole('button', { name: 'Cerrar ventana', exact: true }).click();
   await expect(page.getByRole('textbox', { name: 'Objetivo de la inspección interna', exact: true })).toHaveValue(texts.objective);
   await page.getByLabel('Área inspeccionada').fill('Área nueva');
   await selectLocation(page, 'Sede', 'Fundo'); await selectLocation(page, 'Zona de inspección', 'Armonía II');
-  await page.getByLabel('Hora de inspección').fill('07:30'); await page.getByLabel('AM o PM').selectOption('AM');
+  await page.getByLabel('Hora de inspección').fill('07:30'); await selectValue(page.getByLabel('AM o PM'), 'AM');
   await page.getByRole('radio', { name: 'Planeada', exact: true }).check();
   await page.getByRole('combobox', { name: /Nombre completo/ }).fill('Ana');
   await page.getByRole('listbox').getByRole('option', { name: /Ana Torres/ }).click();
@@ -44,10 +46,10 @@ test('respuesta lenta no sobrescribe texto recién escrito y la precarga sola no
   const objective = page.getByRole('textbox', { name: 'Objetivo de la inspección interna', exact: true });
   await objective.fill('Texto que acabo de escribir.'); release();
   await expect(objective).toHaveValue('Texto que acabo de escribir.');
-  await page.getByRole('button', { name: 'Guardar y salir', exact: true }).click();
+  await saveAndOpenList(page);
   await page.locator('.sidebar-nav').getByRole('button', { name: 'Nueva inspección', exact: true }).click();
   await expect(objective).toHaveValue(texts.objective);
   await expect(page.getByText('Sin iniciar', { exact: true })).toBeVisible();
-  await page.getByRole('button', { name: 'Guardar y salir', exact: true }).click();
+  await saveAndOpenList(page);
   await expect(page.locator('.inspection-list-row')).toHaveCount(1);
 });

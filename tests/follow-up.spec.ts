@@ -1,3 +1,4 @@
+import { selectValue } from './select-fixture';
 import { selectLocation } from './location-fixture';
 import { test, expect } from '@playwright/test';
 import type { Page } from '@playwright/test';
@@ -6,7 +7,7 @@ test.beforeEach(async ({ page }) => { await page.route('**/api/people?*', route 
 const png = { name: 'levantamiento.png', mimeType: 'image/png', buffer: Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=', 'base64') };
 async function switchTo(page: Page, id: string) {
   await page.getByRole('button', { name: 'Mi perfil', exact: true }).click();
-  await page.getByLabel('Cuenta de prueba').selectOption(id);
+  await selectValue(page.getByLabel('Cuenta de prueba'), id);
   await expect(page.getByLabel('Correo de tu cuenta')).toHaveValue(id === 'demo-admin' ? 'bryx.96@gmail.com' : 'bcespedes@hortifrut.com');
   await page.getByRole('button', { name: 'Cerrar ventana', exact: true }).click();
 }
@@ -14,7 +15,7 @@ async function createReport(page: Page) {
   await page.goto('./');
   await page.getByLabel('Área inspeccionada').fill('Taller - Armonía 2');
   await selectLocation(page, 'Sede', 'Fundo'); await selectLocation(page, 'Zona de inspección', 'Armonía II');
-  await page.getByLabel('Hora de inspección').fill('07:30'); await page.getByLabel('AM o PM').selectOption('AM');
+  await page.getByLabel('Hora de inspección').fill('07:30'); await selectValue(page.getByLabel('AM o PM'), 'AM');
   await page.getByRole('radio', { name: 'Planeada', exact: true }).check();
   await page.getByRole('textbox', { name: 'Objetivo de la inspección interna', exact: true }).fill('Verificar las condiciones de seguridad.');
   await page.getByRole('combobox', { name: /Nombre completo/ }).fill('bcespedes@hortifrut.com');
@@ -45,7 +46,7 @@ async function openReceived(page: Page) {
 async function openReview(page: Page) {
   await page.getByRole('button', { name: 'Mis inspecciones', exact: true }).click();
   await expect(page.getByRole('button', { name: 'Mis inspecciones', exact: true }).locator('.nav-count')).toHaveText('1');
-  await page.getByLabel('Filtrar por estado').selectOption('review');
+  await selectValue(page.getByLabel('Filtrar por estado'), 'review');
   await page.getByRole('button', { name: 'Revisar informe', exact: true }).click();
 }
 test('destinatario envía evidencias, autor pide ajustes y cierra solo al aprobar todos los hallazgos', async ({ page }) => {
@@ -64,14 +65,14 @@ test('destinatario envía evidencias, autor pide ajustes y cierra solo al aproba
   await openReceived(page);
   await expect(breadcrumb.locator('li')).toHaveText(['Espacio de trabajo', 'Inspecciones recibidas', 'Pendientes']);
   const cards = page.locator('.followup-card');
-  await expect(cards.nth(0).getByLabel('Estado', { exact: true })).toHaveValue('Pendiente');
-  await cards.nth(0).getByLabel('Estado', { exact: true }).selectOption('Ejecutado');
+  await expect(cards.nth(0).getByLabel('Estado', { exact: true })).toHaveAttribute('data-value', 'Pendiente');
+  await selectValue(cards.nth(0).getByLabel('Estado', { exact: true }), 'Ejecutado');
   await cards.nth(0).getByLabel('Acción realizada').fill('Se corrigió el primer hallazgo.');
   await cards.nth(0).getByRole('button', { name: 'Guardar avance' }).click();await cards.nth(0).getByRole('button', { name: 'Enviar a revisión' }).click();
   await expect(cards.nth(0).getByRole('alert')).toContainText('Adjunta al menos una evidencia');
   for (let i = 0; i < 2; i++) {
     const state = 'Ejecutado';
-    await cards.nth(i).getByLabel('Estado', { exact: true }).selectOption(state);
+    await selectValue(cards.nth(i).getByLabel('Estado', { exact: true }), state);
     await cards.nth(i).getByLabel('Acción realizada').fill(`Corrección ${i + 1} realizada`);
     await cards.nth(i).getByLabel('Añadir evidencias del levantamiento').setInputFiles(png);
     await expect(cards.nth(i).locator('.followup-evidence img')).toHaveCount(1);
@@ -85,7 +86,7 @@ test('destinatario envía evidencias, autor pide ajustes y cierra solo al aproba
   await switchTo(page, 'demo-admin'); await openReview(page);
   await expect(breadcrumb.locator('li')).toHaveText(['Espacio de trabajo', 'Mis inspecciones', 'Inspecciones a revisar']);
   await page.getByRole('button', { name: 'Volver a Mis inspecciones', exact: true }).click();
-  await expect(page.getByLabel('Filtrar por estado')).toHaveValue('review');
+  await expect(page.getByLabel('Filtrar por estado')).toHaveAttribute('data-value', 'review');
   await page.getByRole('button', { name: 'Revisar informe', exact: true }).click();
   await expect(page.getByRole('button', { name: 'Guardar estado', exact: true })).toHaveCount(0);
   await expect(cards.nth(0).getByLabel('Estado', { exact: true })).toBeDisabled();
@@ -94,46 +95,46 @@ test('destinatario envía evidencias, autor pide ajustes y cierra solo al aproba
   expect(await name.evaluate(node => getComputedStyle(node).fontSize)).toBe(await cards.nth(0).getByLabel('Acción realizada').evaluate(node => getComputedStyle(node).fontSize));
   expect(await name.evaluate(node => node.parentElement?.querySelector('svg') === null)).toBe(true);
   await page.reload(); await openReview(page);
-  await expect(cards.nth(0).getByLabel('Estado', { exact: true })).toHaveValue('Ejecutado');
+  await expect(cards.nth(0).getByLabel('Estado', { exact: true })).toHaveAttribute('data-value', 'Ejecutado');
   await expect(cards.nth(0).getByLabel('Acción realizada')).toHaveValue('Corrección 1 realizada');
   await expect(cards.nth(0).locator('.followup-evidence img')).toHaveCount(1);
   await cards.nth(0).getByRole('button', { name: 'Aprobar levantamiento' }).click();
   await expect(cards.nth(0).locator('.observation-heading .list-status')).toHaveText('Ejecutado');
-  await expect(cards.nth(0).getByLabel('Estado', { exact: true })).toHaveValue('Ejecutado');
+  await expect(cards.nth(0).getByLabel('Estado', { exact: true })).toHaveAttribute('data-value', 'Ejecutado');
   await expect(cards.nth(0).getByLabel('Estado', { exact: true })).toBeDisabled();
   await expect(page.getByText('Inspección cerrada: todos los estados están en Ejecutado.')).toHaveCount(0);
   await cards.nth(1).getByLabel('Comentario de revisión').fill('Añadir evidencia del área completa.');
   await cards.nth(1).getByRole('button', { name: 'Solicitar ajustes' }).click();
   await expect(cards.nth(1).getByText('Añadir evidencia del área completa.')).toBeVisible();
-  await expect(cards.nth(1).getByLabel('Estado', { exact: true })).toHaveValue('Pendiente');
+  await expect(cards.nth(1).getByLabel('Estado', { exact: true })).toHaveAttribute('data-value', 'Pendiente');
   await expect(cards.nth(1).locator('.observation-heading .list-status')).toHaveText('Pendiente');
   await expect(cards.nth(1).getByRole('status')).toHaveText('Ajustes solicitados. La observación volvió a Pendiente.');
   await page.reload();
   await page.getByRole('button', { name: 'Mis inspecciones', exact: true }).click();
-  await page.getByLabel('Filtrar por estado').selectOption('pending');
+  await selectValue(page.getByLabel('Filtrar por estado'), 'pending');
   await page.getByRole('button', { name: 'Revisar informe', exact: true }).click();
-  await expect(cards.nth(1).getByLabel('Estado', { exact: true })).toHaveValue('Pendiente');
-  await expect(cards.nth(0).getByLabel('Estado', { exact: true })).toHaveValue('Ejecutado');
+  await expect(cards.nth(1).getByLabel('Estado', { exact: true })).toHaveAttribute('data-value', 'Pendiente');
+  await expect(cards.nth(0).getByLabel('Estado', { exact: true })).toHaveAttribute('data-value', 'Ejecutado');
   await expect(cards.nth(1).getByText('Añadir evidencia del área completa.')).toBeVisible();
   await switchTo(page, 'demo-inspector'); await openReceived(page);
-  await expect(cards.nth(1).getByLabel('Estado', { exact: true })).toHaveValue('Pendiente');
+  await expect(cards.nth(1).getByLabel('Estado', { exact: true })).toHaveAttribute('data-value', 'Pendiente');
   await expect(cards.nth(1).getByLabel('Acción realizada')).toHaveValue('Corrección 2 realizada');
   await expect(cards.nth(1).locator('.followup-evidence img')).toHaveCount(1);
   await expect(cards.nth(0).getByLabel('Acción realizada')).toHaveAttribute('readonly', '');
-  await cards.nth(0).getByLabel('Estado', { exact: true }).selectOption('Pendiente');
+  await selectValue(cards.nth(0).getByLabel('Estado', { exact: true }), 'Pendiente');
   await cards.nth(0).getByRole('button', { name: 'Guardar estado', exact: true }).click();
   await expect(cards.nth(0).getByText('Levantamiento enviado. Pendiente de revisión del autor.')).toBeVisible();
-  await cards.nth(0).getByLabel('Estado', { exact: true }).selectOption('Ejecutado');
+  await selectValue(cards.nth(0).getByLabel('Estado', { exact: true }), 'Ejecutado');
   await cards.nth(0).getByRole('button', { name: 'Guardar estado', exact: true }).click();
   await expect(cards.nth(0).locator('.observation-heading .list-status')).toHaveText('Ejecutado');
   await cards.nth(1).getByLabel('Acción realizada').fill('Corrección completada y verificada.');
-  await cards.nth(1).getByLabel('Estado', { exact: true }).selectOption('Ejecutado');
+  await selectValue(cards.nth(1).getByLabel('Estado', { exact: true }), 'Ejecutado');
   await cards.nth(1).getByRole('button', { name: 'Guardar avance' }).click();await cards.nth(1).getByRole('button', { name: 'Enviar a revisión' }).click();
   await expect(cards.nth(1).getByText('Levantamiento enviado. Pendiente de revisión del autor.')).toBeVisible();
   await expect(page.getByText('Inspección cerrada: todos los estados están en Ejecutado.')).toHaveCount(0);
   await switchTo(page, 'demo-admin'); await openReview(page);
-  await expect(cards.nth(0).getByLabel('Estado', { exact: true })).toHaveValue('Ejecutado');
-  await expect(cards.nth(1).getByLabel('Estado', { exact: true })).toHaveValue('Ejecutado');
+  await expect(cards.nth(0).getByLabel('Estado', { exact: true })).toHaveAttribute('data-value', 'Ejecutado');
+  await expect(cards.nth(1).getByLabel('Estado', { exact: true })).toHaveAttribute('data-value', 'Ejecutado');
   await cards.nth(0).getByRole('button', { name: 'Aprobar levantamiento' }).click();
   await cards.nth(1).getByRole('button', { name: 'Aprobar levantamiento' }).click();
   await expect(page.getByText('Inspección cerrada: todos los estados están en Ejecutado.')).toBeVisible();
@@ -170,7 +171,7 @@ test('destinatario envía evidencias, autor pide ajustes y cierra solo al aproba
   await expect(page.locator('.list-stats > div').filter({ hasText: 'Inspecciones cerradas' }).locator('strong')).toHaveText('1');
   await expect(page.locator('.list-stats > div').filter({ hasText: 'Inspecciones a revisar' }).locator('strong')).toHaveText('0');
   await expect(page.getByRole('button', { name: 'Mis inspecciones', exact: true }).locator('.nav-count')).toHaveCount(0);
-  await page.getByLabel('Filtrar por estado').selectOption('closed');
+  await selectValue(page.getByLabel('Filtrar por estado'), 'closed');
   await expect(page.locator('.inspection-list-row')).toHaveCount(1);
   await expect(page.locator('.list-status')).toHaveText('Cerrada');
   await switchTo(page, 'demo-inspector');

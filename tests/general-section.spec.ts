@@ -1,3 +1,4 @@
+import { selectValue } from './select-fixture';
 import { selectLocation } from './location-fixture';
 import { test, expect } from '@playwright/test';
 import { mockDirectory, people } from './directory-fixture';
@@ -16,7 +17,7 @@ test('empleador fijo, tres tipos, Otro con detalle y máximo 560', async ({ page
   await page.getByLabel('Área inspeccionada').fill('Taller');
   await selectLocation(page, 'Sede', 'Fundo'); await selectLocation(page, 'Zona de inspección', 'Armonía II');
   await page.getByLabel('Hora de inspección').fill('08:40');
-  await page.getByLabel('AM o PM').selectOption('AM');
+  await selectValue(page.getByLabel('AM o PM'), 'AM');
   await expect(page.getByLabel('Responsable de la inspección')).toHaveAttribute('readonly', '');
   const objective = page.getByRole('textbox', { name: 'Objetivo de la inspección interna', exact: true });
   await expect(objective).toHaveAttribute('maxlength', '560');

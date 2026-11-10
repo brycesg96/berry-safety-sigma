@@ -1,3 +1,4 @@
+import { selectValue } from './select-fixture';
 import { selectLocation } from './location-fixture';
 import { test, expect } from '@playwright/test';
 import type { Page } from '@playwright/test';
@@ -8,7 +9,7 @@ async function prepareEditor(page: Page) {
   await mockDirectory(page); await page.goto('./');
   await page.getByLabel('Área inspeccionada').fill('Taller - Armonía 2');
   await selectLocation(page, 'Sede', 'Fundo'); await selectLocation(page, 'Zona de inspección', 'Armonía II');
-  await page.getByLabel('Hora de inspección').fill('07:30'); await page.getByLabel('AM o PM').selectOption('AM');
+  await page.getByLabel('Hora de inspección').fill('07:30'); await selectValue(page.getByLabel('AM o PM'), 'AM');
   await page.getByRole('radio', { name: 'Planeada', exact: true }).check();
   await page.getByRole('textbox', { name: 'Objetivo de la inspección interna', exact: true }).fill('Verificar seguridad.');
   await page.getByRole('combobox', { name: /Nombre completo/ }).fill('Ana');
