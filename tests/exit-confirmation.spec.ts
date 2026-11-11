@@ -30,14 +30,20 @@ test('Atrás permite cancelar sin perder el texto y salir sin acumular entradas 
     expect(await page.evaluate(() => history.length)).toBe(length);
   }
   const pendingExit = await requestExit(page);
-  await pendingExit.getByRole('button', { name: 'Salir', exact: true }).click();
-  await expect(pendingExit.getByRole('alert')).toContainText('Hay cambios sin guardar');
+  await expect(pendingExit.getByRole('button', { name: 'Salir', exact: true })).toHaveCount(0);
+  await expect(pendingExit.getByRole('button', { name: 'Salir sin guardar', exact: true })).toBeVisible();
+  await expect(pendingExit.locator('.modal-actions button')).toHaveCount(2);
+  await expect(pendingExit).toContainText('los datos previamente guardados se conservan');
+  await expect(pendingExit.getByRole('alert')).toHaveCount(0);
   await pendingExit.getByRole('button', { name: 'Seguir en la aplicación', exact: true }).click();
   await page.getByRole('button', { name: 'Guardar', exact: true }).first().click();
   await expect(page.getByText('Guardado en este navegador', { exact: true })).toBeVisible();
   let nativeDialogs = 0;
   page.on('dialog', async dialog => { nativeDialogs++; await dialog.accept(); });
-  await (await requestExit(page)).getByRole('button', { name: 'Salir', exact: true }).click();
+  const savedExit = await requestExit(page);
+  await expect(savedExit.getByRole('button', { name: 'Salir sin guardar', exact: true })).toHaveCount(0);
+  await expect(savedExit.locator('.modal-actions button')).toHaveCount(2);
+  await savedExit.getByRole('button', { name: 'Salir', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'Inicia sesión', exact: true })).toBeVisible();
   expect(nativeDialogs).toBe(0);
   await page.getByRole('button', { name: 'Espacio de pruebas', exact: true }).click();

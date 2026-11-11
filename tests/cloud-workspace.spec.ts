@@ -309,8 +309,11 @@ test('Salir advierte cambios pendientes sin guardar automáticamente ni cerrar s
   await page.getByRole('button',{name:'Mi perfil',exact:true}).click();
   await page.getByRole('dialog',{name:'Mi perfil',exact:true}).getByRole('button',{name:'Cerrar sesión',exact:true}).click();
   const dialog=page.getByRole('dialog',{name:'¿Estás seguro de salir?',exact:true});
-  await dialog.getByRole('button',{name:'Salir',exact:true}).click();
-  await expect(dialog.getByRole('alert')).toContainText('Hay cambios sin guardar');expect(state.saves).toBe(0);
+  await expect(dialog.getByRole('button',{name:'Salir',exact:true})).toHaveCount(0);
+  await expect(dialog.getByRole('button',{name:'Salir sin guardar',exact:true})).toBeVisible();
+  await expect(dialog.locator('.modal-actions button')).toHaveCount(2);
+  await expect(dialog).toContainText('los datos previamente guardados se conservan');
+  await expect(dialog.getByRole('alert')).toHaveCount(0);expect(state.saves).toBe(0);
   expect(state.paths).not.toContain('/auth/v1/logout');
   state.failSave=false;await dialog.getByRole('button',{name:'Seguir en la aplicación'}).click();await page.getByRole('button',{name:'Guardar',exact:true}).first().click();await expect(page.getByText('Guardado en tu cuenta',{exact:true})).toBeVisible();await page.getByRole('button',{name:'Cerrar sesión',exact:true}).click();await page.getByRole('dialog',{name:'¿Estás seguro de salir?',exact:true}).getByRole('button',{name:'Salir',exact:true}).click();
   await expect(page.getByRole('heading',{name:'Inicia sesión',exact:true})).toBeVisible();
@@ -383,7 +386,7 @@ test('un servicio que no responde termina el guardado, conserva el intento y per
  await page.getByLabel('Área inspeccionada').fill('Cambio nuevo que elijo descartar');
  await page.getByRole('button',{name:'Cerrar sesión',exact:true}).click();
  const dialog=page.getByRole('dialog',{name:'¿Estás seguro de salir?',exact:true});
- await expect(dialog).toContainText('los datos ya guardados se conservan');
+ await expect(dialog).toContainText('los datos previamente guardados se conservan');
  await dialog.getByRole('button',{name:'Salir sin guardar',exact:true}).click();
  await expect(page.getByRole('heading',{name:'Inicia sesión',exact:true})).toBeVisible();
  await enter(page,author);await expect(page.getByLabel('Área inspeccionada')).toHaveValue('Intento recuperable tras tiempo agotado');
