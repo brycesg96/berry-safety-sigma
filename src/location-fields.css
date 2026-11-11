@@ -58,3 +58,5 @@
  .inspection-date-time-grid .inspection-time-control{gap:6px}
 }
 @media(max-width:360px){.field-grid.inspection-date-time-grid{grid-template-columns:1fr;gap:0}}
+
+.field-grid.picker-without-email{grid-template-columns:minmax(0,1fr);gap:0}

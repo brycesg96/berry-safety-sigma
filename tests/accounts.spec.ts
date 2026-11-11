@@ -103,10 +103,10 @@ test('área y cargo del perfil reemplazan la leyenda del directorio y se conserv
   await profile.getByLabel('Área').fill('Seguridad y Salud');
   await profile.getByLabel('Puesto', { exact: true }).fill('Supervisor SST');
   await page.getByRole('button', { name: 'Guardar perfil', exact: true }).click();
-  await expect(page.getByText('Seguridad y Salud — Supervisor SST', { exact: true })).toBeVisible();
+  await expect(page.locator('.responsibles').getByText('Seguridad y Salud — Supervisor SST', { exact: true })).toBeVisible();
   await expect(page.getByText('Persona seleccionada del directorio.', { exact: true })).toHaveCount(0);
   await saveAndOpenList(page); await page.reload();
-  await expect(page.getByText('Seguridad y Salud — Supervisor SST', { exact: true })).toBeVisible();
+  await expect(page.locator('.responsibles').getByText('Seguridad y Salud — Supervisor SST', { exact: true })).toBeVisible();
   await page.getByRole('button', { name: 'Mi perfil', exact: true }).click();
   await expect(profile.getByLabel('Puesto', { exact: true })).toHaveValue('Supervisor SST');
   await profile.getByLabel('Puesto', { exact: true }).fill('');

@@ -200,3 +200,21 @@ test('cada autor aparece en ambas listas; cuatro inspectores y cuatro firmantes 
   for(const name of ['Carla Rivera','Ana Torres','José Rojas','Marta Díaz'])expect(block).toContain(name);
 
 });
+
+for(const width of [1366,390]) test(`inspectores muestran área y cargo sin cuadro de correo y conservan sus identidades (${width}px)`,async({page})=>{
+ await page.setViewportSize({width,height:1000});await mockDirectory(page,[{id:'test-ana',name:'Ana Torres',email:'ana@example.com',area:'Operaciones',jobTitle:'Supervisora de Producción y Mantenimiento'}]);await page.goto('./');
+ await page.evaluate(async()=>{const {updateOwnProfile}=await import('/src/accounts.ts');updateOwnProfile('demo-admin','Bryan Inspector','SIGMA','Supervisor de Seguridad Industrial');});
+ const primary=page.locator('.primary-inspector-field');await expect(primary.getByText('SIGMA — Supervisor de Seguridad Industrial',{exact:true})).toBeVisible();await expect(primary.getByLabel('Responsable de la inspección')).toHaveAttribute('readonly','');
+ await page.getByRole('button',{name:'Añadir inspector',exact:true}).click();const extra=page.locator('.general-inspectors .additional-inspector');
+ await expect(extra.getByRole('textbox',{name:/Correo/})).toHaveCount(0);await extra.getByRole('combobox').fill('Ana');await page.getByRole('option',{name:/Ana Torres/}).click();
+ await expect(extra.getByText('Operaciones — Supervisora de Producción y Mantenimiento',{exact:true})).toBeVisible();
+ const input=(await extra.getByRole('combobox').boundingBox())!,card=(await extra.boundingBox())!,remove=(await extra.getByRole('button',{name:'Eliminar inspector 2'}).boundingBox())!;
+ const number=(await extra.locator('.responsible-number').boundingBox())!;expect(number.x+number.width).toBeLessThan(input.x);
+ expect(input.x+input.width).toBeLessThan(remove.x);expect(remove.x+remove.width).toBeLessThanOrEqual(card.x+card.width);expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
+ const details=(await extra.locator('.field-hint').boundingBox())!;expect(details.y+details.height).toBeLessThanOrEqual(card.y+card.height-8);
+ await page.getByLabel('Área inspeccionada').fill('Taller');await page.getByRole('button',{name:'Guardar',exact:true}).click();await expect(page.getByText('Guardado en este navegador',{exact:true})).toBeAttached();
+ page.once('dialog',dialog=>dialog.accept());await page.reload();await expect(primary.getByText('SIGMA — Supervisor de Seguridad Industrial',{exact:true})).toBeVisible();await expect(extra.getByRole('combobox')).toHaveValue('Ana Torres');await expect(extra.getByText('Operaciones — Supervisora de Producción y Mantenimiento',{exact:true})).toBeVisible();
+ const saved=await page.evaluate(async()=>{const {loadInspections}=await import('/src/model.ts');return(await loadInspections())[0];});expect(saved.inspectorEmail).toBeTruthy();expect(saved.additionalInspectors[0]).toMatchObject({personId:'test-ana',email:'ana@example.com',area:'Operaciones',jobTitle:'Supervisora de Producción y Mantenimiento'});
+ await page.locator('.form-body').screenshot({path:test.info().outputPath(`inspectores-${width}.png`)});
+ await extra.getByRole('combobox').fill('Otra persona');await expect(extra.getByText('Operaciones — Supervisora de Producción y Mantenimiento',{exact:true})).toHaveCount(0);
+});

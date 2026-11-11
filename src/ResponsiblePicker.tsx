@@ -7,7 +7,7 @@ import { readAccounts } from './accounts';
 import type { Responsible } from './model';
 import { AccountDirectory } from './AccountDirectory';
 
-export function ResponsiblePicker({ value, onChange, error, excludedIds, excludedEmails = [], emailLabel = 'Correo electrónico', purpose = 'receive' }: { value: Responsible; onChange: (changes: Partial<Responsible>) => void; error?: string; excludedIds: string[]; excludedEmails?: string[]; emailLabel?: string; purpose?: 'receive' | 'inspect' }) {
+export function ResponsiblePicker({ value, onChange, error, excludedIds, excludedEmails = [], emailLabel = 'Correo electrónico', purpose = 'receive', showEmail = true }: { value: Responsible; onChange: (changes: Partial<Responsible>) => void; error?: string; excludedIds: string[]; excludedEmails?: string[]; emailLabel?: string; purpose?: 'receive' | 'inspect'; showEmail?: boolean }) {
   const listId = useId();
   const directory = useContext(AccountDirectory);
   const [open, setOpen] = useState(false);
@@ -43,7 +43,7 @@ export function ResponsiblePicker({ value, onChange, error, excludedIds, exclude
   };
   const currentPerson = value.personId ? (directory || readAccounts()).find(a => a.id === value.personId || a.email.toLowerCase() === value.email.toLowerCase()) : undefined;
   const selectedDetails = [currentPerson ? currentPerson.area : value.area, currentPerson ? currentPerson.jobTitle : value.jobTitle].map(text => text?.trim()).filter(Boolean).join(' — ');
-  return <div className="field-grid picker-grid">
+  return <div className={`field-grid picker-grid${showEmail ? '' : ' picker-without-email'}`}>
     <Field label="Nombre completo" required error={error} hint={value.personId ? selectedDetails || 'Área y puesto por completar.' : 'Escribe al menos dos letras y selecciona una persona.'}>{props => <div className="person-picker" onBlur={event => { if (!event.currentTarget.contains(event.relatedTarget)) setOpen(false); }}>
       <div className="input-icon"><Search size={16} /><input {...props} role="combobox" autoComplete="off" aria-autocomplete="list" aria-expanded={searching} aria-controls={searching ? listId : undefined} aria-activedescendant={active >= 0 && active < available.length ? `${listId}-${active}` : undefined} value={value.name} placeholder="Buscar persona por nombre" maxLength={250} onFocus={() => setOpen(true)} onChange={e => { onChange({ name: e.target.value, email: '', personId: undefined, area: '', jobTitle: '' }); setOpen(true); setActive(-1); }} onKeyDown={event => {
         if (event.key === 'Escape') { setOpen(false); setActive(-1); return; }
@@ -61,6 +61,6 @@ export function ResponsiblePicker({ value, onChange, error, excludedIds, exclude
         {state === 'error' && <p role="alert">No se pudo consultar el directorio. <button type="button" className="text-button" onMouseDown={e => e.preventDefault()} onClick={() => setRetry(n => n + 1)}>Reintentar</button></p>}
       </div>}
     </div>}</Field>
-    <LockedEmailField label={emailLabel} value={value.email}/>
+    {showEmail && <LockedEmailField label={emailLabel} value={value.email}/>}
   </div>;
 }

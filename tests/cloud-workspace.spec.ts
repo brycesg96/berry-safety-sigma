@@ -471,3 +471,13 @@ test('Administración reúne Gestión de Cuentas y Gestión de Inspecciones sin 
  await page.getByRole('button',{name:'Gestión de Inspecciones',exact:true}).click();await expect(page.getByRole('heading',{name:'Gestión de Inspecciones',exact:true})).toBeVisible();
  await expect(page.getByRole('combobox',{name:'Área',exact:true})).toBeVisible();expect(state.saves).toBe(0);expect(state.sends).toBe(0);
 });
+
+test('directorio autenticado muestra área y cargo de los inspectores sin cuadro de correo y conserva el correo al guardar',async({page,context})=>{
+ const state=stateOf();await mock(context,state,author);await enter(page,author);
+ await expect(page.locator('.primary-inspector-field').getByText('SIGMA — Supervisora',{exact:true})).toBeVisible();await page.getByRole('button',{name:'Añadir inspector',exact:true}).click();
+ const extra=page.locator('.general-inspectors .additional-inspector');await extra.getByRole('combobox').fill('Bruno');await page.getByRole('option',{name:/Bruno Responsable/}).click();
+ await expect(extra.getByText('Mantenimiento — Jefe',{exact:true})).toBeVisible();await expect(extra.getByRole('textbox',{name:/Correo/})).toHaveCount(0);
+ await page.getByRole('button',{name:'Guardar',exact:true}).click();await expect(page.getByText('Guardado en tu cuenta',{exact:true})).toBeVisible();
+ const row=[...state.rows.values()].find(row=>!row.data.partial)!;expect(row.data.inspectorEmail).toBe('ana@example.com');expect(row.data.additionalInspectors[0]).toMatchObject({personId:recipient,email:'bruno@example.com',area:'Mantenimiento',jobTitle:'Jefe'});expect(row.code).toBeUndefined();expect(state.sends).toBe(0);
+ page.once('dialog',dialog=>dialog.accept());await page.reload();await openEditor(page);await expect(extra.getByRole('combobox')).toHaveValue('Bruno Responsable');await expect(extra.getByText('Mantenimiento — Jefe',{exact:true})).toBeVisible();
+});

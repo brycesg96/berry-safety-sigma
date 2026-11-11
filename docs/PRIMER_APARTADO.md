@@ -18,6 +18,8 @@ La hora y el período comienzan vacíos. Al escribir los dos primeros dígitos s
 
 ## Responsables
 
+El responsable principal de la inspección muestra debajo de su nombre el área y cargo de su cuenta. Los inspectores adicionales muestran la misma información al seleccionarlos. Su cuadro de correo se omite en Datos generales, pero el correo y el identificador siguen guardándose para validar personas y generar el informe. Los responsables del registro en Cierre conservan su presentación independiente. Las tarjetas de inspectores se agrupan antes de fecha/hora y se adaptan al ancho disponible.
+
 El usuario escribe al menos dos letras del nombre y selecciona un resultado del directorio de cuentas habilitadas por el administrador. Se guarda el identificador de la persona junto a la instantánea de su nombre y correo. El correo aparece automáticamente y es de solo lectura.
 
 Editar el nombre después de seleccionar una persona borra la selección y el correo anterior. Escribir un nombre sin seleccionar un resultado no habilita la continuación. Los homónimos se distinguen por sus correos y sus identificadores. Las personas ya añadidas no vuelven a ofrecerse en otra fila.
