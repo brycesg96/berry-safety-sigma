@@ -395,3 +395,24 @@ test('Enviar guarda sin un Guardar previo y dos cuentas reciben 051 y 052 según
   for(const row of state.rows.values()){expect(row.data.closingRemarks).toBe('Última edición antes del envío.');expect(row.data.observations[0].description).toBe('Hallazgo guardado al enviar.');expect(row.data.delivery.recipientIds).toHaveLength(1);}
  }finally{await device.close();}
 });
+
+
+test('textos de una cuenta sin historial están en blanco aunque reciba informes; sus borradores se reutilizan en otro dispositivo',async({browser,page,context})=>{
+ const state=stateOf();await mock(context,state,recipient);await page.goto('./?acceso=cuenta');
+ const report=await page.evaluate(async author=>{
+  const {newInspection}=await import('/src/model.ts');const draft=newInspection({name:'Ana Inspectora',email:'ana@example.com',accountId:author,storage:'cloud'});
+  return {...draft,objective:'Objetivo privado de Ana.',unfavorableCause:'Causa privada de Ana.',closingRemarks:'Conclusiones privadas de Ana.'};
+ },author);
+ const stamp='2026-11-10T12:00:00Z';report.delivery={sentAt:stamp,recipientIds:[recipient],revision:2,corrections:{}};
+ state.rows.set(report.id,{id:report.id,author_id:author,workflow:'sent',revision:2,updated_at:stamp,code:'IH-2026-001',data:report});
+ await context.route('**/rest/v1/berry_shared_texts*',route=>route.fulfill({json:{objective:'Texto compartido antiguo.',unfavorable_cause:'Causa global.',closing_remarks:'Conclusiones globales.',submitted_at:'2099-11-10T12:00:00Z'}}));
+ await enter(page,recipient);const objective=page.getByRole('textbox',{name:'Objetivo de la inspección interna',exact:true});await expect(objective).toHaveValue('');
+ await objective.fill('Objetivo privado de Bruno.');await page.getByRole('button',{name:'Guardar',exact:true}).first().click();await expect(page.getByText('Guardado en tu cuenta',{exact:true})).toBeVisible();
+ const device=await browser.newContext();try{
+  await mock(device,state,recipient);const other=await device.newPage();await enter(other,recipient);await other.getByRole('button',{name:'Mis inspecciones',exact:true}).click();await openEditor(other);
+  // Open a genuinely new form, rather than the resumed draft.
+  await other.getByRole('button',{name:'Mis inspecciones',exact:true}).click();await other.locator('.page-heading').getByRole('button',{name:'Nueva inspección',exact:true}).click();
+  await expect(other.getByRole('textbox',{name:'Objetivo de la inspección interna',exact:true})).toHaveValue('Objetivo privado de Bruno.');
+  expect(state.paths).not.toContain('/rest/v1/berry_shared_texts');
+ }finally{await device.close();}
+});

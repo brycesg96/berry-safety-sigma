@@ -14,7 +14,7 @@ Los valores de empresa guardados en borradores antiguos no se borran, pero no re
 - Tipo: Planeada, No planeada u Otro. Se selecciona una opción. Otro habilita un campo de detalle obligatorio; al cambiar de opción se conserva el texto, pero no se exporta mientras Otro no esté seleccionado.
 - Objetivo de hasta 560 caracteres, con contador y validación antes de continuar y antes de exportar. Los objetivos antiguos más largos se conservan completos para que la persona los revise, sin recortes automáticos.
 
-La hora y el período comienzan vacíos. Se exige una hora de 01:00 a 12:59 y elegir AM o PM antes de continuar. La revisión y el Excel incluyen el período. Los borradores antiguos que guardaban hora de 24 horas se convierten sin perder el momento: 00:05 pasa a 12:05 AM y 23:59 a 11:59 PM. Un campo nuevo todavía sin período no se completa automáticamente al recargar.
+La hora y el período comienzan vacíos. Al escribir los dos primeros dígitos se añade `:`; por ejemplo, `0730` queda como `07:30`. Se exige una hora de 01:00 a 12:59 y elegir AM o PM antes de continuar. Fecha y hora se presentan juntas en una fila compacta, con AM/PM alineado y en una sola línea; en teléfonos muy estrechos se apilan. La revisión y el Excel incluyen el período. Los borradores antiguos que guardaban hora de 24 horas se convierten sin perder el momento: 00:05 pasa a 12:05 AM y 23:59 a 11:59 PM. Un campo nuevo todavía sin período no se completa automáticamente al recargar.
 
 ## Responsables
 

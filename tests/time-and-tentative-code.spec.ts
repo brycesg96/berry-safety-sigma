@@ -83,3 +83,21 @@ test('Mis inspecciones distingue un código tentativo de un recibo definitivo', 
   await page.reload(); await saveAndOpenList(page);
   await expect(page.getByText('Código definitivo: IH-2026-008')).toBeVisible();
 });
+
+
+test('hora con separador automático permite escribir, borrar y pegar; AM/PM permanece en una línea y alineado', async ({ page }) => {
+ await mockDirectory(page);await page.goto('./');const time=page.getByLabel('Hora de inspección'),period=page.getByRole('combobox',{name:'AM o PM',exact:true});
+ await expect(time).toHaveAttribute('inputmode','numeric');await time.pressSequentially('07');await expect(time).toHaveValue('07:');await time.pressSequentially('30');await expect(time).toHaveValue('07:30');
+ for(let n=0;n<3;n++)await time.press('Backspace');await expect(time).toHaveValue('0');await time.press('Backspace');await expect(time).toHaveValue('');
+ await time.fill('0930');await expect(time).toHaveValue('09:30');await time.fill('7:30');await expect(time).toHaveValue('7:30');await time.fill('13:00');await expect(time).toHaveValue('13:00');
+ for(const width of [1366,390,320]){
+  await page.setViewportSize({width,height:900});await time.scrollIntoViewIfNeeded();const inputBox=(await time.boundingBox())!,periodBox=(await period.boundingBox())!;
+  expect(Math.abs(inputBox.height-periodBox.height)).toBeLessThanOrEqual(2);
+  const dateBox=(await page.getByLabel('Fecha de inspección').boundingBox())!;
+  if(width>=390){expect(Math.abs(dateBox.y-inputBox.y)).toBeLessThanOrEqual(2);expect(dateBox.x+dateBox.width).toBeLessThan(inputBox.x);}
+  expect(await period.locator('.location-select-value').evaluate(element=>({fits:element.scrollWidth<=element.clientWidth,oneLine:element.getBoundingClientRect().height<=parseFloat(getComputedStyle(element).lineHeight)+1}))).toEqual({fits:true,oneLine:true});
+  expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
+  await page.locator('.inspection-date-time-grid').screenshot({path:test.info().outputPath(`hora-${width}.png`)});
+ }
+ await selectValue(period,'PM');await expect(period).toHaveText('PM');
+});

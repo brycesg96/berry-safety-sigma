@@ -11,3 +11,15 @@ export function migrateInspectionTime(time: string, period?: InspectionPeriod) {
   const h = Number(hour);
   return { inspectionTime: `${String(h % 12 || 12).padStart(2, '0')}:${minute}`, inspectionPeriod: (h < 12 ? 'AM' : 'PM') as InspectionPeriod };
 }
+
+/** Insert the separator while typing; retain explicit one-digit hours and allow backspacing through the mask. */
+export function inspectionTimeInput(value: string, previous = ''): string {
+  const clean = value.replace(/[^0-9:]/g, '');
+  if (clean.includes(':')) {
+    const [hour, ...minutes] = clean.split(':');
+    return `${hour.slice(0, 2)}:${minutes.join('').slice(0, 2)}`;
+  }
+  const digits = clean.slice(0, 4);
+  if (previous.endsWith(':') && clean === previous.slice(0, -1)) return digits.slice(0, -1);
+  return digits.length >= 2 ? `${digits.slice(0, 2)}:${digits.slice(2)}` : digits;
+}

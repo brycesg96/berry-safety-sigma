@@ -76,9 +76,9 @@ export function patchInspectionField<K extends keyof Inspection>(draft: Inspecti
 export const id = () => crypto.randomUUID();
 export const newResponsible = (): Responsible => ({ id: id(), name: '', email: '' });
 export const newObservation = (closingDate = ''): Observation => ({ id: id(), description: '', correctiveAction: '', severity: 'media', dueDate: closingDate, photos: [] });
-export const newInspection = (profile: Profile): Inspection => {
+export const newInspection = (profile: Profile, defaults?: InspectionTexts): Inspection => {
   const date = new Date().toLocaleDateString('en-CA');
-  const texts = profile.storage === 'cloud' ? { objective: '', unfavorableCause: '', closingRemarks: '' } : lastInspectionTexts();
+  const texts = defaults || lastInspectionTexts(profile.accountId || 'demo-admin');
   return ({
   id: id(), ownerId: profile.accountId || 'demo-admin', ...(profile.storage ? { storage: profile.storage } : {}), company: EMPLOYER.name, ruc: EMPLOYER.ruc, facility: '', area: '', type: '', otherType: '', registrationNumber: '', inspectionTime: '', inspectionPeriod: '',
   date, initialInspectionDate: date, ...texts, initialReportTexts: { ...texts }, responsibles: [newResponsible()],

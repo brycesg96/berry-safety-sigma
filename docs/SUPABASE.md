@@ -16,7 +16,7 @@ La prueba debe empezar en el plan Free, sin contratar servicios de pago ni cambi
 - Avances del levantamiento: responsable, acción realizada, fecha, estado y evidencias, separados del hallazgo original.
 - Solicitudes de revisión, comentarios, ajustes, aprobaciones y cierre, con versiones anteriores disponibles para reconstruir el recorrido completo.
 - Intentos de correo, recibos de Make y resultado de entrega cuando exista confirmación. Aceptación HTTP de Make y entrega al buzón son estados distintos.
-- Textos compartidos de la última inspección enviada, correlativos confirmados y configuración necesaria para mantener la experiencia entre equipos.
+- Textos reutilizables privados de cada autor, recuperados de sus propios borradores guardados e inspecciones enviadas; correlativos confirmados y configuración necesaria para mantener la experiencia entre equipos.
 
 ## Acceso y trazabilidad
 

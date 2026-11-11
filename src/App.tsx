@@ -10,7 +10,7 @@ import type { Evidence, Inspection, Observation } from './model';
 import { emailValid, formatDate, initials, hasInspectionContent, loadInspections, newInspection, newObservation, setObservationClosingDate, persistInspection, preparePhoto, removeInspection, stepNames, validateStep } from './model';
 import { ReportSendForm } from './ReportSendForm';
 import { exportExcel } from './export';
-import { applyInspectionTexts, refreshInspectionTexts, rememberInspectionTexts } from './inspection-texts';
+import { inspectionTextsFor, rememberInspectionTexts } from './inspection-texts';
 import { GeneralSection } from './GeneralSection';
 import { EMPLOYER } from './employer';
 import { pendingCodeLabel, confirmedInspectionCode } from './inspection-code';
@@ -134,21 +134,13 @@ function WorkspaceApp({ initialAccounts, exit, onCloudAccess, cloud }: { initial
     setProfileForm({ name: account.name, email: account.email, area: account.area, jobTitle: account.jobTitle, accountId: account.id });
     loadInspections(cloud ? account.id : undefined).then(items => {
       if (!active) return;
-      if (!cloud) for (const item of items) if (item.emailDelivery?.state === 'accepted') rememberInspectionTexts({ objective: item.objective, unfavorableCause: item.unfavorableCause || '', closingRemarks: closingRemarksOf(item) }, item.emailDelivery.updatedAt);
       const owned = items.filter(item => item.ownerId === account.id);
       owned.filter(item => hasInspectionContent(item) || item.pendingManualSave).forEach(item => startedDraftIds.current.add(item.id));
-      const existing = owned.find(i => !i.delivery), next = existing || newInspection(profile);
+      const texts = inspectionTextsFor(account.id, owned);
+      const existing = owned.find(i => !i.delivery), next = existing || newInspection(profile, texts);
       for (const item of owned) savedKeys.current.set(item.id, inspectionEditKey(item));
       savedKeys.current.set(next.id, inspectionEditKey(next));
       setInspections(owned); setReceived(items.filter(item => isRecipient(item, account.id))); setDraft(next); setFollowUp(null); setSaveState(next.pendingManualSave ? 'error' : existing ? 'saved' : 'empty'); setLoaded(true);
-      void refreshInspectionTexts(!!cloud).then(texts => {
-        if (active && !existing) setDraft(current => {
-          if (current.id !== next.id) return current;
-          const updated = applyInspectionTexts(current, texts);
-          if (inspectionEditKey(current) === savedKeys.current.get(current.id)) savedKeys.current.set(current.id, inspectionEditKey(updated));
-          return updated;
-        });
-      });
     }).catch(() => { if (active) { const next = newInspection(profile); savedKeys.current.set(next.id, inspectionEditKey(next)); setInspections([]); setDraft(next); setSaveState('empty'); setStorageError(true); setLoaded(true); } });
     return () => { active = false; };
   }, [account.id]);
@@ -199,6 +191,7 @@ function WorkspaceApp({ initialAccounts, exit, onCloudAccess, cloud }: { initial
       savedKeys.current.set(item.id, key);
       if (stored) setDraft(current => current.id === item.id ? { ...current, cloudRevision: stored.cloudRevision, pendingManualSave: false } : current);
       item = stored || item;
+      rememberInspectionTexts(item);
       if (item.ownerId === activeIdRef.current) setInspections(items => (hasContent ? [item, ...items.filter(i => i.id !== item.id)] : items.filter(i => i.id !== item.id)).sort((a, b) => b.updatedAt.localeCompare(a.updatedAt)));
       if (!hasContent) startedDraftIds.current.delete(item.id);
       setSaveState(hasContent ? 'saved' : 'empty'); setStorageError(false);
@@ -262,7 +255,8 @@ function WorkspaceApp({ initialAccounts, exit, onCloudAccess, cloud }: { initial
         const found = validateStep(draft, i);
         if (Object.keys(found).length) {
           setDraft(d => ({ ...d, step: i })); setErrors(found);
-          setTimeout(() => contentRef.current?.querySelector<HTMLElement>('[aria-invalid="true"]')?.focus(), 80);
+          const previousFocus = document.activeElement;
+          setTimeout(() => { if (document.activeElement === previousFocus) contentRef.current?.querySelector<HTMLElement>('[aria-invalid="true"]')?.focus(); }, 80);
           setToast('Revisa los campos señalados para continuar.'); return;
         }
       }
@@ -278,15 +272,9 @@ function WorkspaceApp({ initialAccounts, exit, onCloudAccess, cloud }: { initial
   const startNew = async () => {
     if (!canCreate) return;
     if (!canNavigate()) return;
-    const next = newInspection(profile);
+    const next = newInspection(profile, inspectionTextsFor(account.id, inspections));
     savedKeys.current.set(next.id, inspectionEditKey(next));
     setDraft(next); setSaveState('empty'); setErrors({}); setView('editor'); setMenuOpen(false); top();
-    void refreshInspectionTexts(!!cloud).then(texts => setDraft(current => {
-      if (current.id !== next.id) return current;
-      const updated = applyInspectionTexts(current, texts);
-      if (inspectionEditKey(current) === savedKeys.current.get(current.id)) savedKeys.current.set(current.id, inspectionEditKey(updated));
-      return updated;
-    }));
   };
   const refreshInspections = async () => {
     const items = await loadInspections(cloud ? account.id : undefined);
