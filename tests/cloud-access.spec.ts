@@ -7,11 +7,12 @@ const email = 'cuenta@example.invalid';
 type Profile = { id: string; email: string; full_name: string; area: string; job_title: string; role: string; enabled: boolean; must_change_password?: boolean; can_create_inspections?: boolean; can_receive_inspections?: boolean; access_revision?: number; supervisor_emails?: string[]; deleted_at?: string | null };
 const initialProfile = (): Profile => ({ id, email, full_name: '', area: '', job_title: '', role: 'admin', enabled: true, can_create_inspections: true, can_receive_inspections: true, access_revision: 1 });
 const user = { id, aud: 'authenticated', role: 'authenticated', email, email_confirmed_at: new Date().toISOString(), app_metadata: { provider: 'email', providers: ['email'] }, user_metadata: { role: 'admin', enabled: true }, identities: [], created_at: new Date().toISOString() };
-function session() {
+function session(identity = user) {
   const encoded = Buffer.from(JSON.stringify({ sub: id, exp: Math.floor(Date.now() / 1000) + 3600, role: 'authenticated' })).toString('base64url');
-  return { access_token: `eyJhbGciOiJIUzI1NiJ9.${encoded}.signature`, token_type: 'bearer', expires_in: 3600, refresh_token: 'fictitious-refresh-token', user };
+  return { access_token: `eyJhbGciOiJIUzI1NiJ9.${encoded}.signature`, token_type: 'bearer', expires_in: 3600, refresh_token: 'fictitious-refresh-token', user: identity };
 }
 async function mock(context: BrowserContext, profile = initialProfile()) {
+  const identity = { ...user, user_metadata: { ...user.user_metadata, berry_profile_setup_completed_at: '2026-11-01T12:00:00Z' } as Record<string, unknown> };
   const state = { profile, administrators: [{ id: '30000000-0000-4000-8000-000000000009', full_name: 'Administradora vigente', email: 'admin-vigente@example.invalid' }], contactsFail: false, loginAllowed: true, saveFails: false, loginBodies: [] as { email: string; password: string }[], updates: [] as Record<string, unknown>[], paths: [] as string[], delayUser: null as Promise<void> | null };
   await context.route('**/api/people?*', route => route.fulfill({ json: { people: [] } }));
   await context.route('**/api/inspections/send', route => route.fulfill({ json: { ok: true, defaults: null } }));
@@ -28,11 +29,12 @@ async function mock(context: BrowserContext, profile = initialProfile()) {
     if (url.pathname === '/auth/v1/token') {
       state.loginBodies.push(request.postDataJSON());
       if (!state.loginAllowed) return route.fulfill({ status: 400, headers: { 'x-supabase-api-version': '2024-01-01' }, json: { code: 'invalid_credentials', msg: 'Invalid login credentials' } });
-      return route.fulfill({ json: session() });
+      return route.fulfill({ json: session(identity) });
     }
     if (url.pathname === '/auth/v1/user') {
       if (state.delayUser) await state.delayUser;
-      return route.fulfill({ json: user });
+      if (request.method() === 'PUT') Object.assign(identity.user_metadata, request.postDataJSON().data);
+      return route.fulfill({ json: identity });
     }
     if (url.pathname === '/auth/v1/logout') return route.fulfill({ status: 204 });
     if (url.pathname === '/rest/v1/berry_profiles') {

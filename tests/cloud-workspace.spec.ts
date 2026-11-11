@@ -13,11 +13,11 @@ const author='31000000-0000-4000-8000-000000000001',recipient='31000000-0000-400
 const profiles=[{id:author,email:'ana@example.com',full_name:'Ana Inspectora',area:'SIGMA',job_title:'Supervisora',role:'admin',enabled:true,must_change_password:false,supervisor_emails:[],can_create_inspections:true,can_receive_inspections:true},{id:recipient,email:'bruno@example.com',full_name:'Bruno Responsable',area:'Mantenimiento',job_title:'Jefe',role:'inspector',enabled:true,must_change_password:false,supervisor_emails:['jefe@example.com'],can_create_inspections:true,can_receive_inspections:true}];
 const png={name:'evidencia.png',mimeType:'image/png',buffer:Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=','base64')};
 type Row={id:string;author_id:string;workflow:string;revision:number;updated_at:string;deleted_at?:string|null;code?:string;data:any;final_excel_stored?:boolean};
-const stateOf=()=>({rows:new Map<string,Row>(),files:new Map<string,Buffer>(),documents:new Map<string,any>(),sends:0,saves:0,paths:[] as string[],retired:new Set<string>(),failSave:false,failFinal:false,schemaFails:false,profileFails:false,finalizes:0,nextSequence:null as number|null,previewCalls:0,previewFails:false});
+const stateOf=()=>({rows:new Map<string,Row>(),files:new Map<string,Buffer>(),documents:new Map<string,any>(),sends:0,saves:0,paths:[] as string[],retired:new Set<string>(),failSave:false,failFinal:false,schemaFails:false,profileFails:false,finalizes:0,nextSequence:null as number|null,previewCalls:0,previewFails:false,profileSaveFails:false,profileSetupFails:false,profileMetadataUpdates:[] as Record<string,unknown>[]});
 type State=ReturnType<typeof stateOf>;
-async function mock(context:BrowserContext,state:State,actor:string,overrides:Partial<typeof profiles[number]>={}) {
+async function mock(context:BrowserContext,state:State,actor:string,overrides:Partial<typeof profiles[number]>={},metadata:Record<string,unknown>={}) {
   const profile={...profiles.find(p=>p.id===actor)!,...overrides};
-  const user={id:actor,aud:'authenticated',role:'authenticated',email:profile.email,email_confirmed_at:new Date().toISOString(),app_metadata:{provider:'email',providers:['email']},user_metadata:{},identities:[],created_at:new Date().toISOString()};
+  const user={id:actor,aud:'authenticated',role:'authenticated',email:profile.email,email_confirmed_at:new Date().toISOString(),app_metadata:{provider:'email',providers:['email']},user_metadata:metadata,identities:[],created_at:new Date().toISOString()};
   const token=`eyJhbGciOiJIUzI1NiJ9.${Buffer.from(JSON.stringify({sub:actor,iat:100,exp:Math.floor(Date.now()/1000)+3600,role:'authenticated'})).toString('base64url')}.fictitious`;
   const canRead=(row:Row)=>row.author_id===actor||row.workflow!=='draft'&&row.data.delivery?.recipientIds.includes(actor);
   await context.route(`${project}/**`,async route=>{
@@ -25,11 +25,12 @@ async function mock(context:BrowserContext,state:State,actor:string,overrides:Pa
     if(req.method()==='OPTIONS')return route.fulfill({status:204,headers:{'access-control-allow-origin':'*','access-control-allow-headers':'*','access-control-allow-methods':'*'}});
     expect(req.headers().apikey).toMatch(/^sb_publishable_/);
     if(path==='/auth/v1/token')return route.fulfill({json:{access_token:token,token_type:'bearer',expires_in:3600,refresh_token:'fictitious-refresh',user}});
-    if(path==='/auth/v1/user')return route.fulfill({json:user});
+    if(path==='/auth/v1/user'){if(req.method()==='PUT'){if(state.profileSetupFails)return route.fulfill({status:503,json:{message:'offline'}});const values=req.postDataJSON().data;state.profileMetadataUpdates.push(values);Object.assign(metadata,values);}return route.fulfill({json:user});}
     if(path==='/auth/v1/logout')return route.fulfill({status:204});
     if(path==='/rest/v1/rpc/berry_next_registration') { expect(req.headers().authorization).toBe(`Bearer ${token}`);state.previewCalls++;if(state.previewFails)return route.fulfill({status:503,json:{message:'offline'}});const sequence=state.nextSequence??state.sends+1;return route.fulfill({json:{code:`IH-2026-${String(sequence).padStart(3,'0')}`,year:2026,sequence,checked_at:'2026-11-09T12:00:00Z'}}); }
     if(path==='/rest/v1/rpc/berry_schema_status')return route.fulfill({status:state.schemaFails?503:200,json:state.schemaFails?{message:'offline'}:{schema_version:'202611070001',stage:'reports',sync_ready:true,reports_version:'202611080003'}});
     expect(req.headers().authorization).toBe(`Bearer ${token}`);
+    if(path==='/rest/v1/berry_profiles'&&req.method()==='PATCH'){if(state.profileSaveFails)return route.fulfill({status:503,json:{message:'offline'}});const data=req.postDataJSON();expect(Object.keys(data).sort()).toEqual(['area','full_name','job_title']);Object.assign(profile,data);}
     if(path==='/rest/v1/berry_profiles')return route.fulfill({status:state.profileFails?503:200,json:state.profileFails?{code:'PGRST002',message:'Service unavailable'}:url.searchParams.has('id')?profile:profiles.map(p=>p.id===actor?profile:p)});
     if(path==='/rest/v1/berry_shared_texts')return route.fulfill({json:null});
     if(path==='/rest/v1/rpc/berry_cloud_tombstones')return route.fulfill({json:req.postDataJSON().p_ids.filter((id:string)=>state.retired.has(id))});
@@ -109,6 +110,7 @@ async function mock(context:BrowserContext,state:State,actor:string,overrides:Pa
     row.data={...row.data,serverRegistration:{inspectionId:row.id,code:row.code,acceptedAt:'2026-11-08T12:00:00Z'},delivery:{sentAt:'2026-11-08T12:00:00Z',recipientIds:row.data.responsibles.map((p:any)=>p.personId),revision:row.revision,corrections:{}},emailCc:['jefe@example.com'],emailDelivery:{state:'accepted',message:'Informe guardado y envío aceptado.',updatedAt:'2026-11-08T12:00:00Z'}};
     await route.fulfill({json:{ok:true,inspection:row,document}});
   });
+  return profile;
 }
 async function login(page:Page,actor:string){
   await page.goto('./?acceso=cuenta');await page.getByLabel(/^Correo electrónico/).fill(profiles.find(p=>p.id===actor)!.email);
@@ -480,4 +482,43 @@ test('directorio autenticado muestra área y cargo de los inspectores sin cuadro
  await page.getByRole('button',{name:'Guardar',exact:true}).click();await expect(page.getByText('Guardado en tu cuenta',{exact:true})).toBeVisible();
  const row=[...state.rows.values()].find(row=>!row.data.partial)!;expect(row.data.inspectorEmail).toBe('ana@example.com');expect(row.data.additionalInspectors[0]).toMatchObject({personId:recipient,email:'bruno@example.com',area:'Mantenimiento',jobTitle:'Jefe'});expect(row.code).toBeUndefined();expect(state.sends).toBe(0);
  page.once('dialog',dialog=>dialog.accept());await page.reload();await openEditor(page);await expect(extra.getByRole('combobox')).toHaveValue('Bruno Responsable');await expect(extra.getByText('Mantenimiento — Jefe',{exact:true})).toBeVisible();
+});
+
+async function firstLogin(page:Page,actor:string,password='Fictitious!47'){
+ await page.goto('./?acceso=cuenta');await page.getByLabel(/^Correo electrónico/).fill(profiles.find(p=>p.id===actor)!.email);await page.getByLabel(/^Contraseña/).fill(password);await page.getByRole('button',{name:'Iniciar sesión',exact:true}).click();
+}
+
+test('primer perfil requiere área y cargo, conserva la edición ante fallos y se recuerda en otra sesión y dispositivo',async({browser,page,context})=>{
+ const state=stateOf(),metadata:Record<string,unknown>={berry_profile_setup_required:true};
+ const profile=await mock(context,state,recipient,{area:'',job_title:''},metadata);await firstLogin(page,recipient);
+ await expect(page.getByRole('heading',{name:'Mi perfil',exact:true})).toBeVisible();await expect(page.getByText(/Este paso se solicita una sola vez/)).toBeVisible();
+ await expect(page.getByRole('button',{name:'Entrar al espacio de trabajo',exact:true})).toHaveCount(0);await expect(page.getByRole('textbox',{name:'Puesto',exact:true})).toHaveAttribute('required','');
+ await page.getByRole('textbox',{name:'Área',exact:true}).fill('Producción');await page.getByRole('button',{name:'Guardar perfil',exact:true}).click();expect(state.profileMetadataUpdates).toHaveLength(0);expect(state.paths).not.toContain('/rest/v1/rpc/berry_cloud_session');
+ await page.getByRole('textbox',{name:'Puesto',exact:true}).fill('Supervisor de Producción');state.profileSaveFails=true;await page.getByRole('button',{name:'Guardar perfil',exact:true}).click();await expect(page.getByRole('alert')).toContainText('No se guardó el perfil');
+ expect(metadata.berry_profile_setup_completed_at).toBeUndefined();await expect(page.getByRole('textbox',{name:'Puesto',exact:true})).toHaveValue('Supervisor de Producción');
+ state.profileSaveFails=false;state.profileSetupFails=true;await page.getByRole('button',{name:'Guardar perfil',exact:true}).click();await expect(page.getByRole('alert')).toContainText('No pudimos confirmar la configuración');expect(metadata.berry_profile_setup_required).toBe(true);
+ state.profileSetupFails=false;await page.getByRole('button',{name:'Guardar perfil',exact:true}).click();await expect(page.getByRole('heading',{name:'Mis inspecciones',exact:true})).toBeVisible();
+ expect(metadata.berry_profile_setup_required).toBe(false);expect(typeof metadata.berry_profile_setup_completed_at).toBe('string');expect(state.rows.size).toBe(0);expect(state.saves).toBe(0);expect(state.sends).toBe(0);
+ // Completing this step is remembered even if the user later clears their optional job title.
+ profile.job_title='';
+ await page.getByRole('button',{name:'Cerrar sesión',exact:true}).click();await page.getByRole('dialog',{name:'¿Estás seguro de salir?',exact:true}).getByRole('button',{name:'Salir',exact:true}).click();await login(page,recipient);
+ const device=await browser.newContext();try{await mock(device,state,recipient,profile,metadata);const other=await device.newPage();await login(other,recipient);await expect(other.locator('.cloud-profile-heading')).toHaveCount(0);expect(await other.evaluate(()=>localStorage.getItem('berry-demo-accounts-v1'))).toBeNull();}finally{await device.close();}
+});
+
+test('una cuenta nueva con datos precargados confirma Mi perfil después de cambiar la contraseña temporal',async({page,context})=>{
+ const state=stateOf(),metadata:Record<string,unknown>={};const profile=await mock(context,state,recipient,{must_change_password:true},metadata);
+ await page.route('**/api/accounts/password',route=>{profile.must_change_password=false;return route.fulfill({json:{ok:true}});});await firstLogin(page,recipient);
+ await expect(page.getByRole('heading',{name:'Actualiza tu contraseña',exact:true})).toBeVisible();await expect(page.getByRole('textbox',{name:'Área',exact:true})).toHaveCount(0);
+ await page.getByLabel(/^Nueva contraseña/).fill('Personal!Clave47');await page.getByLabel(/^Repite la nueva contraseña/).fill('Personal!Clave47');await page.getByRole('button',{name:'Actualizar contraseña',exact:true}).click();
+ await expect(page.getByRole('heading',{name:'Inicia sesión',exact:true})).toBeVisible();expect(metadata.berry_profile_setup_required).toBe(true);
+ await firstLogin(page,recipient,'Personal!Clave47');await expect(page.getByRole('heading',{name:'Mi perfil',exact:true})).toBeVisible();await expect(page.getByRole('textbox',{name:'Área',exact:true})).toHaveValue('Mantenimiento');
+ await expect(page.getByRole('button',{name:'Guardar perfil',exact:true})).toBeEnabled();await page.getByRole('button',{name:'Guardar perfil',exact:true}).click();await expect(page.getByRole('heading',{name:'Mis inspecciones',exact:true})).toBeVisible();
+ expect(metadata.berry_profile_setup_required).toBe(false);expect(state.rows.size).toBe(0);
+});
+
+test('un perfil incompleto sin confirmación no salta al panel administrativo por un enlace directo',async({page,context})=>{
+ const state=stateOf();await mock(context,state,author,{area:'',job_title:''});await firstLogin(page,author);
+ await expect(page.getByRole('heading',{name:'Mi perfil',exact:true})).toBeVisible();await page.goto('./?acceso=cuenta&seccion=usuarios');
+ await expect(page.getByRole('heading',{name:'Mi perfil',exact:true})).toBeVisible();await expect(page.getByRole('button',{name:'Gestión de Cuentas',exact:true})).toHaveCount(0);expect(state.paths.some(path=>path.includes('berry_admin_'))).toBe(false);
+ await page.getByRole('textbox',{name:'Área',exact:true}).fill('SIGMA');await page.getByRole('textbox',{name:'Puesto',exact:true}).fill('Supervisora');await page.getByRole('button',{name:'Guardar perfil',exact:true}).click();await expect(page.getByRole('heading',{name:'Mis inspecciones',exact:true})).toBeVisible();
 });

@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import type { Session } from '@supabase/supabase-js';
 import { ArrowLeft, Check, Eye, EyeOff, LoaderCircle, LockKeyhole, LogOut, ShieldCheck } from 'lucide-react';
 import { Brand, Field, LockedEmailField, Modal } from './components';
-import { changeCloudPassword, loadCloudProfile, saveCloudProfile } from './cloud-account';
+import { changeCloudPassword, loadCloudProfile, markProfileSetup, saveCloudProfile } from './cloud-account';
 import type { CloudProfile } from './cloud-account';
 import { supabaseClient } from './supabase';
 import type { ExitConfirmation } from './useExitConfirmation';
@@ -64,6 +64,7 @@ export function CloudAccess({ exit, onReturn, onSessionChange, initialSection = 
   const generation = useRef(0);
   const userId = session?.user.id;
   const ownProfile = profile?.id === userId ? profile : null;
+  const completingProfile = !!ownProfile?.enabled && !ownProfile.must_change_password && !passwordRecovery && ownProfile.profile_setup_required === true;
   const dirty = !!ownProfile && JSON.stringify(form) !== JSON.stringify(fieldsOf(ownProfile));
   const heading = useRef<HTMLHeadingElement>(null);
 
@@ -171,11 +172,13 @@ export function CloudAccess({ exit, onReturn, onSessionChange, initialSection = 
   };
   const save = async () => {
     if (!userId || !ownProfile?.enabled || busy) return;
+    if (completingProfile && !form.job_title.trim()) { setFormError('Completa tu cargo para continuar.'); return; }
     const requestGeneration = generation.current;
     setBusy('save'); setFormError(''); setSaved(false);
     try {
       const next = await saveCloudProfile(userId, form, () => generation.current === requestGeneration && sessionRef.current?.user.id === userId);
-      if (generation.current === requestGeneration) { setProfile(next); setForm(fieldsOf(next)); setSaved(true); }
+      if (completingProfile) await markProfileSetup(userId, 'completed', () => generation.current === requestGeneration && sessionRef.current?.user.id === userId);
+      if (generation.current === requestGeneration) { setProfile({ ...next, profile_setup_required: false }); setForm(fieldsOf(next)); setSaved(true); if (completingProfile) setSection('workspace'); }
     } catch (error) { if (generation.current === requestGeneration) setFormError(error instanceof Error ? error.message : 'No se guardó el perfil.'); }
     finally { setBusy(null); }
   };
@@ -196,6 +199,7 @@ export function CloudAccess({ exit, onReturn, onSessionChange, initialSection = 
     const requestGeneration = generation.current;
     setPasswordError(''); setBusy('password');
     try {
+      if (ownProfile?.must_change_password) await markProfileSetup(userId, 'required', () => generation.current === requestGeneration && sessionRef.current?.user.id === userId);
       await changeCloudPassword(newPassword);
       if (generation.current !== requestGeneration) return;
       setNewPassword(''); setRepeatPassword('');
@@ -212,13 +216,13 @@ export function CloudAccess({ exit, onReturn, onSessionChange, initialSection = 
   const changeField = (key: keyof ProfileForm, value: string) => { setForm(current => ({ ...current, [key]: value })); setFormError(''); setSaved(false); };
 
   const hasModules = !!ownProfile && (ownProfile.role === 'admin' || ownProfile.can_create_inspections !== false || ownProfile.can_receive_inspections !== false);
-  const showAdmin = !!ownProfile?.enabled && !ownProfile.must_change_password && !passwordRecovery && ownProfile.role === 'admin' && section === 'admin';
-  const showDashboard = !!ownProfile?.enabled && !ownProfile.must_change_password && !passwordRecovery && ownProfile.role === 'admin' && section === 'dashboard';
-  if (section === 'workspace' && workspaceReady && hasModules && ownProfile?.enabled && !ownProfile.must_change_password && !passwordRecovery) return <CloudWorkspace profile={ownProfile} exit={exit} onAccount={target => { setSection(target || 'profile'); setRetry(value => value + 1); }}/>;
+  const showAdmin = !!ownProfile?.enabled && !ownProfile.must_change_password && !passwordRecovery && !completingProfile && ownProfile.role === 'admin' && section === 'admin';
+  const showDashboard = !!ownProfile?.enabled && !ownProfile.must_change_password && !passwordRecovery && !completingProfile && ownProfile.role === 'admin' && section === 'dashboard';
+  if (section === 'workspace' && workspaceReady && hasModules && ownProfile?.enabled && !ownProfile.must_change_password && !passwordRecovery && !completingProfile) return <CloudWorkspace profile={ownProfile} exit={exit} onAccount={target => { setSection(target || 'profile'); setRetry(value => value + 1); }}/>;
   return <div className="cloud-account-page" spellCheck={false}>
     <header className="cloud-account-header"><Brand/>{onReturn && !ownProfile?.must_change_password && !passwordRecovery && <button type="button" className="cloud-return" disabled={!!busy || reportBusy} onClick={() => dirty ? setConfirmLeave('return') : onReturn()}><ArrowLeft size={17}/>Espacio de pruebas</button>}</header>
     <main className={`cloud-account-main ${showDashboard ? 'cloud-account-dashboard-main' : showAdmin ? 'cloud-account-admin-main' : ''}`}>
-      {(section !== 'workspace' || workspaceChecked && !workspaceReady && !workspaceError) && ownProfile?.enabled && !ownProfile.must_change_password && !passwordRecovery && ownProfile.role === 'admin' && <nav className="admin-tabs" aria-label="Cuenta y administración"><button type="button" aria-current={section === 'profile' ? 'page' : undefined} disabled={!!busy || reportBusy} onClick={() => setSection('profile')}>Mi perfil</button><button type="button" aria-current={section === 'admin' ? 'page' : undefined} disabled={!!busy || dirty || reportBusy} onClick={() => setSection('admin')}>Gestión de Cuentas</button><button type="button" aria-current={section === 'dashboard' ? 'page' : undefined} disabled={!!busy || dirty || reportBusy} onClick={() => setSection('dashboard')}>Gestión de Inspecciones</button></nav>}
+      {(section !== 'workspace' || workspaceChecked && !workspaceReady && !workspaceError) && ownProfile?.enabled && !ownProfile.must_change_password && !passwordRecovery && ownProfile.role === 'admin' && !completingProfile && <nav className="admin-tabs" aria-label="Cuenta y administración"><button type="button" aria-current={section === 'profile' ? 'page' : undefined} disabled={!!busy || reportBusy} onClick={() => setSection('profile')}>Mi perfil</button><button type="button" aria-current={section === 'admin' ? 'page' : undefined} disabled={!!busy || dirty || reportBusy} onClick={() => setSection('admin')}>Gestión de Cuentas</button><button type="button" aria-current={section === 'dashboard' ? 'page' : undefined} disabled={!!busy || dirty || reportBusy} onClick={() => setSection('dashboard')}>Gestión de Inspecciones</button></nav>}
       {showDashboard ? <><InspectionDashboard actor={ownProfile!} cache={dashboardCache} isCurrent={() => sessionRef.current?.user.id === ownProfile!.id} onBusyChange={setReportBusy}/><button type="button" className="cloud-logout" disabled={!!busy || reportBusy} onClick={() => void logout()}><LogOut size={17}/>Cerrar sesión en este dispositivo</button></> : showAdmin ? <><CloudAdministration key={ownProfile!.id} actor={ownProfile!} cache={administrationCache} onBusyChange={setReportBusy} isCurrent={() => sessionRef.current?.user.id === ownProfile!.id} onSelfChange={next => { setProfile(next); setForm(fieldsOf(next)); if (next.role !== 'admin') { administrationCache.current = null; dashboardCache.current = null; setSection('profile'); } }}/><button type="button" className="cloud-logout" disabled={!!busy || reportBusy} onClick={() => void logout()}><LogOut size={17}/>Cerrar sesión en este dispositivo</button>{formError && <p role="alert" className="error-message cloud-message">{formError}</p>}</> : <section className="cloud-account-card" aria-busy={!ready || profileLoading || !!busy}>
         <div className="cloud-account-icon"><ShieldCheck size={27}/></div>
         {!ready ? <><h1 ref={heading} tabIndex={-1}>Tu cuenta</h1><p className="cloud-loading" role="status"><LoaderCircle size={18} className="spin"/>Comprobando tu sesión…</p></> : !session && recoveryRequest ? <>
@@ -256,19 +260,19 @@ export function CloudAccess({ exit, onReturn, onSessionChange, initialSection = 
             {passwordError && <p role="alert" className="error-message cloud-message">{passwordError}</p>}
             <button type="submit" className="button button-primary full-width" disabled={!!busy}>{busy === 'password' ? <LoaderCircle size={17} className="spin"/> : <LockKeyhole size={17}/>} {busy === 'password' ? 'Actualizando…' : 'Actualizar contraseña'}</button>
           </form>
-        </> : section === 'workspace' && hasModules && !workspaceChecked ? <><h1>Tu espacio de trabajo</h1><p className="cloud-loading" role="status"><LoaderCircle size={18} className="spin"/>Abriendo tus inspecciones…</p></> : section === 'workspace' && hasModules && workspaceError ? <><h1>Tu espacio de trabajo</h1><p className="error-message cloud-message" role="alert">{workspaceError}</p><button type="button" className="button button-primary full-width" onClick={() => setRetry(value => value + 1)}>Reintentar</button></> : ownProfile ? <>
+        </> : section === 'workspace' && hasModules && !completingProfile && !workspaceChecked ? <><h1>Tu espacio de trabajo</h1><p className="cloud-loading" role="status"><LoaderCircle size={18} className="spin"/>Abriendo tus inspecciones…</p></> : section === 'workspace' && hasModules && !completingProfile && workspaceError ? <><h1>Tu espacio de trabajo</h1><p className="error-message cloud-message" role="alert">{workspaceError}</p><button type="button" className="button button-primary full-width" onClick={() => setRetry(value => value + 1)}>Reintentar</button></> : ownProfile ? <>
           <div className="cloud-profile-heading"><h1 ref={heading} tabIndex={-1}>Mi perfil</h1><span className="account-enabled">{ownProfile.role === 'admin' ? 'Administrador' : 'Usuario'}</span></div>
-          <p className="cloud-account-intro">Estos datos identificarán tu participación en las inspecciones.</p>
+          <p className="cloud-account-intro">{completingProfile ? 'Completa tu área y cargo para comenzar. Este paso se solicita una sola vez; al guardar entrarás a tu espacio de trabajo.' : 'Estos datos identificarán tu participación en las inspecciones.'}</p>
           <form onSubmit={event => { event.preventDefault(); void save(); }}>
             <LockedEmailField label="Correo de tu cuenta" value={ownProfile.email}/>
             <Field label="Nombres y apellidos" required hint="Escribe nombres y apellidos con sus iniciales en mayúscula.">{props => <input {...props} autoComplete="name" autoCapitalize="words" required maxLength={250} disabled={!!busy} value={form.full_name} onChange={event => changeField('full_name', event.target.value)}/>}</Field>
             <Field label="Área" required hint="Usa el nombre formal del área, con mayúscula inicial y respetando las siglas.">{props => <input {...props} required maxLength={250} disabled={!!busy} autoCapitalize="sentences" value={form.area} onChange={event => changeField('area', event.target.value)}/>}</Field>
-            <Field label="Puesto" hint="Usa el nombre formal del puesto, con mayúscula inicial y respetando las siglas.">{props => <input {...props} autoComplete="organization-title" maxLength={250} disabled={!!busy} autoCapitalize="sentences" value={form.job_title} onChange={event => changeField('job_title', event.target.value)}/>}</Field>
+            <Field label="Puesto" required={completingProfile} hint="Usa el nombre formal del puesto, con mayúscula inicial y respetando las siglas.">{props => <input {...props} required={completingProfile} autoComplete="organization-title" maxLength={250} disabled={!!busy} autoCapitalize="sentences" value={form.job_title} onChange={event => changeField('job_title', event.target.value)}/>}</Field>
             {formError && <p role="alert" className="error-message cloud-message">{formError}</p>}
             {saved && <p role="status" className="cloud-saved"><Check size={16}/>Perfil guardado en tu cuenta.</p>}
-            <button type="submit" className="button button-primary full-width" disabled={!!busy || !dirty}>{busy === 'save' ? <LoaderCircle className="spin" size={17}/> : <Check size={17}/>} {busy === 'save' ? 'Guardando…' : 'Guardar perfil'}</button>
+            <button type="submit" className="button button-primary full-width" disabled={!!busy || !dirty && !completingProfile}>{busy === 'save' ? <LoaderCircle className="spin" size={17}/> : <Check size={17}/>} {busy === 'save' ? 'Guardando…' : 'Guardar perfil'}</button>
           </form>
-          {workspaceReady && hasModules && <button type="button" className="button button-outline full-width cloud-enter-workspace" disabled={!!busy || dirty || !form.full_name.trim() || !form.area.trim()} onClick={() => setSection('workspace')}>Entrar al espacio de trabajo</button>}
+          {workspaceReady && hasModules && !completingProfile && <button type="button" className="button button-outline full-width cloud-enter-workspace" disabled={!!busy || dirty || !form.full_name.trim() || !form.area.trim()} onClick={() => setSection('workspace')}>Entrar al espacio de trabajo</button>}
           {!hasModules && <p className="cloud-account-hint">El administrador debe asignarte los permisos que utilizarás.</p>}
         </> : <>
           <h1 ref={heading} tabIndex={-1}>No pudimos abrir tu perfil</h1>

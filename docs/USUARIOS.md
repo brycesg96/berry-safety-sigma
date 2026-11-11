@@ -14,7 +14,7 @@ Hasta completar los pasos 1–4, la pantalla muestra el error de configuración 
 
 ## Uso desde la app
 
-Al iniciar sesión normalmente, una cuenta habilitada entra directamente al espacio de trabajo en **Mis inspecciones**. Recargar esa vista mantiene la lista; abrirla no crea un borrador vacío. **Nueva inspección** inicia el formulario y **Continuar** recupera un borrador guardado. El perfil se abre voluntariamente desde **Mi perfil → Ir a mi perfil**; los administradores encuentran allí **Gestión de Cuentas** y **Gestión de Inspecciones**. Volver desde la cuenta abre otra vez **Mis inspecciones**. Los enlaces explícitos a perfil o administración conservan su destino al recargar, con los mismos controles de permisos. El cambio de contraseña obligatorio, la recuperación y las cuentas inhabilitadas mantienen sus pantallas previas al espacio de trabajo.
+Después de completar su perfil por primera vez, una cuenta habilitada entra directamente al espacio de trabajo en **Mis inspecciones**. Recargar esa vista mantiene la lista; abrirla no crea un borrador vacío. **Nueva inspección** inicia el formulario y **Continuar** recupera un borrador guardado. El perfil se abre voluntariamente desde **Mi perfil → Ir a mi perfil**; los administradores encuentran allí **Gestión de Cuentas** y **Gestión de Inspecciones**. Volver desde la cuenta abre otra vez **Mis inspecciones**. Los enlaces explícitos a perfil o administración conservan su destino al recargar, con los mismos controles de permisos. El cambio de contraseña obligatorio, la recuperación y las cuentas inhabilitadas mantienen sus pantallas previas al espacio de trabajo.
 
 El administrador introduce nombre, correo, área, puesto, los accesos Administrador e Inspecciones y, si corresponde, correos de administradores en copia. Nombre y correo son obligatorios. La contraseña temporal solicitada es `0123456789`; se muestra de solo lectura con opción para verla. No se envían invitaciones por correo.
 
@@ -79,3 +79,12 @@ Las lecturas del perfil, directorio y listado de inspecciones realizan un solo i
 ## Organización y edición de copias
 
 **Agregar Usuario** se dedica al alta; **Gestión de Usuarios** reúne las cuentas existentes. Cada fila ofrece **Editar CC**, que abre **Administradores (CC)** con los correos actuales. Permite añadir, sustituir o quitar todos los correos sin alterar permisos ni datos de perfil. El [paso 11](../supabase/migrations/202611090011_account_copies.sql) conserva los controles de administrador, el último administrador utilizable, el historial y la numeración. Mantiene los correos de copia cuando un cliente anterior actualiza únicamente permisos. Las cuentas retiradas no son editables. La API existente admite este cambio sin otro despliegue de Render.
+
+
+## Perfil del primer ingreso
+
+Las cuentas nuevas cambian primero la contraseña temporal. Antes de solicitar ese cambio, se registra en su cuenta de Auth que deben confirmar Mi perfil, incluso si el administrador ya precargó área y cargo. En el siguiente acceso se muestra Mi perfil una sola vez para completar o confirmar nombres, área y puesto. Área y puesto son obligatorios en este paso; Guardar perfil confirma los datos y abre Mis inspecciones. Si falla el guardado o su confirmación, el formulario mantiene la edición para reintentar.
+
+La confirmación se conserva en los metadatos de la propia cuenta de Auth, también al entrar desde otro dispositivo. Estos indicadores controlan únicamente la presentación del primer ingreso: los roles, permisos y acceso siguen comprobándose mediante berry_profiles y las funciones autorizadas del servidor. No se añade ninguna columna ni se requiere SQL o actualizar Render.
+
+Las cuentas existentes con área y cargo completos mantienen el acceso directo. Si les faltan estos datos y no tienen confirmación previa, se ofrece el mismo paso inicial para completarlos. Tras confirmarlo, editar el perfil sigue siendo voluntario desde Mi perfil → Ir a mi perfil; la recuperación de contraseña de una cuenta ya completada no vuelve a iniciar este paso.

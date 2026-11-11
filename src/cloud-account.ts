@@ -11,7 +11,31 @@ export type CloudProfile = {
   can_receive_inspections?: boolean;
   access_revision?: number;
   deleted_at?: string | null;
+  /** UI onboarding only; never used to grant access or permissions. */
+  profile_setup_required?: boolean;
 };
+
+function profileSetupCompleted(metadata: Record<string, unknown>) {
+  return typeof metadata.berry_profile_setup_completed_at === 'string' && Number.isFinite(Date.parse(metadata.berry_profile_setup_completed_at));
+}
+function requiresProfileSetup(profile: CloudProfile, metadata: Record<string, unknown>) {
+  if (metadata.berry_profile_setup_required === true) return true;
+  if (profileSetupCompleted(metadata)) return false;
+  // Existing complete profiles continue straight to their workspace.
+  return !profile.area.trim() || !profile.job_title.trim();
+}
+
+export async function markProfileSetup(userId: string, state: 'required' | 'completed', isCurrent: () => boolean) {
+  const client = supabaseClient();
+  const { data: identity, error } = await client.auth.getUser();
+  if (!isCurrent() || error || identity.user?.id !== userId) throw new Error('Tu sesión cambió. Vuelve a iniciar sesión antes de continuar.');
+  if (state === 'required' && profileSetupCompleted(identity.user.user_metadata)) return;
+  const data = state === 'completed' ? { berry_profile_setup_required: false, berry_profile_setup_completed_at: new Date().toISOString() } : { berry_profile_setup_required: true };
+  const result = await client.auth.updateUser({ data });
+  const metadata = result.data.user?.user_metadata || {};
+  const confirmed = state === 'completed' ? profileSetupCompleted(metadata) && metadata.berry_profile_setup_required === false : metadata.berry_profile_setup_required === true;
+  if (!isCurrent() || result.error || result.data.user?.id !== userId || !confirmed) throw new Error('No pudimos confirmar la configuración de tu perfil. Vuelve a intentarlo; tus datos se conservan.');
+}
 
 function profileRow(value: unknown, userId: string): CloudProfile {
   const row = value as CloudProfile | null;
@@ -37,7 +61,8 @@ export async function loadCloudProfile(expectedUserId: string, isCurrent: () => 
     if (typeof navigator !== 'undefined' && !navigator.onLine) throw new Error('Este dispositivo está sin conexión. Reconéctate y pulsa Reintentar.');
     throw new Error('El servicio de datos no pudo responder al consultar tu perfil. Tu sesión sigue iniciada. Espera un momento y pulsa Reintentar.');
   }
-  return profileRow(data, identity.user.id);
+  const profile = profileRow(data, identity.user.id);
+  return { ...profile, profile_setup_required: requiresProfileSetup(profile, identity.user.user_metadata) };
 }
 
 export async function saveCloudProfile(userId: string, values: { full_name: string; area: string; job_title: string }, isCurrent: () => boolean): Promise<CloudProfile> {
