@@ -59,7 +59,7 @@ test('cambio de rol de prueba sin login, perfil separado y borradores de cada cu
   await selectValue(page.getByLabel('Cuenta de prueba'), 'demo-inspector');
   await expect(page.getByLabel('Correo de tu cuenta')).toHaveValue(inspectorEmail);
   await page.getByLabel('Nombres y apellidos').fill('Bryan de Inspecciones');
-  await page.getByRole('dialog', { name: 'Tu perfil' }).getByLabel('Área').fill('Prevención');
+  await page.getByRole('dialog', { name: 'Mi perfil' }).getByLabel('Área').fill('Prevención');
   await page.getByRole('button', { name: 'Guardar perfil', exact: true }).click();
   await expect(page.getByLabel('Área inspeccionada')).toHaveValue('');
   await page.getByRole('button', { name: 'Abrir menú' }).click();
@@ -71,10 +71,10 @@ test('cambio de rol de prueba sin login, perfil separado y borradores de cada cu
   await expect(page.getByLabel('Área inspeccionada')).toHaveValue('Borrador del inspector');
   await page.getByRole('button', { name: 'Mi perfil', exact: true }).click();
   await expect(page.getByLabel('Nombres y apellidos')).toHaveValue('Bryan de Inspecciones');
-  await expect(page.getByRole('dialog', { name: 'Tu perfil' }).getByLabel('Área')).toHaveValue('Prevención');
+  await expect(page.getByRole('dialog', { name: 'Mi perfil' }).getByLabel('Área')).toHaveValue('Prevención');
   await selectValue(page.getByLabel('Cuenta de prueba'), 'demo-admin');
   await expect(page.getByLabel('Correo de tu cuenta')).toHaveValue(adminEmail);
-  await expect(page.getByRole('dialog', { name: 'Tu perfil' }).getByLabel('Área')).toHaveValue('');
+  await expect(page.getByRole('dialog', { name: 'Mi perfil' }).getByLabel('Área')).toHaveValue('');
   await page.getByRole('button', { name: 'Cerrar ventana', exact: true }).click();
   await expect(page.getByLabel('Área inspeccionada')).toHaveValue('Borrador personal administrador');
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
@@ -99,7 +99,7 @@ test('área y cargo del perfil reemplazan la leyenda del directorio y se conserv
   await page.getByRole('listbox').getByRole('option', { name: /bryx.96@gmail.com/ }).click();
   await expect(page.getByText('Área y puesto por completar.', { exact: true })).toBeVisible();
   await page.getByRole('button', { name: 'Mi perfil', exact: true }).click();
-  const profile = page.getByRole('dialog', { name: 'Tu perfil' });
+  const profile = page.getByRole('dialog', { name: 'Mi perfil' });
   await profile.getByLabel('Área').fill('Seguridad y Salud');
   await profile.getByLabel('Puesto', { exact: true }).fill('Supervisor SST');
   await page.getByRole('button', { name: 'Guardar perfil', exact: true }).click();

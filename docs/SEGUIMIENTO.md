@@ -14,7 +14,7 @@ La entrega entre cuentas y los levantamientos siguen siendo una demostración lo
 
 Cada revisión modifica un hallazgo. El contenido enviado a revisión o aprobado se conserva sin edición; el estado sigue editable para sus destinatarios mientras la inspección esté abierta. Los devueltos admiten nuevas evidencias y reenvío. Una inspección enviada no se puede editar ni eliminar desde el asistente; las operaciones de levantamiento leen el registro más reciente en una transacción y rechazan versiones antiguas. Se deben guardar los avances de cada levantamiento antes de salir. Las cuentas con varios destinatarios colaboran sobre los mismos hallazgos.
 
-La descarga usa la plantilla proporcionada e incluye los datos y fotografías del levantamiento y sus estados de revisión. Sigue pendiente conservar versiones finales y asignar el código único mediante el servidor.
+La descarga usa la plantilla proporcionada e incluye responsable, fecha, estado y fotografías del levantamiento. Acción a tomar conserva únicamente la medida correctiva solicitada. Acción realizada y Observación del revisor permanecen dentro de la app y no se exportan. Sigue pendiente conservar versiones finales y asignar el código único mediante el servidor.
 
 ## Límites y pendientes
 

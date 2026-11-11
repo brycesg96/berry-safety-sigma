@@ -30,7 +30,7 @@ async function build(page: Page, count: number, type = 'Planeada') {
     const prepared = await prepareSignature(new File([blob], 'firma.png', { type: 'image/png' }));
     delete draft.registrationParticipants; // Historical reports retain their original signer list.
     draft.registrationDetails = { 'test-inspector': { jobTitle: 'Supervisora SST', date: '2026-11-06', signature: prepared }, second: { jobTitle: 'Inspectora', date: '2026-11-06' }, third: { jobTitle: 'Inspector', date: '2026-11-06' } };
-    draft.delivery = { sentAt: '2026-11-06T15:00:00Z', revision: 1, recipientIds: ['test-responsible'], corrections: { [`observation-${count - 1}`]: { actorId: 'test-responsible', responsibleName: 'Responsable que levantó el hallazgo', action: 'Corrección realizada.', date: '2026-11-18', photos: Array.from({ length: 8 }, (_, i) => photo(i + 8)), state: 'Ejecutado', proposedState: 'Ejecutado', decision: 'approved', note: '' } } };
+    draft.delivery = { sentAt: '2026-11-06T15:00:00Z', revision: 1, recipientIds: ['test-responsible'], corrections: { [`observation-${count - 1}`]: { actorId: 'test-responsible', responsibleName: 'Responsable que levantó el hallazgo', action: 'Corrección realizada.', date: '2026-11-18', photos: Array.from({ length: 8 }, (_, i) => photo(i + 8)), state: 'Ejecutado', proposedState: 'Ejecutado', decision: 'approved', note: 'Comentario privado del revisor.' } } };
     const file = await buildExcel(draft);
     let binary = ''; for (let i = 0; i < file.bytes.length; i += 32768) binary += String.fromCharCode(...file.bytes.subarray(i, i + 32768));
     return { name: file.name, base64: btoa(binary) };
@@ -52,7 +52,7 @@ for (const count of [1, 5, 7]) test(`plantilla original con ${count} observacion
   expect(form.getCell('D14').value).toBe('X'); expect(form.getCell('F14').value).toBeNull();
   for (let i = 0; i < count; i++) {
     expect(form.getCell(`A${20 + i}`).value).toContain(`Hallazgo de ejemplo ${i + 1}:`);
-    expect(form.getCell(`F${20 + i}`).value).toContain(`Acción a tomar ${i + 1}:`);
+    expect(form.getCell(`F${20 + i}`).value).toBe(`Acción a tomar ${i + 1}: corregir y verificar.`);
     expect(form.getCell(`E${20 + i}`).value).toBe(['Alto', 'Medio', 'Bajo'][i % 3]);
     expect(form.getCell(`E${20 + i}`).dataValidation).toMatchObject({ type: 'list', formulae: ['"Bajo,Medio,Alto"'] });
   }
@@ -68,6 +68,7 @@ for (const count of [1, 5, 7]) test(`plantilla original con ${count} observacion
   expect(form.getCell('A9').value).toBe('HORTIFRUT PERÚ S.A.C.');
   expect(form.getImages()).toHaveLength(18); // Logo, eight initial, eight correction, signature.
   const plain = JSON.stringify(form.getSheetValues());
+  expect(plain).not.toContain('Corrección realizada.'); expect(plain).not.toContain('Comentario privado del revisor.'); expect(plain).not.toContain('Acción realizada:'); expect(plain).not.toContain('Observación del revisor:');
   expect(plain).not.toContain('D7B-966'); expect(plain).not.toContain('Reponer pintura');
   if (count < 5) expect(form.getCell(`A${20 + count}`).value).toBeNull();
   const original = new ExcelJS.Workbook(); await original.xlsx.readFile('public/templates/inspection.xlsx');

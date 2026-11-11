@@ -50,7 +50,7 @@ test('móvil conserva un perfil en edición al cancelar Atrás y reutiliza la pr
   await page.setViewportSize({ width: 390, height: 844 });
   await openFromPrevious(page);
   await page.getByRole('button', { name: 'Mi perfil', exact: true }).click();
-  const profile = page.getByRole('dialog', { name: 'Tu perfil', exact: true });
+  const profile = page.getByRole('dialog', { name: 'Mi perfil', exact: true });
   await profile.getByLabel('Nombres y apellidos').fill('Nombre todavía sin guardar');
   await requestExit(page);
   await page.keyboard.press('Escape');
@@ -64,7 +64,7 @@ test('móvil conserva un perfil en edición al cancelar Atrás y reutiliza la pr
   await expect(page.getByRole('button', { name: 'Continuar', exact: true })).toBeEnabled();
   expect(await page.evaluate(() => history.length)).toBe(length);
   await page.getByRole('button', { name: 'Mi perfil', exact: true }).click();
-  await page.getByRole('dialog', { name: 'Tu perfil', exact: true }).getByRole('button', { name: 'Cerrar ventana', exact: true }).click();
+  await page.getByRole('dialog', { name: 'Mi perfil', exact: true }).getByRole('button', { name: 'Cerrar ventana', exact: true }).click();
   const dialog = await requestExit(page);
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   await dialog.getByRole('button', { name: 'Seguir en la aplicación', exact: true }).click();

@@ -1,6 +1,6 @@
 import type { Inspection } from './model';
 import { validateStep } from './model';
-import { fillInspectionTemplate } from './excel-template';
+import { fillInspectionTemplate, publicStoredExcel } from './excel-template';
 import { reportFilename } from '../shared/report-filename.mjs';
 import { cloudStoredExcel } from './cloud-store';
 import { storeFinalExcel } from './cloud-final';
@@ -14,6 +14,7 @@ export async function buildExcel(d: Inspection) {
 export async function exportExcel(d: Inspection, options: { readOnly?: boolean } = {}) {
   if (!options.readOnly && d.storage === 'cloud' && inspectionClosed(d) && d.finalExcelStored !== undefined) d = await storeFinalExcel(d);
   const file = d.storage === 'cloud' && d.delivery && (d.finalExcelStored === true || !Object.keys(d.delivery.corrections).length) ? await cloudStoredExcel(d) : await buildExcel(d);
+  if (d.storage === 'cloud' && d.finalExcelStored === true) file.bytes = await publicStoredExcel(file.bytes, d);
   const blob = new Blob([file.bytes as BlobPart], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
   const url = URL.createObjectURL(blob);
   const anchor = document.createElement('a');

@@ -18,7 +18,7 @@ La edición de **Administradores (CC)** reutiliza `/api/accounts/manage` y neces
 
 La retirada de la gestión local no borra cuentas, perfiles o inspecciones existentes del navegador ni crea cuentas remotas automáticamente. Sus identidades y borradores siguen disponibles en el espacio de pruebas para conservar el historial hasta preparar la importación revisable. El directorio local conserva los registros anteriores; el espacio autenticado consulta los usuarios habilitados reales.
 
-El selector Tu perfil → Cuenta de prueba se mantiene para consultar esos datos históricos. Ese selector y los roles locales no autentican al usuario de Supabase. La cuenta real del propietario es `bryx96@gmail.com`; el correo de demostración anterior contiene un punto y corresponde a otra identidad.
+El selector Mi perfil → Cuenta de prueba se mantiene para consultar esos datos históricos. Ese selector y los roles locales no autentican al usuario de Supabase. La cuenta real del propietario es `bryx96@gmail.com`; el correo de demostración anterior contiene un punto y corresponde a otra identidad.
 
 Las variables públicas `VITE_DEMO_ADMIN_EMAIL`, `VITE_DEMO_ADMIN_NAME`, `VITE_DEMO_INSPECTOR_EMAIL` y `VITE_DEMO_INSPECTOR_NAME` siguen describiendo las identidades históricas del prototipo. No crean ni habilitan usuarios de Auth. Las cuentas nuevas deben registrarse desde Administrar usuarios con una sesión administradora real.
 

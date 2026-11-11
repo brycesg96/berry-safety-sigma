@@ -83,7 +83,7 @@ test('responsables del registro independientes, autor de la cuenta bloqueado, se
   await expect(section.locator('.signature-preview img')).toHaveCount(1);
   for (const jobTitle of ['', 'Supervisor SST']) {
     await page.getByRole('button', { name: 'Mi perfil', exact: true }).click();
-    await page.getByRole('dialog', { name: 'Tu perfil' }).getByLabel('Puesto', { exact: true }).fill(jobTitle);
+    await page.getByRole('dialog', { name: 'Mi perfil' }).getByLabel('Puesto', { exact: true }).fill(jobTitle);
     await page.getByRole('button', { name: 'Guardar perfil', exact: true }).click();
     await expect(primaryJobTitle).toHaveValue(jobTitle);
     await expect(section.locator('.registration-fields').first().getByLabel('Fecha', { exact: true })).toHaveValue('2026-11-05');

@@ -55,14 +55,14 @@ export async function buildConsolidated(rows: DashboardRow[]) {
   const book = new ExcelJS.Workbook(); book.creator = 'Berry Safety';
   const summary = book.addWorksheet('Inspecciones'), observations = book.addWorksheet('Observaciones');
   const summaryHeaders = ['Código', 'Fecha de inspección', 'Hora', 'Instalación', 'Área inspeccionada', 'Inspectores', 'Correos de inspectores', 'Responsables del área', 'Correos de responsables', 'Estado de inspección', 'Observaciones', 'Ejecutadas', 'Objetivo', 'Resultados desfavorables', 'Conclusiones y recomendaciones'];
-  const observationHeaders = ['Código', 'Fecha de inspección', 'Área inspeccionada', 'Observación', 'Descripción', 'Nivel de riesgo', 'Medida correctiva', 'Cierre previsto', 'Estado', 'Responsable del levantamiento', 'Acción realizada', 'Fecha de cierre', 'Decisión del revisor', 'Comentario del revisor'];
+  const observationHeaders = ['Código', 'Fecha de inspección', 'Área inspeccionada', 'Observación', 'Descripción', 'Nivel de riesgo', 'Medida correctiva', 'Cierre previsto', 'Estado', 'Responsable del levantamiento', 'Fecha de cierre', 'Decisión del revisor'];
   summary.addRow(summaryHeaders); observations.addRow(observationHeaders);
   for (const row of rows) {
     const data = row.data, people = inspectionPeople(data), metrics = dashboardMetrics([row], '');
     summary.addRow([row.code, data.date, formatInspectionTime(data.inspectionTime, data.inspectionPeriod), data.facility, data.area, people.map(p => p.name).join('; '), people.map(p => p.email).join('; '), data.responsibles.map(p => p.name).join('; '), data.responsibles.map(p => p.email).join('; '), dashboardStateLabel(row), data.observations.length, metrics.executed, data.objective, data.unfavorableCause, closingRemarksOf(data)]);
     data.observations.forEach((observation, index) => {
       const correction = data.delivery?.corrections[observation.id];
-      observations.addRow([row.code, data.date, data.area, index + 1, observation.description, { baja: 'Bajo', media: 'Medio', alta: 'Alto' }[observation.severity], observation.correctiveAction, observation.dueDate, row.workflow === 'closed' ? 'Ejecutado' : correction?.state || 'Pendiente', correction?.responsibleName || '', correction?.action || '', correction?.date || '', correction ? ({ approved: 'Aprobado', changes: 'Ajustes solicitados', review: 'En revisión', draft: 'Borrador' }[correction.decision]) : '', correction?.note || '']);
+      observations.addRow([row.code, data.date, data.area, index + 1, observation.description, { baja: 'Bajo', media: 'Medio', alta: 'Alto' }[observation.severity], observation.correctiveAction, observation.dueDate, row.workflow === 'closed' ? 'Ejecutado' : correction?.state || 'Pendiente', correction?.responsibleName || '', correction?.date || '', correction ? ({ approved: 'Aprobado', changes: 'Ajustes solicitados', review: 'En revisión', draft: 'Borrador' }[correction.decision]) : '']);
     });
   }
   for (const sheet of [summary, observations]) {

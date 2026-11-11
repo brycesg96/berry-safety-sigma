@@ -138,16 +138,16 @@ for(const actor of [author,recipient])test(`el ingreso de ${actor===author?'admi
   await page.reload();await expect(page.getByRole('heading',{name:'Mis inspecciones',exact:true})).toBeVisible();
   expect(await page.evaluate(()=>(window as any).profileShown)).toBe(false);
   await page.getByRole('button',{name:'Mi perfil',exact:true}).click();
-  const profile=page.getByRole('dialog',{name:'Tu perfil',exact:true});await expect(profile).toContainText(profiles.find(p=>p.id===actor)!.full_name);
-  await profile.getByRole('button',{name:'Ir a mi cuenta',exact:true}).click();
-  await expect(page.getByRole('heading',{name:'Tu perfil',exact:true})).toBeVisible();await expect(page).toHaveURL(/seccion=perfil/);
+  const profile=page.getByRole('dialog',{name:'Mi perfil',exact:true});await expect(profile).toContainText(profiles.find(p=>p.id===actor)!.full_name);
+  await profile.getByRole('button',{name:'Ir a mi perfil',exact:true}).click();
+  await expect(page.getByRole('heading',{name:'Mi perfil',exact:true})).toBeVisible();await expect(page).toHaveURL(/seccion=perfil/);
   await expect(page.getByLabel('Nombres y apellidos')).toHaveValue(profiles.find(p=>p.id===actor)!.full_name);
   await expect(page.getByRole('button',{name:'Gestión de Cuentas',exact:true})).toHaveCount(actor===author?1:0);
   await expect(page.getByRole('button',{name:'Gestión de Inspecciones',exact:true})).toHaveCount(actor===author?1:0);
-  await page.reload();await expect(page.getByRole('heading',{name:'Tu perfil',exact:true})).toBeVisible();
+  await page.reload();await expect(page.getByRole('heading',{name:'Mi perfil',exact:true})).toBeVisible();
   await page.getByRole('button',{name:'Entrar al espacio de trabajo'}).click();await expect(page.getByRole('heading',{name:'Mis inspecciones',exact:true})).toBeVisible();
   await expect(page).not.toHaveURL(/seccion=/);
-  await page.getByRole('button',{name:'Mi perfil',exact:true}).click();await page.getByRole('button',{name:'Ir a mi cuenta',exact:true}).click();
+  await page.getByRole('button',{name:'Mi perfil',exact:true}).click();await page.getByRole('button',{name:'Ir a mi perfil',exact:true}).click();
   await page.getByRole('button',{name:'Cerrar sesión en este dispositivo',exact:true}).click();
   await expect(page.getByRole('heading',{name:'Inicia sesión',exact:true})).toBeVisible();await expect(page).not.toHaveURL(/seccion=/);
   await page.getByLabel(/^Correo electrónico/).fill(profiles.find(p=>p.id===actor)!.email);await page.getByLabel(/^Contraseña/).fill('Fictitious!47');await page.getByRole('button',{name:'Iniciar sesión',exact:true}).click();
@@ -197,7 +197,7 @@ test('private drafts resume on another device and full approval replaces the ini
   expect(state.files.size).toBe(1);expect(await page.evaluate(()=>localStorage.getItem('berry-demo-accounts-v1'))).toBeNull();
   const imageReads=()=>state.paths.filter(path=>path.includes('/object/authenticated/berry-evidence/')).length;
   const reads=imageReads();
-  await page.getByRole('button',{name:'Mi perfil',exact:true}).click();await page.getByRole('button',{name:'Ir a mi cuenta',exact:true}).click();
+  await page.getByRole('button',{name:'Mi perfil',exact:true}).click();await page.getByRole('button',{name:'Ir a mi perfil',exact:true}).click();
   await page.getByRole('button',{name:'Entrar al espacio de trabajo'}).click();
   await openEditor(page);
   await expect(page.locator('.photo-thumb img').first()).toBeVisible();expect(imageReads()).toBe(reads);
@@ -232,6 +232,7 @@ test('private drafts resume on another device and full approval replaces the ini
   await receiver.getByLabel('Acción realizada').fill('Protección instalada.');await receiver.getByRole('button',{name:'Guardar avance',exact:true}).click();await receiver.getByRole('button',{name:'Enviar a revisión',exact:true}).click();await expect(receiver.getByText('Levantamiento enviado a revisión.',{exact:true})).toBeVisible();
   await other.getByRole('button',{name:'Volver',exact:true}).click();await other.getByRole('button',{name:'Revisar informe',exact:true}).click();
   await expect(other.getByLabel('Apellidos y nombres del responsable del levantamiento')).toHaveValue('Bruno Responsable');
+  await other.getByLabel('Comentario de revisión').fill('Comentario interno del revisor.');
   state.failFinal=true;const originalPath=state.documents.get(row.id).storage_path;
   await other.getByRole('button',{name:'Aprobar levantamiento',exact:true}).click();await expect(other.getByText('Inspección cerrada: todos los estados están en Ejecutado.',{exact:true})).toBeVisible();await expect(other.getByRole('button',{name:'Descargar PDF',exact:true})).toBeVisible();
   expect(row.workflow).toBe('closed');expect(row.data.delivery.corrections[row.data.observations[0].id].state).toBe('Ejecutado');
@@ -240,7 +241,22 @@ test('private drafts resume on another device and full approval replaces the ini
   expect(state.documents.size).toBe(1);expect(state.files.has('berry-documents/'+originalPath)).toBe(false);expect(state.finalizes).toBe(1);expect(state.sends).toBe(1);
   const finalDownloadPromise=other.waitForEvent('download');await other.getByRole('button',{name:'Descargar Excel',exact:true}).click();const finalDownload=await finalDownloadPromise;
   const finalBytes=await readFile((await finalDownload.path())!);expect(finalBytes.equals(state.files.get('berry-documents/'+state.documents.get(row.id).storage_path)!)).toBe(true);
-  const archive=await JSZip.loadAsync(finalBytes,{checkCRC32:true});const sheet=await archive.file('xl/worksheets/sheet1.xml')!.async('string');expect(sheet).toContain('Protección instalada.');expect(sheet).toContain('Acción realizada:');expect(sheet).toContain('IH-2026-001');
+  const archive=await JSZip.loadAsync(finalBytes,{checkCRC32:true});const sheet=await archive.file('xl/worksheets/sheet1.xml')!.async('string');expect(sheet).toContain('Instalar protección.');expect(sheet).not.toContain('Protección instalada.');expect(sheet).not.toContain('Acción realizada:');expect(sheet).not.toContain('Comentario interno del revisor.');expect(sheet).toContain('IH-2026-001');
+  // Historical stored finals are cleaned on download, including the admin read-only path.
+  const legacy=await JSZip.loadAsync(finalBytes),sheetPath='xl/worksheets/sheet1.xml';
+  legacy.file(sheetPath,(await legacy.file(sheetPath)!.async('string')).replace('Instalar protección.','Instalar protección.\n\nAcción realizada:\nProtección instalada.\n\nObservación del revisor:\nComentario interno del revisor.'));
+  const legacyBytes=await legacy.generateAsync({type:'nodebuffer'}),document=state.documents.get(row.id),storageKey='berry-documents/'+document.storage_path;
+  document.sha256=createHash('sha256').update(legacyBytes).digest('hex');state.files.set(storageKey,legacyBytes);
+  for(const readOnly of [false,true]){
+   const ready=other.waitForEvent('download');
+   await other.evaluate(async({row,author,readOnly})=>{const {hydrateCloudInspection}=await import('/src/cloud-store.ts');const {exportExcel}=await import('/src/export.ts');await exportExcel(await hydrateCloudInspection(row,author),{readOnly});},{row,author,readOnly});
+   const downloaded=await readFile((await(await ready).path())!),clean=await JSZip.loadAsync(downloaded,{checkCRC32:true});
+   const xml=await clean.file(sheetPath)!.async('string');expect(xml).toContain('Instalar protección.');expect(xml).toContain('IH-2026-001');expect(xml).not.toContain('Protección instalada.');expect(xml).not.toContain('Comentario interno del revisor.');
+   for(const name of Object.keys(legacy.files).filter(name=>!legacy.files[name].dir&&name!==sheetPath))expect(await clean.file(name)!.async('nodebuffer')).toEqual(await legacy.file(name)!.async('nodebuffer'));
+  }
+  expect(state.files.get(storageKey)).toEqual(legacyBytes);expect(state.finalizes).toBe(1);expect(state.sends).toBe(1);
+  expect(row.data.delivery.corrections[row.data.observations[0].id]).toMatchObject({action:'Protección instalada.',note:'Comentario interno del revisor.'});
+  await expect(other.getByLabel('Acción realizada')).toHaveValue('Protección instalada.');await expect(other.locator('.notice').filter({hasText:'Observación del revisor:'})).toContainText('Comentario interno del revisor.');
   await device.close();await recipientDevice.close();
 });
 
@@ -289,7 +305,7 @@ test('Salir advierte cambios pendientes sin guardar automáticamente ni cerrar s
   const state=stateOf();await mock(context,state,author);await enter(page,author);
   state.failSave=true;await page.getByLabel('Área inspeccionada').fill('Borrador antes de salir');
   await page.getByRole('button',{name:'Mi perfil',exact:true}).click();
-  await page.getByRole('dialog',{name:'Tu perfil',exact:true}).getByRole('button',{name:'Cerrar sesión',exact:true}).click();
+  await page.getByRole('dialog',{name:'Mi perfil',exact:true}).getByRole('button',{name:'Cerrar sesión',exact:true}).click();
   const dialog=page.getByRole('dialog',{name:'¿Estás seguro de salir?',exact:true});
   await dialog.getByRole('button',{name:'Salir',exact:true}).click();
   await expect(dialog.getByRole('alert')).toContainText('Hay cambios sin guardar');expect(state.saves).toBe(0);
@@ -422,12 +438,12 @@ test('textos de una cuenta sin historial están en blanco aunque reciba informes
 test('Guardar y continuar conserva el destino, no sale si falla y permite reintentar sin enviar ni asignar código',async({page,context})=>{
  const state=stateOf();await mock(context,state,author);await enter(page,author);
  await page.getByLabel('Área inspeccionada').fill('Guardado antes de ir a mi cuenta');
- await page.getByRole('button',{name:'Mi perfil',exact:true}).click();await page.getByRole('button',{name:'Ir a mi cuenta',exact:true}).click();
+ await page.getByRole('button',{name:'Mi perfil',exact:true}).click();await page.getByRole('button',{name:'Ir a mi perfil',exact:true}).click();
  const dialog=page.getByRole('dialog',{name:'¿Qué quieres hacer con los cambios?',exact:true});await expect(dialog).toBeVisible();
  state.failSave=true;await dialog.getByRole('button',{name:'Guardar y continuar',exact:true}).click();
  await expect(dialog.getByRole('alert')).toContainText('No se pudo confirmar el guardado');expect(state.saves).toBe(0);await expect(page.getByLabel('Área inspeccionada')).toHaveValue('Guardado antes de ir a mi cuenta');
  state.failSave=false;await dialog.getByRole('button',{name:'Guardar y continuar',exact:true}).click();
- await expect(page.getByRole('heading',{name:'Tu perfil',exact:true})).toBeVisible();expect(state.saves).toBe(1);expect(state.sends).toBe(0);
+ await expect(page.getByRole('heading',{name:'Mi perfil',exact:true})).toBeVisible();expect(state.saves).toBe(1);expect(state.sends).toBe(0);
  const row=[...state.rows.values()].find(item=>!item.data.partial)!;expect(row.data.area).toBe('Guardado antes de ir a mi cuenta');expect(row.code).toBeUndefined();
 });
 

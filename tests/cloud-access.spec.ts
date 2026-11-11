@@ -112,7 +112,7 @@ test('perfil y rol provienen de la cuenta del servidor; una cuenta pendiente no 
   await expect(page.getByLabel('Nombres y apellidos')).toHaveCount(0);
   state.profile.enabled = true;
   await page.getByRole('button', { name: 'Comprobar acceso', exact: true }).click();
-  await expect(page.getByRole('heading', { name: 'Tu perfil', exact: true })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Mi perfil', exact: true })).toBeVisible();
   await expect(page.locator('.cloud-profile-heading')).toContainText('Usuario');
   await expect(page.locator('.cloud-profile-heading')).not.toContainText('Administrador');
   await expect(page.getByLabel('Correo de tu cuenta')).toHaveValue(email);
@@ -122,7 +122,7 @@ test('perfil y rol provienen de la cuenta del servidor; una cuenta pendiente no 
 test('guarda solo el perfil propio y se consulta en otro dispositivo, sin cuentas ni inspecciones locales', async ({ browser, page, context }) => {
   const state = await mock(context);
   await login(page);
-  await expect(page.getByRole('heading', { name: 'Tu perfil', exact: true })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Mi perfil', exact: true })).toBeVisible();
   await expect(page.getByLabel('Correo de tu cuenta')).toHaveAttribute('readonly', '');
   await page.getByLabel('Nombres y apellidos').fill('  Elena de Prueba  ');
   await page.getByLabel(/^Área/).fill(' Prevención ');
@@ -301,7 +301,7 @@ test('el enlace a Usuarios no otorga permisos administrativos a una cuenta de in
   await page.route('**/api/accounts', route => { lists++; return route.fulfill({ status: 403, json: { ok: false } }); });
   await page.goto('./?acceso=cuenta&seccion=usuarios');
   await page.getByLabel(/^Correo electrónico/).fill(email); await page.getByLabel(/^Contraseña/).fill('Fictitious!47'); await page.getByRole('button', { name: 'Iniciar sesión', exact: true }).click();
-  await expect(page.getByRole('heading', { name: 'Tu perfil', exact: true })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Mi perfil', exact: true })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Crear usuario', exact: true })).toHaveCount(0); expect(lists).toBe(0);
 });
 
@@ -313,11 +313,11 @@ test('Atrás cierra la sesión y vuelve al acceso; recordar cuenta conserva solo
   await page.getByLabel(/^Correo electrónico/).fill(email);
   await page.getByLabel(/^Contraseña/).fill('Fictitious!47');
   await page.getByRole('button', { name: 'Iniciar sesión', exact: true }).click();
-  await expect(page.getByRole('heading', { name: 'Tu perfil', exact: true })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Mi perfil', exact: true })).toBeVisible();
   await page.goBack();
   await expect(page.getByRole('dialog', { name: '¿Estás seguro de salir?' })).toBeVisible();
   await page.getByRole('button', { name: 'Seguir en la aplicación', exact: true }).click();
-  await expect(page.getByRole('heading', { name: 'Tu perfil', exact: true })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Mi perfil', exact: true })).toBeVisible();
   await page.goBack();
   await page.getByRole('button', { name: 'Salir', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'Inicia sesión', exact: true })).toBeVisible();
@@ -415,7 +415,7 @@ test('Gestión de Cuentas reutiliza la lista al cambiar de sección, la actualiz
   await login(page); await page.getByRole('button', { name: 'Gestión de Cuentas', exact: true }).click();
   await page.getByRole('button', { name: 'Gestión de Usuarios', exact: true }).click();
   await expect(page.locator('.account-row')).toContainText(['Administrador de prueba', 'Persona en memoria']);
-  await page.getByRole('button', { name: 'Tu perfil', exact: true }).click();
+  await page.getByRole('button', { name: 'Mi perfil', exact: true }).click();
   const beforeReturn = calls; block = true;
   await page.getByRole('button', { name: 'Gestión de Cuentas', exact: true }).click();
   await expect.poll(() => calls).toBeGreaterThan(beforeReturn);
@@ -425,7 +425,7 @@ test('Gestión de Cuentas reutiliza la lista al cambiar de sección, la actualiz
   await page.getByRole('button', { name: 'Cerrar sesión en este dispositivo', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'Inicia sesión' })).toBeVisible();
   await page.getByLabel(/^Correo electrónico/).fill(email); await page.getByLabel(/^Contraseña/).fill('Fictitious!47'); await page.getByRole('button', { name: 'Iniciar sesión', exact: true }).click();
-  await expect(page.getByRole('heading', { name: 'Tu perfil', exact: true })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Mi perfil', exact: true })).toBeVisible();
   const beforeSignIn = calls; block = true; await page.getByRole('button', { name: 'Gestión de Cuentas', exact: true }).click();
   await page.getByRole('button', { name: 'Gestión de Usuarios', exact: true }).click();
   await expect.poll(() => calls).toBeGreaterThan(beforeSignIn);
@@ -453,7 +453,7 @@ test('Editar CC conserva valores al fallar, valida correos, guarda sin cambiar p
  await dialog.getByLabel('Administradores (CC)').fill('NUEVO@example.invalid, nuevo@example.invalid, segunda@example.invalid');fail=true;await dialog.getByRole('button',{name:'Guardar CC',exact:true}).click();await expect(dialog.getByRole('alert')).toContainText('Reintenta');await expect(dialog.getByLabel('Administradores (CC)')).toHaveValue('NUEVO@example.invalid, nuevo@example.invalid, segunda@example.invalid');
  fail=false;await dialog.getByRole('button',{name:'Guardar CC',exact:true}).click();await expect(page.getByRole('status')).toHaveText('Administradores (CC) actualizados.');expect(target.supervisor_emails).toEqual(['nuevo@example.invalid','segunda@example.invalid']);
  expect(updates[1].permissions).toEqual({enabled:true,role:'inspector',can_create_inspections:true,can_receive_inspections:true,supervisor_emails:['nuevo@example.invalid','segunda@example.invalid']});
- await page.getByRole('button',{name:'Tu perfil',exact:true}).click();await page.getByRole('button',{name:'Gestión de Cuentas',exact:true}).click();await expect(page.getByRole('button',{name:'Gestión de Usuarios',exact:true})).toHaveAttribute('aria-current','page');
+ await page.getByRole('button',{name:'Mi perfil',exact:true}).click();await page.getByRole('button',{name:'Gestión de Cuentas',exact:true}).click();await expect(page.getByRole('button',{name:'Gestión de Usuarios',exact:true})).toHaveAttribute('aria-current','page');
  await row.getByRole('button',{name:'Editar CC',exact:true}).click();await expect(dialog.getByLabel('Administradores (CC)')).toHaveValue('nuevo@example.invalid, segunda@example.invalid');
  await page.setViewportSize({width:390,height:844});await page.screenshot({path:test.info().outputPath('editar-cc-telefono.png'),fullPage:true});expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
  await dialog.getByLabel('Administradores (CC)').fill('');await dialog.getByRole('button',{name:'Guardar CC',exact:true}).click();await expect(dialog).toHaveCount(0);expect(target.supervisor_emails).toEqual([]);

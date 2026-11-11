@@ -61,7 +61,7 @@ async function setup(page:Page,context:BrowserContext,admin=true) {
   });
  },{actor,other});
  await page.getByLabel(/^Correo electrónico/).fill(profile.email);await page.getByLabel(/^Contraseña/).fill('Fictitious!47');await page.getByRole('button',{name:'Iniciar sesión',exact:true}).click();
- await expect(page.getByRole('heading',{name:'Tu perfil',exact:true})).toBeVisible();
+ await expect(page.getByRole('heading',{name:'Mi perfil',exact:true})).toBeVisible();
  return state;
 }
 async function panel(page:Page){await page.getByRole('button',{name:'Gestión de Inspecciones',exact:true}).click();await expect(page.locator('.dashboard-results tbody tr')).toHaveCount(3);}
@@ -92,7 +92,7 @@ test('consulta y descargas de un informe ajeno cerrado no modifican el informe n
  await page.getByRole('button',{name:'Volver',exact:true}).click();await expect(page.locator('.dashboard-results tbody tr')).toHaveCount(3);
 });
 test('caché del panel mantiene los datos al cambiar de sección y un rechazo de permisos los retira',async({page,context})=>{
- const state=await setup(page,context);await panel(page);await page.getByRole('button',{name:'Tu perfil',exact:true}).click();
+ const state=await setup(page,context);await panel(page);await page.getByRole('button',{name:'Mi perfil',exact:true}).click();
  let resume!:()=>void;state.delay=new Promise<void>(resolve=>{resume=resolve;});await page.getByRole('button',{name:'Gestión de Inspecciones',exact:true}).click();await expect(page.locator('.dashboard-results tbody tr')).toHaveCount(3);resume();state.delay=null;
  await expect(page.getByRole('button',{name:'Actualizar panel'})).toBeEnabled();state.fail=true;await page.getByRole('button',{name:'Actualizar panel'}).click();await expect(page.getByRole('alert')).toContainText('pendiente de activación');await expect(page.locator('.dashboard-results tbody tr')).toHaveCount(0);
 });
@@ -140,7 +140,7 @@ test('eliminar desde la última columna confirma, conserva los otros códigos y 
  state.deleteFailure=false;await dialog.getByRole('button',{name:'Eliminar inspección',exact:true}).click();await expect(dialog).toHaveCount(0);await expect(page.locator('.dashboard-results tbody tr')).toHaveCount(2);await expect(page.getByRole('status')).toContainText('IH-2026-002 eliminada');
  expect(state.rows.map(r=>r.code)).toEqual(['IH-2026-001','IH-2026-003']);await expect(page.getByRole('button',{name:'Filtrar mes 2026-12: 1 inspecciones',exact:true})).toHaveCount(0);
  const download=page.waitForEvent('download');await page.getByRole('button',{name:'Descargar consolidado'}).click();const book=new ExcelJS.Workbook();await book.xlsx.readFile((await (await download).path())!);expect(book.getWorksheet('Inspecciones')!.getColumn(1).values.filter(Boolean)).toEqual(['Código','IH-2026-001','IH-2026-003']);
- await page.getByRole('button',{name:'Tu perfil',exact:true}).click();await page.getByRole('button',{name:'Gestión de Inspecciones',exact:true}).click();await expect(page.locator('.dashboard-results tbody tr')).toHaveCount(2);await expect(page.getByText('IH-2026-002',{exact:true})).toHaveCount(0);
+ await page.getByRole('button',{name:'Mi perfil',exact:true}).click();await page.getByRole('button',{name:'Gestión de Inspecciones',exact:true}).click();await expect(page.locator('.dashboard-results tbody tr')).toHaveCount(2);await expect(page.getByText('IH-2026-002',{exact:true})).toHaveCount(0);
 });
 
 
@@ -169,4 +169,13 @@ test('filtros con búsqueda y varias personas usan las áreas de cada responsabl
  await page.screenshot({path:test.info().outputPath('filtro-inspectores-movil.png'),fullPage:true});await search.press('Escape');await expect(page.getByLabel('Inspector',{exact:true})).toBeFocused();await expect(rows).toHaveCount(1);
  await rows.getByRole('button',{name:'Eliminar inspección IH-2026-001',exact:true}).click();await page.getByRole('dialog').getByRole('button',{name:'Eliminar inspección',exact:true}).click();await expect(rows).toHaveCount(0);
  await expect(page.getByLabel('Inspector',{exact:true})).toHaveText('adicional@example.invalid');await page.getByLabel('Inspector',{exact:true}).click();await page.getByRole('button',{name:'Limpiar selección',exact:true}).click();await page.getByRole('button',{name:'Listo',exact:true}).click();await expect(rows).toHaveCount(2);
+});
+
+test('el consolidado conserva la medida correctiva y excluye los textos internos del levantamiento y del revisor',async({page,context})=>{
+ const state=await setup(page,context);const report=state.rows[0];const observation=report.data.observations[0];
+ report.data.delivery.corrections[observation.id]={responsibleName:'Responsable',action:'Texto privado de la acción realizada.',note:'Mensaje privado de revisión.',date:'2026-11-11',state:'Ejecutado',decision:'approved',photos:[]};
+ await panel(page);const pending=page.waitForEvent('download');await page.getByRole('button',{name:'Descargar consolidado',exact:true}).click();const file=await pending;
+ const book=new ExcelJS.Workbook();await book.xlsx.readFile((await file.path())!);const sheet=book.getWorksheet('Observaciones')!,text=JSON.stringify(sheet.getSheetValues());
+ expect(text).toContain(observation.correctiveAction);for(const value of ['Texto privado de la acción realizada.','Mensaje privado de revisión.','Acción realizada','Comentario del revisor'])expect(text).not.toContain(value);
+ expect(report.data.delivery.corrections[observation.id].action).toBe('Texto privado de la acción realizada.');
 });

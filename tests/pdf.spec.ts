@@ -49,6 +49,7 @@ for (const count of [1, 7]) test(`PDF descargable del registro cerrado con ${cou
   for (let index = 1; index <= count; index++) {
     expect(text).toContain(`Hallazgo número ${index}`); expect(text).toContain(`Medida correctiva ${index}`);
   }
+  expect(text).not.toContain('Corrección realizada'); expect(text).not.toContain('Evidencia verificada.'); expect(text).not.toContain('Observación del revisor:');
   const images = (await run('pdfimages', ['-list', path])).stdout.split('\n').filter(line => /\bimage\b/.test(line));
   expect(images.length).toBeGreaterThanOrEqual(18 + (count - 1) * 2);
   const info = (await run('pdfinfo', [path])).stdout;

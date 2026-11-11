@@ -42,6 +42,33 @@ function shifted(reference: string, extra: number): string {
 function printedDate(value: string): string {
   return value ? value.replace(/^(\d{4})-(\d{2})-(\d{2})$/, '$3/$2/$1') : '';
 }
+function inlineText(sheet: XMLDocument, cell: Element, value: string) {
+  const content = node(sheet, S, 'is');
+  const text = node(sheet, S, 't', {}, value);
+  text.setAttributeNS('http://www.w3.org/XML/1998/namespace', 'xml:space', 'preserve');
+  content.appendChild(text);
+  cell.replaceChildren(content);
+  cell.setAttribute('t', 'inlineStr'); // User text is never a formula.
+}
+
+/** Clean downloads of legacy finals without changing their stored archive or other workbook parts. */
+export async function publicStoredExcel(bytes: Uint8Array, inspection: Inspection): Promise<Uint8Array> {
+  const zip = await JSZip.loadAsync(bytes, { checkCRC32: true });
+  const path = 'xl/worksheets/sheet1.xml', part = zip.file(path);
+  if (!part) throw new Error('El Excel guardado está incompleto.');
+  const sheet = parse(await part.async('string'));
+  const cells = new Map(elements(sheet, S, 'c').map(cell => [cell.getAttribute('r'), cell]));
+  let changed = false;
+  for (const [index, observation] of inspection.observations.entries()) {
+    const cell = cells.get(`F${20 + index}`);
+    if (!cell) throw new Error('Falta una medida correctiva en el Excel guardado.');
+    if (cell.getAttribute('t') === 'inlineStr' && elements(cell, S, 't').map(text => text.textContent || '').join('') === observation.correctiveAction) continue;
+    inlineText(sheet, cell, observation.correctiveAction); changed = true;
+  }
+  if (!changed) return bytes;
+  zip.file(path, new XMLSerializer().serializeToString(sheet), { date: part.date, createFolders: false });
+  return zip.generateAsync({ type: 'uint8array', compression: 'DEFLATE', compressionOptions: { level: 6 } });
+}
 
 class InspectionForm {
   readonly data: Element;
@@ -120,12 +147,7 @@ class InspectionForm {
   text(reference: string, value: string) {
     const cell = this.cells.get(reference);
     if (!cell) throw new Error(`No se encontró la celda ${reference} del informe.`);
-    const content = node(this.sheet, S, 'is');
-    const text = node(this.sheet, S, 't', {}, value);
-    text.setAttributeNS('http://www.w3.org/XML/1998/namespace', 'xml:space', 'preserve');
-    content.appendChild(text);
-    cell.replaceChildren(content);
-    cell.setAttribute('t', 'inlineStr'); // User text is never a formula.
+    inlineText(this.sheet, cell, value);
   }
 
   wrap(reference: string) {
@@ -284,7 +306,7 @@ export async function fillInspectionTemplate(d: Inspection): Promise<Uint8Array>
     form.text(`A${row}`, observation.description);
     if (!Object.hasOwn(RISK_LABELS, observation.severity)) throw new Error('Selecciona un nivel de riesgo válido para cada observación.');
     form.text(`E${row}`, RISK_LABELS[observation.severity]);
-    form.text(`F${row}`, [observation.correctiveAction, correction?.action?.trim() ? `Acción realizada:\n${correction.action}` : '', correction?.note?.trim() ? `Observación del revisor:\n${correction.note}` : ''].filter(Boolean).join('\n\n'));
+    form.text(`F${row}`, observation.correctiveAction);
     form.text(`G${row}`, correction?.responsibleName ?? d.responsibles[0]?.name ?? '');
     form.text(`I${row}`, correction?.state || 'Pendiente');
     form.text(`J${row}`, printedDate(correction?.date || observation.dueDate));
