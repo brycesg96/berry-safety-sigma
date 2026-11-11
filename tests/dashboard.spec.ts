@@ -64,12 +64,12 @@ async function setup(page:Page,context:BrowserContext,admin=true) {
  await expect(page.getByRole('heading',{name:'Tu perfil',exact:true})).toBeVisible();
  return state;
 }
-async function panel(page:Page){await page.getByRole('button',{name:'Panel de inspecciones',exact:true}).click();await expect(page.locator('.dashboard-results tbody tr')).toHaveCount(3);}
+async function panel(page:Page){await page.getByRole('button',{name:'Gestión de Inspecciones',exact:true}).click();await expect(page.locator('.dashboard-results tbody tr')).toHaveCount(3);}
 test('panel filtra estadísticas y consolidado por fecha, código, área, inspector adicional y responsable; Excel sin imágenes',async({page,context})=>{
  const state=await setup(page,context);await panel(page);
  await selectValue(page.getByLabel('Inspector',{exact:true}), 'adicional@example.invalid');await expect(page.locator('.dashboard-results tbody tr')).toHaveCount(1);
  await page.getByRole('button',{name:'Limpiar filtros'}).click();await page.getByLabel('Desde',{exact:true}).fill('2026-11-01');await page.getByLabel('Hasta',{exact:true}).fill('2026-11-30');await expect(page.locator('.dashboard-results tbody tr')).toHaveCount(2);
- await selectValue(page.getByLabel('Área del responsable',{exact:true}), 'ss.gg');await expect(page.locator('.dashboard-results tbody tr')).toHaveCount(1);
+ await selectValue(page.getByLabel('Área',{exact:true}), 'ss.gg');await expect(page.locator('.dashboard-results tbody tr')).toHaveCount(1);
  await selectValue(page.getByLabel('Responsable del área',{exact:true}), 'responsable@example.invalid');
  await page.getByLabel('Código de inspección').fill('001');
  const download=page.waitForEvent('download');await page.getByRole('button',{name:'Descargar consolidado'}).click();const file=await download,path=(await file.path())!;
@@ -93,11 +93,11 @@ test('consulta y descargas de un informe ajeno cerrado no modifican el informe n
 });
 test('caché del panel mantiene los datos al cambiar de sección y un rechazo de permisos los retira',async({page,context})=>{
  const state=await setup(page,context);await panel(page);await page.getByRole('button',{name:'Tu perfil',exact:true}).click();
- let resume!:()=>void;state.delay=new Promise<void>(resolve=>{resume=resolve;});await page.getByRole('button',{name:'Panel de inspecciones',exact:true}).click();await expect(page.locator('.dashboard-results tbody tr')).toHaveCount(3);resume();state.delay=null;
+ let resume!:()=>void;state.delay=new Promise<void>(resolve=>{resume=resolve;});await page.getByRole('button',{name:'Gestión de Inspecciones',exact:true}).click();await expect(page.locator('.dashboard-results tbody tr')).toHaveCount(3);resume();state.delay=null;
  await expect(page.getByRole('button',{name:'Actualizar panel'})).toBeEnabled();state.fail=true;await page.getByRole('button',{name:'Actualizar panel'}).click();await expect(page.getByRole('alert')).toContainText('pendiente de activación');await expect(page.locator('.dashboard-results tbody tr')).toHaveCount(0);
 });
 test('cuenta sin administración no tiene pestaña ni consulta datos del panel',async({page,context})=>{
- const state=await setup(page,context,false);await expect(page.getByRole('button',{name:'Panel de inspecciones',exact:true})).toHaveCount(0);expect(state.paths.some(path=>path.includes('berry_admin_'))).toBe(false);
+ const state=await setup(page,context,false);await expect(page.getByRole('button',{name:'Gestión de Inspecciones',exact:true})).toHaveCount(0);expect(state.paths.some(path=>path.includes('berry_admin_'))).toBe(false);
 });
 
 test('administrador corrige un informe abierto con código y autor intactos, conserva el original ante un fallo y reintenta la misma edición',async({page,context})=>{
@@ -140,7 +140,7 @@ test('eliminar desde la última columna confirma, conserva los otros códigos y 
  state.deleteFailure=false;await dialog.getByRole('button',{name:'Eliminar inspección',exact:true}).click();await expect(dialog).toHaveCount(0);await expect(page.locator('.dashboard-results tbody tr')).toHaveCount(2);await expect(page.getByRole('status')).toContainText('IH-2026-002 eliminada');
  expect(state.rows.map(r=>r.code)).toEqual(['IH-2026-001','IH-2026-003']);await expect(page.getByRole('button',{name:'Filtrar mes 2026-12: 1 inspecciones',exact:true})).toHaveCount(0);
  const download=page.waitForEvent('download');await page.getByRole('button',{name:'Descargar consolidado'}).click();const book=new ExcelJS.Workbook();await book.xlsx.readFile((await (await download).path())!);expect(book.getWorksheet('Inspecciones')!.getColumn(1).values.filter(Boolean)).toEqual(['Código','IH-2026-001','IH-2026-003']);
- await page.getByRole('button',{name:'Tu perfil',exact:true}).click();await page.getByRole('button',{name:'Panel de inspecciones',exact:true}).click();await expect(page.locator('.dashboard-results tbody tr')).toHaveCount(2);await expect(page.getByText('IH-2026-002',{exact:true})).toHaveCount(0);
+ await page.getByRole('button',{name:'Tu perfil',exact:true}).click();await page.getByRole('button',{name:'Gestión de Inspecciones',exact:true}).click();await expect(page.locator('.dashboard-results tbody tr')).toHaveCount(2);await expect(page.getByText('IH-2026-002',{exact:true})).toHaveCount(0);
 });
 
 
@@ -158,11 +158,11 @@ test('filtros con búsqueda y varias personas usan las áreas de cada responsabl
  await page.getByLabel('Responsable del área',{exact:true}).click();const responsibleSearch=page.getByRole('searchbox',{name:'Buscar responsables',exact:true});
  await responsibleSearch.fill('juan lopez');await page.getByRole('option',{name:/Juan López/}).click();await expect(rows).toHaveCount(1);
  await responsibleSearch.fill('rocio');await page.getByRole('option',{name:/Rocío Producción/}).click();await expect(rows).toHaveCount(2);await page.getByRole('button',{name:'Listo',exact:true}).click();
- await selectValue(page.getByLabel('Área del responsable',{exact:true}),'ss.gg');await expect(rows).toHaveCount(1);await expect(rows).toContainText('IH-2026-001');
- await selectValue(page.getByLabel('Área del responsable',{exact:true}),'recursos humanos');await expect(rows).toHaveCount(0);
+ await selectValue(page.getByLabel('Área',{exact:true}),'ss.gg');await expect(rows).toHaveCount(1);await expect(rows).toContainText('IH-2026-001');
+ await selectValue(page.getByLabel('Área',{exact:true}),'recursos humanos');await expect(rows).toHaveCount(0);
  await page.getByLabel('Responsable del área',{exact:true}).click();await page.getByRole('button',{name:'Limpiar selección',exact:true}).click();await page.getByRole('button',{name:'Listo',exact:true}).click();await expect(rows).toHaveCount(1);
  await page.getByRole('button',{name:'Limpiar filtros',exact:true}).click();await expect(rows).toHaveCount(3);
- await page.getByLabel('Área del responsable',{exact:true}).click();expect(await page.getByRole('option').allTextContents()).not.toContain('Maquinaria - Armonía 2');await page.getByRole('searchbox',{name:'Buscar áreas',exact:true}).press('Escape');
+ await page.getByLabel('Área',{exact:true}).click();expect(await page.getByRole('option').allTextContents()).not.toContain('Maquinaria - Armonía 2');await page.getByRole('searchbox',{name:'Buscar áreas',exact:true}).press('Escape');
  await page.setViewportSize({width:390,height:844});await page.getByLabel('Inspector',{exact:true}).click();await search.fill('adicional');await search.press('Enter');
  await expect(page.getByRole('option',{name:/Inspectora adicional/})).toHaveAttribute('aria-selected','true');
  expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);

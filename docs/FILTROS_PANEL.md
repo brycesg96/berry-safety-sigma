@@ -1,8 +1,8 @@
-# Filtros del panel de inspecciones
+# Filtros de Gestión de Inspecciones
 
 Inspector y Responsable del área admiten búsqueda por nombre o correo, sin distinguir mayúsculas o tildes, y selección de varias personas. Dentro de cada lista se incluye cualquiera de las personas seleccionadas. Los criterios de las distintas listas, código, fechas y estado se combinan.
 
-**Área del responsable** utiliza el área organizativa registrada de las personas responsables en cada informe, como SS.GG., Recursos Humanos o Producción. No utiliza el lugar físico del campo Área inspeccionada. Si se combinan un área y responsables concretos, ambos criterios deben corresponder a la misma persona de la inspección. Los informes históricos que no tengan ese dato se agrupan en Sin área registrada.
+**Área** utiliza el área organizativa registrada de las personas responsables en cada informe, como SS.GG., Recursos Humanos o Producción. No utiliza el lugar físico del campo Área inspeccionada. Si se combinan un área y responsables concretos, ambos criterios deben corresponder a la misma persona de la inspección. Los informes históricos que no tengan ese dato se agrupan en Sin área registrada.
 
 Los resultados, estadísticas y consolidado utilizan los mismos filtros. El gráfico por área cuenta cada inspección una vez en cada área de sus responsables; una inspección con responsables de áreas distintas puede aparecer en varias barras. Consultar o cambiar filtros no modifica los informes ni inicia solicitudes de escritura.
 

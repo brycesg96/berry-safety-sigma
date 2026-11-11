@@ -1,6 +1,6 @@
 # Edición administrativa de inspecciones abiertas
 
-En **Panel de inspecciones → Revisar → Editar inspección**, un administrador puede corregir los campos iniciales del informe: datos generales, responsables del área, inspectores adicionales, observaciones y fotografías, resultados, conclusiones y responsables del registro con sus fechas y firmas. Los informes cerrados conservan la consulta y las descargas.
+En **Gestión de Inspecciones → Revisar → Editar inspección**, un administrador puede corregir los campos iniciales del informe: datos generales, responsables del área, inspectores adicionales, observaciones y fotografías, resultados, conclusiones y responsables del registro con sus fechas y firmas. Los informes cerrados conservan la consulta y las descargas.
 
 La autoría original, el identificador, el código confirmado y el registro del envío se conservan. Guardar una edición no reserva otro correlativo ni envía un correo adicional. Los destinatarios nuevos ven la inspección en su cuenta; los retirados pierden su acceso. El cambio y su administrador quedan en la auditoría.
 

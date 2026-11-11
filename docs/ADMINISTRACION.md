@@ -1,5 +1,7 @@
 # Administración de usuarios
 
+El menú lateral del espacio de trabajo muestra **Administración** a las cuentas administradoras. Este acceso reúne **Gestión de Cuentas** y **Gestión de Inspecciones**, y permite añadir otras herramientas más adelante. El nombre general del acceso no cambia los permisos ni los destinos de esas herramientas.
+
 ## Gestión única con Supabase
 
 Administración → Usuarios ofrece una única entrada: **Administrar usuarios**. Abre el portal autenticado y lleva directamente a la gestión real de usuarios cuando la cuenta tiene rol administrador. Si no existe sesión, solicita el correo y la contraseña y conserva ese destino después del acceso y al recargar.
@@ -26,4 +28,4 @@ Las pruebas de interfaz comprueban la ausencia del formulario local, conservaci�
 
 ## Eliminación de inspecciones
 
-La pestaña anterior «Todas las inspecciones» se retiró de Gestión de Cuentas. **Panel de inspecciones → Inspecciones registradas** dispone de una columna **Eliminar**, a la derecha de **Descargas**. La confirmación identifica código y área; cancelar no cambia nada. El borrado usa la versión actual del registro y conserva el código reservado. Al completarse, actualiza la lista, las estadísticas, los filtros y la caché del panel. El consolidado posterior excluye el registro eliminado.
+La pestaña anterior «Todas las inspecciones» se retiró de Gestión de Cuentas. **Gestión de Inspecciones → Inspecciones registradas** dispone de una columna **Eliminar**, a la derecha de **Descargas**. La confirmación identifica código y área; cancelar no cambia nada. El borrado usa la versión actual del registro y conserva el código reservado. Al completarse, actualiza la lista, las estadísticas, los filtros y la caché del panel. El consolidado posterior excluye el registro eliminado.

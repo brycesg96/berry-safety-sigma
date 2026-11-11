@@ -2,7 +2,7 @@ import { useLayoutEffect, useRef } from 'react';
 import type { Inspection } from './model';
 
 const pending = new Set<symbol>();
-export const unsavedMessage = 'Hay cambios sin guardar. Pulsa Guardar o Guardar avance antes de continuar.';
+export const unsavedMessage = 'Hay cambios sin guardar.';
 export function hasPendingChanges() { return pending.size > 0; }
 export function usePendingChanges(dirty: boolean) {
   const key = useRef(Symbol('manual-save'));

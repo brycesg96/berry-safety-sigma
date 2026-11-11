@@ -133,6 +133,7 @@ for(const actor of [author,recipient])test(`el ingreso de ${actor===author?'admi
   await login(page,actor);
   expect(await page.evaluate(()=>(window as any).profileShown)).toBe(false);
   await expect(page.locator('.sidebar-nav').getByRole('button',{name:'Mis inspecciones',exact:true})).toHaveClass('active');
+  await expect(page.locator('.sidebar-nav').getByRole('button',{name:'Administración',exact:true})).toHaveCount(actor===author?1:0);
   await expect(page.locator('.card-eyebrow')).toHaveCount(0);expect(state.rows.size).toBe(0);expect(state.previewCalls).toBe(0);
   await page.reload();await expect(page.getByRole('heading',{name:'Mis inspecciones',exact:true})).toBeVisible();
   expect(await page.evaluate(()=>(window as any).profileShown)).toBe(false);
@@ -142,7 +143,7 @@ for(const actor of [author,recipient])test(`el ingreso de ${actor===author?'admi
   await expect(page.getByRole('heading',{name:'Tu perfil',exact:true})).toBeVisible();await expect(page).toHaveURL(/seccion=perfil/);
   await expect(page.getByLabel('Nombres y apellidos')).toHaveValue(profiles.find(p=>p.id===actor)!.full_name);
   await expect(page.getByRole('button',{name:'Gestión de Cuentas',exact:true})).toHaveCount(actor===author?1:0);
-  await expect(page.getByRole('button',{name:'Panel de inspecciones',exact:true})).toHaveCount(actor===author?1:0);
+  await expect(page.getByRole('button',{name:'Gestión de Inspecciones',exact:true})).toHaveCount(actor===author?1:0);
   await page.reload();await expect(page.getByRole('heading',{name:'Tu perfil',exact:true})).toBeVisible();
   await page.getByRole('button',{name:'Entrar al espacio de trabajo'}).click();await expect(page.getByRole('heading',{name:'Mis inspecciones',exact:true})).toBeVisible();
   await expect(page).not.toHaveURL(/seccion=/);
@@ -263,7 +264,7 @@ test('un usuario que solo recibe no crea borradores ni ve controles de creación
   await page.getByRole('button',{name:'Inspecciones recibidas',exact:true}).click();
   await expect(page.getByRole('heading',{name:'Inspecciones recibidas',exact:true})).toBeVisible();
   await expect(page.getByRole('button',{name:'Nueva inspección',exact:true})).toHaveCount(0);
-  await expect(page.getByRole('button',{name:'Gestión de Cuentas',exact:true})).toHaveCount(0);
+  await expect(page.getByRole('button',{name:'Administración',exact:true})).toHaveCount(0);
   await page.getByRole('button',{name:'Mis inspecciones',exact:true}).click();
   await expect(page.getByRole('heading',{name:'Mis inspecciones',exact:true})).toBeVisible();
   expect(state.rows.size).toBe(0);expect(state.saves).toBe(0);
@@ -319,6 +320,7 @@ test('guardado manual: escribir y navegar no escriben; Guardar conserva el borra
  await page.getByLabel('Área inspeccionada').fill('Borrador manual');
  await page.waitForTimeout(1200);expect(state.rows.size).toBe(0);expect(state.saves).toBe(0);expect(state.files.size).toBe(0);
  await page.getByRole('button',{name:'Mis inspecciones',exact:true}).click();await expect(page.getByText(/Hay cambios sin guardar/)).toBeVisible();await expect(page.getByLabel('Área inspeccionada')).toHaveValue('Borrador manual');
+ await page.getByRole('dialog',{name:'¿Qué quieres hacer con los cambios?',exact:true}).getByRole('button',{name:'Seguir editando',exact:true}).click();
  await page.getByRole('button',{name:'Guardar',exact:true}).first().click();await expect(page.getByText('Guardado en tu cuenta',{exact:true})).toBeVisible();expect(state.saves).toBe(1);
  const row=[...state.rows.values()].find(r=>!r.data.partial)!;expect(row.data.area).toBe('Borrador manual');expect(row.code).toBeUndefined();expect(state.sends).toBe(0);
  await page.getByRole('button',{name:'Mis inspecciones',exact:true}).click();await page.reload();await openEditor(page);await expect(page.getByLabel('Área inspeccionada')).toHaveValue('Borrador manual');
@@ -415,4 +417,41 @@ test('textos de una cuenta sin historial están en blanco aunque reciba informes
   await expect(other.getByRole('textbox',{name:'Objetivo de la inspección interna',exact:true})).toHaveValue('Objetivo privado de Bruno.');
   expect(state.paths).not.toContain('/rest/v1/berry_shared_texts');
  }finally{await device.close();}
+});
+
+test('Guardar y continuar conserva el destino, no sale si falla y permite reintentar sin enviar ni asignar código',async({page,context})=>{
+ const state=stateOf();await mock(context,state,author);await enter(page,author);
+ await page.getByLabel('Área inspeccionada').fill('Guardado antes de ir a mi cuenta');
+ await page.getByRole('button',{name:'Mi perfil',exact:true}).click();await page.getByRole('button',{name:'Ir a mi cuenta',exact:true}).click();
+ const dialog=page.getByRole('dialog',{name:'¿Qué quieres hacer con los cambios?',exact:true});await expect(dialog).toBeVisible();
+ state.failSave=true;await dialog.getByRole('button',{name:'Guardar y continuar',exact:true}).click();
+ await expect(dialog.getByRole('alert')).toContainText('No se pudo confirmar el guardado');expect(state.saves).toBe(0);await expect(page.getByLabel('Área inspeccionada')).toHaveValue('Guardado antes de ir a mi cuenta');
+ state.failSave=false;await dialog.getByRole('button',{name:'Guardar y continuar',exact:true}).click();
+ await expect(page.getByRole('heading',{name:'Tu perfil',exact:true})).toBeVisible();expect(state.saves).toBe(1);expect(state.sends).toBe(0);
+ const row=[...state.rows.values()].find(item=>!item.data.partial)!;expect(row.data.area).toBe('Guardado antes de ir a mi cuenta');expect(row.code).toBeUndefined();
+});
+
+test('Descartar un intento recuperado conserva el borrador confirmado y retira solo la copia pendiente',async({page,context})=>{
+ const state=stateOf();await mock(context,state,author);await enter(page,author);
+ await page.getByLabel('Área inspeccionada').fill('Versión confirmada');await page.getByRole('button',{name:'Guardar',exact:true}).click();await expect(page.getByText('Guardado en tu cuenta',{exact:true})).toBeVisible();
+ state.failSave=true;await page.getByLabel('Área inspeccionada').fill('Intento sin confirmar');await page.getByRole('button',{name:'Guardar',exact:true}).click();await expect(page.getByRole('alert')).toContainText('No se pudo confirmar');
+ page.once('dialog',native=>native.accept());await page.reload();await openEditor(page);await expect(page.getByLabel('Área inspeccionada')).toHaveValue('Intento sin confirmar');
+ let readFails=true;await page.route('**/rest/v1/rpc/berry_cloud_session',route=>readFails?route.fulfill({status:503,json:{message:'offline'}}):route.fallback());
+ const dialog=page.getByRole('dialog',{name:'¿Qué quieres hacer con los cambios?',exact:true});
+ await page.getByRole('button',{name:'Mis inspecciones',exact:true}).click();await dialog.getByRole('button',{name:'Descartar cambios',exact:true}).click();await expect(dialog.getByRole('alert')).toContainText('Tus cambios siguen aquí');
+ // A failed read cannot erase the recovery copy, even after another reload.
+ readFails=false;page.once('dialog',native=>native.accept());await page.reload();await openEditor(page);await expect(page.getByLabel('Área inspeccionada')).toHaveValue('Intento sin confirmar');
+ state.failSave=false;await page.getByRole('button',{name:'Mis inspecciones',exact:true}).click();await dialog.getByRole('button',{name:'Descartar cambios',exact:true}).click();
+ await expect(page.getByRole('heading',{name:'Mis inspecciones',exact:true})).toBeVisible();await expect(page.locator('.inspection-list-row')).toHaveCount(1);await expect(page.locator('.inspection-list-row')).toContainText('Versión confirmada');
+ page.once('dialog',native=>native.accept());await page.reload();await openEditor(page);await expect(page.getByLabel('Área inspeccionada')).toHaveValue('Versión confirmada');
+ expect(state.saves).toBe(1);expect(state.sends).toBe(0);expect([...state.rows.values()].filter(row=>!row.deleted_at)).toHaveLength(1);
+});
+
+test('Administración reúne Gestión de Cuentas y Gestión de Inspecciones sin cambiar permisos',async({page,context})=>{
+ const state=stateOf();await mock(context,state,author);
+ await page.route('**/rest/v1/rpc/berry_admin_dashboard',route=>route.fulfill({json:[]}));await login(page,author);
+ await page.locator('.sidebar-nav').getByRole('button',{name:'Administración',exact:true}).click();
+ await expect(page.getByRole('heading',{name:'Gestión de Cuentas',exact:true})).toBeVisible();
+ await page.getByRole('button',{name:'Gestión de Inspecciones',exact:true}).click();await expect(page.getByRole('heading',{name:'Gestión de Inspecciones',exact:true})).toBeVisible();
+ await expect(page.getByRole('combobox',{name:'Área',exact:true})).toBeVisible();expect(state.saves).toBe(0);expect(state.sends).toBe(0);
 });

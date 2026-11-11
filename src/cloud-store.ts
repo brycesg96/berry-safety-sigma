@@ -81,7 +81,7 @@ export async function hydrateCloudInspection(row: CloudInspectionRow, actor: str
   const snapshot = { ...row.data, id: row.id, ownerId: row.author_id, storage: 'cloud' as const, cloudRevision: Number(row.revision), finalExcelStored: row.final_excel_stored, archiveEditOperation: row.active_edit_operation || undefined, updatedAt: row.updated_at };
   return mapImages(snapshot, async photo => ({ ...photo, data: photo.dataRef ? await storedImage(photo.dataRef, state) : photo.data, ...(photo.originalRef ? { originalData: await storedImage(photo.originalRef, state) } : {}) }));
 }
-export async function loadCloudInspections(actor: string) {
+export async function loadCloudInspections(actor: string, options: { includePending?: boolean } = {}) {
   await actorIs(actor);
   const ready = await cloudRpc<string>('berry_cloud_session', {});
   if (ready !== actor) throw new Error('La sesión cambió. Vuelve a iniciar sesión para continuar.');
@@ -91,7 +91,7 @@ export async function loadCloudInspections(actor: string) {
   // The administration panel has wider read permissions. The personal workspace
   // loads only authored or assigned reports and their images.
   const remote = await Promise.all(rows.filter(row => !row.data.partial && (row.author_id === actor || row.workflow !== 'draft' && row.data.delivery?.recipientIds.includes(actor))).map(row => hydrateCloudInspection(row, actor)));
-  const pending = await pendingDrafts(actor).catch(() => []);
+  const pending = options.includePending === false ? [] : await pendingDrafts(actor).catch(() => []);
   const retired = new Set<string>();
   if (pending.length) {
     const result = await supabaseClient().rpc('berry_cloud_tombstones', { p_ids: pending.map(draft => draft.id) });

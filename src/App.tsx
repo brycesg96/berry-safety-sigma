@@ -26,7 +26,7 @@ import { readAccounts, activeAccountId, selectTestAccount, updateOwnProfile, acc
 import type { DemoAccount } from './accounts';
 import type { ExitConfirmation } from './useExitConfirmation';
 import { AccountDirectory } from './AccountDirectory';
-import { discardCloudPending } from './cloud-store';
+import { discardCloudPending, loadCloudInspections } from './cloud-store';
 type CloudConnection = { actorId: string; accounts: DemoAccount[] };
 
 const stepDescriptions = [
@@ -70,6 +70,10 @@ function WorkspaceApp({ initialAccounts, exit, onCloudAccess, cloud }: { initial
   const savedKeys = useRef(new Map<string, string>());
   const saving = useRef(false);
   const allowUnsavedExit = useRef(false);
+  const navigationDecision = useRef<((proceed: boolean) => void) | null>(null);
+  const [navigationPending, setNavigationPending] = useState(false);
+  const [navigationBusy, setNavigationBusy] = useState(false);
+  const [navigationError, setNavigationError] = useState('');
   const [loaded, setLoaded] = useState(false);
   const [view, setView] = useState<'editor' | 'list' | 'admin' | 'received' | 'followup'>(cloud ? 'list' : 'editor');
   const registrationPreview = useNextRegistration(cloud?.actorId, canCreate && loaded && view === 'editor' && !confirmedInspectionCode(draft));
@@ -264,14 +268,47 @@ function WorkspaceApp({ initialAccounts, exit, onCloudAccess, cloud }: { initial
     pendingEditorScroll.current = { observationId };
     setErrors({}); patch('step', target);
   };
-  const canNavigate = () => {
+  const canNavigate = async () => {
     if (saving.current || busy || photoBusy) { setToast('Espera a que termine la operación en curso.'); return false; }
+    if (navigationDecision.current) return false;
+    if (draftDirty) return new Promise<boolean>(resolve => {
+      navigationDecision.current = resolve;
+      setModal(null); setMenuOpen(false); setToast(''); setNavigationError(''); setNavigationPending(true);
+    });
     if (hasPendingChanges()) { setToast(unsavedMessage); return false; }
     return true;
   };
+  const finishNavigation = (proceed: boolean) => {
+    const resolve = navigationDecision.current;
+    navigationDecision.current = null;
+    setNavigationPending(false); setNavigationError('');
+    resolve?.(proceed);
+  };
+  const resolveNavigation = async (choice: 'save' | 'discard') => {
+    if (navigationBusy || saving.current) return;
+    setNavigationBusy(true); setNavigationError('');
+    try {
+      if (choice === 'save') {
+        if (!await save(draft)) { setNavigationError('No se pudo confirmar el guardado. Tus cambios siguen aquí. Reintenta Guardar o elige Descartar cambios.'); return; }
+      } else {
+        // A recovered failed save has no confirmed baseline in this tab. Read the
+        // server before discarding its recovery copy; never delete a saved draft.
+        const items = draft.pendingManualSave && cloud ? await loadCloudInspections(account.id, { includePending: false }) : inspections;
+        if (cloud) await discardCloudPending(draft.id, account.id);
+        const stored = items.find(item => item.id === draft.id && !item.pendingManualSave);
+        const next = stored || newInspection(profile, inspectionTextsFor(account.id, items.filter(item => item.id !== draft.id)));
+        savedKeys.current.set(next.id, inspectionEditKey(next));
+        if (!stored) startedDraftIds.current.delete(draft.id);
+        setDraft(next); setInspections(items.filter(item => item.ownerId === account.id && (item.id !== draft.id || !!stored)));
+        setSaveState(stored ? 'saved' : 'empty'); setStorageError(false); setErrors({});
+      }
+      finishNavigation(true);
+    } catch { setNavigationError('No pudimos recuperar la versión guardada. Tus cambios siguen aquí; vuelve a intentarlo.'); }
+    finally { setNavigationBusy(false); }
+  };
   const startNew = async () => {
     if (!canCreate) return;
-    if (!canNavigate()) return;
+    if (!await canNavigate()) return;
     const next = newInspection(profile, inspectionTextsFor(account.id, inspections));
     savedKeys.current.set(next.id, inspectionEditKey(next));
     setDraft(next); setSaveState('empty'); setErrors({}); setView('editor'); setMenuOpen(false); top();
@@ -303,12 +340,12 @@ function WorkspaceApp({ initialAccounts, exit, onCloudAccess, cloud }: { initial
     return () => { active = false; clearInterval(timer); window.removeEventListener('focus', refresh); window.removeEventListener('berry-cloud-inspections-changed', refresh); };
   }, [cloud?.actorId, loaded, view, busy, account.id]);
   const showList = async () => {
-    if (!canNavigate()) return;
+    if (!await canNavigate()) return;
     try { await refreshInspections(); setView('list'); setMenuOpen(false); top(); } catch { setToast('No pudimos consultar tus inspecciones. Revisa tu conexión.'); }
   };
   const showReceived = async () => {
     if (!canReceive) return;
-    if (!canNavigate()) return;
+    if (!await canNavigate()) return;
     try { await refreshInspections(); setView('received'); setMenuOpen(false); top(); } catch { setToast('No pudimos consultar tus inspecciones recibidas. Revisa tu conexión.'); }
   };
   const openFollowUp = (item: Inspection, origin: 'list' | 'received') => {
@@ -367,12 +404,12 @@ function WorkspaceApp({ initialAccounts, exit, onCloudAccess, cloud }: { initial
   const switchAccount = async (id: string) => {
     if (id === account.id) return;
     if (busy || photoBusy) { setToast('Espera a que termine de procesarse el archivo antes de cambiar de cuenta.'); return; }
-    if (!canNavigate()) return;
+    if (!await canNavigate()) return;
     try { selectTestAccount(id); setLoaded(false); setActiveId(id); setView('editor'); setMenuOpen(false); setProfileError(''); }
     catch (error) { setToast(error instanceof Error ? error.message : 'No se pudo cambiar la cuenta.'); }
   };
-  const showAdmin = async () => { if (!isAdmin || !canNavigate()) return; if (cloud) { onCloudAccess('admin'); return; } setView('admin'); setMenuOpen(false); top(); };
-  const openCloudAccess = async (section: 'profile' | 'admin' = 'profile') => { if (canNavigate()) onCloudAccess(section); };
+  const showAdmin = async () => { if (!isAdmin || !await canNavigate()) return; if (cloud) { onCloudAccess('admin'); return; } setView('admin'); setMenuOpen(false); top(); };
+  const openCloudAccess = async (section: 'profile' | 'admin' = 'profile') => { if (await canNavigate()) onCloudAccess(section); };
   const pendingReceivedCount = received.filter(item => !inspectionClosed(item)).length;
   const visibleReceived = received.filter(item => receivedFilter === 'closed' ? inspectionClosed(item) : !inspectionClosed(item));
   const reviewCount = inspections.filter(needsReview).length;
@@ -395,7 +432,7 @@ function WorkspaceApp({ initialAccounts, exit, onCloudAccess, cloud }: { initial
         {canCreate && <button className={view === 'editor' ? 'active' : ''} onClick={() => { if (view !== 'editor') void startNew(); else setMenuOpen(false); }}><ClipboardCheck size={19} /><span>Nueva inspección</span><Plus size={15} /></button>}
         <button aria-label="Mis inspecciones" className={view === 'list' || following && followUpOrigin === 'list' ? 'active' : ''} onClick={() => void showList()}><LayoutGrid size={19} /><span>Mis inspecciones</span>{reviewCount > 0 && <span className="nav-count">{reviewCount}</span>}</button>
         {canReceive && <button aria-label="Inspecciones recibidas" className={view === 'received' || following && followUpOrigin === 'received' ? 'active' : ''} onClick={() => void showReceived()}><Mail size={19}/><span>Inspecciones recibidas</span>{pendingReceivedCount > 0 && <span className="nav-count">{pendingReceivedCount}</span>}</button>}
-        {isAdmin && <button className={view === 'admin' ? 'active' : ''} onClick={() => void showAdmin()}><Settings2 size={19}/><span>{cloud ? 'Gestión de Cuentas' : 'Administración'}</span></button>}
+        {isAdmin && <button className={view === 'admin' ? 'active' : ''} onClick={() => void showAdmin()}><Settings2 size={19}/><span>Administración</span></button>}
       </nav>
       <div className="sidebar-bottom"><div className="prevention-card"><div className="prevention-art"><ShieldCheck size={32} strokeWidth={1.4} /><span /><span /></div><h3>La prevención<br />empieza contigo.</h3><p>Cada observación es una oportunidad para cuidar a tu equipo.</p><div className="small-line" /></div><button className="help-button" onClick={() => { setModal('help'); setMenuOpen(false); }}><HelpCircle size={18} /><span>¿Necesitas una mano?</span><ArrowUpRight size={15} /></button><div className="sidebar-footer"><span className="online-dot" />Tu espacio de seguridad<span>v0.1</span></div></div>
     </aside>
@@ -471,6 +508,7 @@ function WorkspaceApp({ initialAccounts, exit, onCloudAccess, cloud }: { initial
       </main>
     </div>
 
+    {navigationPending && <Modal title="¿Qué quieres hacer con los cambios?" onClose={() => { if (!navigationBusy) finishNavigation(false); }}><p className="modal-description">Hay cambios sin guardar. Puedes guardarlos antes de continuar o descartarlos. Si descartas, se conserva la última versión guardada; una inspección nueva sin guardar no se conservará.</p>{navigationError && <p className="error-message" role="alert">{navigationError}</p>}<div className="modal-actions"><button type="button" className="button button-outline" disabled={navigationBusy} onClick={() => finishNavigation(false)}>Seguir editando</button><button type="button" className="button button-danger" disabled={navigationBusy} onClick={() => void resolveNavigation('discard')}>Descartar cambios</button><button type="button" className="button button-primary" disabled={navigationBusy} onClick={() => void resolveNavigation('save')}>{navigationBusy && <LoaderCircle className="spin" size={16}/>}Guardar y continuar</button></div></Modal>}
     {toast && <div className="toast" role="status"><Info size={18} /><span>{toast}</span><button aria-label="Cerrar aviso" onClick={() => setToast('')}><X size={16} /></button></div>}
     {modal === 'reload' && cloud && <Modal title="¿Abrir la versión guardada?" onClose={() => !busy && setModal(null)}><p className="modal-description">Los cambios de esta pestaña que no se hayan sincronizado se sustituirán por la versión guardada en tu cuenta.</p><div className="modal-actions"><button className="button button-outline" disabled={busy} onClick={() => setModal(null)}>Seguir editando</button><button className="button button-primary" disabled={busy} onClick={async () => { setBusy(true); try { await discardCloudPending(draft.id, account.id); const items = await loadInspections(account.id); const item = items.find(i => i.id === draft.id); if (item) savedKeys.current.set(item.id, inspectionEditKey(item)); const next = item || newInspection(profile); savedKeys.current.set(next.id, inspectionEditKey(next)); setDraft(next); setSaveState(next.pendingManualSave ? 'error' : 'saved'); setInspections(items.filter(i => i.ownerId === account.id)); setStorageError(false); setModal(null); if (item?.delivery) openFollowUp(item, 'list'); } catch { setToast('No pudimos consultar la versión guardada. Conserva esta pestaña y revisa tu conexión.'); } finally { setBusy(false); } }}>Abrir versión guardada</button></div></Modal>}
     {modal === 'help' && <Modal title="Una inspección, paso a paso" onClose={() => setModal(null)}><p className="modal-description">Lo importante es lo que observas. Berry te ayuda a darle forma.</p><ol className="help-steps">{['Define la empresa, la instalación, el objetivo y los responsables.', 'Añade tus observaciones, fotos y medidas correctivas. Selecciona el nivel de riesgo y la Fecha de Cierre. La primera fecha se aplica a todas; después puedes ajustarlas por separado.', 'Revisa el resumen de los hallazgos.', 'Completa las conclusiones, recomendaciones y los datos del inspector.', 'Revisa los destinatarios y descarga el informe Excel.'].map((text, i) => <li key={text}><span>{i + 1}</span><div><strong>{stepNames[i]}</strong><p>{text}</p></div></li>)}</ol><div className="notice"><Info size={19} /><p>{cloud ? 'Pulsa Guardar para conservar el borrador y las evidencias en tu cuenta. Al enviar se asigna un código y se conserva el Excel en el archivo del mes de inspección.' : 'Pulsa Guardar para conservar el borrador en este navegador. El Excel utiliza la plantilla de inspecciones internas. La recepción del correo se confirma en el buzón destinatario.'}</p></div><button className="button button-primary full-width" onClick={() => setModal(null)}>Entendido<Check size={16} /></button></Modal>}

@@ -66,3 +66,32 @@ test('abrir, navegar y cambiar de cuenta no crea borradores; escribir no guarda;
   await date.fill(initial); await page.clock.runFor(1000); await page.getByRole('button',{name:'Guardar',exact:true}).first().click();
   await expect(page.getByText('Sin iniciar', { exact: true })).toBeVisible(); expect(await storedCount(page)).toBe(0);
 });
+
+for (const width of [1366, 390]) test(`salir de una inspección permite cancelar, descartar o guardar y continuar (${width}px)`, async ({ page }) => {
+  await page.setViewportSize({ width, height: 900 }); await page.goto('./');
+  const field = page.getByLabel('Área inspeccionada');
+  const dialog = page.getByRole('dialog', { name: '¿Qué quieres hacer con los cambios?', exact: true });
+  async function navigate(name: string) {
+    const menu = page.getByRole('button', { name: 'Abrir menú', exact: true });
+    if (await menu.isVisible()) await menu.click();
+    await page.locator('.sidebar-nav').getByRole('button', { name, exact: true }).click();
+  }
+  await field.fill('Nueva sin guardar'); await navigate('Mis inspecciones');
+  await expect(dialog).toBeVisible(); await expect(dialog).not.toContainText('Guardar avance'); expect(await storedCount(page)).toBe(0);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+  await dialog.screenshot({ path: test.info().outputPath(`cambios-pendientes-${width}.png`) });
+  await dialog.getByRole('button', { name: 'Seguir editando', exact: true }).click(); await expect(field).toHaveValue('Nueva sin guardar');
+  await navigate('Mis inspecciones'); await page.keyboard.press('Escape'); await expect(dialog).toHaveCount(0); await expect(field).toHaveValue('Nueva sin guardar');
+  await navigate('Mis inspecciones'); await dialog.getByRole('button', { name: 'Descartar cambios', exact: true }).click();
+  await expect(page.getByRole('heading', { name: 'Mis inspecciones', exact: true })).toBeVisible(); expect(await storedCount(page)).toBe(0);
+  await navigate('Nueva inspección'); await expect(field).toHaveValue('');
+  await field.fill('Borrador conservado'); await navigate('Inspecciones recibidas');
+  await dialog.getByRole('button', { name: 'Guardar y continuar', exact: true }).click();
+  await expect(page.getByRole('heading', { name: 'Inspecciones recibidas', exact: true })).toBeVisible(); expect(await storedCount(page)).toBe(1);
+  await navigate('Mis inspecciones'); await page.locator('.inspection-list-row').getByRole('button', { name: 'Continuar', exact: true }).click();
+  await expect(field).toHaveValue('Borrador conservado'); await field.fill('Cambio que descarto'); await navigate('Administración');
+  await dialog.getByRole('button', { name: 'Descartar cambios', exact: true }).click(); await expect(page.locator('.sidebar-nav button.active')).toContainText('Administración');
+  await navigate('Mis inspecciones'); await expect(page.locator('.inspection-list-row')).toHaveCount(1); await expect(page.locator('.inspection-list-row')).toContainText('Borrador conservado');
+  await page.locator('.inspection-list-row').getByRole('button', { name: 'Continuar', exact: true }).click(); await expect(field).toHaveValue('Borrador conservado');
+  page.once('dialog', native => native.accept()); await page.reload(); await expect(field).toHaveValue('Borrador conservado');
+});

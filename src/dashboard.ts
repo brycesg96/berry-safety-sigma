@@ -42,7 +42,7 @@ export function dashboardMetrics(rows: DashboardRow[], today: string) {
 }
 export async function loadDashboard(): Promise<DashboardRow[]> {
   const { data, error } = await supabaseClient().rpc('berry_admin_dashboard');
-  if (error?.code === 'PGRST202') throw new Error('El Panel de inspecciones está pendiente de activación.');
+  if (error?.code === 'PGRST202') throw new Error('La Gestión de Inspecciones está pendiente de activación.');
   if (error || !Array.isArray(data)) throw new Error('No pudimos consultar el panel. Comprueba tu conexión y tus permisos.');
   return data;
 }
