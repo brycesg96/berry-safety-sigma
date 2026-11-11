@@ -461,3 +461,30 @@ test('Editar CC conserva valores al fallar, valida correos, guarda sin cambiar p
  await dialog.getByLabel('Administradores (CC)').fill('');await dialog.getByRole('button',{name:'Guardar CC',exact:true}).click();await expect(dialog).toHaveCount(0);expect(target.supervisor_emails).toEqual([]);
  await page.screenshot({path:test.info().outputPath('gestion-usuarios-telefono.png'),fullPage:true});expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
 });
+
+for (const width of [1366, 390]) test(`Gestión de Usuarios busca por nombre, cargo y área entre más de 50 cuentas sin consultar al escribir (${width}px)`, async ({ page, context }) => {
+  await page.setViewportSize({ width, height: 900 });
+  const actor = { ...initialProfile(), full_name: 'Administradora', area: 'SIGMA', job_title: 'Supervisora', must_change_password: false };
+  await mock(context, actor);
+  const accounts = [actor, ...Array.from({ length: 60 }, (_, index) => ({ ...actor, id: `33000000-0000-4000-8000-${String(index + 1).padStart(12, '0')}`, full_name: index === 37 ? 'José Álvarez' : `Persona ${index + 1}`, email: `persona${index + 1}@example.invalid`, area: index === 37 ? 'Gestión Ambiental' : 'Logística', job_title: index === 37 ? 'Jefe de Producción' : 'Asistente', role: 'inspector' }))];
+  let reads = 0, mutations = 0;
+  await page.route('**/api/accounts', route => { reads++; return route.fulfill({ json: { ok: true, accounts } }); });
+  await page.route('**/api/accounts/manage', route => { mutations++; return route.fulfill({ status: 500, json: { ok: false } }); });
+  await login(page); await page.getByRole('button', { name: 'Gestión de Cuentas', exact: true }).click(); await page.getByRole('button', { name: 'Gestión de Usuarios', exact: true }).click();
+  const rows = page.locator('.account-row'), search = page.getByRole('searchbox', { name: 'Buscar usuarios por nombre, cargo o área', exact: true });
+  await expect(rows).toHaveCount(61); await expect(search).toHaveAttribute('placeholder', 'Buscar por nombre, cargo o área');
+  await page.locator('.account-users-heading').screenshot({ path: test.info().outputPath(`buscar-usuarios-${width}.png`) });
+  const baseline = reads;
+  for (const query of ['  JOSE   alvarez  ', 'JEFE de PRODUCCION', 'gestion ambiental', 'jose produccion ambiental']) {
+    await search.fill(query); await expect(rows).toHaveCount(1); await expect(rows).toContainText('José Álvarez'); await expect(page.getByRole('heading', { name: 'Usuarios', exact: false })).toHaveText('Usuarios 1 de 61');
+  }
+  await page.getByRole('button', { name: 'Agregar Usuario', exact: true }).click(); await page.getByRole('button', { name: 'Gestión de Usuarios', exact: true }).click(); await expect(search).toHaveValue('jose produccion ambiental'); await expect(rows).toHaveCount(1);
+  await rows.getByRole('button', { name: 'Editar permisos', exact: true }).click(); await expect(page.getByRole('dialog', { name: 'Permisos de José Álvarez', exact: true })).toBeVisible(); await page.getByRole('dialog').getByRole('button', { name: 'Cancelar', exact: true }).click();
+  await search.fill('ninguna coincidencia'); await expect(rows).toHaveCount(0); await expect(page.getByText('No hay usuarios que coincidan con tu búsqueda.', { exact: true })).toBeVisible(); await expect(page.getByRole('heading', { name: 'Usuarios', exact: false })).toHaveText('Usuarios 0 de 61');
+  await page.getByRole('button', { name: 'Limpiar búsqueda de usuarios', exact: true }).click(); await expect(rows).toHaveCount(61); await expect(search).toBeFocused(); await expect(search).toHaveValue('');
+  await search.fill('   '); await expect(rows).toHaveCount(61); expect(reads).toBe(baseline); expect(mutations).toBe(0);
+  await search.fill('gestion ambiental'); accounts[38].area = 'Recursos Humanos'; await page.getByRole('button', { name: 'Actualizar lista', exact: true }).click();
+  await expect.poll(() => reads).toBe(baseline + 1); await expect(rows).toHaveCount(0); await expect(search).toHaveValue('gestion ambiental');
+  await page.getByRole('button', { name: 'Limpiar búsqueda de usuarios', exact: true }).click(); await expect(rows).toHaveCount(61); expect(mutations).toBe(0);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+});

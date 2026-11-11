@@ -29,3 +29,10 @@ Las pruebas de interfaz comprueban la ausencia del formulario local, conservaci�
 ## Eliminación de inspecciones
 
 La pestaña anterior «Todas las inspecciones» se retiró de Gestión de Cuentas. **Gestión de Inspecciones → Inspecciones registradas** dispone de una columna **Eliminar**, a la derecha de **Descargas**. La confirmación identifica código y área; cancelar no cambia nada. El borrado usa la versión actual del registro y conserva el código reservado. Al completarse, actualiza la lista, las estadísticas, los filtros y la caché del panel. El consolidado posterior excluye el registro eliminado.
+
+
+## Buscar usuarios
+
+Gestión de Usuarios incluye una lupa y el buscador «Buscar por nombre, cargo o área» junto al título Usuarios. Filtra por los nombres, puesto y área organizativa de las cuentas cargadas, sin distinguir mayúsculas ni tildes. Se pueden combinar palabras de esos campos. El contador indica coincidencias y total; limpiar la búsqueda restaura la lista completa. Si no hay coincidencias, se indica explícitamente.
+
+La búsqueda no modifica cuentas ni solicita datos por cada letra. Actualizar lista mantiene la búsqueda y aplica el filtro a los datos nuevos. Editar permisos, CC, activar o eliminar continúan usando el identificador y la revisión del usuario seleccionado, con los controles administrativos existentes.

@@ -67,7 +67,7 @@ test('abrir, navegar y cambiar de cuenta no crea borradores; escribir no guarda;
   await expect(page.getByText('Sin iniciar', { exact: true })).toBeVisible(); expect(await storedCount(page)).toBe(0);
 });
 
-for (const width of [1366, 390]) test(`salir de una inspección permite cancelar, descartar o guardar y continuar (${width}px)`, async ({ page }) => {
+for (const width of [1366, 390]) test(`salir de una inspección permite cancelar, descartar o guardar y salir (${width}px)`, async ({ page }) => {
   await page.setViewportSize({ width, height: 900 }); await page.goto('./');
   const field = page.getByLabel('Área inspeccionada');
   const dialog = page.getByRole('dialog', { name: '¿Qué quieres hacer con los cambios?', exact: true });
@@ -86,7 +86,7 @@ for (const width of [1366, 390]) test(`salir de una inspección permite cancelar
   await expect(page.getByRole('heading', { name: 'Mis inspecciones', exact: true })).toBeVisible(); expect(await storedCount(page)).toBe(0);
   await navigate('Nueva inspección'); await expect(field).toHaveValue('');
   await field.fill('Borrador conservado'); await navigate('Inspecciones recibidas');
-  await dialog.getByRole('button', { name: 'Guardar y continuar', exact: true }).click();
+  await dialog.getByRole('button', { name: 'Guardar y salir', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'Inspecciones recibidas', exact: true })).toBeVisible(); expect(await storedCount(page)).toBe(1);
   await navigate('Mis inspecciones'); await page.locator('.inspection-list-row').getByRole('button', { name: 'Continuar', exact: true }).click();
   await expect(field).toHaveValue('Borrador conservado'); await field.fill('Cambio que descarto'); await navigate('Administración');

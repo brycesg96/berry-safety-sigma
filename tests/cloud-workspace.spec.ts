@@ -337,7 +337,7 @@ test('guardado manual: escribir y navegar no escriben; Guardar conserva el borra
  const state=stateOf();await mock(context,state,author);await enter(page,author);
  await page.getByLabel('Área inspeccionada').fill('Borrador manual');
  await page.waitForTimeout(1200);expect(state.rows.size).toBe(0);expect(state.saves).toBe(0);expect(state.files.size).toBe(0);
- await page.getByRole('button',{name:'Mis inspecciones',exact:true}).click();await expect(page.getByText(/Hay cambios sin guardar/)).toBeVisible();await expect(page.getByLabel('Área inspeccionada')).toHaveValue('Borrador manual');
+ await page.getByRole('button',{name:'Mis inspecciones',exact:true}).click();await expect(page.getByText(/Hay información sin guardar/)).toBeVisible();await expect(page.getByLabel('Área inspeccionada')).toHaveValue('Borrador manual');
  await page.getByRole('dialog',{name:'¿Qué quieres hacer con los cambios?',exact:true}).getByRole('button',{name:'Seguir editando',exact:true}).click();
  await page.getByRole('button',{name:'Guardar',exact:true}).first().click();await expect(page.getByText('Guardado en tu cuenta',{exact:true})).toBeVisible();expect(state.saves).toBe(1);
  const row=[...state.rows.values()].find(r=>!r.data.partial)!;expect(row.data.area).toBe('Borrador manual');expect(row.code).toBeUndefined();expect(state.sends).toBe(0);
@@ -437,14 +437,14 @@ test('textos de una cuenta sin historial están en blanco aunque reciba informes
  }finally{await device.close();}
 });
 
-test('Guardar y continuar conserva el destino, no sale si falla y permite reintentar sin enviar ni asignar código',async({page,context})=>{
+test('Guardar y salir conserva el destino, no sale si falla y permite reintentar sin enviar ni asignar código',async({page,context})=>{
  const state=stateOf();await mock(context,state,author);await enter(page,author);
  await page.getByLabel('Área inspeccionada').fill('Guardado antes de ir a mi cuenta');
  await page.getByRole('button',{name:'Mi perfil',exact:true}).click();await page.getByRole('button',{name:'Ir a mi perfil',exact:true}).click();
  const dialog=page.getByRole('dialog',{name:'¿Qué quieres hacer con los cambios?',exact:true});await expect(dialog).toBeVisible();
- state.failSave=true;await dialog.getByRole('button',{name:'Guardar y continuar',exact:true}).click();
+ state.failSave=true;await dialog.getByRole('button',{name:'Guardar y salir',exact:true}).click();
  await expect(dialog.getByRole('alert')).toContainText('No se pudo confirmar el guardado');expect(state.saves).toBe(0);await expect(page.getByLabel('Área inspeccionada')).toHaveValue('Guardado antes de ir a mi cuenta');
- state.failSave=false;await dialog.getByRole('button',{name:'Guardar y continuar',exact:true}).click();
+ state.failSave=false;await dialog.getByRole('button',{name:'Guardar y salir',exact:true}).click();
  await expect(page.getByRole('heading',{name:'Mi perfil',exact:true})).toBeVisible();expect(state.saves).toBe(1);expect(state.sends).toBe(0);
  const row=[...state.rows.values()].find(item=>!item.data.partial)!;expect(row.data.area).toBe('Guardado antes de ir a mi cuenta');expect(row.code).toBeUndefined();
 });

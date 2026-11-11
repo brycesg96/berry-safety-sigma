@@ -75,3 +75,19 @@
 
 .cloud-account-dashboard-main{width:min(100%,1320px)}
 @media(max-width:600px){.cloud-account-main>.admin-tabs{gap:4px}.cloud-account-main>.admin-tabs button{font-size:11px;padding:13px 8px}}
+
+.account-users-heading{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:16px;padding:18px 24px;border-bottom:1px solid #e8eddf}
+.cloud-administration .account-users-heading h2{padding:0;border:0;flex-shrink:0}
+.account-user-search{display:flex;align-items:center;gap:9px;flex:1 1 320px;max-width:420px;min-width:0;min-height:46px;padding:0 12px;border:1px solid #dce5d6;border-radius:9px;background:#fbfdf9;color:#81957d;font-size:13px}
+.account-user-search:focus-within{border-color:#91ae88;box-shadow:0 0 0 3px #e9f1e5}
+.account-user-search>svg{flex-shrink:0}
+.account-user-search input{flex:1;min-width:0;width:100%;border:0;outline:none;background:transparent;padding:11px 0;font:inherit;color:#24483a}
+.account-user-search input::placeholder{color:#87968b}
+.account-user-search input::-webkit-search-cancel-button{-webkit-appearance:none}
+.account-user-search .icon-button{width:32px;height:32px;flex-shrink:0}
+.account-users-empty{padding:24px;color:#738276;font-size:13px;line-height:1.6}
+@media(max-width:600px){
+ .account-users-heading{align-items:stretch;flex-direction:column;gap:12px;padding:18px 16px}
+ .account-user-search{flex:auto;max-width:none;font-size:16px}
+ .account-users-empty{padding:20px 16px}
+}
