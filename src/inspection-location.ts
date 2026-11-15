@@ -7,8 +7,8 @@ export const INSPECTION_LOCATIONS: Record<string, readonly string[]> = {
   'Packing Salaverry': ['Packing Salaverry'],
   Trujillo: ['Quintanas'],
 };
-export type InspectionLocation = { site: string; zone: string; detail: string; management?: string; department?: string };
-export const locationText = (value: InspectionLocation) => [value.site, value.department?.trim(), value.zone, value.detail.trim()].filter(Boolean).join(' – ');
+export type InspectionLocation = { site: string; zone: string; detail: string; management?: string; department?: string; departmentNomenclature?: string };
+export const locationText = (value: InspectionLocation) => [value.site, (value.departmentNomenclature?.trim() || value.department?.trim()), value.zone, value.detail.trim()].filter(Boolean).join(' – ');
 export function locationErrors(value: InspectionLocation): Record<string, string> {
   const errors: Record<string, string> = ('management' in value || 'department' in value) ? organizationErrors(value.management || '', value.department || '') : {};
   if (!Object.hasOwn(INSPECTION_LOCATIONS, value.site)) errors.site = 'Selecciona una sede.';

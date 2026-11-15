@@ -1,3 +1,4 @@
+import { organizationLabel } from '../src/organization-label';
 import { test, expect } from '@playwright/test';
 import ExcelJS from 'exceljs';
 import { organizationCatalog, mockOrganizationCatalog } from './organization-fixture';
@@ -8,7 +9,7 @@ import { locationText, locationErrors } from '../src/inspection-location';
 
 test('gerencias filtran áreas, conservan valores anteriores y la ubicación respeta el orden del formato', () => {
   expect(organizationOptions('Gerencia de prueba A', '', organizationCatalog).areas.map(item => item.value)).toEqual(['Área de prueba A1', 'Área de prueba A2']);
-  expect(organizationOptions('Gerencia anterior', 'Área anterior', organizationCatalog).areas).toEqual([{ value: 'Área anterior', label: 'Área anterior' }]);
+  expect(organizationOptions('Gerencia anterior', 'Área anterior', organizationCatalog).areas).toEqual([{ value: 'Área anterior', label: organizationLabel('Área anterior'), description: undefined }]);
   expect(organizationErrors('Gerencia de prueba A', 'Área de prueba B1', organizationCatalog)).toHaveProperty('department');
   expect(organizationErrors('Gerencia de prueba B', 'Área de prueba B1', organizationCatalog)).toEqual({});
   expect(organizationErrors('', 'Área anterior', [])).toEqual({});
@@ -29,16 +30,16 @@ for (const width of [1366, 390]) test(`gerencia y área dependientes, perfiles i
   const management = page.getByRole('combobox', { name: 'Gerencia', exact: true }), area = page.getByRole('combobox', { name: 'Área', exact: true });
   await expect(area).toBeDisabled(); await selectValue(management, 'Gerencia de prueba A'); await selectValue(area, 'Área de prueba A2');
   await selectValue(management, 'Gerencia de prueba B'); await expect(area).toHaveText('Selecciona un área');
-  await area.click(); await expect(page.getByRole('option', { name: 'Área de prueba A1', exact: true })).toHaveCount(0); await page.getByRole('option', { name: 'Área de prueba B1', exact: true }).click();
+  await area.click(); await expect(page.getByRole('option', { name: organizationLabel('Área de prueba A1'), exact: true })).toHaveCount(0); await page.getByRole('option', { name: organizationLabel('Área de prueba B1'), exact: true }).click();
   await page.getByLabel('Área e instalación inspeccionada').fill('Taller de mantenimiento');
-  await expect(page.locator('.inspection-area-prefix')).toContainText('Fundo – Área de prueba B1 – Armonía II');
+  await expect(page.locator('.inspection-area-prefix')).toContainText(`Fundo – ${organizationLabel('Área de prueba B1')} – Armonía II`);
   await page.getByRole('button', { name: 'Guardar', exact: true }).click(); await expect(page.getByText('Guardado en este navegador', { exact: true })).toBeAttached(); await page.reload();
-  await expect(management).toHaveText('Gerencia de prueba B'); await expect(area).toHaveText('Área de prueba B1');
+  await expect(management).toHaveText(organizationLabel('Gerencia de prueba B')); await expect(area).toHaveText(organizationLabel('Área de prueba B1'));
   await page.getByRole('button', { name: 'Mi perfil', exact: true }).click(); const dialog = page.getByRole('dialog', { name: 'Mi perfil', exact: true });
   await selectValue(dialog.getByRole('combobox', { name: 'Gerencia', exact: true }), 'Gerencia de prueba A'); await selectValue(dialog.getByRole('combobox', { name: 'Área', exact: true }), 'Área de prueba A1');
   await selectValue(dialog.getByRole('combobox', { name: 'Puesto', exact: true }), 'Puesto de prueba A1');
   await dialog.getByRole('button', { name: 'Guardar perfil', exact: true }).click();
-  await expect(page.getByText('Gerencia de prueba A — Área de prueba A1', { exact: false }).first()).toBeVisible(); await expect(area).toHaveText('Área de prueba B1');
+  await expect(page.getByText(organizationLabel('Gerencia de prueba A — Área de prueba A1'), { exact: false }).first()).toBeVisible(); await expect(area).toHaveText(organizationLabel('Área de prueba B1'));
   await page.getByRole('button', { name: 'Cerrar aviso', exact: true }).click();
   const file = await page.evaluate(async () => {
     const { loadInspections } = await import('/src/model.ts'); const { readAccounts } = await import('/src/accounts.ts'); const { buildExcel } = await import('/src/export.ts');

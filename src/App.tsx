@@ -1,5 +1,7 @@
 import { ProfileOrganizationFields } from './OrganizationFields';
-import { organizationDetails, profileOrganizationErrors } from './organization';
+import { useOrganizationCatalog } from './useOrganizationCatalog';
+import { organizationLabel } from './organization-label';
+import { areaDisplayName, organizationDetails, profileOrganizationErrors } from './organization';
 import { Select } from './Select';
 import { hasPendingChanges, inspectionEditKey, unsavedMessage, usePendingChanges } from './manual-save';
 import { useNextRegistration } from './useNextRegistration';
@@ -48,7 +50,7 @@ const stepDescriptions = [
 
 const searchText = (value: string) => value.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLocaleLowerCase('es').trim();
 function responsibleAreas(inspection: Inspection, accounts: DemoAccount[]) {
-  return [...new Set(inspection.responsibles.map(person => person.area?.trim() || accounts.find(account => account.id === person.personId || accountEmail(account.email) === accountEmail(person.email))?.area.trim()).filter(Boolean))].join(' / ');
+  return [...new Set(inspection.responsibles.map(person => areaDisplayName(person.area?.trim() ? person : accounts.find(account => account.id === person.personId || accountEmail(account.email) === accountEmail(person.email)) || {})).filter(Boolean))].join(' / ');
 }
 
 export default function App({ exit, onCloudAccess, cloud }: { exit: ExitConfirmation; onCloudAccess: (section?: 'profile' | 'admin') => void; cloud?: CloudConnection }) {
@@ -61,6 +63,7 @@ export default function App({ exit, onCloudAccess, cloud }: { exit: ExitConfirma
 }
 
 function WorkspaceApp({ initialAccounts, exit, onCloudAccess, cloud }: { initialAccounts: DemoAccount[]; exit: ExitConfirmation; onCloudAccess: (section?: 'profile' | 'admin') => void; cloud?: CloudConnection }) {
+  useOrganizationCatalog();
   const [accounts, setAccounts] = useState(initialAccounts);
   const [activeId, setActiveId] = useState(() => cloud?.actorId || activeAccountId(initialAccounts));
   const account = accounts.find(a => a.id === activeId && a.enabled) || accounts[0];
@@ -460,7 +463,7 @@ function WorkspaceApp({ initialAccounts, exit, onCloudAccess, cloud }: { initial
     {menuOpen && <div className="sidebar-scrim" onClick={() => setMenuOpen(false)} />}
     <aside ref={sidebarRef} className={`sidebar ${menuOpen ? 'sidebar-open' : ''}`} aria-label="Menú principal" role={isMobile && menuOpen ? 'dialog' : undefined} aria-modal={isMobile && menuOpen ? true : undefined} inert={!menuOpen && isMobile ? true : undefined}>
       <div className="sidebar-brand"><Brand /><button className="mobile-close icon-button" aria-label="Cerrar menú" onClick={() => setMenuOpen(false)}><X size={20} /></button></div>
-      <button className="user-card" onClick={() => { setProfileForm(profile); setProfileError(''); setModal('profile'); setMenuOpen(false); }} aria-label="Editar mi perfil"><span className="avatar">{initials(profile.name)}</span><span className="user-details"><strong>{profile.name}</strong><span>{isAdmin ? 'Administrador' : canCreate ? 'Inspecciones' : 'Usuario'}{account.area ? ` · ${account.area}` : ''}</span></span><MoreHorizontal size={18} /></button>
+      <button className="user-card" onClick={() => { setProfileForm(profile); setProfileError(''); setModal('profile'); setMenuOpen(false); }} aria-label="Editar mi perfil"><span className="avatar">{initials(profile.name)}</span><span className="user-details"><strong title={profile.name}>{profile.name}</strong><span className="user-role-area" title={[isAdmin ? 'Administrador' : canCreate ? 'Inspecciones' : 'Usuario', areaDisplayName(account)].filter(Boolean).join(' · ')}>{isAdmin ? 'Administrador' : canCreate ? 'Inspecciones' : 'Usuario'}{account.area ? ` · ${areaDisplayName(account)}` : ''}</span>{account.jobTitle && <span className="user-job-title" title={organizationLabel(account.jobTitle)}>{organizationLabel(account.jobTitle)}</span>}</span><MoreHorizontal size={18} /></button>
       <div className="sidebar-divider" />
       <div className="nav-caption">ESPACIO DE TRABAJO</div>
       <nav className="sidebar-nav">

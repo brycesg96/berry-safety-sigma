@@ -1801,7 +1801,7 @@
   },
   {
     "id": "84270532-994a-5747-8145-f78ae1516b72",
-    "parent_id": "e56d435e-9f9e-5c38-a121-48553390d0d2",
+    "parent_id": "45d5faeb-c5bf-561b-a6b4-7ddddee55c6b",
     "kind": "area",
     "name": "VIVEROS",
     "enabled": true,
@@ -2749,7 +2749,8 @@
     "kind": "area",
     "name": "SEGURIDAD INDUSTRIAL Y GESTION MEDIO AMBIENTAL",
     "enabled": true,
-    "revision": 1
+    "revision": 1,
+    "nomenclature": "SIGMA"
   },
   {
     "id": "e26c4d5a-ea59-5d42-8139-c92400cebf43",

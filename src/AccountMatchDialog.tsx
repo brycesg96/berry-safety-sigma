@@ -1,3 +1,5 @@
+import { areaDisplayName } from './organization';
+import { organizationLabel } from './organization-label';
 import { useState } from 'react';
 import { Check, LoaderCircle } from 'lucide-react';
 import { Modal } from './components';
@@ -20,7 +22,7 @@ export function AccountMatchDialog({ matches, email, busy, error, onCancel, onRe
   ];
   return <Modal title="Encontramos una cuenta con datos coincidentes" onClose={() => !busy && onCancel()} wide>
     <p className="modal-description">{pendingMatch ? `Hay una operación pendiente para ${pendingMatch.pending!.input.full_name} (${pendingMatch.pending!.input.email}). Se retomará con los mismos datos y la misma opción, sin crear cuentas duplicadas.` : 'El nombre o el correo ya figura en Berry Safety. Indica si se trata de la misma persona o de alguien diferente antes de continuar.'}</p>
-    <div className="account-match-candidates" aria-label="Cuentas coincidentes">{matches.map(item => <button type="button" key={item.id} disabled={busy || !!pendingMatch} aria-pressed={selected === item.id} onClick={() => { setSelected(item.id); setMode(null); }}><strong>{item.full_name}</strong><span>{item.email}</span><small>{[item.management, item.area, item.job_title].filter(Boolean).join(' · ')}</small><small>{item.deleted_at ? `Eliminada el ${dateOf(item.deleted_at)}` : 'Cuenta vigente'}</small></button>)}</div>
+    <div className="account-match-candidates" aria-label="Cuentas coincidentes">{matches.map(item => <button type="button" key={item.id} disabled={busy || !!pendingMatch} aria-pressed={selected === item.id} onClick={() => { setSelected(item.id); setMode(null); }}><strong>{item.full_name}</strong><span>{item.email}</span><small>{[organizationLabel(item.management), areaDisplayName(item), organizationLabel(item.job_title)].filter(Boolean).join(' · ')}</small><small>{item.deleted_at ? `Eliminada el ${dateOf(item.deleted_at)}` : 'Cuenta vigente'}</small></button>)}</div>
     {emailInUse && !pendingMatch && <p className="error-message cloud-message" role="status">El correo {email} pertenece a una cuenta vigente. Usa esa cuenta o indica otro correo para una persona distinta.</p>}
     {emailBelongsToAnother && !emailInUse && !pendingMatch && <p className="error-message cloud-message" role="status">Selecciona la cuenta eliminada que utiliza este correo para poder continuar.</p>}
     <fieldset className="account-resolution-options"><legend>¿Cómo deseas continuar?</legend>{options.map(option => <label key={option.value} className={chosenMode === option.value ? 'account-resolution-selected' : ''}><input type="radio" name="account-resolution" value={option.value} checked={chosenMode === option.value} disabled={busy || (pendingMatch ? option.value !== chosenMode : !option.enabled)} onChange={() => setMode(option.value)}/><span><strong>{option.label}</strong><small>{option.description}</small></span></label>)}</fieldset>

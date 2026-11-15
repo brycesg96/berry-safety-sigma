@@ -1109,6 +1109,55 @@ test('a pending identity operation is visible and resumes under a fresh request 
  assert.equal((await db.query("select count(*)::int as n from public.berry_audit where entity_type='account_resolutions' and entity_id=$1 and action='resume'",[operation])).rows[0].n,1);
 });
 
+const nomenclatureMigration = await readFile(new URL('../migrations/202611150016_area_nomenclature.sql', import.meta.url), 'utf8');
+const sigmaArea = '704e6e57-4856-5c77-8de9-63c7cbb15cae', viverosArea = '84270532-994a-5747-8145-f78ae1516b72', viverosManagement = '45d5faeb-c5bf-561b-a6b4-7ddddee55c6b';
+test('area nomenclature migration preserves profiles, reports and position identities while moving Viveros', async()=>{
+ const profiles=(await db.query('select * from public.berry_profiles order by id')).rows;
+ const records=(await db.query('select * from public.berry_inspections order by id')).rows;
+ const jobs=(await db.query('select id,parent_id,name from public.berry_organization where parent_id=$1 order by id',[viverosArea])).rows;
+ await db.exec(nomenclatureMigration);
+ assert.equal((await db.query('select parent_id from public.berry_organization where id=$1',[viverosArea])).rows[0].parent_id,viverosManagement);
+ assert.deepEqual((await db.query('select id,parent_id,name from public.berry_organization where parent_id=$1 order by id',[viverosArea])).rows,jobs);
+ assert.equal(jobs.length,5);
+ assert.deepEqual((await db.query('select * from public.berry_profiles order by id')).rows,profiles);
+ assert.deepEqual((await db.query('select * from public.berry_inspections order by id')).rows,records);
+ const catalog=(await identityRpc('berry_organization_catalog',[])).rows[0].value;
+ assert.ok(catalog.find(entry=>entry.management==='GERENCIA CORPORATIVA DE VIVEROS, HUBS Y LICENCIAS').areas.includes('VIVEROS'));
+ assert.ok(!catalog.find(entry=>entry.management==='GERENCIA DE PRODUCCION').areas.includes('VIVEROS'));
+ assert.equal(catalog.find(entry=>entry.management==='GERENCIA DE RECURSOS HUMANOS').areaNomenclatures['SEGURIDAD INDUSTRIAL Y GESTION MEDIO AMBIENTAL'],'SIGMA');
+});
+test('only administrators manage area nomenclatures, with revision checks and no aliases on managements or positions', async()=>{
+ const original=(await db.query('select * from public.berry_organization where id=$1',[sigmaArea])).rows[0];
+ const args=[sigmaArea,'area',original.parent_id,original.name,true,original.revision,'SIGMA 2'];
+ await denied(()=>as('authenticated',catalogUser,'select public.berry_manage_organization_v2($1,$2,$3,$4,$5,$6,$7)',args));
+ await denied(()=>as('anon',null,'select public.berry_manage_organization_v2($1,$2,$3,$4,$5,$6,$7)',args));
+ const updated=(await identityRpc('berry_manage_organization_v2',args)).rows[0].value;
+ assert.equal(updated.name,original.name);assert.equal(updated.nomenclature,'SIGMA 2');assert.equal(updated.revision,original.revision+1);
+ assert.deepEqual((await identityRpc('berry_manage_organization_v2',args)).rows[0].value,updated);
+ await assert.rejects(()=>identityRpc('berry_manage_organization_v2',[...args.slice(0,6),'Otra']),error=>error.code==='40001');
+ for(const row of (await db.query("select * from public.berry_organization where kind in('management','position') limit 2")).rows) await assert.rejects(()=>identityRpc('berry_manage_organization_v2',[row.id,row.kind,row.parent_id,row.name,row.enabled,row.revision,'Alias']),error=>error.code==='22023');
+ await assert.rejects(()=>identityRpc('berry_manage_organization_v2',[...args.slice(0,5),updated.revision,'x'.repeat(51)]),error=>error.code==='22023');
+ const cleared=(await identityRpc('berry_manage_organization_v2',[...args.slice(0,5),updated.revision,''])).rows[0].value;
+ assert.equal(cleared.nomenclature,'');
+ await db.exec(nomenclatureMigration);
+ assert.equal((await db.query('select nomenclature from public.berry_organization where id=$1',[sigmaArea])).rows[0].nomenclature,'');
+});
+test('participant nomenclatures come from their real profile and location snapshots remain stable after catalog edits', async()=>{
+ const row=(await db.query('select * from public.berry_organization where id=$1',[sigmaArea])).rows[0];
+ await identityRpc('berry_manage_organization_v2',[row.id,row.kind,row.parent_id,row.name,true,row.revision,'SIGMA']);
+ await db.query("update public.berry_profiles set management='GERENCIA DE RECURSOS HUMANOS',area=$1,job_title='SUPERVISOR SIGMA' where id=$2",[row.name,catalogUser]);
+ const person=(await db.query('select berry_private.report_person($1) as value',[{id:'snapshot',personId:catalogUser,areaNomenclature:'Falso'}])).rows[0].value;
+ assert.equal(person.area,row.name);assert.equal(person.areaNomenclature,'SIGMA');
+ const location={site:'Fundo',zone:'Armonía II',detail:'Taller',management:'GERENCIA DE RECURSOS HUMANOS',department:row.name,departmentNomenclature:'SIGMA'};
+ assert.equal((await db.query('select berry_private.location_area($1) as value',[location])).rows[0].value,'Fundo – SIGMA – Armonía II – Taller');
+ const {departmentNomenclature,...historical}=location;
+ assert.equal((await db.query('select berry_private.location_area($1) as value',[historical])).rows[0].value,`Fundo – ${row.name} – Armonía II – Taller`);
+ for(const invalid of [12,'x'.repeat(51),null]) await assert.rejects(()=>db.query('select berry_private.location_area($1)',[{...location,departmentNomenclature:invalid}]),error=>error.code==='22023');
+ const latest=(await db.query('select revision from public.berry_organization where id=$1',[sigmaArea])).rows[0];
+ await identityRpc('berry_manage_organization_v2',[row.id,row.kind,row.parent_id,row.name,true,latest.revision,'Nueva sigla']);
+ assert.equal((await db.query('select berry_private.location_area($1) as value',[location])).rows[0].value,'Fundo – SIGMA – Armonía II – Taller');
+});
+
 let failed;
 try {
   await setup();

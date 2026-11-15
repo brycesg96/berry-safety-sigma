@@ -1,3 +1,4 @@
+import { organizationLabel } from '../src/organization-label';
 import { selectSecondResponsible } from './responsible-fixture';
 import { selectValue } from './select-fixture';
 import { selectLocation } from './location-fixture';
@@ -68,6 +69,7 @@ async function setup(page:Page,context:BrowserContext,admin=true) {
 async function panel(page:Page){await page.getByRole('button',{name:'Gestión de Inspecciones',exact:true}).click();await expect(page.locator('.dashboard-results tbody tr')).toHaveCount(3);}
 test('panel filtra estadísticas y consolidado por fecha, número de registro, área, inspector adicional y responsable; Excel sin imágenes',async({page,context})=>{
  const state=await setup(page,context);await panel(page);
+ await expect(page.getByRole('heading',{name:'Observaciones por nivel de riesgo',exact:true})).toHaveCount(0);
  await selectValue(page.getByLabel('Inspector',{exact:true}), 'adicional@example.invalid');await expect(page.locator('.dashboard-results tbody tr')).toHaveCount(1);
  await page.getByRole('button',{name:'Limpiar filtros'}).click();await page.getByLabel('Desde',{exact:true}).fill('2026-11-01');await page.getByLabel('Hasta',{exact:true}).fill('2026-11-30');await expect(page.locator('.dashboard-results tbody tr')).toHaveCount(2);
  await selectValue(page.getByLabel('Área',{exact:true}), 'ss.gg');await expect(page.locator('.dashboard-results tbody tr')).toHaveCount(1);
@@ -191,15 +193,15 @@ for (const width of [1366,390]) test(`gerencias combinan filtros y estadísticas
  state.rows[1].data.responsibles[0].management='Gerencia de prueba A';
  state.rows[1].data.responsibles.push({id:'second',name:'Segunda persona',email:'segunda@example.invalid',area:'Recursos Humanos',management:'Gerencia de prueba A'},{id:'third',name:'Tercera persona',email:'tercera@example.invalid',area:'Área exclusiva B',management:'Gerencia de prueba B'});
  await panel(page);const rows=page.locator('.dashboard-results tbody tr'),chart=page.locator('.dashboard-chart').filter({has:page.getByRole('heading',{name:'Inspecciones por gerencia',exact:true})});
- await expect(chart.getByRole('button',{name:'Filtrar gerencia Gerencia de prueba A',exact:true})).toContainText('2');
- await expect(chart.getByRole('button',{name:'Filtrar gerencia Gerencia de prueba B',exact:true})).toContainText('1');
- await expect(chart.getByRole('button',{name:'Filtrar gerencia Sin gerencia registrada',exact:true})).toContainText('1');
- await expect(chart.getByRole('button',{name:'Filtrar gerencia Gerencia anterior del responsable',exact:true})).toHaveCount(0);
- await page.getByLabel('Gerencia',{exact:true}).click();await page.getByRole('searchbox',{name:'Buscar gerencias',exact:true}).fill('prueba a');await page.getByRole('option',{name:'Gerencia de prueba A',exact:true}).click();await expect(rows).toHaveCount(2);
+ await expect(chart.getByRole('button',{name:'Filtrar gerencia ' + organizationLabel('Gerencia de prueba A'),exact:true})).toContainText('2');
+ await expect(chart.getByRole('button',{name:'Filtrar gerencia ' + organizationLabel('Gerencia de prueba B'),exact:true})).toContainText('1');
+ await expect(chart.getByRole('button',{name:'Filtrar gerencia ' + 'Sin gerencia registrada',exact:true})).toContainText('1');
+ await expect(chart.getByRole('button',{name:'Filtrar gerencia ' + organizationLabel('Gerencia anterior del responsable'),exact:true})).toHaveCount(0);
+ await page.getByLabel('Gerencia',{exact:true}).click();await page.getByRole('searchbox',{name:'Buscar gerencias',exact:true}).fill('prueba a');await page.getByRole('option',{name:organizationLabel('Gerencia de prueba A'),exact:true}).click();await expect(rows).toHaveCount(2);
  await selectValue(page.getByLabel('Área',{exact:true}),'area exclusiva b');await expect(rows).toHaveCount(0);
  await selectValue(page.getByLabel('Gerencia',{exact:true}),'gerencia de prueba b');await expect(rows).toHaveCount(1);await expect(rows).toContainText('IH-2026-002');
- await page.getByRole('button',{name:'Limpiar filtros',exact:true}).click();await chart.getByRole('button',{name:'Filtrar gerencia Sin gerencia registrada',exact:true}).click();await expect(rows).toHaveCount(1);await expect(rows).toContainText('IH-2026-003');
- await page.getByRole('button',{name:'Limpiar filtros',exact:true}).click();await chart.getByRole('button',{name:'Filtrar gerencia Gerencia de prueba A',exact:true}).click();await page.getByLabel('Desde',{exact:true}).fill('2026-12-01');await page.getByLabel('Hasta',{exact:true}).fill('2026-12-31');await expect(rows).toHaveCount(1);
+ await page.getByRole('button',{name:'Limpiar filtros',exact:true}).click();await chart.getByRole('button',{name:'Filtrar gerencia ' + 'Sin gerencia registrada',exact:true}).click();await expect(rows).toHaveCount(1);await expect(rows).toContainText('IH-2026-003');
+ await page.getByRole('button',{name:'Limpiar filtros',exact:true}).click();await chart.getByRole('button',{name:'Filtrar gerencia ' + organizationLabel('Gerencia de prueba A'),exact:true}).click();await page.getByLabel('Desde',{exact:true}).fill('2026-12-01');await page.getByLabel('Hasta',{exact:true}).fill('2026-12-31');await expect(rows).toHaveCount(1);
  const download=page.waitForEvent('download');await page.getByRole('button',{name:'Descargar consolidado',exact:true}).click();const book=new ExcelJS.Workbook();await book.xlsx.readFile((await (await download).path())!);expect(book.getWorksheet('Inspecciones')!.rowCount).toBe(2);expect(book.getWorksheet('Inspecciones')!.getCell('A2').text).toBe('IH-2026-002');
  await page.getByRole('button',{name:'Limpiar filtros',exact:true}).click();await page.locator('.dashboard-charts').screenshot({path:test.info().outputPath(`gerencias-${width}.png`)});expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
 });

@@ -1,3 +1,4 @@
+import { organizationLabel } from '../src/organization-label';
 import { test, expect } from '@playwright/test';
 import type { BrowserContext, Page } from '@playwright/test';
 import { catalogFromNodes, INITIAL_ORGANIZATION_NODES } from '../src/organization-catalog';
@@ -34,12 +35,12 @@ async function mock(context: BrowserContext, state: State, id = admin, first = f
     }
     if (path === '/rest/v1/rpc/berry_organization_catalog') return route.fulfill({ status: state.catalogFails ? 503 : 200, json: state.catalogFails ? { message: 'offline' } : catalogFromNodes(state.nodes) });
     if (path === '/rest/v1/rpc/berry_admin_organization') return route.fulfill({ status: id === admin ? 200 : 403, json: id === admin ? state.nodes : { code: '42501' } });
-    if (path === '/rest/v1/rpc/berry_manage_organization') {
+    if (path === '/rest/v1/rpc/berry_manage_organization' || path === '/rest/v1/rpc/berry_manage_organization_v2') {
       expect(id).toBe(admin); const body = request.postDataJSON(); state.writes.push(body);
       if (state.failSave) return route.fulfill({ status: 503, json: { message: 'offline' } });
       const old = state.nodes.find(node => node.id === body.p_id);
       if (old && body.p_expected !== old.revision) return route.fulfill({ status: 409, json: { code: '40001' } });
-      const next: OrganizationNode = { id: body.p_id, kind: body.p_kind, parent_id: body.p_parent_id, name: body.p_name, enabled: body.p_enabled, revision: old ? old.revision + 1 : 1 };
+      const next: OrganizationNode = { id: body.p_id, kind: body.p_kind, parent_id: body.p_parent_id, name: body.p_name, enabled: body.p_enabled, revision: old ? old.revision + 1 : 1, ...(body.p_nomenclature !== undefined || old?.nomenclature !== undefined ? { nomenclature: body.p_nomenclature ?? old?.nomenclature ?? '' } : {}) };
       state.nodes = [...state.nodes.filter(node => node.id !== next.id), next];
       return route.fulfill({ json: next });
     }
@@ -70,26 +71,26 @@ test('catálogo IPERC inicial respeta gerencias naranjas, empleados, practicante
 for (const width of [1366, 390]) test(`administrar listas comparte cambios con otra cuenta, permite añadir un puesto omitido y conserva valores históricos (${width}px)`, async ({ browser, page, context }) => {
   await page.setViewportSize({ width, height: 900 }); const state = stateOf(); await mock(context, state); await login(page);
   await expect(page.getByRole('heading', { name: 'Gestión de Áreas', exact: true })).toBeVisible();
-  await page.getByRole('button', { name: 'Gerencia de prueba', exact: true }).click(); await page.getByRole('button', { name: 'Área de prueba', exact: true }).click();
+  await page.getByRole('button', { name: organizationLabel('Gerencia de prueba'), exact: true }).click(); await page.getByRole('button', { name: organizationLabel('Área de prueba'), exact: true }).click();
   await page.getByRole('button', { name: 'Añadir puesto', exact: true }).click(); const dialog = page.getByRole('dialog', { name: 'Añadir puesto', exact: true });
   await dialog.getByLabel('Nombre del puesto').fill('Operario autorizado'); state.failSave = true; await dialog.getByRole('button', { name: 'Guardar', exact: true }).click();
   await expect(dialog.getByRole('alert')).toContainText('No pudimos confirmar'); await expect(dialog.getByLabel('Nombre del puesto')).toHaveValue('Operario autorizado');
   state.failSave = false; await dialog.getByRole('button', { name: 'Guardar', exact: true }).click(); await expect(dialog).toHaveCount(0);
-  expect(state.writes[0].p_id).toBe(state.writes[1].p_id); await expect(page.getByRole('region', { name: 'Puestos', exact: true })).toContainText('Operario autorizado');
+  expect(state.writes[0].p_id).toBe(state.writes[1].p_id); await expect(page.getByRole('region', { name: 'Puestos', exact: true })).toContainText(organizationLabel('Operario autorizado'));
   const device = await browser.newContext();
   try {
     const person = await mock(device, state, member, true); const other = await device.newPage(); await login(other, member, 'perfil');
     await selectValue(other.getByRole('combobox', { name: 'Gerencia', exact: true }), 'Gerencia de prueba'); await selectValue(other.getByRole('combobox', { name: 'Área', exact: true }), 'Área de prueba'); await selectValue(other.getByRole('combobox', { name: 'Puesto', exact: true }), 'Operario autorizado');
     await other.getByRole('button', { name: 'Guardar y continuar', exact: true }).click(); await expect(other.getByRole('heading', { name: 'Mis inspecciones', exact: true })).toBeVisible();
     expect(person.profile.job_title).toBe('Operario autorizado'); expect(person.metadata.berry_profile_setup_required).toBe(false);
-    await page.getByRole('button', { name: 'Editar puesto Operario autorizado', exact: true }).click(); await page.getByRole('dialog').getByLabel('Nombre del puesto').fill('Operario actualizado'); await page.getByRole('dialog').getByRole('button', { name: 'Guardar', exact: true }).click();
-    await expect(page.getByRole('region', { name: 'Puestos', exact: true })).toContainText('Operario actualizado'); expect(person.profile.job_title).toBe('Operario autorizado');
-    await other.goto('./?acceso=cuenta&seccion=perfil'); await expect(other.getByRole('combobox', { name: 'Puesto', exact: true })).toHaveText('Operario autorizado');
-    await other.getByRole('combobox', { name: 'Puesto', exact: true }).click(); await expect(other.getByRole('option', { name: 'Operario actualizado', exact: true })).toBeVisible(); await other.getByRole('searchbox', { name: 'Buscar puestos', exact: true }).press('Escape');
-    await page.getByRole('button', { name: 'Retirar gerencia Gerencia de prueba', exact: true }).click(); await page.getByRole('dialog').getByRole('button', { name: 'Retirar', exact: true }).click(); await expect(page.getByRole('button', { name: 'Gerencia de prueba', exact: true })).toHaveCount(0);
+    await page.getByRole('button', { name: 'Editar puesto ' + organizationLabel('Operario autorizado'), exact: true }).click(); await page.getByRole('dialog').getByLabel('Nombre del puesto').fill('Operario actualizado'); await page.getByRole('dialog').getByRole('button', { name: 'Guardar', exact: true }).click();
+    await expect(page.getByRole('region', { name: 'Puestos', exact: true })).toContainText(organizationLabel('Operario actualizado')); expect(person.profile.job_title).toBe('Operario autorizado');
+    await other.goto('./?acceso=cuenta&seccion=perfil'); await expect(other.getByRole('combobox', { name: 'Puesto', exact: true })).toHaveText(organizationLabel('Operario autorizado'));
+    await other.getByRole('combobox', { name: 'Puesto', exact: true }).click(); await expect(other.getByRole('option', { name: organizationLabel('Operario actualizado'), exact: true })).toBeVisible(); await other.getByRole('searchbox', { name: 'Buscar puestos', exact: true }).press('Escape');
+    await page.getByRole('button', { name: 'Retirar gerencia ' + organizationLabel('Gerencia de prueba'), exact: true }).click(); await page.getByRole('dialog').getByRole('button', { name: 'Retirar', exact: true }).click(); await expect(page.getByRole('button', { name: organizationLabel('Gerencia de prueba'), exact: true })).toHaveCount(0);
     expect(person.profile.management).toBe('Gerencia de prueba'); expect(person.profile.job_title).toBe('Operario autorizado');
-    await page.getByRole('checkbox', { name: 'Mostrar elementos retirados', exact: true }).check(); await expect(page.getByRole('button', { name: 'Gerencia de prueba', exact: true })).toBeVisible(); await page.getByRole('button', { name: 'Restaurar gerencia Gerencia de prueba', exact: true }).click();
-    await expect(page.getByRole('region', { name: 'Gerencias', exact: true })).not.toContainText('Retirado'); await page.getByRole('button', { name: 'Gerencia de prueba', exact: true }).click(); await page.getByRole('button', { name: 'Área de prueba', exact: true }).click();
+    await page.getByRole('checkbox', { name: 'Mostrar elementos retirados', exact: true }).check(); await expect(page.getByRole('button', { name: organizationLabel('Gerencia de prueba'), exact: true })).toBeVisible(); await page.getByRole('button', { name: 'Restaurar gerencia ' + organizationLabel('Gerencia de prueba'), exact: true }).click();
+    await expect(page.getByRole('region', { name: 'Gerencias', exact: true })).not.toContainText('Retirado'); await page.getByRole('button', { name: organizationLabel('Gerencia de prueba'), exact: true }).click(); await page.getByRole('button', { name: organizationLabel('Área de prueba'), exact: true }).click();
     await page.locator('.organization-admin').screenshot({ path: test.info().outputPath(`gestion-areas-${width}.png`) }); expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   } finally { await device.close(); }
 });
@@ -98,10 +99,10 @@ test('añadir gerencia y área, editar con padre válido y rechazar una edición
   const state = stateOf(); await mock(context, state); await login(page);
   await page.getByRole('button', { name: 'Añadir gerencia', exact: true }).click(); await page.getByRole('dialog').getByLabel('Nombre de la gerencia').fill('Gerencia nueva'); await page.getByRole('dialog').getByRole('button', { name: 'Guardar', exact: true }).click();
   await page.getByRole('button', { name: 'Añadir área', exact: true }).click(); await page.getByRole('dialog').getByLabel('Nombre del área').fill('Área nueva'); await page.getByRole('dialog').getByRole('button', { name: 'Guardar', exact: true }).click();
-  await page.getByRole('button', { name: 'Editar área Área nueva', exact: true }).click(); await selectValue(page.getByRole('dialog').getByRole('combobox', { name: 'Gerencia', exact: true }), management);
+  await page.getByRole('button', { name: 'Editar área ' + organizationLabel('Área nueva'), exact: true }).click(); await selectValue(page.getByRole('dialog').getByRole('combobox', { name: 'Gerencia', exact: true }), management);
   const target = state.nodes.find(node => node.name === 'Área nueva')!; target.revision++; target.name = 'Área modificada en otra sesión';
   await page.getByRole('dialog').getByLabel('Nombre del área').fill('Mi edición'); await page.getByRole('dialog').getByRole('button', { name: 'Guardar', exact: true }).click(); await expect(page.getByRole('dialog').getByRole('alert')).toContainText('otra sesión'); await expect(page.getByRole('dialog').getByLabel('Nombre del área')).toHaveValue('Mi edición');
-  await page.getByRole('dialog').getByRole('button', { name: 'Cancelar', exact: true }).click(); await page.getByRole('button', { name: 'Actualizar listas', exact: true }).click(); await expect(page.getByRole('region', { name: 'Áreas', exact: true })).toContainText('Área modificada en otra sesión');
+  await page.getByRole('dialog').getByRole('button', { name: 'Cancelar', exact: true }).click(); await page.getByRole('button', { name: 'Actualizar listas', exact: true }).click(); await expect(page.getByRole('region', { name: 'Áreas', exact: true })).toContainText(organizationLabel('Área modificada en otra sesión'));
 });
 
 test('usuario sin administración no consulta la gestión y un fallo del catálogo no ofrece listas antiguas', async ({ page, context }) => {
@@ -109,4 +110,28 @@ test('usuario sin administración no consulta la gestión y un fallo del catálo
   await expect(page.getByRole('heading', { name: 'Mi perfil', exact: true })).toBeVisible(); await expect(page.getByRole('button', { name: 'Gestión de Áreas', exact: true })).toHaveCount(0); expect(state.paths).not.toContain('/rest/v1/rpc/berry_admin_organization');
   state.catalogFails = true; await page.reload(); await expect(page.getByRole('button', { name: 'Reintentar catálogo', exact: true })).toBeVisible(); await expect(page.getByRole('combobox', { name: 'Gerencia', exact: true })).toBeDisabled();
   state.catalogFails = false; await page.getByRole('button', { name: 'Reintentar catálogo', exact: true }).click(); await expect(page.getByRole('combobox', { name: 'Gerencia', exact: true })).toBeEnabled();
+});
+
+test('nomenclatura es opcional solo en áreas y se comparte con el perfil sin renombrar su selección canónica', async ({ browser, page, context }) => {
+  const state = stateOf(); state.nodes.forEach(node => { node.nomenclature = ''; });
+  await mock(context, state); await login(page);
+  await page.getByRole('button', { name: organizationLabel('Gerencia de prueba'), exact: true }).click();
+  await page.getByRole('button', { name: 'Editar área ' + organizationLabel('Área de prueba'), exact: true }).click();
+  const dialog = page.getByRole('dialog'); await dialog.getByLabel('Nomenclatura', { exact: true }).fill('PRB');
+  await dialog.getByRole('button', { name: 'Guardar', exact: true }).click(); await expect(dialog).toHaveCount(0);
+  expect(state.writes.at(-1)).toMatchObject({ p_id: area, p_name: 'Área de prueba', p_nomenclature: 'PRB' });
+  const device = await browser.newContext();
+  try {
+    await mock(device, state, member, true); const other = await device.newPage(); await login(other, member, 'perfil');
+    await selectValue(other.getByRole('combobox', { name: 'Gerencia', exact: true }), 'Gerencia de prueba');
+    await selectValue(other.getByRole('combobox', { name: 'Área', exact: true }), 'Área de prueba');
+    await expect(other.getByRole('combobox', { name: 'Área', exact: true })).toHaveText('PRB');
+    await selectValue(other.getByRole('combobox', { name: 'Puesto', exact: true }), 'Supervisora de prueba');
+    await other.getByRole('button', { name: 'Guardar y continuar', exact: true }).click();
+    await expect(other.getByRole('heading', { name: 'Mis inspecciones', exact: true })).toBeVisible();
+    expect(state.profileWrites.at(-1)).toMatchObject({ management: 'Gerencia de prueba', area: 'Área de prueba', job_title: 'Supervisora de prueba' });
+    await expect(other.locator('.user-role-area')).toContainText('PRB');
+    await page.getByRole('button', { name: 'Editar gerencia ' + organizationLabel('Gerencia de prueba'), exact: true }).click();
+    await expect(page.getByRole('dialog').getByLabel('Nomenclatura', { exact: true })).toHaveCount(0);
+  } finally { await device.close(); }
 });

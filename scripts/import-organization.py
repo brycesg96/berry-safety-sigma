@@ -84,7 +84,11 @@ def extract(path):
 
 def write(path):
     nodes, report = extract(path)
-    (ROOT / 'src/organization-seed.json').write_text(json.dumps(nodes, ensure_ascii=False, indent=2) + '\n')
+    # Keep the published step-14 import reproducible; explicit user adjustments
+    # are applied only to the preview seed and installed in production by step 16.
+    adjustments = json.loads((ROOT / 'reference/organization-adjustments.json').read_text())
+    preview_nodes = [dict(node, **adjustments.get(node['id'], {})) for node in nodes]
+    (ROOT / 'src/organization-seed.json').write_text(json.dumps(preview_nodes, ensure_ascii=False, indent=2) + '\n')
     (ROOT / 'reference/organization-import.json').write_text(json.dumps(report, ensure_ascii=False, indent=2) + '\n')
     migration = ROOT / 'supabase/migrations/202611150014_organization_catalog.sql'
     if migration.exists():

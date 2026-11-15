@@ -507,7 +507,7 @@ for (const width of [1366,390]) test(`primer perfil exige gerencia, área y pues
  await position.click();await expect(page.getByRole('option',{name:'Puesto de prueba A1',exact:true})).toHaveCount(0);await page.getByRole('searchbox',{name:'Buscar puestos',exact:true}).press('Escape');
  await selectValue(management,'Gerencia de prueba B');await expect(area).toHaveText('Selecciona un área');await expect(position).toBeDisabled();
  await selectValue(area,'Área de prueba B1');await selectValue(position,'Puesto de prueba B1');
- state.profileSaveFails=true;await save.click();await expect(page.getByRole('alert')).toContainText('No se guardó el perfil');expect(metadata.berry_profile_setup_completed_at).toBeUndefined();await expect(position).toHaveText('Puesto de prueba B1');
+ state.profileSaveFails=true;await save.click();await expect(page.getByRole('alert')).toContainText('No se guardó el perfil');expect(metadata.berry_profile_setup_completed_at).toBeUndefined();await expect(position).toHaveText('Puesto de Prueba B1');
  state.profileSaveFails=false;state.profileSetupFails=true;await save.click();await expect(page.getByRole('alert')).toContainText('No pudimos confirmar la configuración');expect(metadata.berry_profile_setup_required).toBe(true);expect(state.paths).not.toContain('/rest/v1/rpc/berry_cloud_session');
  await page.locator('.cloud-account-card').screenshot({path:test.info().outputPath(`perfil-obligatorio-${width}.png`)});
  state.profileSetupFails=false;await save.click();await expect(page.getByRole('heading',{name:'Mis inspecciones',exact:true})).toBeVisible();

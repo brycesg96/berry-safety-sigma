@@ -11,7 +11,7 @@ import type { RegistrationReceipt } from './inspection-code';
 import { lastInspectionTexts } from './inspection-texts';
 import type { InspectionTexts } from './inspection-texts';
 import { loadCloudInspections, persistCloudInspection, removeCloudInspection } from './cloud-store';
-export type Responsible = { id: string; name: string; email: string; personId?: string; management?: string; area?: string; jobTitle?: string };
+export type Responsible = { id: string; name: string; email: string; personId?: string; management?: string; area?: string; areaNomenclature?: string; jobTitle?: string };
 export type Evidence = { id: string; name: string; data: string; originalData?: string; editState?: PhotoEdit };
 export type Observation = {
   id: string;
