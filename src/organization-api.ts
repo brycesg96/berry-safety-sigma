@@ -1,6 +1,7 @@
 import { supabaseClient } from './supabase';
 import { beginOrganizationCatalogRefresh, finishOrganizationCatalogRefresh } from './organization-catalog';
 import type { OrganizationEntry, OrganizationNode } from './organization-catalog';
+import { saveCatalogOrder } from './catalog-order';
 
 const failure = (code?: string) => code === 'PGRST202' ? 'La gestión de áreas e instalaciones está pendiente de activación.' : code === '42501' ? 'No tienes acceso a la gestión de áreas. Actualiza tu sesión.' : 'No pudimos consultar las gerencias, áreas y puestos. Revisa tu conexión y vuelve a intentarlo.';
 function catalogResponse(data: unknown): OrganizationEntry[] {
@@ -24,12 +25,16 @@ export async function refreshOrganizationCatalog(isCurrent: () => boolean = () =
 function nodeResponse(data: unknown): OrganizationNode {
   const node = data as OrganizationNode | null;
   if (!node || node.nomenclature !== undefined && (typeof node.nomenclature !== 'string' || node.nomenclature.length > 50 || node.kind !== 'area' && node.nomenclature !== '') || typeof node.id !== 'string' || !['management', 'area', 'position'].includes(node.kind) || typeof node.name !== 'string' || typeof node.enabled !== 'boolean' || !Number.isSafeInteger(node.revision) || node.revision < 1 || node.parent_id !== null && typeof node.parent_id !== 'string') throw new Error('No pudimos verificar los datos del área. Actualiza la lista.');
+  if (node.sort_order !== undefined && (!Number.isSafeInteger(node.sort_order) || node.sort_order < 0)) throw new Error('El catálogo de áreas no pudo verificarse. Actualiza la lista.');
   return node;
 }
 export async function loadOrganizationNodes() {
   const { data, error } = await supabaseClient().rpc('berry_admin_organization').abortSignal(AbortSignal.timeout(12000));
   if (error || !Array.isArray(data)) throw new Error(failure(error?.code));
   return data.map(nodeResponse);
+}
+export async function reorderOrganizationNodes(nodes: readonly OrganizationNode[]) {
+  return (await saveCatalogOrder('organization', nodes)).map(nodeResponse);
 }
 export async function saveOrganizationNode(node: OrganizationNode, creating = false) {
   const withNomenclature = node.kind === 'area' && node.nomenclature !== undefined;

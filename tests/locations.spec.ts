@@ -6,6 +6,7 @@ import type { LocationNode } from '../src/location-catalog';
 import { catalogFromNodes, INITIAL_ORGANIZATION_NODES } from '../src/organization-catalog';
 import { selectValue } from './select-fixture';
 import { locationErrors } from '../src/inspection-location';
+import { withCatalogOrder, mockCatalogOrder } from './catalog-order-fixture';
 
 const project = 'https://rwacygoxhkxxxkvushmb.supabase.co', admin = '99200000-0000-4000-8000-000000000001';
 const site = INITIAL_LOCATION_NODES.find(node => node.kind === 'site' && node.name === 'Fundo')!;
@@ -74,7 +75,7 @@ for (const width of [1366, 768, 390]) test(`instalación queda bloqueada y la ub
 
 for (const width of [1366, 390]) test(`dos apartados administran áreas y lugares; sedes y zonas se editan, las instalaciones siguen pendientes (${width}px)`, async ({ page, context }) => {
   await page.setViewportSize({ width, height: 900 }); const state = stateOf(); await mock(context, state); await login(page);
-  await expect(page.getByRole('heading', { name: 'Gestión de áreas e instalaciones', exact: true })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Gestión De Áreas E Instalaciones', exact: true })).toBeVisible();
   await page.getByRole('button', { name: 'Instalaciones', exact: true }).click(); await page.getByRole('button', { name: 'Fundo', exact: true }).click(); await page.getByRole('button', { name: 'Armonía I', exact: true }).click();
   await expect(page.getByRole('button', { name: 'Añadir instalación', exact: true })).toBeDisabled();
   await page.getByRole('button', { name: 'Editar zona Armonía I', exact: true }).click();
@@ -96,4 +97,46 @@ test('una lista cargada habilita instalación por zona y cambiar sede o zona eli
   await expect(page.locator('.inspection-location-summary')).toContainText('Fundo – Armonía I – Taller de Prueba');
   const otherZone = INITIAL_LOCATION_NODES.find(node => node.parent_id === site.id && node.id !== zone.id)!; await selectValue(page.getByRole('combobox', { name: 'Zona de inspección', exact: true }), otherZone.id);
   await expect(page.getByRole('combobox', { name: 'Instalación', exact: true })).toHaveAttribute('data-value', ''); await expect(page.locator('.inspection-location-summary')).not.toContainText('Taller de Prueba');
+});
+
+for (const width of [1366, 768, 390]) test(`ordenar sedes, zonas e instalaciones persiste y se aplica a la nueva inspección (${width}px)`, async ({ page, context }) => {
+  await page.setViewportSize({ width, height: 900 }); const state = stateOf(true);
+  state.nodes = withCatalogOrder([...state.nodes,
+    { id: installation, kind: 'installation', parent_id: zone.id, name: 'Taller de Prueba', enabled: true, revision: 1 },
+    { id: 'another-installation', kind: 'installation', parent_id: zone.id, name: 'Almacén de Prueba', enabled: true, revision: 1 },
+  ]);
+  await mock(context, state); const order = await mockCatalogOrder(context, state); await login(page);
+  await page.getByRole('button', { name: 'Instalaciones', exact: true }).click(); await page.getByRole('button', { name: 'Ordenar listas', exact: true }).click();
+  order.fail = true; await page.getByRole('button', { name: 'Mover al principio: Fundo', exact: true }).click();
+  await expect(page.getByRole('alert')).toContainText('No pudimos confirmar');
+  order.fail = false; await page.getByRole('button', { name: 'Mover al principio: Fundo', exact: true }).click();
+  await expect(page.getByRole('region', { name: 'Sedes', exact: true }).locator('.organization-node-name').first()).toHaveText('Fundo');
+  await page.getByRole('button', { name: 'Fundo', exact: true }).click();
+  await page.getByRole('button', { name: 'Mover al principio: Tumi', exact: true }).click();
+  await expect(page.getByRole('region', { name: 'Zonas', exact: true }).locator('.organization-node-name').first()).toHaveText('Tumi');
+  await page.getByRole('button', { name: 'Bajar: Tumi', exact: true }).click();
+  await expect(page.getByRole('region', { name: 'Zonas', exact: true }).locator('.organization-node-name').nth(1)).toHaveText('Tumi');
+  await page.getByRole('button', { name: 'Mover al principio: Tumi', exact: true }).click();
+  await page.getByRole('button', { name: 'Armonía I', exact: true }).click();
+  await page.getByRole('button', { name: 'Mover al principio: Taller de Prueba', exact: true }).click();
+  await expect(page.getByRole('region', { name: 'Instalaciones', exact: true }).locator('.organization-node-name').first()).toHaveText('Taller de Prueba');
+  await page.locator('.organization-columns').screenshot({ path: test.info().outputPath(`orden-instalaciones-${width}.png`) });
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+  await page.getByRole('button', { name: 'Terminar de ordenar', exact: true }).click(); await page.reload();
+  await page.getByRole('button', { name: 'Instalaciones', exact: true }).click();
+  await expect(page.getByRole('region', { name: 'Sedes', exact: true }).locator('.organization-node-name').first()).toHaveText('Fundo');
+  await page.goto('./?acceso=cuenta');
+  await expect(page.getByRole('heading', { name: 'Mis inspecciones', exact: true })).toBeVisible();
+  const nav = page.locator('.sidebar-nav');
+  const menu = page.getByRole('button', { name: 'Abrir menú', exact: true });
+  if (await menu.isVisible() && await menu.getAttribute('aria-expanded') !== 'true') await menu.click();
+  await nav.getByRole('button', { name: 'Nueva inspección', exact: true }).click();
+  await page.getByRole('combobox', { name: 'Sede', exact: true }).click();
+  await page.getByRole('listbox').locator('[role="option"][data-value]:not([data-value=""])').first().click();
+  await expect(page.getByRole('combobox', { name: 'Sede', exact: true })).toHaveText('Fundo');
+  await page.getByRole('combobox', { name: 'Zona de inspección', exact: true }).click();
+  await expect(page.getByRole('listbox').locator('[role="option"]:not([data-value=""])').first()).toHaveText('Tumi');
+  await page.getByRole('listbox').getByRole('option', { name: 'Armonía I', exact: true }).click();
+  await page.getByRole('combobox', { name: 'Instalación', exact: true }).click();
+  await expect(page.getByRole('listbox').locator('[role="option"]:not([data-value=""])').first()).toHaveText('Taller de Prueba');
 });

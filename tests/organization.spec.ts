@@ -1,3 +1,4 @@
+import { openWorkspaceProfile } from './workspace-profile-fixture';
 import { organizationLabel } from '../src/organization-label';
 import { test, expect } from '@playwright/test';
 import ExcelJS from 'exceljs';
@@ -35,7 +36,7 @@ for (const width of [1366, 390]) test(`gerencia y área dependientes, perfiles i
   await expect(page.locator('.inspection-area-prefix')).toContainText(`Fundo – Armonía II – ${organizationLabel('Área de prueba B1')}`);
   await page.getByRole('button', { name: 'Guardar', exact: true }).click(); await expect(page.getByText('Guardado en este navegador', { exact: true })).toBeAttached(); await page.reload();
   await expect(management).toHaveText(organizationLabel('Gerencia de prueba B')); await expect(area).toHaveText(organizationLabel('Área de prueba B1'));
-  await page.getByRole('button', { name: 'Mi perfil', exact: true }).click(); const dialog = page.getByRole('dialog', { name: 'Mi perfil', exact: true });
+  await openWorkspaceProfile(page); const dialog = page.getByRole('dialog', { name: 'Mi perfil', exact: true });
   await selectValue(dialog.getByRole('combobox', { name: 'Gerencia', exact: true }), 'Gerencia de prueba A'); await selectValue(dialog.getByRole('combobox', { name: 'Área', exact: true }), 'Área de prueba A1');
   await selectValue(dialog.getByRole('combobox', { name: 'Puesto', exact: true }), 'Puesto de prueba A1');
   await dialog.getByRole('button', { name: 'Guardar perfil', exact: true }).click();

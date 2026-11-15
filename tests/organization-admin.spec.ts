@@ -5,6 +5,7 @@ import { catalogFromNodes, INITIAL_ORGANIZATION_NODES } from '../src/organizatio
 import type { OrganizationNode } from '../src/organization-catalog';
 import { selectValue } from './select-fixture';
 import report from '../reference/organization-import.json' with { type: 'json' };
+import { withCatalogOrder, mockCatalogOrder } from './catalog-order-fixture';
 
 const project = 'https://rwacygoxhkxxxkvushmb.supabase.co';
 const admin = 'aa000000-0000-4000-8000-000000000001', member = 'aa000000-0000-4000-8000-000000000002';
@@ -70,7 +71,7 @@ test('catálogo IPERC inicial respeta gerencias naranjas, empleados, practicante
 
 for (const width of [1366, 390]) test(`administrar listas comparte cambios con otra cuenta, permite añadir un puesto omitido y conserva valores históricos (${width}px)`, async ({ browser, page, context }) => {
   await page.setViewportSize({ width, height: 900 }); const state = stateOf(); await mock(context, state); await login(page);
-  await expect(page.getByRole('heading', { name: 'Gestión de áreas e instalaciones', exact: true })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Gestión De Áreas E Instalaciones', exact: true })).toBeVisible();
   await page.getByRole('button', { name: organizationLabel('Gerencia de prueba'), exact: true }).click(); await page.getByRole('button', { name: organizationLabel('Área de prueba'), exact: true }).click();
   await page.getByRole('button', { name: 'Añadir puesto', exact: true }).click(); const dialog = page.getByRole('dialog', { name: 'Añadir puesto', exact: true });
   await dialog.getByLabel('Nombre del puesto').fill('Operario autorizado'); state.failSave = true; await dialog.getByRole('button', { name: 'Guardar', exact: true }).click();
@@ -107,7 +108,7 @@ test('añadir gerencia y área, editar con padre válido y rechazar una edición
 
 test('usuario sin administración no consulta la gestión y un fallo del catálogo no ofrece listas antiguas', async ({ page, context }) => {
   const state = stateOf(); await mock(context, state, member); await login(page, member);
-  await expect(page.getByRole('heading', { name: 'Mi perfil', exact: true })).toBeVisible(); await expect(page.getByRole('button', { name: 'Gestión de áreas e instalaciones', exact: true })).toHaveCount(0); expect(state.paths).not.toContain('/rest/v1/rpc/berry_admin_organization');
+  await expect(page.getByRole('heading', { name: 'Mi perfil', exact: true })).toBeVisible(); await expect(page.getByRole('button', { name: 'Gestión De Áreas E Instalaciones', exact: true })).toHaveCount(0); expect(state.paths).not.toContain('/rest/v1/rpc/berry_admin_organization');
   state.catalogFails = true; await page.reload(); await expect(page.getByRole('button', { name: 'Reintentar catálogo', exact: true })).toBeVisible(); await expect(page.getByRole('combobox', { name: 'Gerencia', exact: true })).toBeDisabled();
   state.catalogFails = false; await page.getByRole('button', { name: 'Reintentar catálogo', exact: true }).click(); await expect(page.getByRole('combobox', { name: 'Gerencia', exact: true })).toBeEnabled();
 });
@@ -134,4 +135,68 @@ test('nomenclatura es opcional solo en áreas y se comparte con el perfil sin re
     await page.getByRole('button', { name: 'Editar gerencia ' + organizationLabel('Gerencia de prueba'), exact: true }).click();
     await expect(page.getByRole('dialog').getByLabel('Abreviatura', { exact: true })).toHaveCount(0);
   } finally { await device.close(); }
+});
+
+for (const width of [1366, 768, 390]) test(`ordenar gerencias, áreas y puestos guarda cada movimiento, persiste y llega al perfil (${width}px)`, async ({ browser, page, context }) => {
+  await page.setViewportSize({ width, height: 900 }); const state = stateOf();
+  state.nodes = withCatalogOrder([...seed,
+    { ...seed[0], id: 'm-extra', name: 'Gerencia Zeta' },
+    { ...seed[1], id: 'a-extra', name: 'Área Zeta' },
+    { ...seed[2], id: 'p-area-extra', parent_id: 'a-extra', name: 'Jefatura del área Zeta' },
+    { ...seed[2], id: 'p-extra', name: 'Supervisora Zeta' },
+    { ...seed[1], id: 'a-other', parent_id: 'm-extra', name: 'Área de otra gerencia' },
+    { ...seed[2], id: 'p-other', parent_id: 'a-other', name: 'Jefatura de otra gerencia' },
+  ]);
+  await mock(context, state); const order = await mockCatalogOrder(context, state); await login(page);
+  await page.getByRole('button', { name: 'Ordenar listas', exact: true }).click();
+  const managementList = page.getByRole('region', { name: 'Gerencias', exact: true });
+  order.fail = true; await managementList.getByRole('button', { name: 'Mover al principio: Gerencia Zeta', exact: true }).click();
+  await expect(page.getByRole('alert')).toContainText('No pudimos confirmar');
+  await expect(managementList.locator('.organization-node-name').first()).toHaveText('Gerencia de Prueba');
+  order.fail = false; await managementList.getByRole('button', { name: 'Mover al principio: Gerencia Zeta', exact: true }).click();
+  await expect(managementList.locator('.organization-node-name').first()).toHaveText('Gerencia Zeta');
+  await expect(managementList.getByRole('button', { name: 'Subir: Gerencia Zeta', exact: true })).toBeDisabled();
+  await page.getByRole('button', { name: 'Gerencia de Prueba', exact: true }).click();
+  await page.getByRole('button', { name: 'Mover al principio: Área Zeta', exact: true }).press('Enter');
+  await expect(page.getByRole('region', { name: 'Áreas', exact: true }).locator('.organization-node-name').first()).toHaveText('Área Zeta');
+  await page.getByRole('button', { name: 'Área de Prueba', exact: true }).click();
+  await page.getByRole('button', { name: 'Subir: Supervisora Zeta', exact: true }).click();
+  await expect(page.getByRole('region', { name: 'Puestos', exact: true }).locator('.organization-node-name').first()).toHaveText('Supervisora Zeta');
+  await page.getByRole('button', { name: 'Mover al final: Supervisora Zeta', exact: true }).click();
+  await expect(page.getByRole('button', { name: 'Bajar: Supervisora Zeta', exact: true })).toBeDisabled();
+  await page.getByRole('button', { name: 'Subir: Supervisora Zeta', exact: true }).click();
+  await expect(page.getByRole('status')).toContainText('Orden guardado');
+  await page.locator('.organization-columns').screenshot({ path: test.info().outputPath(`orden-areas-${width}.png`) });
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+  await page.getByRole('button', { name: 'Terminar de ordenar', exact: true }).click(); await page.reload();
+  await expect(page.getByRole('region', { name: 'Gerencias', exact: true }).locator('.organization-node-name').first()).toHaveText('Gerencia Zeta');
+  const device = await browser.newContext();
+  try {
+    await mock(device, state, member, true); const other = await device.newPage(); await login(other, member, 'perfil');
+    await other.getByRole('combobox', { name: 'Gerencia', exact: true }).click();
+    await expect(other.getByRole('listbox').getByRole('option').first()).toHaveText('Gerencia Zeta');
+    await other.getByRole('listbox').getByRole('option', { name: 'Gerencia de Prueba', exact: true }).click();
+    await other.getByRole('combobox', { name: 'Área', exact: true }).click();
+    await expect(other.getByRole('listbox').getByRole('option').first()).toHaveText('Área Zeta');
+    await other.getByRole('listbox').getByRole('option', { name: 'Área de Prueba', exact: true }).click();
+    await other.getByRole('combobox', { name: 'Puesto', exact: true }).click();
+    await expect(other.getByRole('listbox').getByRole('option').first()).toHaveText('Supervisora Zeta');
+  } finally { await device.close(); }
+});
+
+test('ordenar una lista buscada se bloquea y los cambios de otra sesión exigen actualizar sin perder el orden visible', async ({ page, context }) => {
+  const state = stateOf(); state.nodes = withCatalogOrder([...seed, { ...seed[0], id: 'another', name: 'Gerencia Zeta' }]);
+  await mock(context, state); const order = await mockCatalogOrder(context, state); await login(page);
+  await page.getByRole('searchbox', { name: 'Buscar gerencias, áreas o puestos', exact: true }).fill('Gerencia');
+  await expect(page.getByRole('button', { name: 'Ordenar listas', exact: true })).toBeDisabled();
+  await page.getByRole('searchbox', { name: 'Buscar gerencias, áreas o puestos', exact: true }).clear();
+  await page.getByRole('button', { name: 'Ordenar listas', exact: true }).click(); order.conflict = true;
+  await page.getByRole('button', { name: 'Mover al principio: Gerencia Zeta', exact: true }).click();
+  await expect(page.getByRole('alert')).toContainText('otra sesión');
+  await expect(page.getByRole('region', { name: 'Gerencias', exact: true }).locator('.organization-node-name').first()).toHaveText('Gerencia de Prueba');
+  await page.getByRole('button', { name: 'Terminar de ordenar', exact: true }).click();
+  state.nodes = state.nodes.map(node => ({ ...node, revision: node.revision + 1 })); order.conflict = false;
+  await page.getByRole('button', { name: 'Actualizar listas', exact: true }).click(); await page.getByRole('button', { name: 'Ordenar listas', exact: true }).click();
+  await page.getByRole('button', { name: 'Mover al principio: Gerencia Zeta', exact: true }).click();
+  await expect(page.getByRole('region', { name: 'Gerencias', exact: true }).locator('.organization-node-name').first()).toHaveText('Gerencia Zeta');
 });

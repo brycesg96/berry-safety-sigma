@@ -1,3 +1,4 @@
+import { openWorkspaceProfile } from './workspace-profile-fixture';
 import { selectValue } from './select-fixture';
 import { saveAndOpenList } from './save-fixture';
 import { test, expect } from '@playwright/test';
@@ -40,7 +41,7 @@ test('administración conserva los datos existentes y ofrece una sola gestión d
   await expect(page).toHaveURL(/acceso=cuenta&seccion=usuarios/);
   await page.getByRole('button', { name: 'Espacio de pruebas', exact: true }).click();
   await expect(page.getByLabel('Área e instalación inspeccionada')).toHaveValue('Borrador anterior a la gestión de usuarios');
-  await page.getByRole('button', { name: 'Mi perfil', exact: true }).click();
+  await openWorkspaceProfile(page);
   await page.getByLabel('Cuenta de prueba').click();
   await expect(page.getByRole('option', { name: /Laura Existente/ })).toHaveCount(1);
   await page.getByLabel('Cuenta de prueba').press('Escape');
@@ -53,7 +54,7 @@ test('cambio de rol de prueba sin login, perfil separado y borradores de cada cu
   await page.getByLabel('Área e instalación inspeccionada').fill('Borrador personal administrador');
   await page.getByRole('button', { name: 'Guardar', exact: true }).first().click();
   await expect(page.getByText('Guardado en este navegador', { exact: true })).toBeAttached();
-  await page.getByRole('button', { name: 'Mi perfil', exact: true }).click();
+  await openWorkspaceProfile(page);
   await expect(page.getByLabel('Correo de tu cuenta')).toHaveValue(adminEmail);
   await expect(page.getByRole('button', { name: /Microsoft/ })).toHaveCount(0);
   await selectValue(page.getByLabel('Cuenta de prueba'), 'demo-inspector');
@@ -69,7 +70,7 @@ test('cambio de rol de prueba sin login, perfil separado y borradores de cada cu
   await saveAndOpenList(page);
   await page.reload();
   await expect(page.getByLabel('Área e instalación inspeccionada')).toHaveValue('Borrador del inspector');
-  await page.getByRole('button', { name: 'Mi perfil', exact: true }).click();
+  await openWorkspaceProfile(page);
   await expect(page.getByLabel('Nombres y apellidos')).toHaveValue('Bryan de Inspecciones');
   await expect(page.getByRole('dialog', { name: 'Mi perfil' }).getByLabel('Área')).toHaveValue('Prevención');
   await selectValue(page.getByLabel('Cuenta de prueba'), 'demo-admin');
@@ -98,7 +99,7 @@ test('área y cargo del perfil reemplazan la leyenda del directorio y se conserv
   await page.getByRole('combobox', { name: /Nombre completo/ }).first().fill('Bryan');
   await page.getByRole('listbox').getByRole('option', { name: /bryx.96@gmail.com/ }).click();
   await expect(page.getByText('Área y puesto por completar.', { exact: true })).toBeVisible();
-  await page.getByRole('button', { name: 'Mi perfil', exact: true }).click();
+  await openWorkspaceProfile(page);
   const profile = page.getByRole('dialog', { name: 'Mi perfil' });
   await profile.getByLabel('Área').fill('Seguridad y Salud');
   await profile.getByLabel('Puesto', { exact: true }).fill('Supervisor SST');
@@ -107,7 +108,7 @@ test('área y cargo del perfil reemplazan la leyenda del directorio y se conserv
   await expect(page.getByText('Persona seleccionada del directorio.', { exact: true })).toHaveCount(0);
   await saveAndOpenList(page); await page.reload();
   await expect(page.locator('.responsibles').getByText('Seguridad y Salud — Supervisor SST', { exact: true })).toBeVisible();
-  await page.getByRole('button', { name: 'Mi perfil', exact: true }).click();
+  await openWorkspaceProfile(page);
   await expect(profile.getByLabel('Puesto', { exact: true })).toHaveValue('Supervisor SST');
   await profile.getByLabel('Puesto', { exact: true }).fill('');
   await page.getByRole('button', { name: 'Guardar perfil', exact: true }).click();

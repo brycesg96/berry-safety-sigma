@@ -1,3 +1,4 @@
+import { openWorkspaceProfile } from './workspace-profile-fixture';
 import { test, expect } from '@playwright/test';
 import type { Page } from '@playwright/test';
 
@@ -55,7 +56,7 @@ test('Atrás permite cancelar sin perder el texto y salir sin acumular entradas 
 test('móvil conserva un perfil en edición al cancelar Atrás y reutiliza la protección después de recargar', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await openFromPrevious(page);
-  await page.getByRole('button', { name: 'Mi perfil', exact: true }).click();
+  await openWorkspaceProfile(page);
   const profile = page.getByRole('dialog', { name: 'Mi perfil', exact: true });
   await profile.getByLabel('Nombres y apellidos').fill('Nombre todavía sin guardar');
   await requestExit(page);
@@ -69,7 +70,7 @@ test('móvil conserva un perfil en edición al cancelar Atrás y reutiliza la pr
   await page.reload();
   await expect(page.getByRole('button', { name: 'Continuar', exact: true })).toBeEnabled();
   expect(await page.evaluate(() => history.length)).toBe(length);
-  await page.getByRole('button', { name: 'Mi perfil', exact: true }).click();
+  await openWorkspaceProfile(page);
   await page.getByRole('dialog', { name: 'Mi perfil', exact: true }).getByRole('button', { name: 'Cerrar ventana', exact: true }).click();
   const dialog = await requestExit(page);
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);

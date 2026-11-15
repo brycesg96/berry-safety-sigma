@@ -1,3 +1,4 @@
+import { openWorkspaceProfile } from './workspace-profile-fixture';
 import { selectValue } from './select-fixture';
 import { saveAndOpenList } from './save-fixture';
 import { test, expect } from '@playwright/test';
@@ -53,7 +54,7 @@ test('abrir, navegar y cambiar de cuenta no crea borradores; escribir no guarda;
   await saveAndOpenList(page);
   await expect(page.locator('.inspection-list-row')).toHaveCount(0);
   await expect(nav.getByRole('button', { name: 'Mis inspecciones', exact: true }).locator('.nav-count')).toHaveCount(0);
-  await page.getByRole('button', { name: 'Mi perfil', exact: true }).click();
+  await openWorkspaceProfile(page);
   await selectValue(page.getByLabel('Cuenta de prueba'), 'demo-inspector');
   await expect(page.getByLabel('Correo de tu cuenta')).toHaveValue('bcespedes@hortifrut.com');
   await page.getByRole('button', { name: 'Cerrar ventana', exact: true }).click();

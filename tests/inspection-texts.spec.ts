@@ -1,3 +1,4 @@
+import { openWorkspaceProfile } from './workspace-profile-fixture';
 import { selectSecondResponsible } from './responsible-fixture';
 import { selectValue } from './select-fixture';
 import { saveAndOpenList } from './save-fixture';
@@ -27,7 +28,7 @@ async function startNew(page: Page) {
   await page.locator('.sidebar-nav').getByRole('button', { name: 'Nueva inspección', exact: true }).click();
 }
 async function switchTo(page: Page, account: string) {
-  await page.getByRole('button', { name: 'Mi perfil', exact: true }).click(); await selectValue(page.getByLabel('Cuenta de prueba'), account);
+  await openWorkspaceProfile(page); await selectValue(page.getByLabel('Cuenta de prueba'), account);
   await page.getByRole('button', { name: 'Cerrar ventana', exact: true }).click();
 }
 

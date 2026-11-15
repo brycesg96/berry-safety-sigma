@@ -1304,6 +1304,101 @@ test('catalog reinstallation preserves administrator edits, the later activation
  assert.equal((await identityRpc('berry_location_catalog',[])).rows[0].value.installationsReady,true);
 });
 
+const catalogOrderMigration=await readFile(new URL('../migrations/202611150020_catalog_order.sql',import.meta.url),'utf8');
+const orderRpc=(catalog,nodes,actor=users.author)=>as('authenticated',actor,'select public.berry_reorder_catalog($1,$2,$3) as value',[catalog,nodes.map(node=>node.id),nodes.map(node=>node.revision)],freshCatalogClaims);
+const siblings=async(table,id)=>(await db.query(`select n.* from public.${table} n join public.${table} item on item.id=$1 where n.kind=item.kind and n.parent_id is not distinct from item.parent_id order by n.sort_order,n.name,n.id`,[id])).rows;
+test('manual order migration preserves profiles, historical inspections, names and existing catalog selection',async()=>{
+ const records=(await db.query('select * from public.berry_inspections order by id')).rows,profiles=(await db.query('select * from public.berry_profiles order by id')).rows;
+ const catalog=(await identityRpc('berry_organization_catalog',[])).rows[0].value;
+ await db.exec(catalogOrderMigration);
+ assert.deepEqual((await db.query('select * from public.berry_inspections order by id')).rows,records);
+ assert.deepEqual((await db.query('select * from public.berry_profiles order by id')).rows,profiles);
+ assert.deepEqual((await identityRpc('berry_organization_catalog',[])).rows[0].value,catalog);
+ for(const table of ['berry_organization','berry_locations']) assert.equal((await db.query(`select count(*)::int n from public.${table} where sort_order is null or sort_order<1`)).rows[0].n,0);
+ assert.equal((await db.query('select public.berry_schema_status() value')).rows[0].value.catalog_order_version,'202611150020');
+});
+test('administrators reorder every hierarchy level and regular selection catalogs expose the chosen order',async()=>{
+ for(const [catalog,table] of [['organization','berry_organization'],['locations','berry_locations']]) {
+  const groups=(await db.query(`select distinct on(kind) id,kind from public.${table} n where (select count(*) from public.${table} s where s.kind=n.kind and s.parent_id is not distinct from n.parent_id)>1 order by kind,id`)).rows;
+  // Ensure each hierarchy has a multi-element child list for the same parent.
+  if(catalog==='locations') {
+   await locationRpc(['99300000-0000-4000-8000-000000000021','zone',locationSite,'Segunda zona',true,null]);
+   await locationRpc(['99300000-0000-4000-8000-000000000022','installation',locationZone,'Segunda instalación',true,null]);
+   groups.push({id:locationInstallation,kind:'installation'});
+  }
+  for(const group of groups) {
+   const before=await siblings(table,group.id),next=[...before].reverse();
+   const saved=(await orderRpc(catalog,next)).rows[0].value;
+   assert.deepEqual(saved.map(n=>n.id),next.map(n=>n.id));
+   assert.deepEqual((await siblings(table,group.id)).map(n=>n.id),next.map(n=>n.id));
+   assert.ok(saved.some(n=>n.revision>before.find(b=>b.id===n.id).revision));
+   assert.ok((await db.query("select count(*)::int n from public.berry_audit where entity_id=$1",[saved[0].id])).rows[0].n>0);
+  }
+ }
+ const nodes=(await identityRpc('berry_admin_organization',[])).rows[0].value;
+ const catalog=(await identityRpc('berry_organization_catalog',[])).rows[0].value;
+ const expectedManagements=nodes.filter(n=>n.kind==='management'&&n.enabled).sort((a,b)=>a.sort_order-b.sort_order).map(n=>n.name).filter(name=>catalog.some(e=>e.management===name));
+ assert.deepEqual(catalog.map(e=>e.management),expectedManagements);
+ for(const entry of catalog) {
+  const m=nodes.find(n=>n.kind==='management'&&n.name===entry.management);
+  const areas=nodes.filter(n=>n.kind==='area'&&n.parent_id===m.id&&n.enabled).sort((a,b)=>a.sort_order-b.sort_order).filter(n=>entry.areas.includes(n.name));
+  assert.deepEqual(entry.areas,areas.map(n=>n.name));
+  for(const a of areas) assert.deepEqual(entry.positions[a.name],nodes.filter(n=>n.kind==='position'&&n.parent_id===a.id&&n.enabled).sort((a,b)=>a.sort_order-b.sort_order).map(n=>n.name));
+ }
+ const locations=(await identityRpc('berry_location_catalog',[])).rows[0].value.nodes;
+ assert.deepEqual(locations.filter(n=>n.kind==='installation'&&n.parent_id===locationZone).map(n=>n.id),(await siblings('berry_locations',locationInstallation)).filter(n=>n.enabled).map(n=>n.id));
+});
+test('ordering is administrator-only and rejects incomplete lists, duplicates and mixed parents without partial updates',async()=>{
+ const nodes=await siblings('berry_locations',locationZone),before=(await db.query('select * from public.berry_locations order by id')).rows;
+ await denied(()=>as('anon',null,'select public.berry_reorder_catalog($1,$2,$3)',['locations',nodes.map(n=>n.id),nodes.map(n=>n.revision)]));
+ await denied(()=>orderRpc('locations',nodes,catalogUser));
+ for(const [ids,revisions] of [[[],[]],[[nodes[0].id,nodes[0].id],[1,1]],[[nodes[0].id],[null]],[[null],[1]]]) await assert.rejects(()=>identityRpc('berry_reorder_catalog',['locations',ids,revisions]),e=>e.code==='22023');
+ await assert.rejects(()=>orderRpc('unknown',nodes),e=>e.code==='22023');
+ await assert.rejects(()=>orderRpc('locations',nodes.slice(1)),e=>e.code==='40001');
+ await assert.rejects(()=>orderRpc('locations',[...nodes.slice(1),{id:locationSite,revision:1}]),e=>e.code==='40001');
+ assert.deepEqual((await db.query('select * from public.berry_locations order by id')).rows,before);
+});
+test('ordering retries are idempotent and a stale edit or a concurrent addition cannot overwrite another session',async()=>{
+ const nodes=await siblings('berry_locations',locationZone),desired=[...nodes].reverse();
+ const first=(await orderRpc('locations',desired)).rows[0].value;
+ assert.deepEqual((await orderRpc('locations',desired)).rows[0].value,first);
+ await assert.rejects(()=>orderRpc('locations',nodes),e=>e.code==='40001');
+ const latest=await siblings('berry_locations',locationZone);
+ await locationRpc(['99300000-0000-4000-8000-000000000023','zone',locationSite,'Zona concurrente',true,null]);
+ await assert.rejects(()=>orderRpc('locations',[...latest].reverse()),e=>e.code==='40001');
+ const current=await siblings('berry_locations',locationZone),target=current[0];
+ await locationRpc([target.id,'zone',locationSite,target.name+' editada',true,target.revision]);
+ await assert.rejects(()=>orderRpc('locations',[...current].reverse()),e=>e.code==='40001');
+});
+test('new and reparented entries append while renaming, retiring and restoring retain the chosen position',async()=>{
+ const list=await siblings('berry_locations',locationZone),target=list[0];
+ const rename=(await locationRpc([target.id,'zone',locationSite,target.name+' corregida',true,target.revision])).rows[0].value;
+ assert.equal(rename.sort_order,target.sort_order);
+ const retired=(await locationRpc([rename.id,'zone',locationSite,rename.name,false,rename.revision])).rows[0].value;
+ const restored=(await locationRpc([retired.id,'zone',locationSite,retired.name,true,retired.revision])).rows[0].value;
+ assert.equal(restored.sort_order,target.sort_order);
+ const inserted=(await locationRpc(['99300000-0000-4000-8000-000000000024','zone',locationSite,'A nueva zona al final',true,null])).rows[0].value;
+ assert.equal((await siblings('berry_locations',locationZone)).at(-1).id,inserted.id);
+ const otherSite=(await locationRpc(['99300000-0000-4000-8000-000000000025','site',null,'Otra sede',true,null])).rows[0].value;
+ await locationRpc(['99300000-0000-4000-8000-000000000026','zone',otherSite.id,'Zona existente',true,null]);
+ const moved=(await locationRpc([inserted.id,'zone',otherSite.id,inserted.name,true,inserted.revision])).rows[0].value;
+ assert.equal((await siblings('berry_locations',moved.id)).at(-1).id,moved.id);
+});
+test('ordering cannot enable the pending installation catalog and reinstallation preserves chosen orders and all reports',async()=>{
+ const list=await siblings('berry_locations',locationInstallation);
+ await db.query('update berry_private.location_settings set installations_ready=false where singleton');
+ await assert.rejects(()=>orderRpc('locations',[...list].reverse()),e=>e.code==='22023');
+ const locations=(await db.query('select * from public.berry_locations order by id')).rows,org=(await db.query('select * from public.berry_organization order by id')).rows;
+ const reports=(await db.query('select * from public.berry_inspections order by id')).rows,profiles=(await db.query('select * from public.berry_profiles order by id')).rows;
+ await db.exec(catalogOrderMigration);
+ await db.exec(await readFile(new URL('../operations/activate-catalog-order-20261115.sql',import.meta.url),'utf8'));
+ assert.deepEqual((await db.query('select * from public.berry_locations order by id')).rows,locations);
+ assert.deepEqual((await db.query('select * from public.berry_organization order by id')).rows,org);
+ assert.deepEqual((await db.query('select * from public.berry_inspections order by id')).rows,reports);
+ assert.deepEqual((await db.query('select * from public.berry_profiles order by id')).rows,profiles);
+ assert.equal((await identityRpc('berry_location_catalog',[])).rows[0].value.installationsReady,false);
+});
+
 let failed;
 try {
   await setup();

@@ -2,7 +2,7 @@ import { supabaseClient } from './supabase';
 import type { Evidence, Inspection } from './model';
 import type { Correction } from './follow-up';
 
-export type CloudInspectionRow = { id: string; author_id: string; data: Inspection & { partial?: boolean }; revision: number; updated_at: string; workflow: string; final_excel_stored?: boolean; active_edit_operation?: string | null };
+export type CloudInspectionRow = { id: string; author_id: string; data: Inspection & { partial?: boolean }; revision: number; updated_at: string; workflow: string; sent_at?: string | null; closed_at?: string | null; registered_at?: string | null; final_excel_stored?: boolean; active_edit_operation?: string | null };
 type StoredEvidence = Evidence & { dataRef?: string; originalRef?: string };
 type Runtime = { actor: string; files: Map<string, Promise<string>>; revisions: Map<string, { base: number; saved: number }>; queues: Map<string, Promise<unknown>> };
 let runtime: Runtime | undefined;

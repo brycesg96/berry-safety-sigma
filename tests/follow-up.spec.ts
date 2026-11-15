@@ -1,3 +1,4 @@
+import { openWorkspaceProfile } from './workspace-profile-fixture';
 import { selectSecondResponsible } from './responsible-fixture';
 import { inspectionFilterButton, selectInspectionFilter } from './list-filter-fixture';
 import { selectValue } from './select-fixture';
@@ -8,7 +9,7 @@ import ExcelJS from 'exceljs';
 test.beforeEach(async ({ page }) => { await page.route('**/api/people?*', route => route.fulfill({ json: { people: [] } })); });
 const png = { name: 'levantamiento.png', mimeType: 'image/png', buffer: Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=', 'base64') };
 async function switchTo(page: Page, id: string) {
-  await page.getByRole('button', { name: 'Mi perfil', exact: true }).click();
+  await openWorkspaceProfile(page);
   await selectValue(page.getByLabel('Cuenta de prueba'), id);
   await expect(page.getByLabel('Correo de tu cuenta')).toHaveValue(id === 'demo-admin' ? 'bryx.96@gmail.com' : 'bcespedes@hortifrut.com');
   await page.getByRole('button', { name: 'Cerrar ventana', exact: true }).click();

@@ -174,3 +174,12 @@ El [paso 11](../supabase/migrations/202611090011_account_copies.sql) amplía la 
 El [paso 12](../supabase/migrations/202611090012_next_registration.sql) añade una consulta autenticada del siguiente correlativo anual compartido. Exige una cuenta habilitada que pueda crear inspecciones y respeta el año de Lima. No reserva números ni escribe en el contador. La interfaz consulta cada cinco segundos mientras se completa el informe y al recuperar foco/conexión; el envío conserva la reserva y confirmación transaccionales existentes.
 
 Sobre el paso 10 ya instalado se puede ejecutar únicamente el [instalador breve](../supabase/operations/upgrade-registration-preview.sql), que incorpora los pasos 11 y 12 pendientes de forma atómica. No requiere otro despliegue de Render.
+
+
+## Paso 20: ordenar las listas del catálogo
+
+El [paso 20](../supabase/migrations/202611150020_catalog_order.sql) guarda el orden de gerencias, áreas, puestos, sedes, zonas e instalaciones por separado dentro de cada lista. Solo un administrador puede cambiarlo. «Ordenar listas» muestra controles para subir, bajar y mover al principio o al final; cada movimiento se guarda inmediatamente y se refleja en los desplegables del perfil, la inspección y los filtros del panel. Los elementos nuevos o trasladados a otra lista se añaden al final; editar, retirar o restaurar conserva su posición.
+
+La actualización valida la lista completa y sus revisiones en una transacción: una modificación concurrente exige actualizar las listas y un reintento del mismo orden es seguro. Se mantienen nombres, identificadores, dependencias, abreviaturas, perfiles, informes y registros históricos. Repetir la instalación conserva el orden elegido.
+
+Si el proyecto ya está en el paso 19, ejecuta únicamente el archivo del paso 20 completo. Si todavía está en el paso 17 o 18, el [script de activación 18–20](../supabase/operations/activate-catalog-order-20261115.sql) incluye los requisitos pendientes. Al terminar, vuelve a entrar en Berry Safety. No requiere desplegar Render. La lista de instalaciones sigue bloqueada mientras no se cargue su catálogo oficial.

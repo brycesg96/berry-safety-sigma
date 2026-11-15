@@ -16,7 +16,7 @@ import { FollowUp } from './FollowUp';
 import { DashboardTableScroll } from './DashboardTableScroll';
 import { exportExcel } from './export';
 import { exportPdf } from './pdf';
-import { buildConsolidated, dashboardMetrics, dashboardState, dashboardStateLabel, emptyDashboardFilters, filterDashboard, loadDashboard, loadDashboardInspection, saveDashboardFile, dashboardAreas, dashboardManagements, dashboardPeopleOptions } from './dashboard';
+import { buildConsolidated, dashboardMetrics, dashboardState, dashboardStateLabel, emptyDashboardFilters, filterDashboard, loadDashboard, loadDashboardInspection, saveDashboardFile, dashboardText, dashboardAreas, dashboardManagements, dashboardPeopleOptions } from './dashboard';
 import type { DashboardCache, DashboardFilters, DashboardRow } from './dashboard';
 import './dashboard.css';
 
@@ -61,12 +61,17 @@ export function InspectionDashboard({ actor, cache, isCurrent, onBusyChange }: {
       dashboardAreas(row).forEach(area => areas.set(area.key, { value: area.key, label: area.name }));
       dashboardManagements(row).forEach(management => managements.set(management.key, { value: management.key, label: management.name }));
     }
-    const sorted = (items: Map<string, SelectOption>) => [...items.values()].sort((a, b) => a.label.localeCompare(b.label, 'es'));
+    const managementOrder = catalogState.catalog.map(entry => dashboardText(entry.management));
+    const areaOrder = [...new Set(catalogState.catalog.flatMap(entry => entry.areas.map(dashboardText)))];
+    const sorted = (items: Map<string, SelectOption>, order: string[]) => {
+      const rank = (value: string) => { const index = order.indexOf(value); return index < 0 ? Number.MAX_SAFE_INTEGER : index; };
+      return [...items.values()].sort((a, b) => rank(a.value) - rank(b.value) || a.label.localeCompare(b.label, 'es'));
+    };
     const preserveSelectedLabels = (items: SelectOption[], cache: Map<string, SelectOption>, selected: string[]) => {
       items.forEach(item => cache.set(item.value, item));
       return [...items, ...selected.filter(value => !value.includes('@') && !items.some(item => item.value === value) && cache.has(value)).map(value => cache.get(value)!)];
     };
-    return { inspectors: preserveSelectedLabels(dashboardPeopleOptions(rows, 'inspector'), peopleLabels.current.inspectors, filters.inspector), responsibles: preserveSelectedLabels(dashboardPeopleOptions(rows, 'responsible'), peopleLabels.current.responsibles, filters.responsible), areas: sorted(areas), managements: sorted(managements) };
+    return { inspectors: preserveSelectedLabels(dashboardPeopleOptions(rows, 'inspector'), peopleLabels.current.inspectors, filters.inspector), responsibles: preserveSelectedLabels(dashboardPeopleOptions(rows, 'responsible'), peopleLabels.current.responsibles, filters.responsible), areas: sorted(areas, areaOrder), managements: sorted(managements, managementOrder) };
   }, [rows, filters.inspector, filters.responsible, catalogState.catalog]);
   async function action(work: () => Promise<void>) {
     if (working.current) return;
@@ -104,7 +109,7 @@ export function InspectionDashboard({ actor, cache, isCurrent, onBusyChange }: {
   if (detail) return <section className="inspection-dashboard">{error && <p className="notice notice-error" role="alert">{error}</p>}<FollowUp key={detail.id} inspection={detail} actor={{ id: actor.id, name: actor.full_name, email: actor.email, area: actor.area, jobTitle: actor.job_title, role: 'admin', enabled: actor.enabled }} readOnly externalBusy={busy} onChange={setDetail} onBack={() => { setError(''); setDetail(null); }} onBusyChange={detailBusy} onEdit={() => setEditing(true)} onArchiveRetry={detail.archiveEditOperation ? () => void action(async () => { const updated = await finishAdminEdit({ inspectionId: detail.id, operationId: detail.archiveEditOperation! }, actor.id); if (live.current && current.current()) saved(updated); }) : undefined}/></section>;
   const monthMaximum = Math.max(1, ...metrics.months.map(([, count]) => count)), areaMaximum = Math.max(1, ...metrics.areas.map(area => area.count)), managementMaximum = Math.max(1, ...metrics.managements.map(management => management.count));
   return <section className="inspection-dashboard" aria-busy={busy}>
-    <div className="dashboard-heading"><div><div className="eyebrow">VISIÓN GENERAL</div><h1>Gestión de Inspecciones</h1><p>Consulta los registros, revisa su avance y descarga el consolidado.</p></div><button type="button" className="button button-primary" disabled={busy || invalidDates || !filtered.length} onClick={() => void action(async () => { const file = await buildConsolidated(filtered); if (live.current && current.current()) saveDashboardFile(file); })}><Download size={17}/>Descargar consolidado</button></div>
+    <div className="dashboard-heading"><div><div className="eyebrow">VISIÓN GENERAL</div><h1>Gestión de Inspecciones</h1><p>Consulta los registros, revisa su avance y descarga el consolidado.</p></div><button type="button" className="button button-primary" disabled={busy || invalidDates || !filtered.length} onClick={() => void action(async () => { const file = await buildConsolidated(filtered, { filters }); if (live.current && current.current()) saveDashboardFile(file); })}><Download size={17}/>Descargar consolidado</button></div>
     <div className="dashboard-toolbar"><p>{updatedAt ? `Última actualización: ${new Intl.DateTimeFormat('es-PE', { timeZone: 'America/Lima', dateStyle: 'short', timeStyle: 'short' }).format(new Date(updatedAt))}` : 'Registros compartidos de inspección'}</p><button type="button" className="button button-outline" disabled={busy || loading} onClick={() => setRetry(value => value + 1)}>{loading ? <LoaderCircle size={16} className="spin"/> : <RefreshCw size={16}/>}Actualizar panel</button></div>
     {error && !deleting && <p className="notice notice-error" role="alert">{error}</p>}{message && <p role="status" className="account-success">{message}</p>}
     <div className="dashboard-filters"><h2><Search size={19}/>Filtrar inspecciones</h2><div className="dashboard-filter-grid">

@@ -1,3 +1,4 @@
+import { openWorkspaceProfile } from './workspace-profile-fixture';
 import { test, expect } from '@playwright/test';
 
 test('corrector nativo en español solo para los cinco campos de redacción de la inspección', async ({ page }) => {
@@ -27,6 +28,6 @@ test('corrector nativo en español solo para los cinco campos de redacción de l
   await page.getByRole('button', { name: '04 Cierre', exact: true }).click();
   await check('DESCRIPCIÓN DE LA CAUSA ANTE RESULTADOS DESFAVORABLES DE LA INSPECCIÓN', true);
   await check('CONCLUSIONES Y RECOMENDACIONES', true); await check('Puesto', false);
-  await page.getByRole('button', { name: 'Mi perfil', exact: true }).click();
+  await openWorkspaceProfile(page);
   await check('Nombres y apellidos', false);
 });

@@ -1,8 +1,9 @@
 import seed from './organization-seed.json' with { type: 'json' };
+import { compareCatalogNodes } from './catalog-order';
 
 export type OrganizationEntry = { management: string; areas: readonly string[]; positions?: Readonly<Record<string, readonly string[]>>; areaNomenclatures?: Readonly<Record<string, string>> };
 export type OrganizationKind = 'management' | 'area' | 'position';
-export type OrganizationNode = { id: string; parent_id: string | null; kind: OrganizationKind; name: string; enabled: boolean; revision: number; nomenclature?: string };
+export type OrganizationNode = { id: string; parent_id: string | null; kind: OrganizationKind; name: string; enabled: boolean; revision: number; nomenclature?: string; sort_order?: number };
 
 export function organizationNodeActive(node: OrganizationNode, nodes: readonly OrganizationNode[]): boolean {
   if (!node.enabled) return false;
@@ -11,11 +12,12 @@ export function organizationNodeActive(node: OrganizationNode, nodes: readonly O
   return !!parent && parent.kind === (node.kind === 'area' ? 'management' : 'area') && organizationNodeActive(parent, nodes);
 }
 export function catalogFromNodes(nodes: readonly OrganizationNode[]): OrganizationEntry[] {
+  nodes = [...nodes].sort(compareCatalogNodes);
   return nodes.filter(node => node.kind === 'management' && organizationNodeActive(node, nodes)).map(management => {
     const areas = nodes.filter(node => node.kind === 'area' && node.parent_id === management.id && organizationNodeActive(node, nodes));
-    const positions = Object.fromEntries(areas.map(area => [area.name, nodes.filter(node => node.kind === 'position' && node.parent_id === area.id && node.enabled).map(node => node.name).sort((a, b) => a.localeCompare(b, 'es'))]).filter(([, jobs]) => jobs.length));
-    return { management: management.name, areas: areas.map(area => area.name).filter(name => positions[name]?.length).sort((a, b) => a.localeCompare(b, 'es')), positions, areaNomenclatures: Object.fromEntries(areas.filter(area => area.nomenclature !== undefined).map(area => [area.name, area.nomenclature!.trim()])) };
-  }).filter(entry => entry.areas.length).sort((a, b) => a.management.localeCompare(b.management, 'es'));
+    const positions = Object.fromEntries(areas.map(area => [area.name, nodes.filter(node => node.kind === 'position' && node.parent_id === area.id && node.enabled).map(node => node.name)]).filter(([, jobs]) => jobs.length));
+    return { management: management.name, areas: areas.map(area => area.name).filter(name => positions[name]?.length), positions, areaNomenclatures: Object.fromEntries(areas.filter(area => area.nomenclature !== undefined).map(area => [area.name, area.nomenclature!.trim()])) };
+  }).filter(entry => entry.areas.length);
 }
 export const INITIAL_ORGANIZATION_NODES = seed as OrganizationNode[];
 const initialCatalog = catalogFromNodes(INITIAL_ORGANIZATION_NODES);

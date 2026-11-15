@@ -1,3 +1,4 @@
+import { openWorkspaceProfile } from './workspace-profile-fixture';
 import { saveAndOpenList } from './save-fixture';
 import { test, expect } from '@playwright/test';
 import ExcelJS from 'exceljs';
@@ -90,7 +91,7 @@ test('responsables del registro independientes, autor de la cuenta bloqueado, se
   for (const date of await registrationDates.all()) { await expect(date).toHaveValue('2026-11-05'); await expect(date).not.toBeEditable(); }
   await expect(section.locator('.signature-preview img')).toHaveCount(1);
   for (const jobTitle of ['', 'Supervisor SST']) {
-    await page.getByRole('button', { name: 'Mi perfil', exact: true }).click();
+    await openWorkspaceProfile(page);
     await page.getByRole('dialog', { name: 'Mi perfil' }).getByLabel('Puesto', { exact: true }).fill(jobTitle);
     await page.getByRole('button', { name: 'Guardar perfil', exact: true }).click();
     await expect(primaryJobTitle).toHaveValue(jobTitle);

@@ -1,3 +1,4 @@
+import { openWorkspaceProfile } from './workspace-profile-fixture';
 import { selectSecondResponsible } from './responsible-fixture';
 import { selectValue } from './select-fixture';
 import { selectLocation } from './location-fixture';
@@ -141,7 +142,7 @@ for(const actor of [author,recipient])test(`el ingreso de ${actor===author?'admi
   await expect(page.locator('.card-eyebrow')).toHaveCount(0);expect(state.rows.size).toBe(0);expect(state.previewCalls).toBe(0);
   await page.reload();await expect(page.getByRole('heading',{name:'Mis inspecciones',exact:true})).toBeVisible();
   expect(await page.evaluate(()=>(window as any).profileShown)).toBe(false);
-  await page.getByRole('button',{name:'Mi perfil',exact:true}).click();
+  await openWorkspaceProfile(page);
   const profile=page.getByRole('dialog',{name:'Mi perfil',exact:true});await expect(profile).toContainText(profiles.find(p=>p.id===actor)!.full_name);
   await profile.getByRole('button',{name:'Ir a mi perfil',exact:true}).click();
   await expect(page.getByRole('heading',{name:'Mi perfil',exact:true})).toBeVisible();await expect(page).toHaveURL(/seccion=perfil/);
@@ -151,7 +152,7 @@ for(const actor of [author,recipient])test(`el ingreso de ${actor===author?'admi
   await page.reload();await expect(page.getByRole('heading',{name:'Mi perfil',exact:true})).toBeVisible();
   await page.getByRole('button',{name:'Entrar al espacio de trabajo'}).click();await expect(page.getByRole('heading',{name:'Mis inspecciones',exact:true})).toBeVisible();
   await expect(page).not.toHaveURL(/seccion=/);
-  await page.getByRole('button',{name:'Mi perfil',exact:true}).click();await page.getByRole('button',{name:'Ir a mi perfil',exact:true}).click();
+  await openWorkspaceProfile(page);await page.getByRole('button',{name:'Ir a mi perfil',exact:true}).click();
   await page.getByRole('button',{name:'Cerrar sesión en este dispositivo',exact:true}).click();
   await expect(page.getByRole('heading',{name:'Inicia sesión',exact:true})).toBeVisible();await expect(page).not.toHaveURL(/seccion=/);
   await page.getByLabel(/^Correo electrónico/).fill(profiles.find(p=>p.id===actor)!.email);await page.getByLabel(/^Contraseña/).fill('Fictitious!47');await page.getByRole('button',{name:'Iniciar sesión',exact:true}).click();
@@ -201,7 +202,7 @@ test('private drafts resume on another device and full approval replaces the ini
   expect(state.files.size).toBe(1);expect(await page.evaluate(()=>localStorage.getItem('berry-demo-accounts-v1'))).toBeNull();
   const imageReads=()=>state.paths.filter(path=>path.includes('/object/authenticated/berry-evidence/')).length;
   const reads=imageReads();
-  await page.getByRole('button',{name:'Mi perfil',exact:true}).click();await page.getByRole('button',{name:'Ir a mi perfil',exact:true}).click();
+  await openWorkspaceProfile(page);await page.getByRole('button',{name:'Ir a mi perfil',exact:true}).click();
   await page.getByRole('button',{name:'Entrar al espacio de trabajo'}).click();
   await openEditor(page);
   await expect(page.locator('.photo-thumb img').first()).toBeVisible();expect(imageReads()).toBe(reads);
@@ -308,7 +309,7 @@ test('un borrador pendiente retirado por el administrador o el reinicio no reapa
 test('Salir advierte cambios pendientes sin guardar automáticamente ni cerrar sesión',async({page,context})=>{
   const state=stateOf();await mock(context,state,author);await enter(page,author);
   state.failSave=true;await page.getByLabel('Área e instalación inspeccionada').fill('Borrador antes de salir');
-  await page.getByRole('button',{name:'Mi perfil',exact:true}).click();
+  await openWorkspaceProfile(page);
   await page.getByRole('dialog',{name:'Mi perfil',exact:true}).getByRole('button',{name:'Cerrar sesión',exact:true}).click();
   const dialog=page.getByRole('dialog',{name:'¿Estás seguro de salir?',exact:true});
   await expect(dialog.getByRole('button',{name:'Salir',exact:true})).toHaveCount(0);
@@ -445,7 +446,7 @@ test('textos de una cuenta sin historial están en blanco aunque reciba informes
 test('Guardar y salir conserva el destino, no sale si falla y permite reintentar sin enviar ni asignar número de registro',async({page,context})=>{
  const state=stateOf();await mock(context,state,author);await enter(page,author);
  await page.getByLabel('Área e instalación inspeccionada').fill('Guardado antes de ir a mi cuenta');
- await page.getByRole('button',{name:'Mi perfil',exact:true}).click();await page.getByRole('button',{name:'Ir a mi perfil',exact:true}).click();
+ await openWorkspaceProfile(page);await page.getByRole('button',{name:'Ir a mi perfil',exact:true}).click();
  const dialog=page.getByRole('dialog',{name:'¿Qué quieres hacer con los cambios?',exact:true});await expect(dialog).toBeVisible();
  state.failSave=true;await dialog.getByRole('button',{name:'Guardar y salir',exact:true}).click();
  await expect(dialog.getByRole('alert')).toContainText('No se pudo confirmar el guardado');expect(state.saves).toBe(0);await expect(page.getByLabel('Área e instalación inspeccionada')).toHaveValue('Guardado antes de ir a mi cuenta');
