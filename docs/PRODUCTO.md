@@ -14,7 +14,7 @@ El apartado Realizado por admite al usuario autor y hasta dos inspectores adicio
 
 ## Seguimiento de inspecciones
 
-El flujo de prueba incorpora Inspecciones asignadas, levantamientos con evidencias, revisión del autor y cierre cuando todos los hallazgos quedan en Ejecutado. Los informes se comparten entre cuentas únicamente dentro del mismo navegador; no se envía correo. Descargar el Excel no cierra una inspección. Consulta [la guía de prueba](SEGUIMIENTO.md).
+El flujo de prueba incorpora Observaciones a mi cargo, levantamientos con evidencias, revisión del autor y cierre cuando todos los hallazgos quedan en Ejecutado. Los informes se comparten entre cuentas únicamente dentro del mismo navegador; no se envía correo. Descargar el Excel no cierra una inspección. Consulta [la guía de prueba](SEGUIMIENTO.md).
 
 ## Próxima etapa: plantilla y automatización
 

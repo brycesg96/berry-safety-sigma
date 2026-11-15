@@ -4,6 +4,7 @@ import { newPasswordError, TEMPORARY_PASSWORD } from '../shared/account-rules.mj
 
 export const ACCOUNTS_PATH = '/api/accounts';
 export const PASSWORD_PATH = '/api/accounts/password';
+export const ACCOUNT_EMAIL_PATH = '/api/accounts/email';
 export const ACCOUNT_MANAGE_PATH = '/api/accounts/manage';
 export const ADMIN_REPORTS_PATH = '/api/accounts/inspections';
 export const ADMIN_DELETE_REPORT_PATH = '/api/accounts/inspections/delete';
@@ -58,11 +59,11 @@ export function createAccountsHandler({ env = process.env, fetchImpl = fetch, no
     if (!result.ok) {
       const code = result.data?.code;
       if (code === '23505') throw new ApiError(409, 'ACCOUNT_EXISTS', 'Ese correo ya tiene una cuenta o un alta pendiente con otros datos.');
-      if (code === '40001' && result.data?.message === 'ACCESS_REVISION_CONFLICT') throw new ApiError(409, 'ACCESS_CHANGED', 'La cuenta cambió en otra sesión. Actualiza la lista y vuelve a abrir sus permisos.');
+      if (code === '40001' && result.data?.message === 'ACCESS_REVISION_CONFLICT') throw new ApiError(409, 'ACCESS_CHANGED', 'La cuenta cambió en otra sesión. Actualiza la lista y vuelve a abrir su edición.');
       if (code === '55P03' || code === '40001') throw new ApiError(409, 'OPERATION_BUSY', 'Hay otra operación en curso. Espera un momento y vuelve a intentarlo.');
       if (code === '42501') throw new ApiError(403, 'ACCESS_DENIED', 'Tu cuenta no tiene permiso para esta operación.');
       if (code === '22023') {
-        const messages={ LAST_ADMIN_REQUIRED:'Debe permanecer al menos una cuenta administradora habilitada que ya haya actualizado su contraseña.', CANNOT_DISABLE_SELF:'Utiliza otra cuenta administradora para deshabilitar o eliminar tu propia cuenta.', PERSON_ALREADY_ACTIVE:'Esta persona ya tiene una cuenta vigente. Utiliza esa cuenta o indica que se trata de otra persona.', RESOLUTION_NOT_MATCHED:'La cuenta seleccionada no coincide con el nombre ni el correo indicados.', RESTORE_EXPIRED:'El plazo de tres meses para restablecer esta cuenta ya venció. Puedes registrar su reincorporación sin acceso al historial anterior.' };
+        const messages={ LAST_ADMIN_REQUIRED:'Debe permanecer al menos una cuenta administradora habilitada que ya haya actualizado su contraseña.', CANNOT_DISABLE_SELF:'Utiliza otra cuenta administradora para deshabilitar o eliminar tu propia cuenta.', PERSON_ALREADY_ACTIVE:'Esta persona ya tiene una cuenta vigente. Utiliza esa cuenta o indica que se trata de otra persona.', RESOLUTION_NOT_MATCHED:'La cuenta seleccionada no coincide con el nombre ni el correo indicados.', EMAIL_OPERATION_EXPIRED:'El intento de cambio de correo venció. Cierra la edición y vuelve a abrirla para intentarlo de nuevo.', ACCOUNT_NOT_AVAILABLE:'La cuenta ya no está disponible. Actualiza la lista de usuarios.', RESTORE_EXPIRED:'El plazo de tres meses para restablecer esta cuenta ya venció. Puedes registrar su reincorporación sin acceso al historial anterior.' };
         throw new ApiError(400, 'INVALID_ACCOUNT', messages[result.data?.message] || 'Revisa los datos y los permisos de la cuenta.');
       }
       if (code === 'PGRST202' || code === '42703') throw new ApiError(503, 'ACCOUNTS_MIGRATION_REQUIRED', 'Falta instalar la actualización de gestión de usuarios.');
@@ -106,7 +107,7 @@ export function createAccountsHandler({ env = process.env, fetchImpl = fetch, no
     try {
       if (!origin || !origins.has(origin)) throw new ApiError(403, 'ORIGIN_NOT_ALLOWED', 'Origen de la aplicación no permitido.');
       if (req.method === 'OPTIONS') { res.writeHead(204, { 'Cache-Control': 'no-store', ...cors }); res.end(); return; }
-      if (![ACCOUNTS_PATH, PASSWORD_PATH,ACCOUNT_MANAGE_PATH,ADMIN_REPORTS_PATH,ADMIN_DELETE_REPORT_PATH,ACCOUNT_MATCHES_PATH,ACCOUNT_RESOLVE_PATH].includes(req.url) || !['GET', 'POST'].includes(req.method) || [PASSWORD_PATH,ACCOUNT_MANAGE_PATH,ADMIN_DELETE_REPORT_PATH,ACCOUNT_MATCHES_PATH,ACCOUNT_RESOLVE_PATH].includes(req.url) && req.method !== 'POST' || req.url===ADMIN_REPORTS_PATH && req.method!=='GET') throw new ApiError(405, 'METHOD_NOT_ALLOWED', 'Método no permitido.');
+      if (![ACCOUNTS_PATH, PASSWORD_PATH,ACCOUNT_MANAGE_PATH,ADMIN_REPORTS_PATH,ADMIN_DELETE_REPORT_PATH,ACCOUNT_MATCHES_PATH,ACCOUNT_RESOLVE_PATH,ACCOUNT_EMAIL_PATH].includes(req.url) || !['GET', 'POST'].includes(req.method) || [PASSWORD_PATH,ACCOUNT_MANAGE_PATH,ADMIN_DELETE_REPORT_PATH,ACCOUNT_MATCHES_PATH,ACCOUNT_RESOLVE_PATH,ACCOUNT_EMAIL_PATH].includes(req.url) && req.method !== 'POST' || req.url===ADMIN_REPORTS_PATH && req.method!=='GET') throw new ApiError(405, 'METHOD_NOT_ALLOWED', 'Método no permitido.');
       if (!config) throw unavailable();
       const time = now().getTime(), address = req.socket.remoteAddress || 'unknown';
       for (const [key, value] of attempts) if (value.until <= time) attempts.delete(key);
@@ -122,6 +123,31 @@ export function createAccountsHandler({ env = process.env, fetchImpl = fetch, no
       if ((req.headers['content-type'] || '').split(';')[0].trim().toLowerCase() !== 'application/json') throw new ApiError(415, 'JSON_REQUIRED', 'Envía la solicitud en formato JSON.');
       let input;
       try { input = await bodyOf(req, 65536); } catch { throw new ApiError(400, 'INVALID_BODY', 'La solicitud no es válida.'); }
+      if (req.url === ACCOUNT_EMAIL_PATH) {
+        const operationId = req.headers['idempotency-key'];
+        const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+        if (!input || typeof input !== 'object' || Array.isArray(input) || Object.keys(input).some(key => !['id', 'expectedRevision', 'email'].includes(key)) || !uuid.test(input.id) || !Number.isSafeInteger(input.expectedRevision) || input.expectedRevision < 1 || typeof input.email !== 'string' || input.email.trim().length > 254 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(input.email.trim())) throw new ApiError(400, 'INVALID_EMAIL', 'Escribe un correo electrónico válido y selecciona el usuario que deseas modificar.');
+        if (typeof operationId !== 'string' || !uuid.test(operationId)) throw new ApiError(400, 'REQUEST_ID_REQUIRED', 'El cambio de correo necesita un identificador único.');
+        const args = { p_operation: operationId, p_id: input.id, p_expected: input.expectedRevision, p_email: input.email.trim().toLowerCase() };
+        const begin = () => rpc('berry_begin_account_email', args, actor.token);
+        const operation = await begin();
+        args.p_operation = operation.operation_id;
+        const sendResult = value => { if (!value?.completed_at || value.account?.id !== input.id) throw new ApiError(503, 'EMAIL_UNCONFIRMED', 'No pudimos confirmar el cambio de correo. Reintenta conservando los mismos datos.'); reply(res, 200, { ok: true, account: value.account }, cors); };
+        if (operation.completed_at) { sendResult(operation); return; }
+        const user = await upstream(`/auth/v1/admin/users/${encodeURIComponent(input.id)}`);
+        if (!user.ok || user.data?.id !== input.id || user.data.email?.toLowerCase() !== operation.previous_email) throw new ApiError(409, 'ACCOUNT_CHANGED', 'El correo de la cuenta cambió. Actualiza la lista antes de volver a editarlo.');
+        try {
+          const changed = await upstream(`/auth/v1/admin/users/${encodeURIComponent(input.id)}`, { method: 'PUT', body: { email: args.p_email, email_confirm: true, app_metadata: { ...user.data.app_metadata, berry_email_operation: operation.operation_id } } });
+          if (!changed.ok) throw new ApiError(changed.status === 422 || changed.status === 409 ? 409 : 503, 'EMAIL_NOT_CHANGED', changed.status === 422 || changed.status === 409 ? 'El correo ya está en uso o la cuenta cambió. Actualiza la lista y revisa el nuevo correo.' : 'No se confirmó el cambio de correo. Reintenta conservando los mismos datos.');
+        } catch (problem) {
+          // Auth may have committed before its response was lost. The persisted
+          // operation, never a browser flag, decides whether the change succeeded.
+          const confirmed = await begin();
+          if (confirmed.completed_at) { sendResult(confirmed); return; }
+          throw problem;
+        }
+        sendResult(await begin()); return;
+      }
       if (req.url === ACCOUNT_MATCHES_PATH) {
         if (!input || Object.keys(input).some(key => !['email', 'full_name'].includes(key))) throw new ApiError(400, 'INVALID_REQUEST', 'Revisa el nombre y el correo.');
         const account = normalizedAccount({ ...input, role: 'inspector' });

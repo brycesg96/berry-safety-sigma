@@ -51,14 +51,14 @@ function LocalReportSendForm({ inspection, actorId, onPrepare, onChange, onBusyC
   return <div className="report-send-form">
     <p>Las personas indicadas recibirán la inspección en su cuenta y el registro en formato Excel (.xlsx) adjunto al correo.</p>
     {!inspection.delivery && <p>El correo también se enviará a <strong>{inspection.inspectorEmail}</strong> en Para.</p>}
-    <p><strong>Partes interesadas (cc):</strong> {cc.length?cc.join(', '):'Sin correos asociados'}</p>
+    <p><strong>Responde a (CC):</strong> {cc.length?cc.join(', '):'Sin correos asociados'}</p>
     <p className="local-admin-note">El Excel utiliza la plantilla de inspecciones internas. El número de registro definitivo y la sincronización de levantamientos entre dispositivos siguen pendientes.</p>
     {accepted?<p className="notice" role="status">Make aceptó el informe (HTTP {receipt.upstreamStatus}). La recepción del correo por Outlook aún no está confirmada.</p>:<>
       {receipt && <p className="notice" role="status">{receipt.state==='pending'?'Hay un intento pendiente. Revisa Make antes de repetir.':receipt.message || 'Recepción no confirmada.'} Se conserva el mismo ID para consultar el intento, sin reenvíos automáticos.</p>}
       {!api?<p className="notice">Falta conectar el backend de correo.</p>:null}
       <button type="button" className="button button-primary full-width" disabled={busy || !api || cc.length>50 || inspection.responsibles.length>50} onClick={()=>void submit()}>{busy?<LoaderCircle className="spin" size={16}/>:<Send size={16}/>} {receipt?'Revisar recepción en Make':'Enviar informe por correo'}</button>
     </>}
-    {(cc.length>50 || inspection.responsibles.length>50) && <p className="notice notice-error" role="alert">Se permiten hasta 50 responsables y 50 partes interesadas en copia por informe. Ajusta las asociaciones antes de enviar.</p>}
+    {(cc.length>50 || inspection.responsibles.length>50) && <p className="notice notice-error" role="alert">Se permiten hasta 50 responsables y 50 correos en copia por informe. Ajusta las asociaciones antes de enviar.</p>}
     {error && <p className="notice notice-error" role="alert"><Info size={16}/>{error}</p>}
   </div>;
 }

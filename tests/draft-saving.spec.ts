@@ -45,7 +45,7 @@ test('abrir, navegar y cambiar de cuenta no crea borradores; escribir no guarda;
   await expect(page.getByText('Sin iniciar', { exact: true })).toBeVisible();
   await page.clock.runFor(1000); await expect(page.getByText('Sin iniciar', { exact: true })).toBeVisible();
   expect(await storedCount(page)).toBe(0);
-  for (const destination of ['Mis inspecciones', 'Administración', 'Inspecciones asignadas']) {
+  for (const destination of ['Mis inspecciones', 'Administración', 'Observaciones a mi cargo']) {
     await nav.getByRole('button', { name: destination, exact: true }).click();
     await nav.getByRole('button', { name: 'Nueva inspección', exact: true }).click();
     await page.clock.runFor(1000); expect(await storedCount(page)).toBe(0);
@@ -99,9 +99,9 @@ for (const width of [1366, 390]) test(`salir de una inspección permite cancelar
   await navigate('Mis inspecciones'); await dialog.getByRole('button', { name: 'Descartar cambios', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'Mis inspecciones', exact: true })).toBeVisible(); expect(await storedCount(page)).toBe(0);
   await navigate('Nueva inspección'); await expect(field).toHaveValue('');
-  await field.fill('Borrador conservado'); await navigate('Inspecciones asignadas');
+  await field.fill('Borrador conservado'); await navigate('Observaciones a mi cargo');
   await dialog.getByRole('button', { name: 'Guardar y salir', exact: true }).click();
-  await expect(page.getByRole('heading', { name: 'Inspecciones asignadas', exact: true })).toBeVisible(); expect(await storedCount(page)).toBe(1);
+  await expect(page.getByRole('heading', { name: 'Observaciones a mi cargo', exact: true })).toBeVisible(); expect(await storedCount(page)).toBe(1);
   await navigate('Mis inspecciones'); await page.locator('.inspection-list-row').getByRole('button', { name: 'Continuar', exact: true }).click();
   await expect(field).toHaveValue('Borrador conservado'); await field.fill('Cambio que descarto'); await navigate('Administración');
   await dialog.getByRole('button', { name: 'Descartar cambios', exact: true }).click(); await expect(page.locator('.sidebar-nav button.active')).toContainText('Administración');

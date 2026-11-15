@@ -99,8 +99,8 @@ test('sede y zona dependientes conservan la etiqueta y el texto editable al guar
  const site=page.getByRole('combobox',{name:'Sede',exact:true}),zone=page.getByRole('combobox',{name:'Zona de inspección',exact:true}),area=page.getByRole('textbox',{name:'Área e instalación inspeccionada',exact:true});
  await expect(zone).toBeDisabled();await site.click();expect(await page.getByRole('listbox').getByRole('option').allTextContents()).not.toContain('Puerto Morín');
  await selectLocation(page,'Sede','Fundo');await selectLocation(page,'Zona de inspección','Armonía II');await area.fill('Taller de Maquinaria');await selectLocation(page,'Sede','Fundo');await expect(zone).toHaveText('Armonía II');
- await expect(page.locator('.inspection-area-prefix')).toHaveText('Fundo – Armonía II –');
- await area.fill('Actividad corregida');await expect(page.locator('.inspection-area-prefix')).toHaveText('Fundo – Armonía II –');
+ await expect(page.locator('.inspection-area-prefix')).toHaveText('Fundo – Control de Gestión – Armonía II –');
+ await area.fill('Actividad corregida');await expect(page.locator('.inspection-area-prefix')).toHaveText('Fundo – Control de Gestión – Armonía II –');
  await selectLocation(page,'Sede','Exteriores');await expect(zone).toHaveText('Selecciona una zona');await zone.click();expect(await page.getByRole('listbox').getByRole('option').allTextContents()).toEqual(['Selecciona una zona','Chao','Otros','Semillero']);await selectLocation(page,'Zona de inspección','Chao');
  await expect(area).toHaveValue('Actividad corregida');await page.getByRole('button',{name:'Guardar',exact:true}).first().click();await expect(page.getByText('Guardado en este navegador',{exact:true})).toBeVisible();await page.reload();await expect(site).toHaveText('Exteriores');await expect(zone).toHaveText('Chao');await expect(area).toHaveValue('Actividad corregida');
 });

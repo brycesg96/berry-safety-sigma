@@ -209,7 +209,7 @@ test('private drafts resume on another device and full approval replaces the ini
   await expect(other.getByLabel('Descripción')).toHaveValue('Protección pendiente.');
   await expect(other.locator('.photo-thumb img').first()).toBeVisible();
   const recipientDevice=await browser.newContext({viewport:{width:390,height:844}});await mock(recipientDevice,state,recipient);const receiver=await recipientDevice.newPage();await enter(receiver,recipient);
-  await receiver.getByRole('button',{name:'Abrir menú',exact:true}).click();await receiver.getByRole('button',{name:/Inspecciones asignadas/}).click();
+  await receiver.getByRole('button',{name:'Abrir menú',exact:true}).click();await receiver.getByRole('button',{name:/Observaciones a mi cargo/}).click();
   await expect(receiver.getByRole('heading',{name:'No tienes inspecciones asignadas'})).toBeVisible();
   await other.getByRole('button',{name:'Continuar',exact:true}).click();await other.getByRole('button',{name:'Continuar',exact:true}).click();
   await other.getByRole('textbox',{name:'CONCLUSIONES Y RECOMENDACIONES',exact:true}).fill('Gestionar la medida indicada.');
@@ -226,8 +226,8 @@ test('private drafts resume on another device and full approval replaces the ini
   const bytes=await readFile((await download.path())!);expect(bytes.equals(state.files.get('berry-documents/'+state.documents.get(row.id).storage_path)!)).toBe(true);
   // Same recipient device now sees the sent record, without local account switching or copied IndexedDB data.
   await receiver.reload();await expect(receiver.getByRole('heading',{name:'Mis inspecciones',exact:true})).toBeVisible();
-  await receiver.getByRole('button',{name:'Abrir menú',exact:true}).click();await receiver.getByRole('button',{name:/Inspecciones asignadas/}).click();await receiver.getByRole('button',{name:'Revisar inspección',exact:true}).click();
-  await expect(receiver.locator('.breadcrumbs')).toContainText('Inspecciones asignadas');await expect(receiver.locator('.breadcrumbs')).toContainText('Pendientes');
+  await receiver.getByRole('button',{name:'Abrir menú',exact:true}).click();await receiver.getByRole('button',{name:/Observaciones a mi cargo/}).click();await receiver.getByRole('button',{name:'Revisar inspección',exact:true}).click();
+  await expect(receiver.locator('.breadcrumbs')).toContainText('Observaciones a mi cargo');await expect(receiver.locator('.breadcrumbs')).toContainText('Pendientes');
   await expect(receiver.getByLabel('Apellidos y nombres del responsable del levantamiento')).toHaveValue('Bruno Responsable');
   await expect(receiver.getByLabel('Apellidos y nombres del responsable del levantamiento')).toHaveAttribute('readonly','');
   expect(await receiver.evaluate(()=>localStorage.getItem('berry-last-submitted-texts'))).toBeNull();
@@ -281,8 +281,8 @@ test('un usuario que solo recibe no crea borradores ni ve controles de creación
   const state=stateOf();await mock(context,state,recipient,{can_create_inspections:false,can_receive_inspections:true,role:'inspector'});
   await page.goto('./?acceso=cuenta');await page.getByLabel(/^Correo electrónico/).fill('bruno@example.com');await page.getByLabel(/^Contraseña/).fill('Fictitious!47');await page.getByRole('button',{name:'Iniciar sesión',exact:true}).click();
   await expect(page.getByRole('heading',{name:'Mis inspecciones',exact:true})).toBeVisible();
-  await page.getByRole('button',{name:'Inspecciones asignadas',exact:true}).click();
-  await expect(page.getByRole('heading',{name:'Inspecciones asignadas',exact:true})).toBeVisible();
+  await page.getByRole('button',{name:'Observaciones a mi cargo',exact:true}).click();
+  await expect(page.getByRole('heading',{name:'Observaciones a mi cargo',exact:true})).toBeVisible();
   await expect(page.getByRole('button',{name:'Nueva inspección',exact:true})).toHaveCount(0);
   await expect(page.getByRole('button',{name:'Administración',exact:true})).toHaveCount(0);
   await page.getByRole('button',{name:'Mis inspecciones',exact:true}).click();

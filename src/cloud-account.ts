@@ -134,6 +134,12 @@ export async function cloudAdminInspections(): Promise<AdminInspection[]> {
 export async function deleteCloudAdminInspection(inspection: Pick<AdminInspection, 'id' | 'revision'>) {
   await accountRequest('/api/accounts/inspections/delete',{method:'POST',body:{id:inspection.id,expectedRevision:inspection.revision}});
 }
+export async function changeCloudAccountEmail(account: CloudProfile, email: string, requestId: string): Promise<CloudProfile> {
+  const value = email.trim().toLowerCase();
+  if (value.length > 254 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) throw new Error('Escribe un correo electrónico válido.');
+  const result = await accountRequest('/api/accounts/email', { method: 'POST', body: { id: account.id, expectedRevision: account.access_revision, email: value }, requestId });
+  return profileRow(result.account, account.id);
+}
 export async function changeCloudPassword(password: string) {
   await accountRequest('/api/accounts/password', { method: 'POST', body: { password } });
 }

@@ -44,10 +44,10 @@ async function createReport(page: Page) {
   await page.getByText('Compartir solo en este navegador', { exact: true }).click();
   await expect(page.getByText('No se ha enviado ningún correo.')).toBeVisible();
   await page.getByRole('button', { name: 'Enviar a destinatarios de prueba' }).click();
-  await expect(page.getByRole('heading', { name: 'Fundo – Armonía II – Taller - Armonía 2', exact: true })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Fundo – CONTROL DE GESTIÓN – Armonía II – Taller - Armonía 2', exact: true })).toBeVisible();
 }
 async function openReceived(page: Page) {
-  await page.getByRole('button', { name: 'Inspecciones asignadas', exact: true }).click();
+  await page.getByRole('button', { name: 'Observaciones a mi cargo', exact: true }).click();
   await page.getByRole('button', { name: 'Revisar inspección', exact: true }).click();
 }
 async function openReview(page: Page) {
@@ -60,17 +60,17 @@ test('destinatario envía evidencias, autor pide ajustes y cierra solo al aproba
   test.setTimeout(90000);
   const errors: string[] = []; page.on('pageerror', e => errors.push(e.message));
   await page.goto('./');
-  await page.getByRole('button', { name: 'Inspecciones asignadas', exact: true }).click();
-  await expect(page.getByText('No tienes inspecciones asignadas')).toBeVisible();
+  await page.getByRole('button', { name: 'Observaciones a mi cargo', exact: true }).click();
+  await expect(page.getByText('No tienes informes a tu cargo')).toBeVisible();
   await createReport(page);
   const breadcrumb = page.getByRole('navigation', { name: 'Ruta de navegación' });
   await expect(breadcrumb.locator('li')).toHaveText(['Espacio de trabajo', 'Mis inspecciones', 'Pendientes de atención']);
   await expect(page.getByRole('button', { name: 'Mis inspecciones', exact: true })).toHaveClass(/active/);
   await expect(page.getByRole('button', { name: 'Descargar PDF', exact: true })).toHaveCount(0);
   await switchTo(page, 'demo-inspector');
-  await expect(page.getByRole('button', { name: 'Inspecciones asignadas', exact: true }).locator('.nav-count')).toHaveText('1');
+  await expect(page.getByRole('button', { name: 'Observaciones a mi cargo', exact: true }).locator('.nav-count')).toHaveText('1');
   await openReceived(page);
-  await expect(breadcrumb.locator('li')).toHaveText(['Espacio de trabajo', 'Inspecciones asignadas', 'Pendientes']);
+  await expect(breadcrumb.locator('li')).toHaveText(['Espacio de trabajo', 'Observaciones a mi cargo', 'Pendientes']);
   const cards = page.locator('.followup-card');
   await expect(cards.nth(0).getByLabel('Estado', { exact: true })).toHaveAttribute('data-value', 'Pendiente');
   await selectValue(cards.nth(0).getByLabel('Estado', { exact: true }), 'Ejecutado');
@@ -182,7 +182,7 @@ test('destinatario envía evidencias, autor pide ajustes y cierra solo al aproba
   await expect(page.locator('.inspection-list-row')).toHaveCount(1);
   await expect(page.locator('.list-status')).toHaveText('Cerrada');
   await switchTo(page, 'demo-inspector');
-  const inbox = page.getByRole('button', { name: 'Inspecciones asignadas', exact: true });
+  const inbox = page.getByRole('button', { name: 'Observaciones a mi cargo', exact: true });
   await expect(inbox.locator('.nav-count')).toHaveCount(0);
   await inbox.click();
   await expect(page.getByRole('button', { name: 'Pendientes', exact: true })).toHaveAttribute('aria-pressed', 'true');
@@ -193,9 +193,9 @@ test('destinatario envía evidencias, autor pide ajustes y cierra solo al aproba
   await expect(page.locator('.inspection-list-row')).toHaveCount(1);
   await expect(page.locator('.inspection-list-info')).toContainText('Cerrada');
   await page.getByRole('button', { name: 'Revisar inspección', exact: true }).click();
-  await expect(breadcrumb.locator('li')).toHaveText(['Espacio de trabajo', 'Inspecciones asignadas', 'Cerradas']);
-  await expect(page.getByRole('button', { name: 'Inspecciones asignadas', exact: true })).toHaveClass(/active/);
-  await page.getByRole('button', { name: 'Volver a Inspecciones asignadas', exact: true }).click();
+  await expect(breadcrumb.locator('li')).toHaveText(['Espacio de trabajo', 'Observaciones a mi cargo', 'Cerradas']);
+  await expect(page.getByRole('button', { name: 'Observaciones a mi cargo', exact: true })).toHaveClass(/active/);
+  await page.getByRole('button', { name: 'Volver a Observaciones a mi cargo', exact: true }).click();
   await expect(page.getByRole('button', { name: 'Cerradas', exact: true })).toHaveAttribute('aria-pressed', 'true');
   await page.getByRole('button', { name: 'Revisar inspección', exact: true }).click();
   await expect(cards.nth(0).getByLabel('Estado', { exact: true })).toBeDisabled();

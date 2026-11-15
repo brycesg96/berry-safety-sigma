@@ -25,6 +25,11 @@ async function setup(t, extra = {}) {
     if (path === '/auth/v1/user') return state.authValid ? response({ id: actorId, user_metadata: { role: 'admin' } }) : response({ message: 'private provider diagnostic' }, 401);
     if (path === '/rest/v1/berry_profiles') return response([{ id: actorId, role: state.role, enabled: state.enabled, must_change_password: state.temporary, credentials_valid_after: state.credentialsAfter }]);
     if (path === '/rest/v1/rpc/berry_admin_accounts') return response([{ ...account, id: userId, enabled: true, must_change_password: true }]);
+    if (path === '/rest/v1/rpc/berry_begin_account_email') return state.emailDuplicate ? response({code:'23505'},409) : state.emailStale ? response({code:'40001',message:'ACCESS_REVISION_CONFLICT'},409) : response({operation_id:requestId,previous_email:account.email,email:body.p_email,completed_at:state.emailChanged?'2026-11-15T12:00:00Z':null,account:{...account,id:userId,email:state.emailChanged?body.p_email:account.email,enabled:true,must_change_password:false}});
+    if (path === `/auth/v1/admin/users/${userId}`) {
+      if (options.method === 'PUT') { if(state.emailRejected) return response({code:'email_exists'},422); state.emailChanged=true;if(state.emailLostResponse)throw new Error('Response lost after commit');return response({id:userId,email:body.email}); }
+      return response({id:userId,email:account.email,app_metadata:{provider:'email',preserve:'value'}});
+    }
     if (path === '/rest/v1/rpc/berry_account_matches') return response([{ id: previousId, full_name: account.full_name, email: account.email, deleted_at: '2026-11-01T12:00:00Z', can_restore: true, can_rehire: true, access_revision: 3 }]);
     if (path === '/rest/v1/rpc/berry_begin_account_resolution') { state.resolutionMode = body.p_mode; return response({ operation_id: requestId, previous_id: previousId, mode: body.p_mode, needs_archive: true, archive_email: `${previousId}@retired.berry-safety.invalid`, released_at: state.released ? '2026-11-15T12:00:00Z' : null, completed_at: state.resolved ? '2026-11-15T12:00:00Z' : null, new_user_id: state.resolved ? userId : null }); }
     if (path === '/rest/v1/rpc/berry_begin_account_restore') return state.restoreExpired ? response({ code: '22023', message: 'RESTORE_EXPIRED' }, 400) : response({ operation_id: requestId, previous_id: previousId, mode: 'restore', completed_at: state.restoreCommitted ? '2026-11-15T12:00:00Z' : null, new_user_id: state.restoreCommitted ? previousId : null });
@@ -171,4 +176,30 @@ test('accidental restoration resets only the previous account and a completed re
 });
 test('an expired restoration stops before touching Auth and offers an actionable deadline message',async t=>{
  const api=await setup(t,{restoreExpired:true});const result=await api.send('/api/accounts/resolve',{account,previousId,expectedRevision:3,mode:'restore'});assert.equal(result.status,400);assert.match(result.data.message,/tres meses/);assert.ok(!api.state.calls.some(call=>call.path.startsWith('/auth/v1/admin/users')));
+});
+
+test('administrative email change preserves Auth ID, password and provider metadata; retries never repeat a committed write',async t=>{
+ const {send,state}=await setup(t);const input={id:userId,expectedRevision:1,email:' NUEVO@example.invalid '};
+ const first=await send('/api/accounts/email',input);assert.equal(first.status,200);assert.equal(first.data.account.id,userId);assert.equal(first.data.account.email,'nuevo@example.invalid');
+ const writes=state.calls.filter(call=>call.path===`/auth/v1/admin/users/${userId}`&&call.method==='PUT');assert.equal(writes.length,1);
+ assert.deepEqual(writes[0].body,{email:'nuevo@example.invalid',email_confirm:true,app_metadata:{provider:'email',preserve:'value',berry_email_operation:requestId}});
+ assert.ok(!('password' in writes[0].body));
+ assert.equal((await send('/api/accounts/email',input)).status,200);assert.equal(state.calls.filter(call=>call.path===`/auth/v1/admin/users/${userId}`&&call.method==='PUT').length,1);
+});
+test('a new browser request resumes the database operation ID returned by prepare',async t=>{
+ const api=await setup(t);const fresh='60000000-0000-4000-8000-000000000008';
+ assert.equal((await api.send('/api/accounts/email',{id:userId,expectedRevision:1,email:'nuevo@example.invalid'},{'Idempotency-Key':fresh})).status,200);
+ const calls=api.state.calls.filter(call=>call.path==='/rest/v1/rpc/berry_begin_account_email');
+ assert.equal(calls[0].body.p_operation,fresh);assert.equal(calls[1].body.p_operation,requestId);
+});
+test('email change recovers a lost Auth response from the persisted operation and rejects invalid, duplicate or stale changes before Auth writes',async t=>{
+ const input={id:userId,expectedRevision:1,email:'nuevo@example.invalid'};
+ const lost=await setup(t,{emailLostResponse:true});assert.equal((await lost.send('/api/accounts/email',input)).status,200);
+ for(const extra of [{emailDuplicate:true},{emailStale:true}]){
+  const api=await setup(t,extra);assert.equal((await api.send('/api/accounts/email',input)).status,409);assert.ok(!api.state.calls.some(call=>call.path.startsWith('/auth/v1/admin/users/')));
+ }
+ const api=await setup(t);
+ for(const invalid of [{...input,email:'sin-correo'},{...input,role:'admin'},{...input,expectedRevision:0}])assert.equal((await api.send('/api/accounts/email',invalid)).status,400);
+ assert.equal((await api.send('/api/accounts/email',input,{'Idempotency-Key':''})).status,400);
+ api.state.role='inspector';assert.equal((await api.send('/api/accounts/email',input)).status,403);assert.ok(!api.state.calls.some(call=>call.path.startsWith('/auth/v1/admin/users/')));
 });

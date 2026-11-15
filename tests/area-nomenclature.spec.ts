@@ -9,17 +9,21 @@ import { selectLocation } from './location-fixture';
 const management = 'GERENCIA DE RECURSOS HUMANOS', area = 'SEGURIDAD INDUSTRIAL Y GESTION MEDIO AMBIENTAL';
 test('la nomenclatura conserva los valores canónicos y el traslado mantiene el identificador del área y sus puestos', () => {
   const options = organizationOptions(management, area);
-  expect(options.areas.find(option => option.value === area)).toMatchObject({ value: area, label: 'SIGMA', description: 'Seguridad Industrial y Gestion Medio Ambiental' });
+  expect(options.areas.find(option => option.value === area)).toMatchObject({ value: area, label: 'SIGMA', description: 'Seguridad Industrial y Gestión Medio Ambiental' });
   expect(areaDisplayName({ management, area })).toBe('SIGMA');
   expect(organizationLabel('SUPERVISOR SIGMA')).toBe('Supervisor SIGMA');
   expect(organizationLabel('GERENCIA TI CORPORATIVO')).toBe('Gerencia TI Corporativo');
+  expect(organizationLabel('GERENCIA DE PRODUCCION')).toBe('Gerencia de Producción');
+  expect(organizationLabel('PRODUCCION ARANDANOS')).toBe('Producción Arándanos');
+  expect(organizationLabel('TECNOLOGIA DE LA INFORMACION')).toBe('Tecnología de la Información');
+  expect(organizationLabel('TECNICO DE MICROPROPAGACION Y GESTION AGRICOLA')).toBe('Técnico de Micropropagación y Gestión Agrícola');
   const viveros = INITIAL_ORGANIZATION_NODES.find(node => node.id === '84270532-994a-5747-8145-f78ae1516b72')!;
   expect(viveros.parent_id).toBe('45d5faeb-c5bf-561b-a6b4-7ddddee55c6b');
   expect(INITIAL_ORGANIZATION_NODES.filter(node => node.parent_id === viveros.id)).toHaveLength(5);
 });
 
-for (const width of [1366, 1050, 390]) test(`el perfil permanece dentro de la barra verde y la nueva inspección exporta SIGMA (${width}px)`, async ({ page }) => {
-  await page.setViewportSize({ width, height: 900 });
+for (const [width, height] of [[1366, 600], [1024, 768], [768, 1024], [390, 640]]) test(`el perfil permanece dentro de la barra verde y la nueva inspección exporta SIGMA (${width}px)`, async ({ page }) => {
+  await page.setViewportSize({ width, height });
   await page.route('**/api/people?*', route => route.fulfill({ json: { people: [] } }));
   await page.goto('./');
   await page.evaluate(async ({ management, area }) => {
@@ -38,7 +42,8 @@ for (const width of [1366, 1050, 390]) test(`el perfil permanece dentro de la ba
   expect(responsibleOptions).toEqual([{ value: 'persona@example.invalid', label: 'Nombre Completo', description: 'persona@example.invalid · SIGMA' }]);
   const bounds = await card.evaluate(element => {
     const aside = element.closest('aside')!.getBoundingClientRect();
-    return [...element.querySelectorAll('strong, .user-details>span, svg')].every(child => child.getBoundingClientRect().right <= aside.right && child.getBoundingClientRect().left >= aside.left);
+    const card = element.getBoundingClientRect();
+    return card.top >= 0 && card.bottom <= innerHeight && [...element.querySelectorAll('strong, .user-details>span, svg')].every(child => { const rect = child.getBoundingClientRect(); return rect.right <= aside.right && rect.left >= aside.left && rect.top >= card.top && rect.bottom <= card.bottom; });
   });
   expect(bounds).toBe(true);
   await page.locator('.sidebar').screenshot({ path: test.info().outputPath(`perfil-sigma-${width}.png`) });

@@ -117,7 +117,7 @@ test('nomenclatura es opcional solo en áreas y se comparte con el perfil sin re
   await mock(context, state); await login(page);
   await page.getByRole('button', { name: organizationLabel('Gerencia de prueba'), exact: true }).click();
   await page.getByRole('button', { name: 'Editar área ' + organizationLabel('Área de prueba'), exact: true }).click();
-  const dialog = page.getByRole('dialog'); await dialog.getByLabel('Nomenclatura', { exact: true }).fill('PRB');
+  const dialog = page.getByRole('dialog'); await dialog.getByLabel('Abreviatura', { exact: true }).fill('PRB');
   await dialog.getByRole('button', { name: 'Guardar', exact: true }).click(); await expect(dialog).toHaveCount(0);
   expect(state.writes.at(-1)).toMatchObject({ p_id: area, p_name: 'Área de prueba', p_nomenclature: 'PRB' });
   const device = await browser.newContext();
@@ -132,6 +132,6 @@ test('nomenclatura es opcional solo en áreas y se comparte con el perfil sin re
     expect(state.profileWrites.at(-1)).toMatchObject({ management: 'Gerencia de prueba', area: 'Área de prueba', job_title: 'Supervisora de prueba' });
     await expect(other.locator('.user-role-area')).toContainText('PRB');
     await page.getByRole('button', { name: 'Editar gerencia ' + organizationLabel('Gerencia de prueba'), exact: true }).click();
-    await expect(page.getByRole('dialog').getByLabel('Nomenclatura', { exact: true })).toHaveCount(0);
+    await expect(page.getByRole('dialog').getByLabel('Abreviatura', { exact: true })).toHaveCount(0);
   } finally { await device.close(); }
 });

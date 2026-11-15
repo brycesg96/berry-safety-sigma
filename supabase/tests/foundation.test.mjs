@@ -1158,6 +1158,73 @@ test('participant nomenclatures come from their real profile and location snapsh
  assert.equal((await db.query('select berry_private.location_area($1) as value',[location])).rows[0].value,'Fundo – SIGMA – Armonía II – Taller');
 });
 
+const accountEmailMigration = await readFile(new URL('../migrations/202611150017_account_email.sql', import.meta.url), 'utf8');
+const emailUser='99500000-0000-4000-8000-000000000001',emailOp='99500000-0000-4000-8000-000000000002';
+test('email upgrade preserves all records and ordinary accounts cannot request or write an email change',async()=>{
+ const reports=(await db.query('select * from public.berry_inspections order by id')).rows;
+ const profiles=(await db.query('select * from public.berry_profiles order by id')).rows;
+ await db.exec(accountEmailMigration);
+ assert.deepEqual((await db.query('select * from public.berry_inspections order by id')).rows,reports);
+ assert.deepEqual((await db.query('select * from public.berry_profiles order by id')).rows,profiles);
+ await db.query('insert into auth.users(id,email,email_confirmed_at,encrypted_password)values($1,$2,now(),$3)',[emailUser,'anterior-correo@example.invalid','unchanged-password']);
+ await db.query('update public.berry_profiles set enabled=true,must_change_password=false where id=$1',[emailUser]);
+ await denied(()=>as('authenticated',emailUser,'select public.berry_begin_account_email($1,$2,1,$3)',[emailOp,emailUser,'nuevo-correo@example.invalid'],freshCatalogClaims));
+ await denied(()=>as('anon',null,'select public.berry_begin_account_email($1,$2,1,$3)',[emailOp,emailUser,'nuevo-correo@example.invalid']));
+ await denied(()=>as('authenticated',emailUser,"update public.berry_profiles set email='forjado@example.invalid' where id=$1",[emailUser],freshCatalogClaims));
+});
+test('Auth and profile emails commit atomically with stable identity, access, password and historical inspection data',async()=>{
+ const before=(await db.query('select * from public.berry_profiles where id=$1',[emailUser])).rows[0];
+ const history=(await db.query('select id,author_id,data,revision from public.berry_inspections order by id')).rows;
+ const recipients=(await db.query('select * from public.berry_recipients order by inspection_id,user_id')).rows;
+ await db.query('insert into berry_private.account_requests(request_id,actor_id,email,input,user_id,completed_at)values($1,$2,$3,$4,$5,now())',['99500000-0000-4000-8000-000000000003',users.author,before.email,{},emailUser]);
+ const args=[emailOp,emailUser,before.access_revision,' NUEVO-CORREO@example.invalid '];
+ const operation=(await identityRpc('berry_begin_account_email',args)).rows[0].value;
+ assert.equal(operation.email,'nuevo-correo@example.invalid');assert.equal(operation.completed_at,null);
+ assert.equal((await db.query('select email from public.berry_profiles where id=$1',[emailUser])).rows[0].email,before.email);
+ await db.query("update auth.users set email=$1,raw_app_meta_data=raw_app_meta_data||jsonb_build_object('berry_email_operation',$2::text) where id=$3",[operation.email,emailOp,emailUser]);
+ const after=(await db.query('select * from public.berry_profiles where id=$1',[emailUser])).rows[0];
+ for(const key of ['id','person_id','full_name','management','area','job_title','role','enabled','must_change_password','credentials_valid_after','can_create_inspections','can_receive_inspections','supervisor_emails']) assert.deepEqual(after[key],before[key]);
+ assert.equal(after.email,operation.email);assert.equal(after.contact_email,operation.email);assert.equal(after.access_revision,before.access_revision+1);
+ assert.equal((await db.query('select encrypted_password from auth.users where id=$1',[emailUser])).rows[0].encrypted_password,'unchanged-password');
+ assert.deepEqual((await db.query('select id,author_id,data,revision from public.berry_inspections order by id')).rows,history);
+ assert.deepEqual((await db.query('select * from public.berry_recipients order by inspection_id,user_id')).rows,recipients);
+ const retry=(await identityRpc('berry_begin_account_email',args)).rows[0].value;assert.ok(retry.completed_at);assert.equal(retry.account.email,operation.email);
+ assert.equal((await db.query("select count(*)::int as n from berry_private.account_requests where email='anterior-correo@example.invalid'")).rows[0].n,0);
+ assert.equal((await db.query("select actor_id from public.berry_audit where entity_type='account_email' and entity_id=$1",[emailUser])).rows[0].actor_id,users.author);
+});
+test('email changes reject duplicates and stale revisions and reserve the address against a conflicting Auth creation',async()=>{
+ const revision=(await db.query('select access_revision from public.berry_profiles where id=$1',[emailUser])).rows[0].access_revision;
+ const op='99500000-0000-4000-8000-000000000004';
+ const used=(await db.query('select email from public.berry_profiles where id=$1',[users.author])).rows[0].email;
+ await assert.rejects(()=>identityRpc('berry_begin_account_email',[op,emailUser,revision,used]),error=>error.code==='23505');
+ await assert.rejects(()=>identityRpc('berry_begin_account_email',[op,emailUser,revision-1,'libre@example.invalid']),error=>error.code==='40001');
+ await identityRpc('berry_begin_account_email',[op,emailUser,revision,'reservado@example.invalid']);
+ await assert.rejects(()=>db.query('insert into auth.users(id,email)values($1,$2)',['99500000-0000-4000-8000-000000000005','reservado@example.invalid']),error=>error.code==='23505');
+ await db.query('update public.berry_profiles set access_revision=access_revision+1 where id=$1',[emailUser]);
+ await assert.rejects(()=>db.query("update auth.users set email='reservado@example.invalid',raw_app_meta_data=raw_app_meta_data||jsonb_build_object('berry_email_operation',$1::text) where id=$2",[op,emailUser]),error=>error.code==='40001');
+ assert.equal((await db.query('select email from auth.users where id=$1',[emailUser])).rows[0].email,'nuevo-correo@example.invalid');
+});
+test('expired email attempts and revoked administrators cannot commit Auth or profile changes, and replays preserve the migration',async()=>{
+ await db.query('update berry_private.account_email_operations set expires_at=clock_timestamp()-interval \'1 second\' where completed_at is null');
+ const revision=(await db.query('select access_revision from public.berry_profiles where id=$1',[emailUser])).rows[0].access_revision;
+ const op='99500000-0000-4000-8000-000000000006';
+ await identityRpc('berry_begin_account_email',[op,emailUser,revision,'otro@example.invalid']);
+ await db.query("update public.berry_profiles set role='inspector' where id=$1",[users.author]);
+ await assert.rejects(()=>db.query("update auth.users set email='otro@example.invalid',raw_app_meta_data=raw_app_meta_data||jsonb_build_object('berry_email_operation',$1::text) where id=$2",[op,emailUser]),error=>error.code==='42501');
+ await db.query("update public.berry_profiles set role='admin' where id=$1",[users.author]);
+ await db.query('update berry_private.account_email_operations set expires_at=clock_timestamp()-interval \'1 second\' where operation_id=$1',[op]);
+ await assert.rejects(()=>db.query("update auth.users set email='otro@example.invalid',raw_app_meta_data=raw_app_meta_data||jsonb_build_object('berry_email_operation',$1::text) where id=$2",[op,emailUser]),error=>error.code==='22023');
+ const profiles=(await db.query('select * from public.berry_profiles order by id')).rows;
+ await db.exec(accountEmailMigration);
+ assert.deepEqual((await db.query('select * from public.berry_profiles order by id')).rows,profiles);
+ const fresh='99500000-0000-4000-8000-000000000007';
+ await identityRpc('berry_begin_account_email',[fresh,emailUser,revision,'confirmado@example.invalid']);
+ // Auth can persist email and metadata in separate statements. The database
+ // reservation authorizes the exact email independently of provider ordering.
+ await db.query("update auth.users set email='confirmado@example.invalid' where id=$1",[emailUser]);
+ assert.equal((await db.query('select email from public.berry_profiles where id=$1',[emailUser])).rows[0].email,'confirmado@example.invalid');
+});
+
 let failed;
 try {
   await setup();
