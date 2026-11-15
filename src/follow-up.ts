@@ -20,7 +20,7 @@ export const inspectionClosed = (d: Inspection) => Boolean(d.delivery && d.obser
   return correction?.decision === 'approved' && correction.state === 'Ejecutado';
 }));
 export const needsReview = (d: Inspection) => Boolean(d.delivery && !inspectionClosed(d) && Object.values(d.delivery.corrections).some(c => c.decision === 'review'));
-export const workflowLabel = (d: Inspection) => inspectionClosed(d) ? 'Cerrada' : needsReview(d) ? 'A revisar' : d.delivery ? 'En levantamiento' : d.status === 'ready' ? 'Sin enviar' : 'Borrador';
+export const workflowLabel = (d: Inspection) => inspectionClosed(d) ? 'Cerrada' : needsReview(d) ? 'Pendiente de validación' : d.delivery ? 'Pendiente de atención' : d.status === 'ready' ? 'Sin enviar' : 'Borrador';
 export const isRecipient = (d: Inspection, actorId: string) => Boolean(d.delivery?.recipientIds.includes(actorId));
 // The initial responsible belongs to the report, not to the person viewing it.
 export function blankCorrection(d: Inspection, observationId: string): Correction {

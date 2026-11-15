@@ -3,7 +3,7 @@ import { mailEndpoint } from './mail-api';
 
 const columns = '*';
 export type CloudProfile = {
-  id: string; email: string; full_name: string; area: string; job_title: string;
+  id: string; email: string; full_name: string; area: string; job_title: string; management?: string;
   role: 'admin' | 'inspector'; enabled: boolean;
   must_change_password?: boolean;
   supervisor_emails?: string[];
@@ -41,6 +41,7 @@ function profileRow(value: unknown, userId: string): CloudProfile {
   const row = value as CloudProfile | null;
   if (!row || typeof row.id !== 'string' || !row.id || row.id !== userId || typeof row.email !== 'string' ||
       !['full_name', 'area', 'job_title'].every(key => typeof (row as unknown as Record<string, unknown>)[key] === 'string') ||
+      row.management !== undefined && typeof row.management !== 'string' ||
       !['admin', 'inspector'].includes(row.role) || typeof row.enabled !== 'boolean' || row.must_change_password !== undefined && typeof row.must_change_password !== 'boolean' ||
       ['can_create_inspections','can_receive_inspections'].some(key => (row as unknown as Record<string, unknown>)[key] !== undefined && typeof (row as unknown as Record<string, unknown>)[key] !== 'boolean')) {
     throw new Error('No pudimos consultar tu perfil. Comprueba que tu cuenta esté habilitada.');
@@ -65,8 +66,8 @@ export async function loadCloudProfile(expectedUserId: string, isCurrent: () => 
   return { ...profile, profile_setup_required: requiresProfileSetup(profile, identity.user.user_metadata) };
 }
 
-export async function saveCloudProfile(userId: string, values: { full_name: string; area: string; job_title: string }, isCurrent: () => boolean): Promise<CloudProfile> {
-  const update = { full_name: values.full_name.trim(), area: values.area.trim(), job_title: values.job_title.trim() };
+export async function saveCloudProfile(userId: string, values: { full_name: string; area: string; job_title: string; management?: string }, isCurrent: () => boolean): Promise<CloudProfile> {
+  const update = { full_name: values.full_name.trim(), area: values.area.trim(), job_title: values.job_title.trim(), ...(values.management !== undefined ? { management: values.management.trim() } : {}) };
   if (!update.full_name || !update.area) throw new Error('Completa tus nombres y apellidos y tu área.');
   if (Object.values(update).some(value => value.length > 250)) throw new Error('Cada campo admite hasta 250 caracteres.');
   const client = supabaseClient();
@@ -102,7 +103,7 @@ export async function cloudAccounts(): Promise<CloudProfile[]> {
   if (!Array.isArray(result.accounts)) throw new Error('No pudimos consultar las cuentas.');
   return result.accounts.map((row: CloudProfile) => profileRow(row, row.id));
 }
-export async function createCloudAccount(input: { full_name: string; email: string; area: string; job_title: string; role: string; supervisor_emails: string[]; can_create_inspections?: boolean; can_receive_inspections?: boolean }, requestId: string): Promise<CloudProfile> {
+export async function createCloudAccount(input: { full_name: string; email: string; area: string; job_title: string; management?: string; role: string; supervisor_emails: string[]; can_create_inspections?: boolean; can_receive_inspections?: boolean }, requestId: string): Promise<CloudProfile> {
   const result = await accountRequest('/api/accounts', { method: 'POST', body: input, requestId });
   return profileRow(result.account, result.account?.id);
 }

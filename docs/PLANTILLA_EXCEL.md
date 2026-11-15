@@ -40,9 +40,9 @@ Las referencias inferiores corresponden a la plantilla de cinco observaciones. A
 | F9:H9 | Domicilio fijo del empleador. |
 | I9:J9 | Actividad económica fija del empleador. |
 | K9:L9 | Número de trabajadores fijo del empleador. |
-| A11:C11 | Área inspeccionada indicada en el aplicativo. |
+| A11:C11 | Área e instalación inspeccionada indicada en el aplicativo. |
 | D11:F11 | Fecha de inspección indicada en el aplicativo. |
-| G11:I11 | Nombres de los responsables del área inspeccionada. |
+| G11:I11 | Primer responsable seleccionado: jefe del área. Nombre destacado y puesto debajo, más pequeño y en gris. |
 | J11:L11 | Nombres de los inspectores participantes. |
 | A14:C14 | Hora de inspección, con AM/PM. |
 | D14:E14 | X cuando el tipo sea Planeada. |
@@ -60,7 +60,7 @@ Cada observación ocupa un registro completo, comenzando en la fila 20, y conser
 | D20 | Hasta ocho fotografías de esa observación, pequeñas y distribuidas dentro de su recuadro, sin deformación ni mezcla con otras observaciones. |
 | E20 | Nivel de riesgo de la app escrito exactamente como una opción del desplegable original: baja → Bajo, media → Medio, alta → Alto. Se conservan sus fórmulas y colores originales, sin añadir cálculos de la matriz. |
 | F20 | Acción a tomar para esa observación. |
-| G20:H20 | Inicialmente, nombre del primer responsable seleccionado como destinatario en el aplicativo, según la nota roja. No escribir su dirección de correo en este campo. |
+| G20:H20 | Segundo responsable y siguientes: encargados del levantamiento. Cada nombre lleva su puesto debajo, más pequeño y en gris; no se incluyen sus correos. Los informes históricos de un único destinatario conservan el nombre disponible. |
 | I20 | Pendiente en el informe inicial; estado guardado del levantamiento cuando se exporte una versión actualizada. |
 | J20 | Fecha de cierre establecida para esa observación en el aplicativo. |
 | K20:L20 | Fotografías aportadas al levantar esa observación, acomodadas dentro del recuadro y separadas de las evidencias iniciales. |
@@ -90,7 +90,7 @@ Conservar los encabezados y el apartado ADJUNTAR. Todas estas secciones bajan ju
 - `src/excel-template.ts` rellena el paquete OOXML con JSZip y conserva sin reserializar la matriz, los ajustes binarios de impresora, el tema y el logotipo. Copia registros adicionales antes del cierre, conserva el borde inferior y extiende las combinaciones y el área de impresión.
 - Hasta ocho imágenes iniciales y ocho del levantamiento por observación, sin solaparse ni salir de sus recuadros. Se ajustan proporcionalmente y se reduce su resolución al tamaño de impresión. Las firmas se insertan como PNG transparente; la carga también admite GIF como imagen fija.
 - Los desplegables y las fórmulas de color de la plantilla se conservan. Al añadir observaciones, se amplían sus rangos para incluir los nuevos registros; las fórmulas y sus estilos no se sustituyen. Riesgo usa exactamente las opciones originales Bajo, Medio y Alto.
-- Sin registro central confirmado, B5 indica `PENDIENTE DE REGISTRO`; no se inventa un código definitivo.
+- Sin registro central confirmado, B5 indica `PENDIENTE DE REGISTRO`; no se inventa un número de registro definitivo.
 - El navegador y la API comparten `shared/report-filename.mjs`. El generador produce bytes reproducibles: una inspección sin cambios se descarga con los mismos bytes que su adjunto. Cambiar el nombre del adjunto en producción requiere actualizar el backend Render.
 - Pruebas: informes de una, cinco y siete observaciones; celdas generales, marcas de tipo, cierres desplazados, tamaños originales, ocho fotografías, firmas transparentes, hoja de valoración y partes de impresión conservadas, más recorrido de descarga/envío con comparación de bytes. No se envían correos reales en las pruebas.
 - Ejemplo con textos e ilustraciones ficticios: `public/examples/REG_INS_TALLER DE MAQUINARIA_06.11.2026.xlsx`. Incluye fotografías de ejemplo y un levantamiento para revisar ambos recuadros. Comprobado también con un lector independiente: dos hojas, 18 imágenes y firma PNG con transparencia real.
@@ -105,3 +105,11 @@ El 8 de noviembre el propietario solicitó **Firmar en pantalla**, disponible ju
 El campo de fecha ocupa menos ancho para dejar espacio a ambos botones. La firma tiene una vista previa ampliada. En cada Excel nuevo, la altura de las filas de los responsables registrados pasa de 35,1 a 105,3 puntos. Las filas de responsables vacías mantienen su altura original en Excel y se omiten al generar el PDF cerrado para evitar páginas adicionales vacías. Las firmas se ajustan proporcionalmente y se insertan como imágenes flotantes de DrawingML sobre la cuadrícula, conservando la transparencia. Los anchos de columnas, la hoja de valoración, los recuadros de fotografías y las fórmulas de colores mantienen su configuración. La plantilla fuente no se sobrescribe.
 
 Por aclaración expresa del propietario, el rótulo del Excel vuelve a **Cargo:**; los formularios de la aplicación mantienen **Puesto**. Los archivos históricos ya almacenados no se reescriben por este cambio de formato.
+
+En los borradores, la fecha de todos los responsables del registro coincide con la fecha de inspección y se muestra bloqueada. Cambiar la fecha de inspección actualiza las fechas de los responsables, conservando sus puestos y firmas. La revisión y el Excel del borrador usan esa misma fecha; los cambios se conservan únicamente al guardar o enviar. Los informes ya enviados mantienen sus fechas históricas. En la edición administrativa, cambiar la fecha de inspección actualiza también las fechas del registro antes del guardado explícito.
+
+El paso de cierre indica «Comparte tus conclusiones, recomendaciones y los datos de quien es responsable de este registro». La descripción de la causa incluye una guía permanente para consignar el origen o motivo raíz del acto o condición subestándar y explicar por qué ocurrió o está presente el hallazgo, en lugar de repetir su descripción. La guía no forma parte del texto exportado.
+
+En otro renglón se indica: «Si no hubo hallazgos desfavorables, indica únicamente: No aplica (sin resultados desfavorables)». La causa es obligatoria. Si está vacía al abrir Cierre o se borra y se sale del campo, se rellena con **No aplica (sin resultados desfavorables)**. También se comprueba antes de un guardado o envío explícito para evitar causas vacías; no se inicia un autoguardado ni se crea una inspección solo por ese texto automático. Los textos propios ya escritos y los informes históricos permanecen intactos.
+
+La guía de conclusiones y recomendaciones indica: «Lo que describas en las causas debe tener una solución directa y clara». En el siguiente renglón incluye el ejemplo: «Por ejemplo, si la causa fue falta de capacitación, la recomendación debe ser programar capacitación». Las guías permanecen visibles mientras se escribe y no se añaden al informe exportado.

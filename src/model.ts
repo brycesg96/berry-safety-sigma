@@ -4,14 +4,14 @@ import type { PhotoEdit } from './photo-editing';
 import { EMPLOYER, OBJECTIVE_LIMIT } from './employer';
 import { migrateInspectionTime, validInspectionTime } from './inspection-time';
 import type { InspectionPeriod } from './inspection-time';
-import { CLOSING_LIMIT, closingRemarksOf, registrationParticipantsOf } from './registration';
+import { CLOSING_LIMIT, closingRemarksOf, registrationParticipantsOf, NO_UNFAVORABLE_RESULTS } from './registration';
 import type { RegistrationDetails } from './registration';
 import type { Delivery } from './follow-up';
 import type { RegistrationReceipt } from './inspection-code';
 import { lastInspectionTexts } from './inspection-texts';
 import type { InspectionTexts } from './inspection-texts';
 import { loadCloudInspections, persistCloudInspection, removeCloudInspection } from './cloud-store';
-export type Responsible = { id: string; name: string; email: string; personId?: string; area?: string; jobTitle?: string };
+export type Responsible = { id: string; name: string; email: string; personId?: string; management?: string; area?: string; jobTitle?: string };
 export type Evidence = { id: string; name: string; data: string; originalData?: string; editState?: PhotoEdit };
 export type Observation = {
   id: string;
@@ -21,7 +21,7 @@ export type Observation = {
   dueDate: string;
   photos: Evidence[];
 };
-export type Profile = { name: string; email: string; area?: string; accountId?: string; storage?: 'cloud' };
+export type Profile = { name: string; email: string; area?: string; management?: string; accountId?: string; storage?: 'cloud' };
 export type Inspection = {
   pendingManualSave?: boolean;
   storage?: 'cloud';
@@ -70,6 +70,7 @@ export type Inspection = {
 export function patchInspectionField<K extends keyof Inspection>(draft: Inspection, key: K, value: Inspection[K]): Inspection {
   const next = { ...draft, [key]: value };
   if (key === 'areaLocation' && next.areaLocation) next.area = locationText(next.areaLocation);
+  if (key === 'date') next.registrationDetails = Object.fromEntries(Object.entries(next.registrationDetails || {}).map(([id, details]) => [id, { ...details, date: next.date }]));
   return next;
 }
 
@@ -81,7 +82,7 @@ export const newInspection = (profile: Profile, defaults?: InspectionTexts): Ins
   const texts = defaults || lastInspectionTexts(profile.accountId || 'demo-admin');
   return ({
   id: id(), ownerId: profile.accountId || 'demo-admin', ...(profile.storage ? { storage: profile.storage } : {}), company: EMPLOYER.name, ruc: EMPLOYER.ruc, facility: '', area: '', type: '', otherType: '', registrationNumber: '', inspectionTime: '', inspectionPeriod: '',
-  date, initialInspectionDate: date, ...texts, initialReportTexts: { ...texts }, responsibles: [newResponsible()],
+  date, initialInspectionDate: date, ...texts, initialReportTexts: { ...texts }, responsibles: [newResponsible(), newResponsible()],
   observations: [], defaultClosingDate: '', registrationDetails: {}, conclusions: '', recommendations: '', inspector: profile.name,
   inspectorEmail: profile.email, additionalInspectors: [], registrationParticipants: [], step: 0, updatedAt: new Date().toISOString(), status: 'draft',
 });
@@ -92,7 +93,10 @@ export function hasInspectionContent(d: Inspection): boolean {
   if (d.delivery || d.serverRegistration || d.status === 'ready') return true;
   const text = [d.area, d.facility, d.inspectionTime, d.type, d.otherType, d.conclusions, d.recommendations, d.registrationNumber, d.legacyRegistrationNumber];
   if (text.some(value => value?.trim())) return true;
-  if ((['objective', 'unfavorableCause', 'closingRemarks'] as const).some(key => (d[key] || '').trim() !== (d.initialReportTexts?.[key] || '').trim())) return true;
+  if ((['objective', 'unfavorableCause', 'closingRemarks'] as const).some(key => {
+    if (key === 'unfavorableCause' && d[key]?.trim() === NO_UNFAVORABLE_RESULTS && !d.initialReportTexts?.[key]?.trim()) return false;
+    return (d[key] || '').trim() !== (d.initialReportTexts?.[key] || '').trim();
+  })) return true;
   if (d.inspectionPeriod || (d.date && d.initialInspectionDate && d.date !== d.initialInspectionDate)) return true;
   if ((d.company?.trim() && d.company !== EMPLOYER.name) || (d.ruc?.trim() && d.ruc !== EMPLOYER.ruc)) return true;
   if ([...(d.responsibles || []), ...(d.additionalInspectors || []), ...registrationParticipantsOf(d)].some(p => p.personId || p.name?.trim() || p.email?.trim())) return true;
@@ -118,7 +122,7 @@ export function validateStep(d: Inspection, step: number): Record<string, string
   const errors: Record<string, string> = {};
   if (step === 0) {
     if (d.areaLocation) Object.assign(errors, locationErrors(d.areaLocation));
-    for (const [key, label] of [['area', 'el área inspeccionada'], ['date', 'la fecha'], ['inspectionTime', 'la hora de inspección'], ['inspector', 'el responsable de la inspección'], ['objective', 'el objetivo']] as const) {
+    for (const [key, label] of [['area', 'el área e instalación inspeccionada'], ['date', 'la fecha'], ['inspectionTime', 'la hora de inspección'], ['inspector', 'el responsable de la inspección'], ['objective', 'el objetivo']] as const) {
       if (!d[key].trim()) errors[key] = `Completa ${label}.`;
     }
     if (!['Planeada', 'No planeada', 'Otro'].includes(d.type)) errors.type = 'Selecciona un tipo de inspección.';
@@ -126,7 +130,7 @@ export function validateStep(d: Inspection, step: number): Record<string, string
     if (!['AM', 'PM'].includes(d.inspectionPeriod)) errors.inspectionPeriod = 'Selecciona AM o PM.';
     if (d.type === 'Otro' && !d.otherType.trim()) errors.otherType = 'Detalla el otro tipo de inspección.';
     if (d.objective.length > OBJECTIVE_LIMIT) errors.objective = `El objetivo debe tener como máximo ${OBJECTIVE_LIMIT} caracteres.`;
-    if (!d.responsibles.length) errors.responsibles = 'Añade al menos un responsable.';
+    if (!d.delivery && d.responsibles.length < 2) errors.responsibles = 'Selecciona al menos dos responsables.';
     d.responsibles.forEach(r => {
       if (!r.personId || !r.name.trim() || !emailValid(r.email)) errors[`person-${r.id}`] = 'Selecciona una persona del directorio.';
       if (r.personId && d.responsibles.some(other => other.id !== r.id && other.personId === r.personId)) errors[`person-${r.id}`] = 'Esta persona ya está añadida.';
@@ -139,6 +143,7 @@ export function validateStep(d: Inspection, step: number): Record<string, string
     if (!o.dueDate) errors[`date-${o.id}`] = 'Selecciona una Fecha de Cierre.';
   });
   if (step === 3) {
+    if (!d.unfavorableCause?.trim()) errors.unfavorableCause = 'Describe la causa o indica No aplica (sin resultados desfavorables).';
     if (!closingRemarksOf(d).trim()) errors.closingRemarks = 'Añade las conclusiones y recomendaciones.';
     if (closingRemarksOf(d).length > CLOSING_LIMIT) errors.closingRemarks = `Se permiten hasta ${CLOSING_LIMIT} caracteres.`;
     if ((d.unfavorableCause || '').length > CLOSING_LIMIT) errors.unfavorableCause = `Se permiten hasta ${CLOSING_LIMIT} caracteres.`;
@@ -160,7 +165,9 @@ export function validateStep(d: Inspection, step: number): Record<string, string
 
 export function normalizeInspection(value: Inspection): Inspection {
   const type = ['Planeada', 'No planeada', 'Otro'].includes(value.type) ? value.type : '';
-  return { ...value, ...(value.areaLocation ? { area: locationText(value.areaLocation) } : {}), initialInspectionDate: value.initialInspectionDate ?? value.date, unfavorableCause: value.unfavorableCause || '', closingRemarks: closingRemarksOf(value), registrationDetails: value.registrationDetails || {}, additionalInspectors: value.additionalInspectors || [], registrationParticipants: registrationParticipantsOf(value), defaultClosingDate: value.defaultClosingDate ?? value.observations.find(o => o.dueDate)?.dueDate ?? '', ownerId: value.ownerId || 'demo-admin', type, otherType: value.otherType || '', registrationNumber: '', ...(value.registrationNumber ? { legacyRegistrationNumber: value.registrationNumber } : {}), ...migrateInspectionTime(value.inspectionTime || '', value.inspectionPeriod), ...(value.type && !type ? { legacyType: value.type } : {}) };
+  const responsibles = [...value.responsibles];
+  if (!value.delivery) while (responsibles.length < 2) responsibles.push(newResponsible());
+  return { ...value, responsibles, ...(value.areaLocation ? { area: locationText(value.areaLocation) } : {}), initialInspectionDate: value.initialInspectionDate ?? value.date, unfavorableCause: value.unfavorableCause || '', closingRemarks: closingRemarksOf(value), registrationDetails: value.registrationDetails || {}, additionalInspectors: value.additionalInspectors || [], registrationParticipants: registrationParticipantsOf(value), defaultClosingDate: value.defaultClosingDate ?? value.observations.find(o => o.dueDate)?.dueDate ?? '', ownerId: value.ownerId || 'demo-admin', type, otherType: value.otherType || '', registrationNumber: '', ...(value.registrationNumber ? { legacyRegistrationNumber: value.registrationNumber } : {}), ...migrateInspectionTime(value.inspectionTime || '', value.inspectionPeriod), ...(value.type && !type ? { legacyType: value.type } : {}) };
 }
 
 export const formatDate = (value: string) => value ? new Intl.DateTimeFormat('es-PE', { day: '2-digit', month: 'short', year: 'numeric' }).format(new Date(`${value}T12:00:00`)) : 'Sin definir';

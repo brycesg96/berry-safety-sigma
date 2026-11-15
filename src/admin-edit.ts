@@ -10,7 +10,7 @@ export type PreparedAdminEdit = { inspectionId: string; operationId: string; con
 export async function adminEditPeople(): Promise<DemoAccount[]> {
   const { data, error } = await supabaseClient().from('berry_profiles').select('*').eq('enabled', true).is('deleted_at', null);
   if (error || !Array.isArray(data)) throw new Error('No pudimos consultar las personas. Revisa tu conexión.');
-  return data.map(p => ({ id: p.id, name: p.full_name, email: p.email, area: p.area, jobTitle: p.job_title, role: p.role, enabled: p.enabled, canCreateInspections: p.can_create_inspections, canReceiveInspections: p.can_receive_inspections }));
+  return data.map(p => ({ id: p.id, name: p.full_name, email: p.email, area: p.area, management: p.management, jobTitle: p.job_title, role: p.role, enabled: p.enabled, canCreateInspections: p.can_create_inspections, canReceiveInspections: p.can_receive_inspections }));
 }
 export async function prepareAdminEdit(draft: Inspection, actor: string): Promise<PreparedAdminEdit> {
   const encoded = await encodeCloudImagesForActor(draft, actor), operationId = crypto.randomUUID();

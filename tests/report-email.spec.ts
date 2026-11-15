@@ -1,3 +1,4 @@
+import { selectSecondResponsible } from './responsible-fixture';
 import { selectValue } from './select-fixture';
 import { selectLocation } from './location-fixture';
 import { test, expect } from '@playwright/test';
@@ -15,13 +16,14 @@ async function prepare(page:Page, withTeam=false) {
   if(withTeam){addAccount('demo-admin',{name:'Ana Torres',email:'ana@example.com',role:'inspector'});addAccount('demo-admin',{name:'José Rojas',email:'jose@example.com',role:'inspector'});}
  },withTeam);
  await page.reload();
- await page.getByLabel('Área inspeccionada').fill('Taller - Armonía 2');
+ await page.getByLabel('Área e instalación inspeccionada').fill('Taller - Armonía 2');
   await selectLocation(page, 'Sede', 'Fundo'); await selectLocation(page, 'Zona de inspección', 'Armonía II');
  await page.getByLabel('Hora de inspección').fill('07:30');await selectValue(page.getByLabel('AM o PM'), 'AM');
  await page.getByRole('radio',{name:'Planeada',exact:true}).check();
  await page.getByRole('textbox',{name:'Objetivo de la inspección interna',exact:true}).fill('Revisar condiciones seguras.');
- await page.getByRole('combobox',{name:/Nombre completo/}).fill('Bryan');
+ await page.getByRole('combobox',{name:/Nombre completo/}).first().fill('Bryan');
  await page.getByRole('listbox').getByRole('option',{name:/bcespedes@hortifrut.com/}).click();
+  await selectSecondResponsible(page);
  if(withTeam)for(const name of ['Ana Torres','José Rojas']){await page.getByRole('button',{name:'Añadir inspector',exact:true}).click();await page.locator('.general-inspectors .additional-inspector').last().getByRole('combobox').fill(name);await page.getByRole('listbox').getByRole('option',{name:new RegExp(name)}).click();}
  await page.getByRole('button',{name:'Continuar',exact:true}).click();
  await page.getByRole('button',{name:'Añadir observación',exact:true}).click();
@@ -48,7 +50,7 @@ test('envío sin claves adjunta Excel, responsables y CC de jefes y conserva el 
  await expect(dialog.getByRole('textbox')).toHaveCount(0);
  await dialog.getByRole('button',{name:'Enviar informe por correo',exact:true}).click();
  await expect(page.getByRole('heading',{name:'Fundo – Armonía II – Taller - Armonía 2',exact:true})).toBeVisible();
- expect(captured.inspection.responsibles).toEqual([{name:'Bryan',email:'bcespedes@hortifrut.com'}]);
+ expect(captured.inspection.responsibles).toEqual([{name:'Bryan',email:'bcespedes@hortifrut.com'},{name:captured.inspection.inspector.name,email:'bryx.96@gmail.com'}]);
  expect(captured.inspection.cc).toEqual(['jefe@example.com','gerente@example.com']);
  expect(captured.inspection.inspectors).toEqual([captured.inspection.inspector,{name:'Ana Torres',email:'ana@example.com'},{name:'José Rojas',email:'jose@example.com'}]);
  const workbook=new ExcelJS.Workbook();await workbook.xlsx.load(Buffer.from(captured.attachment.contentBase64,'base64') as any);

@@ -144,7 +144,7 @@ export function createCloudReportHandler({ env = process.env, fetchImpl = fetch,
           const d = prepared.inspection.data, name = reportFilename(d.area, d.date), hash = digest(bytes);
           const path = inspectionArchivePath(d.date, id, hash, name);
           const stored = await upstream(`/storage/v1/object/berry-documents/${encodePath(path)}`, { bytes });
-          if (!stored.ok && stored.status !== 409 && stored.data?.error !== 'Duplicate' && stored.data?.statusCode !== '409') throw new ReportError(503, 'ARCHIVE_FAILED', 'No se pudo guardar el Excel. El código no se ha confirmado.');
+          if (!stored.ok && stored.status !== 409 && stored.data?.error !== 'Duplicate' && stored.data?.statusCode !== '409') throw new ReportError(503, 'ARCHIVE_FAILED', 'No se pudo guardar el Excel. El número de registro no se ha confirmado.');
           registered = await rpc('berry_commit_report', { p_operation: lease.operation_id, p_actor: actor, p_actor_iat: issuedAt, p_document: { filename: name, storage_path: path, byte_size: bytes.length, sha256: hash } });
           break;
         } catch (error) {

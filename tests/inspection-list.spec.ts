@@ -1,3 +1,4 @@
+import { inspectionFilterButton, selectInspectionFilter } from './list-filter-fixture';
 import { selectValue } from './select-fixture';
 import { expect, test } from '@playwright/test';
 
@@ -62,9 +63,9 @@ test('lista responsables y sus áreas, y busca instalación, área y responsable
     for (const area of areas) await expect(rows.filter({ hasText: area })).toBeVisible();
   }
   await search.fill('Planta Norte');
-  await selectValue(page.getByLabel('Filtrar por estado'), 'review');
+  await selectInspectionFilter(page, 'review');
   await expect(rows).toHaveCount(0);
-  await selectValue(page.getByLabel('Filtrar por estado'), 'draft');
+  await selectInspectionFilter(page, 'draft');
   await expect(rows).toHaveCount(1);
   await page.setViewportSize({ width: 390, height: 844 });
   await expect(workshop.locator('.list-responsibles')).toBeVisible();
@@ -72,4 +73,58 @@ test('lista responsables y sus áreas, y busca instalación, área y responsable
   await expect(rows).toHaveCount(1);
   await expect(rows).toContainText('Almacén central');
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+});
+
+test('rangos de fechas respetan Lima, lunes a domingo, cambios de año y año bisiesto', async () => {
+  const { inspectionDateRange, inspectionListToday, matchesInspectionDate } = await import('../src/inspection-list-filters');
+  expect(inspectionListToday(new Date('2026-11-16T04:59:59Z'))).toBe('2026-11-15');
+  expect(inspectionListToday(new Date('2026-11-16T05:00:00Z'))).toBe('2026-11-16');
+  expect(inspectionDateRange('week', '2026-11-15')).toEqual({ from: '2026-11-09', to: '2026-11-15' });
+  expect(inspectionDateRange('week', '2026-12-31')).toEqual({ from: '2026-12-28', to: '2027-01-03' });
+  expect(inspectionDateRange('month', '2028-02-12')).toEqual({ from: '2028-02-01', to: '2028-02-29' });
+  expect(inspectionDateRange('last30', '2026-11-15')).toEqual({ from: '2026-10-17', to: '2026-11-15' });
+  expect(matchesInspectionDate('2026-11-01', { from: '2026-11-01', to: '2026-11-14' })).toBe(true);
+  expect(matchesInspectionDate('2026-11-14', { from: '2026-11-01', to: '2026-11-14' })).toBe(true);
+  expect(matchesInspectionDate('2026-11-15', { from: '', to: '2026-11-14' })).toBe(false);
+  expect(matchesInspectionDate('', { from: '', to: '2026-11-14' })).toBe(false);
+});
+
+for (const width of [1366, 390]) test(`tarjetas seleccionables combinan estados, fechas y búsqueda sin modificar registros (${width}px)`, async ({ page }) => {
+  await page.setViewportSize({ width, height: 1000 }); await page.clock.install({ time: new Date('2026-11-15T15:00:00Z') });
+  await page.route('**/api/people?*', route => route.fulfill({ json: { people: [] } })); await page.goto('./');
+  const before = await page.evaluate(async () => {
+    const { newInspection, newObservation, persistInspection, loadInspections } = await import('/src/model.ts');
+    const reports = [
+      { area: 'Borrador de hoy', date: '2026-11-15', state: 'draft' },
+      { area: 'Corrección de bombas', date: '2026-11-14', state: 'pending' },
+      { area: 'Validación de almacén', date: '2026-11-10', state: 'review' },
+      { area: 'Cerrada de octubre', date: '2026-10-31', state: 'closed' },
+      { area: 'Cerrada de noviembre', date: '2026-11-01', state: 'closed' },
+      { area: 'Borrador de otra cuenta', date: '2026-11-15', state: 'draft', owner: 'demo-inspector' },
+    ];
+    for (const report of reports) {
+      const draft = newInspection({ name: 'Inspectora de prueba', email: 'autora@example.invalid', accountId: report.owner || 'demo-admin' }), observation = { ...newObservation(), description: 'Hallazgo', correctiveAction: 'Corregir', dueDate: '2026-11-20' };
+      await persistInspection({ ...draft, area: report.area, date: report.date, facility: 'Planta Sur', responsibles: [{ id: 'responsible', personId: 'demo-inspector', name: 'Responsable de prueba', email: 'responsable@example.invalid', area: 'Mantenimiento' }], observations: [observation], ...(report.state !== 'draft' ? { delivery: { sentAt: '2026-11-15T14:00:00Z', recipientIds: ['demo-inspector'], revision: 1, corrections: report.state === 'pending' ? {} : { [observation.id]: { actorId: 'demo-inspector', responsibleName: 'Responsable de prueba', action: 'Acción ejecutada', date: '2026-11-15', photos: [], state: report.state === 'closed' ? 'Ejecutado' : 'Pendiente', proposedState: 'Ejecutado', decision: report.state === 'closed' ? 'approved' : 'review', note: '' } } } } : {}) });
+    }
+    return JSON.stringify(await loadInspections());
+  });
+  await page.reload(); const menu = page.getByRole('button', { name: 'Abrir menú', exact: true }); if (await menu.isVisible()) await menu.click();
+  await page.locator('.sidebar-nav').getByRole('button', { name: 'Mis inspecciones', exact: true }).click();
+  const rows = page.locator('.inspection-list-row'), group = page.getByRole('group', { name: 'Filtrar inspecciones por estado', exact: true });
+  await expect(group.getByRole('button')).toHaveCount(5); await expect(rows).toHaveCount(5); await expect(inspectionFilterButton(page, 'all')).toHaveAttribute('aria-pressed', 'true');
+  for (const [key, count] of [['draft', 1], ['pending', 1], ['review', 1], ['closed', 2]] as const) {
+    await expect(inspectionFilterButton(page, key).locator('strong')).toHaveText(String(count)); await selectInspectionFilter(page, key); await expect(rows).toHaveCount(count); await expect(inspectionFilterButton(page, key)).toHaveAttribute('aria-pressed', 'true');
+  }
+  await inspectionFilterButton(page, 'pending').focus(); await page.keyboard.press('Enter'); await expect(rows).toHaveCount(1); await expect(rows).toContainText('Corrección de bombas');
+  await expect(page.getByLabel('Filtrar por estado')).toHaveCount(0); await expect(page.locator('.local-storage-note')).toHaveCount(0);
+  const dates = page.getByRole('combobox', { name: 'Filtrar por fecha de inspección', exact: true }); await selectValue(dates, 'today'); await expect(rows).toHaveCount(0); await expect(inspectionFilterButton(page, 'pending').locator('strong')).toHaveText('0');
+  await selectInspectionFilter(page, 'all'); await expect(rows).toHaveCount(1); await expect(rows).toContainText('Borrador de hoy');
+  await selectValue(dates, 'week'); await expect(rows).toHaveCount(3); await selectValue(dates, 'month'); await expect(rows).toHaveCount(4); await selectValue(dates, 'last30'); await expect(rows).toHaveCount(5);
+  await selectValue(dates, 'custom'); await page.getByLabel('Desde', { exact: true }).fill('2026-11-01'); await page.getByLabel('Hasta', { exact: true }).fill('2026-11-14'); await expect(rows).toHaveCount(3);
+  await selectInspectionFilter(page, 'pending'); await page.getByRole('textbox', { name: 'Buscar inspecciones', exact: true }).fill('MANTENIMIENTO'); await expect(rows).toHaveCount(1); await expect(rows).toContainText('Corrección de bombas');
+  await page.getByLabel('Desde', { exact: true }).fill('2026-11-15'); await expect(page.getByRole('alert')).toContainText('fecha inicial'); await expect(rows).toHaveCount(0);
+  await page.getByRole('button', { name: 'Limpiar filtros', exact: true }).click(); await expect(rows).toHaveCount(5); await expect(dates).toHaveText('Todas las fechas'); await expect(inspectionFilterButton(page, 'all')).toHaveAttribute('aria-pressed', 'true');
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+  await group.screenshot({ path: test.info().outputPath(`estados-${width}.png`) }); await page.locator('.inspection-list-toolbar').screenshot({ path: test.info().outputPath(`filtro-fechas-${width}.png`) });
+  expect(await page.evaluate(async () => { const { loadInspections } = await import('/src/model.ts'); return JSON.stringify(await loadInspections()); })).toBe(before);
 });

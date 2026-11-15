@@ -1,3 +1,4 @@
+import { selectSecondResponsible } from './responsible-fixture';
 import { selectValue } from './select-fixture';
 import { selectLocation } from './location-fixture';
 import { test, expect } from '@playwright/test';
@@ -7,13 +8,14 @@ import { mockDirectory } from './directory-fixture';
 
 async function prepareEditor(page: Page) {
   await mockDirectory(page); await page.goto('./');
-  await page.getByLabel('Área inspeccionada').fill('Taller - Armonía 2');
+  await page.getByLabel('Área e instalación inspeccionada').fill('Taller - Armonía 2');
   await selectLocation(page, 'Sede', 'Fundo'); await selectLocation(page, 'Zona de inspección', 'Armonía II');
   await page.getByLabel('Hora de inspección').fill('07:30'); await selectValue(page.getByLabel('AM o PM'), 'AM');
   await page.getByRole('radio', { name: 'Planeada', exact: true }).check();
   await page.getByRole('textbox', { name: 'Objetivo de la inspección interna', exact: true }).fill('Verificar seguridad.');
-  await page.getByRole('combobox', { name: /Nombre completo/ }).fill('Ana');
+  await page.getByRole('combobox', { name: /Nombre completo/ }).first().fill('Ana');
   await page.getByRole('listbox').getByRole('option', { name: /Ana Torres/ }).click();
+  await selectSecondResponsible(page);
   await page.getByRole('button', { name: 'Continuar', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'RESULTADO DE LA INSPECCIÓN', exact: true })).toBeVisible();
   await page.getByRole('button', { name: 'Añadir observación', exact: true }).click();

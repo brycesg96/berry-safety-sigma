@@ -125,7 +125,10 @@ test('cloud archive keeps the inspection month and sends exactly the stored, val
   assert.deepEqual(Buffer.from(mail.adjuntos[0].contenido_base64,'base64'),file);
   assert.equal(mail.adjuntos[0].nombre,'REG_INS_TALLER_05.11.2026.xlsx');
   assert.equal(mail.numero,'IH-2027-001'); assert.equal(mail.codigo_reservado,true);
-  assert.match(mail.cuerpo_html,/Compañero SIGMA/); assert.equal(result.data.inspection.data.emailDelivery.state,'accepted');
+  assert.deepEqual(mail.destinatarios.para,['responsable@example.com','ana@example.com']);
+  assert.deepEqual(mail.outlook.para,[{address:'responsable@example.com',name:'Responsable'},{address:'ana@example.com',name:'Ana Inspectora'}]);
+  assert.deepEqual(mail.responsables,[{nombre:'Responsable',correo:'responsable@example.com'}]);
+  assert.match(mail.cuerpo_html,/<strong>Responsable de la inspección:<\/strong> Ana Inspectora/);assert.ok(!mail.cuerpo_html.includes('Compañero SIGMA')); assert.equal(result.data.inspection.data.emailDelivery.state,'accepted');
 });
 test('accented area stores an ASCII object key and retains the original name in both initial email and final workbook',async t=>{
   const state=stateOf(); state.row.data.area='Maquinaria - Armonía 2';

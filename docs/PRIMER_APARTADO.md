@@ -10,7 +10,7 @@ Los valores de empresa guardados en borradores antiguos no se borran, pero no re
 
 ## Información editable
 
-- Área inspeccionada compuesta por Sede, Zona de inspección dependiente y texto para la instalación o actividad (por ejemplo, «Fundo – Armonía II – Taller de Maquinaria»). El prefijo seleccionado no se puede borrar desde el texto; el Excel lo conserva todo en la misma celda. Puerto Morín queda retirado. Se preservan las áreas históricas, fecha, responsable de la inspección y hora de 12 horas con AM/PM. El código ya no se escribe: se asignará de forma única al registrar el envío; véase [CODIGOS_INSPECCION.md](CODIGOS_INSPECCION.md).
+- Área e instalación inspeccionada compuesta por Sede, Zona de inspección dependiente y texto para la instalación o actividad (por ejemplo, «Fundo – Armonía II – Taller de Maquinaria»). El prefijo seleccionado no se puede borrar desde el texto; el Excel lo conserva todo en la misma celda. Puerto Morín queda retirado. Se preservan las áreas históricas, fecha, responsable de la inspección y hora de 12 horas con AM/PM. El código ya no se escribe: se asignará de forma única al registrar el envío; véase [CODIGOS_INSPECCION.md](CODIGOS_INSPECCION.md).
 - Tipo: Planeada, No planeada u Otro. Se selecciona una opción. Otro habilita un campo de detalle obligatorio; al cambiar de opción se conserva el texto, pero no se exporta mientras Otro no esté seleccionado.
 - Objetivo de hasta 560 caracteres, con contador y validación antes de continuar y antes de exportar. Los objetivos antiguos más largos se conservan completos para que la persona los revise, sin recortes automáticos.
 
@@ -59,3 +59,5 @@ Esta actualización no publica la web ni modifica la configuración de GitHub Pa
 ## Presentación de la ubicación
 
 Sede y Zona de inspección usan menús propios de la plataforma, con opciones verdes, marca de selección y soporte de teclado/tacto. La zona depende de la sede; volver a elegir la misma sede conserva la zona actual. El prefijo de la ubicación se muestra como una etiqueta redondeada junto al texto editable. La información sigue exportándose completa en la celda existente del Excel.
+
+Gerencia y Área organizativa se incorporan como selectores dependientes. Su catálogo oficial y el paso 13 se describen en [Gerencia, área y ubicación inspeccionada](ORGANIZACION.md). El texto compuesto sigue el orden Sede – Área – Zona de inspección – Instalación inspeccionada.

@@ -1,6 +1,6 @@
 /** Local test accounts only. These roles are NOT server-side access control. */
 export type AccountRole = 'admin' | 'inspector';
-export type DemoAccount = { id: string; name: string; email: string; area: string; jobTitle: string; role: AccountRole; enabled: boolean; supervisorEmails?: string[]; canCreateInspections?: boolean; canReceiveInspections?: boolean };
+export type DemoAccount = { id: string; name: string; email: string; area: string; jobTitle: string; management?: string; role: AccountRole; enabled: boolean; supervisorEmails?: string[]; canCreateInspections?: boolean; canReceiveInspections?: boolean };
 const KEY = 'berry-demo-accounts-v1';
 const ACTIVE = 'berry-demo-active-account';
 export const ADMIN_ID = 'demo-admin';
@@ -19,7 +19,7 @@ function seeds(): DemoAccount[] {
 function valid(value: unknown): value is DemoAccount {
   if (!value || typeof value !== 'object') return false;
   const a = value as DemoAccount;
-  return typeof a.id === 'string' && !!a.id && typeof a.name === 'string' && !!a.name.trim() && typeof a.email === 'string' && emailPattern.test(a.email) && typeof a.area === 'string' && ['admin', 'inspector'].includes(a.role) && typeof a.enabled === 'boolean';
+  return typeof a.id === 'string' && !!a.id && typeof a.name === 'string' && !!a.name.trim() && typeof a.email === 'string' && emailPattern.test(a.email) && typeof a.area === 'string' && (a.management === undefined || typeof a.management === 'string') && ['admin', 'inspector'].includes(a.role) && typeof a.enabled === 'boolean';
 }
 export function supervisorEmails(values: string | string[] = []): string[] {
   const emails = [...new Set((Array.isArray(values) ? values : values.split(/[;,\n]+/)).map(accountEmail).filter(Boolean))];
@@ -35,7 +35,7 @@ export function readAccounts(): DemoAccount[] {
   try { const data: unknown = JSON.parse(localStorage.getItem(KEY) || '[]'); if (Array.isArray(data)) stored = data.filter(valid); } catch { /* Seeds remain available in memory. */ }
   const initial = seeds().map(seed => {
     const saved = stored.find(a => a.id === seed.id);
-    return { ...seed, ...(saved ? { name: saved.name, area: saved.area, jobTitle: typeof saved.jobTitle === 'string' ? saved.jobTitle.trim() : '', enabled: saved.enabled, supervisorEmails: Array.isArray(saved.supervisorEmails) ? saved.supervisorEmails.filter(v => typeof v === 'string' && emailPattern.test(v)) : [] } : {}), ...(seed.id === ADMIN_ID ? { enabled: true } : {}) };
+    return { ...seed, ...(saved ? { name: saved.name, area: saved.area, management: typeof saved.management === 'string' ? saved.management.trim() : '', jobTitle: typeof saved.jobTitle === 'string' ? saved.jobTitle.trim() : '', enabled: saved.enabled, supervisorEmails: Array.isArray(saved.supervisorEmails) ? saved.supervisorEmails.filter(v => typeof v === 'string' && emailPattern.test(v)) : [] } : {}), ...(seed.id === ADMIN_ID ? { enabled: true } : {}) };
   });
   const ids = new Set(initial.map(a => a.id)), emails = new Set(initial.map(a => a.email));
   for (const a of stored) if (!ids.has(a.id) && !emails.has(accountEmail(a.email))) { initial.push({ ...a, jobTitle: typeof a.jobTitle === 'string' ? a.jobTitle.trim() : '', email: accountEmail(a.email) }); ids.add(a.id); emails.add(accountEmail(a.email)); }
@@ -73,8 +73,8 @@ export function editAccount(actorId: string, targetId: string, values: { name: s
   if (targetId === actorId && (!values.enabled || values.role !== 'admin')) throw new Error('No puedes retirar tu propio acceso de administración durante esta sesión.');
   return persist(accounts.map(a => a.id === targetId ? { ...a, name: values.name.trim(), role: values.role, enabled: values.enabled, supervisorEmails: values.supervisorEmails === undefined ? a.supervisorEmails : supervisorEmails(values.supervisorEmails) } : a));
 }
-export function updateOwnProfile(accountId: string, name: string, area: string, jobTitle?: string) {
+export function updateOwnProfile(accountId: string, name: string, area: string, jobTitle?: string, management?: string) {
   const accounts = readAccounts();
   if (!name.trim() || !area.trim() || !accounts.some(a => a.id === accountId && a.enabled)) throw new Error('Completa tus nombres y apellidos y tu área.');
-  return persist(accounts.map(a => a.id === accountId ? { ...a, name: name.trim(), area: area.trim(), jobTitle: jobTitle === undefined ? a.jobTitle : jobTitle.trim() } : a));
+  return persist(accounts.map(a => a.id === accountId ? { ...a, name: name.trim(), area: area.trim(), jobTitle: jobTitle === undefined ? a.jobTitle : jobTitle.trim(), ...(management !== undefined ? { management: management.trim() } : {}) } : a));
 }

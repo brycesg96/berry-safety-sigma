@@ -9,7 +9,7 @@ test('corrector nativo en español solo para los cinco campos de redacción de l
     const { newInspection, newObservation, persistInspection } = await import('/src/model.ts');
     await persistInspection({ ...newInspection({ name: 'Autora', email: 'bryx.96@gmail.com', accountId: 'demo-admin' }),
       area: 'Taller', type: 'Planeada', inspectionTime: '08:30', inspectionPeriod: 'AM', objective: 'Revisar las condiciones.',
-      responsibles: [{ id: 'responsible', personId: 'demo-inspector', name: 'Destinataria', email: 'bcespedes@hortifrut.com' }],
+      responsibles: [{ id: 'responsible', personId: 'demo-inspector', name: 'Destinataria', email: 'bcespedes@hortifrut.com' }, { id: 'second-recipient', personId: 'demo-admin', name: 'Jefa de prueba', email: 'bryx.96@gmail.com' }],
       observations: [{ ...newObservation(), description: 'Falta una protección.', correctiveAction: 'Instalar la protección.', dueDate: '2026-11-10' }],
       unfavorableCause: 'Falta de mantenimiento.', closingRemarks: 'Mantener las revisiones periódicas.' });
   });
@@ -21,7 +21,7 @@ test('corrector nativo en español solo para los cinco campos de redacción de l
     if (enabled) await expect(field).toHaveAttribute('lang', 'es-PE');
   };
   await expect(page.getByRole('button', { name: 'Continuar', exact: true })).toBeEnabled();
-  await check('Objetivo de la inspección interna', true); await check('Área inspeccionada', false);
+  await check('Objetivo de la inspección interna', true); await check('Área e instalación inspeccionada', false);
   await page.getByRole('button', { name: '02 Observaciones', exact: true }).click();
   await check('Descripción', true); await check('Acción a tomar', true);
   await page.getByRole('button', { name: '04 Cierre', exact: true }).click();

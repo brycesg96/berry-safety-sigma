@@ -1,3 +1,4 @@
+import { selectSecondResponsible } from './responsible-fixture';
 import { selectValue } from './select-fixture';
 import { saveAndOpenList } from './save-fixture';
 import { selectLocation } from './location-fixture';
@@ -20,19 +21,20 @@ test('hora de 12 horas y migración de borradores sin adivinar AM/PM nuevos', ()
 
 test('ubicación en el ejemplo, AM/PM requerido y conservación en revisión, recarga y Excel', async ({ page }) => {
   await mockDirectory(page); await page.goto('./');
-  await expect(page.getByLabel('Área inspeccionada')).toHaveAttribute('placeholder', 'Ej. Taller de Maquinaria');
+  await expect(page.getByLabel('Área e instalación inspeccionada')).toHaveAttribute('placeholder', 'Ej. Taller de Maquinaria');
   await expect(page.getByLabel('Hora de inspección')).toHaveValue('');
   await expect(page.getByLabel('AM o PM')).toHaveAttribute('data-value', '');
-  await expect(page.getByRole('textbox', { name: 'Código de inspección', exact: true })).toHaveValue(/^IH-\d{4}-001$/);
+  await expect(page.getByRole('textbox', { name: 'Número de registro', exact: true })).toHaveValue(/^IH-\d{4}-001$/);
   await expect(page.getByRole('tooltip')).toBeHidden();
-  await page.getByRole('button', { name: 'Información del código de inspección', exact: true }).hover();
-  await expect(page.getByRole('tooltip')).toContainText('El código definitivo aparecerá en Mis inspecciones');
-  await page.getByLabel('Área inspeccionada').click();
-  await page.getByLabel('Área inspeccionada').fill('Taller de Maquinaria - Armonía 2');
+  await page.getByRole('button', { name: 'Información del número de registro', exact: true }).hover();
+  await expect(page.getByRole('tooltip')).toContainText('El número de registro definitivo aparecerá en Mis inspecciones');
+  await page.getByLabel('Área e instalación inspeccionada').click();
+  await page.getByLabel('Área e instalación inspeccionada').fill('Taller de Maquinaria - Armonía 2');
   await selectLocation(page, 'Sede', 'Fundo'); await selectLocation(page, 'Zona de inspección', 'Armonía II');
   await page.getByRole('textbox', { name: 'Objetivo de la inspección interna', exact: true }).fill('Verificar las condiciones de maquinaria.');
-  await page.getByRole('combobox', { name: /Nombre completo/ }).fill('Ana');
+  await page.getByRole('combobox', { name: /Nombre completo/ }).first().fill('Ana');
   await page.getByRole('listbox').getByRole('option', { name: /Ana Torres/ }).click();
+  await selectSecondResponsible(page);
   await page.getByRole('button', { name: 'Continuar', exact: true }).click();
   await expect(page.getByText('Completa la hora de inspección.')).toBeVisible();
   await page.getByLabel('Hora de inspección').fill('07:30');
@@ -64,12 +66,12 @@ test('ubicación en el ejemplo, AM/PM requerido y conservación en revisión, re
   expect(JSON.stringify(book.getWorksheet('V.01')!.getSheetValues())).toContain('07:30 PM');
 });
 
-test('Mis inspecciones distingue un código tentativo de un recibo definitivo', async ({ page }) => {
+test('Mis inspecciones distingue un número de registro tentativo de un recibo definitivo', async ({ page }) => {
   await page.goto('./');
-  await page.getByLabel('Área inspeccionada').fill('Registro confirmado de prueba');
+  await page.getByLabel('Área e instalación inspeccionada').fill('Registro confirmado de prueba');
   await selectLocation(page, 'Sede', 'Fundo'); await selectLocation(page, 'Zona de inspección', 'Armonía II');
   await saveAndOpenList(page);
-  await expect(page.getByText('Código definitivo: pendiente de envío')).toBeVisible();
+  await expect(page.getByText('Número de registro: pendiente de envío')).toBeVisible();
   await page.evaluate(async () => {
     const request = indexedDB.open('berry-safety', 1);
     const db = await new Promise<IDBDatabase>((resolve, reject) => { request.onsuccess = () => resolve(request.result); request.onerror = reject; });
@@ -81,7 +83,7 @@ test('Mis inspecciones distingue un código tentativo de un recibo definitivo', 
     await new Promise<void>((resolve, reject) => { tx.oncomplete = () => resolve(); tx.onerror = reject; tx.onabort = reject; }); db.close();
   });
   await page.reload(); await saveAndOpenList(page);
-  await expect(page.getByText('Código definitivo: IH-2026-008')).toBeVisible();
+  await expect(page.getByText('Número de registro: IH-2026-008')).toBeVisible();
 });
 
 

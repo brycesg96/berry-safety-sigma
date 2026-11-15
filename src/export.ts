@@ -1,3 +1,4 @@
+import { locationText } from './inspection-location';
 import type { Inspection } from './model';
 import { validateStep } from './model';
 import { fillInspectionTemplate, publicStoredExcel } from './excel-template';
@@ -7,6 +8,7 @@ import { storeFinalExcel } from './cloud-final';
 import { inspectionClosed } from './follow-up';
 
 export async function buildExcel(d: Inspection) {
+  if (d.areaLocation) d = { ...d, area: locationText(d.areaLocation) };
   if (Object.keys(validateStep(d, 0)).length) throw new Error('Completa el primer apartado antes de exportar.');
   return { bytes: await fillInspectionTemplate(d), name: reportFilename(d.area, d.date) };
 }

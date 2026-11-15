@@ -18,7 +18,7 @@ test('responsables del registro independientes, autor de la cuenta bloqueado, se
     const withJose = addAccount('demo-admin', { name: 'José Rojas', email: 'jose@example.com', role: 'inspector' });
     updateOwnProfile(withJose.find(a => a.email === 'jose@example.com')!.id, 'José Rojas', 'SIGMA', 'Inspector SIGMA');
     const d = newInspection({ name: 'Nombre manual antiguo', email: 'otro@example.com', accountId: 'demo-admin' });
-    await persistInspection({ ...d, additionalInspectors: undefined, closingRemarks: undefined, area: 'Taller - Armonía 2', date: '2026-11-04', inspectionTime: '07:30', inspectionPeriod: 'AM', type: 'Planeada', objective: 'Verificar la seguridad.', responsibles: [{ id: 'recipient', personId: 'test-ana', name: 'Ana Torres', email: 'ana@example.com' }], observations: [{ ...newObservation(), description: 'Hallazgo', correctiveAction: 'Corregir hallazgo', dueDate: '2026-11-15' }], registrationDetails: { 'demo-admin': { jobTitle: 'Cargo manual antiguo', initialJobTitle: 'Cargo manual antiguo', date: '2026-11-04' } }, conclusions: 'Requiere seguimiento.', recommendations: 'Verificar corrección.', step: 3, updatedAt: '2099-01-01T00:00:00Z' });
+    await persistInspection({ ...d, additionalInspectors: undefined, closingRemarks: undefined, area: 'Taller - Armonía 2', date: '2026-11-04', inspectionTime: '07:30', inspectionPeriod: 'AM', type: 'Planeada', objective: 'Verificar la seguridad.', responsibles: [{ id: 'recipient', personId: 'test-ana', name: 'Ana Torres', email: 'ana@example.com' }, { id: 'second-recipient', personId: 'demo-admin', name: 'Jefa de prueba', email: 'bryx.96@gmail.com' }], observations: [{ ...newObservation(), description: 'Hallazgo', correctiveAction: 'Corregir hallazgo', dueDate: '2026-11-15' }], registrationDetails: { 'demo-admin': { jobTitle: 'Cargo manual antiguo', initialJobTitle: 'Cargo manual antiguo', date: '2026-11-04' } }, conclusions: 'Requiere seguimiento.', recommendations: 'Verificar corrección.', step: 3, updatedAt: '2099-01-01T00:00:00Z' });
   });
   await page.reload();
   const section = page.getByRole('region', { name: 'RESPONSABLE DEL REGISTRO', exact: true });
@@ -60,7 +60,7 @@ test('responsables del registro independientes, autor de la cuenta bloqueado, se
   await section.getByRole('button', { name: 'Eliminar responsable 2' }).click();
   await add.click();
   await page.getByRole('button', { name: 'Continuar', exact: true }).click();
-  await expect(page.getByText('Selecciona una persona del directorio.', { exact: true })).toBeVisible();
+  await expect(page.getByText('Selecciona una persona del directorio.', { exact: true }).first()).toBeVisible();
   await extras.nth(1).getByRole('combobox').fill('Ana');
   await page.getByRole('listbox').getByRole('option', { name: /Ana Torres/ }).click();
   await page.getByRole('button', { name: '04 Cierre', exact: true }).click();
@@ -78,8 +78,16 @@ test('responsables del registro independientes, autor de la cuenta bloqueado, se
   await expect(closing).toHaveValue('c'.repeat(1200));
   await closing.fill('Conclusiones y recomendaciones finales.');
   await expect(primaryJobTitle).toHaveValue('Supervisor inicial');
-  await section.locator('.registration-fields').first().getByLabel('Fecha', { exact: true }).fill('2026-11-05');
+  await expect(section.locator('.registration-fields').first().getByLabel('Fecha', { exact: true })).toHaveValue('2026-11-04');
+  await expect(section.locator('.registration-fields').first().getByLabel('Fecha', { exact: true })).not.toBeEditable();
   await section.getByLabel('Adjuntar firma', { exact: true }).first().setInputFiles({ name: 'firma.png', mimeType: 'image/png', buffer: Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=', 'base64') });
+  await expect(section.locator('.signature-preview img')).toHaveCount(1);
+  await page.getByRole('navigation', { name: 'Pasos de la inspección' }).getByRole('button', { name: /Datos generales/ }).click();
+  await page.getByLabel('Fecha de inspección').fill('2026-11-05');
+  await page.getByRole('button', { name: '04 Cierre', exact: true }).click();
+  const registrationDates = section.getByLabel('Fecha', { exact: true });
+  await expect(registrationDates).toHaveCount(3);
+  for (const date of await registrationDates.all()) { await expect(date).toHaveValue('2026-11-05'); await expect(date).not.toBeEditable(); }
   await expect(section.locator('.signature-preview img')).toHaveCount(1);
   for (const jobTitle of ['', 'Supervisor SST']) {
     await page.getByRole('button', { name: 'Mi perfil', exact: true }).click();
@@ -101,6 +109,7 @@ test('responsables del registro independientes, autor de la cuenta bloqueado, se
   const downloadEvent = page.waitForEvent('download');
   await page.getByRole('button', { name: 'Descargar Excel', exact: true }).click();
   const workbook = new ExcelJS.Workbook(); await workbook.xlsx.readFile((await (await downloadEvent).path())!);
+  for (const row of [34, 35, 36]) expect(workbook.getWorksheet('V.01')!.getCell(`H${row}`).value).toBe('Fecha: 05/11/2026');
   const content = JSON.stringify(workbook.getWorksheet('V.01')!.getSheetValues());
   for (const text of ['Brian Céspedes', 'Ana Torres', 'José Rojas']) expect(content).toContain(text);
   expect(content).not.toContain('Nombre manual antiguo');
@@ -154,7 +163,7 @@ test('cada autor aparece en ambas listas; cuatro inspectores y cuatro firmantes 
     for (const [name,email] of [['Ana Torres','ana@example.com'],['José Rojas','jose@example.com'],['Marta Díaz','marta@example.com']]) addAccount('demo-admin',{name,email,role:'inspector'});
     updateOwnProfile('demo-inspector','Carla Rivera','Operaciones','Supervisora'); selectTestAccount('demo-inspector');
     const account=readAccounts().find(p=>p.id==='demo-inspector')!,d=newInspection({name:account.name,email:account.email,accountId:account.id});
-    await persistInspection({...d,area:'Listas independientes',date:'2026-11-09',inspectionTime:'09:30',inspectionPeriod:'AM',type:'Planeada',objective:'Verificar condiciones.',closingRemarks:'Corregir y verificar.',responsibles:[{id:'recipient',personId:'test-ana',name:'Ana Torres',email:'ana@example.com'}],observations:[{...newObservation(),description:'Hallazgo',correctiveAction:'Corregir.',dueDate:'2026-11-20'}]});
+    await persistInspection({...d,area:'Listas independientes',date:'2026-11-09',inspectionTime:'09:30',inspectionPeriod:'AM',type:'Planeada',objective:'Verificar condiciones.',closingRemarks:'Corregir y verificar.',responsibles:[{id:'recipient',personId:'test-ana',name:'Ana Torres',email:'ana@example.com'}, { id: 'second-recipient', personId: 'demo-admin', name: 'Jefa de prueba', email: 'bryx.96@gmail.com' }],observations:[{...newObservation(),description:'Hallazgo',correctiveAction:'Corregir.',dueDate:'2026-11-20'}]});
   });
   await page.reload();
   await expect(page.getByRole('textbox',{name:'Responsable de la inspección',exact:true})).toHaveValue('Carla Rivera');
@@ -212,7 +221,7 @@ for(const width of [1366,390]) test(`inspectores muestran área y cargo sin cuad
  const number=(await extra.locator('.responsible-number').boundingBox())!;expect(number.x+number.width).toBeLessThan(input.x);
  expect(input.x+input.width).toBeLessThan(remove.x);expect(remove.x+remove.width).toBeLessThanOrEqual(card.x+card.width);expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
  const details=(await extra.locator('.field-hint').boundingBox())!;expect(details.y+details.height).toBeLessThanOrEqual(card.y+card.height-8);
- await page.getByLabel('Área inspeccionada').fill('Taller');await page.getByRole('button',{name:'Guardar',exact:true}).click();await expect(page.getByText('Guardado en este navegador',{exact:true})).toBeAttached();
+ await page.getByLabel('Área e instalación inspeccionada').fill('Taller');await page.getByRole('button',{name:'Guardar',exact:true}).click();await expect(page.getByText('Guardado en este navegador',{exact:true})).toBeAttached();
  page.once('dialog',dialog=>dialog.accept());await page.reload();await expect(primary.getByText('SIGMA — Supervisor de Seguridad Industrial',{exact:true})).toBeVisible();await expect(extra.getByRole('combobox')).toHaveValue('Ana Torres');await expect(extra.getByText('Operaciones — Supervisora de Producción y Mantenimiento',{exact:true})).toBeVisible();
  const saved=await page.evaluate(async()=>{const {loadInspections}=await import('/src/model.ts');return(await loadInspections())[0];});expect(saved.inspectorEmail).toBeTruthy();expect(saved.additionalInspectors[0]).toMatchObject({personId:'test-ana',email:'ana@example.com',area:'Operaciones',jobTitle:'Supervisora de Producción y Mantenimiento'});
  await page.locator('.form-body').screenshot({path:test.info().outputPath(`inspectores-${width}.png`)});

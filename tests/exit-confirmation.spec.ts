@@ -18,14 +18,14 @@ async function requestExit(page: Page) {
 
 test('Atrás permite cancelar sin perder el texto y salir sin acumular entradas ni pedir dos confirmaciones', async ({ page }) => {
   await openFromPrevious(page);
-  await page.getByLabel('Área inspeccionada').fill('Texto que debo conservar');
+  await page.getByLabel('Área e instalación inspeccionada').fill('Texto que debo conservar');
   await page.evaluate(() => scrollTo(0, 500));
   const scroll = await page.evaluate(() => scrollY);
   const length = await page.evaluate(() => history.length);
   for (let attempt = 0; attempt < 3; attempt++) {
     const dialog = await requestExit(page);
     await dialog.getByRole('button', { name: 'Seguir en la aplicación', exact: true }).click();
-    await expect(page.getByLabel('Área inspeccionada')).toHaveValue('Texto que debo conservar');
+    await expect(page.getByLabel('Área e instalación inspeccionada')).toHaveValue('Texto que debo conservar');
     expect(Math.abs(await page.evaluate(() => scrollY) - scroll)).toBeLessThan(2);
     expect(await page.evaluate(() => history.length)).toBe(length);
   }
@@ -47,7 +47,7 @@ test('Atrás permite cancelar sin perder el texto y salir sin acumular entradas 
   await expect(page.getByRole('heading', { name: 'Inicia sesión', exact: true })).toBeVisible();
   expect(nativeDialogs).toBe(0);
   await page.getByRole('button', { name: 'Espacio de pruebas', exact: true }).click();
-  await expect(page.getByLabel('Área inspeccionada')).toHaveValue('Texto que debo conservar');
+  await expect(page.getByLabel('Área e instalación inspeccionada')).toHaveValue('Texto que debo conservar');
   await (await requestExit(page)).getByRole('button', { name: 'Seguir en la aplicación', exact: true }).click();
   expect(await page.evaluate(() => history.length)).toBe(length);
 });
@@ -79,12 +79,12 @@ test('móvil conserva un perfil en edición al cancelar Atrás y reutiliza la pr
 test('recargar permite cancelar con el aviso nativo y salir funciona también en una pestaña abierta directamente', async ({ page }) => {
   await page.goto('./');
   await expect(page.getByRole('button', { name: 'Continuar', exact: true })).toBeEnabled();
-  await page.getByLabel('Área inspeccionada').fill('No salir todavía');
+  await page.getByLabel('Área e instalación inspeccionada').fill('No salir todavía');
   let reloadWarning = 0;
   page.once('dialog', async dialog => { reloadWarning++; expect(dialog.type()).toBe('beforeunload'); await dialog.dismiss(); });
   await page.evaluate(() => location.reload());
   await expect.poll(() => reloadWarning).toBe(1);
-  await expect(page.getByLabel('Área inspeccionada')).toHaveValue('No salir todavía');
+  await expect(page.getByLabel('Área e instalación inspeccionada')).toHaveValue('No salir todavía');
   await page.getByRole('button', { name: 'Guardar', exact: true }).first().click();
   await expect(page.getByText('Guardado en este navegador', { exact: true })).toBeVisible();
   await (await requestExit(page)).getByRole('button', { name: 'Salir', exact: true }).click();

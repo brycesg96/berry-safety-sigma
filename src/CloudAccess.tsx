@@ -1,3 +1,5 @@
+import { OrganizationFields } from './OrganizationFields';
+import { organizationErrors } from './organization';
 import { useEffect, useRef, useState } from 'react';
 import type { Session } from '@supabase/supabase-js';
 import { ArrowLeft, Check, Eye, EyeOff, LoaderCircle, LockKeyhole, LogOut, ShieldCheck } from 'lucide-react';
@@ -17,12 +19,12 @@ import { newPasswordError } from '../shared/account-rules.mjs';
 import { CloudWorkspace } from './CloudWorkspace';
 import { supabaseFoundationStatus } from './supabase';
 
-type ProfileForm = { full_name: string; area: string; job_title: string };
+type ProfileForm = { full_name: string; area: string; job_title: string; management: string };
 const rememberedKey = 'berry-remembered-email';
 function rememberedEmail() { try { return localStorage.getItem(rememberedKey) || ''; } catch { return ''; } }
 function rememberEmail(email: string) { try { if (email) localStorage.setItem(rememberedKey, email); else localStorage.removeItem(rememberedKey); } catch { /* Browser storage is optional. */ } }
-const blank = (): ProfileForm => ({ full_name: '', area: '', job_title: '' });
-const fieldsOf = (profile: CloudProfile): ProfileForm => ({ full_name: profile.full_name, area: profile.area, job_title: profile.job_title });
+const blank = (): ProfileForm => ({ full_name: '', area: '', job_title: '', management: '' });
+const fieldsOf = (profile: CloudProfile): ProfileForm => ({ full_name: profile.full_name, area: profile.area, job_title: profile.job_title, management: profile.management || '' });
 
 export function CloudAccess({ exit, onReturn, onSessionChange, initialSection = 'workspace' }: { exit: ExitConfirmation; onReturn?: () => void; onSessionChange?: (authenticated: boolean) => void; initialSection?: 'profile' | 'admin' | 'dashboard' | 'workspace' }) {
   const [ready, setReady] = useState(false);
@@ -173,10 +175,12 @@ export function CloudAccess({ exit, onReturn, onSessionChange, initialSection = 
   const save = async () => {
     if (!userId || !ownProfile?.enabled || busy) return;
     if (completingProfile && !form.job_title.trim()) { setFormError('Completa tu cargo para continuar.'); return; }
+    const organization = ownProfile.management !== undefined && (completingProfile || form.management !== ownProfile.management || form.area !== ownProfile.area) ? organizationErrors(form.management, form.area) : {};
+    if (Object.keys(organization).length) { setFormError(Object.values(organization)[0]); return; }
     const requestGeneration = generation.current;
     setBusy('save'); setFormError(''); setSaved(false);
     try {
-      const next = await saveCloudProfile(userId, form, () => generation.current === requestGeneration && sessionRef.current?.user.id === userId);
+      const next = await saveCloudProfile(userId, { ...form, management: ownProfile.management !== undefined ? form.management : undefined }, () => generation.current === requestGeneration && sessionRef.current?.user.id === userId);
       if (completingProfile) await markProfileSetup(userId, 'completed', () => generation.current === requestGeneration && sessionRef.current?.user.id === userId);
       if (generation.current === requestGeneration) { setProfile({ ...next, profile_setup_required: false }); setForm(fieldsOf(next)); setSaved(true); if (completingProfile) setSection('workspace'); }
     } catch (error) { if (generation.current === requestGeneration) setFormError(error instanceof Error ? error.message : 'No se guardó el perfil.'); }
@@ -222,7 +226,7 @@ export function CloudAccess({ exit, onReturn, onSessionChange, initialSection = 
   return <div className="cloud-account-page" spellCheck={false}>
     <header className="cloud-account-header"><Brand/>{onReturn && !ownProfile?.must_change_password && !passwordRecovery && <button type="button" className="cloud-return" disabled={!!busy || reportBusy} onClick={() => dirty ? setConfirmLeave('return') : onReturn()}><ArrowLeft size={17}/>Espacio de pruebas</button>}</header>
     <main className={`cloud-account-main ${showDashboard ? 'cloud-account-dashboard-main' : showAdmin ? 'cloud-account-admin-main' : ''}`}>
-      {(section !== 'workspace' || workspaceChecked && !workspaceReady && !workspaceError) && ownProfile?.enabled && !ownProfile.must_change_password && !passwordRecovery && ownProfile.role === 'admin' && !completingProfile && <nav className="admin-tabs" aria-label="Cuenta y administración"><button type="button" aria-current={section === 'profile' ? 'page' : undefined} disabled={!!busy || reportBusy} onClick={() => setSection('profile')}>Mi perfil</button><button type="button" aria-current={section === 'admin' ? 'page' : undefined} disabled={!!busy || dirty || reportBusy} onClick={() => setSection('admin')}>Gestión de Cuentas</button><button type="button" aria-current={section === 'dashboard' ? 'page' : undefined} disabled={!!busy || dirty || reportBusy} onClick={() => setSection('dashboard')}>Gestión de Inspecciones</button></nav>}
+      {(section !== 'workspace' || workspaceChecked && !workspaceReady && !workspaceError) && ownProfile?.enabled && !ownProfile.must_change_password && !passwordRecovery && ownProfile.role === 'admin' && !completingProfile && <nav className="admin-tabs" aria-label="Cuenta y administración"><button type="button" aria-current={section === 'profile' ? 'page' : undefined} disabled={!!busy || reportBusy} onClick={() => setSection('profile')}>Mi perfil</button><button type="button" aria-current={section === 'admin' ? 'page' : undefined} disabled={!!busy || dirty || reportBusy} onClick={() => setSection('admin')}>Gestión de Usuarios</button><button type="button" aria-current={section === 'dashboard' ? 'page' : undefined} disabled={!!busy || dirty || reportBusy} onClick={() => setSection('dashboard')}>Gestión de Inspecciones</button></nav>}
       {showDashboard ? <><InspectionDashboard actor={ownProfile!} cache={dashboardCache} isCurrent={() => sessionRef.current?.user.id === ownProfile!.id} onBusyChange={setReportBusy}/><button type="button" className="cloud-logout" disabled={!!busy || reportBusy} onClick={() => void logout()}><LogOut size={17}/>Cerrar sesión en este dispositivo</button></> : showAdmin ? <><CloudAdministration key={ownProfile!.id} actor={ownProfile!} cache={administrationCache} onBusyChange={setReportBusy} isCurrent={() => sessionRef.current?.user.id === ownProfile!.id} onSelfChange={next => { setProfile(next); setForm(fieldsOf(next)); if (next.role !== 'admin') { administrationCache.current = null; dashboardCache.current = null; setSection('profile'); } }}/><button type="button" className="cloud-logout" disabled={!!busy || reportBusy} onClick={() => void logout()}><LogOut size={17}/>Cerrar sesión en este dispositivo</button>{formError && <p role="alert" className="error-message cloud-message">{formError}</p>}</> : <section className="cloud-account-card" aria-busy={!ready || profileLoading || !!busy}>
         <div className="cloud-account-icon"><ShieldCheck size={27}/></div>
         {!ready ? <><h1 ref={heading} tabIndex={-1}>Tu cuenta</h1><p className="cloud-loading" role="status"><LoaderCircle size={18} className="spin"/>Comprobando tu sesión…</p></> : !session && recoveryRequest ? <>
@@ -266,7 +270,7 @@ export function CloudAccess({ exit, onReturn, onSessionChange, initialSection = 
           <form onSubmit={event => { event.preventDefault(); void save(); }}>
             <LockedEmailField label="Correo de tu cuenta" value={ownProfile.email}/>
             <Field label="Nombres y apellidos" required hint="Escribe nombres y apellidos con sus iniciales en mayúscula.">{props => <input {...props} autoComplete="name" autoCapitalize="words" required maxLength={250} disabled={!!busy} value={form.full_name} onChange={event => changeField('full_name', event.target.value)}/>}</Field>
-            <Field label="Área" required hint="Usa el nombre formal del área, con mayúscula inicial y respetando las siglas.">{props => <input {...props} required maxLength={250} disabled={!!busy} autoCapitalize="sentences" value={form.area} onChange={event => changeField('area', event.target.value)}/>}</Field>
+            <OrganizationFields management={form.management} area={form.area} supported={ownProfile.management !== undefined} disabled={!!busy} onChange={value => { setForm(previous => ({ ...previous, management: value.management, area: value.area })); setSaved(false); setFormError(''); }}/>
             <Field label="Puesto" required={completingProfile} hint="Usa el nombre formal del puesto, con mayúscula inicial y respetando las siglas.">{props => <input {...props} required={completingProfile} autoComplete="organization-title" maxLength={250} disabled={!!busy} autoCapitalize="sentences" value={form.job_title} onChange={event => changeField('job_title', event.target.value)}/>}</Field>
             {formError && <p role="alert" className="error-message cloud-message">{formError}</p>}
             {saved && <p role="status" className="cloud-saved"><Check size={16}/>Perfil guardado en tu cuenta.</p>}

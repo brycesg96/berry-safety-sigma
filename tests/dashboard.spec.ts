@@ -1,3 +1,4 @@
+import { selectSecondResponsible } from './responsible-fixture';
 import { selectValue } from './select-fixture';
 import { selectLocation } from './location-fixture';
 import { createHash } from 'node:crypto';
@@ -65,13 +66,13 @@ async function setup(page:Page,context:BrowserContext,admin=true) {
  return state;
 }
 async function panel(page:Page){await page.getByRole('button',{name:'Gestión de Inspecciones',exact:true}).click();await expect(page.locator('.dashboard-results tbody tr')).toHaveCount(3);}
-test('panel filtra estadísticas y consolidado por fecha, código, área, inspector adicional y responsable; Excel sin imágenes',async({page,context})=>{
+test('panel filtra estadísticas y consolidado por fecha, número de registro, área, inspector adicional y responsable; Excel sin imágenes',async({page,context})=>{
  const state=await setup(page,context);await panel(page);
  await selectValue(page.getByLabel('Inspector',{exact:true}), 'adicional@example.invalid');await expect(page.locator('.dashboard-results tbody tr')).toHaveCount(1);
  await page.getByRole('button',{name:'Limpiar filtros'}).click();await page.getByLabel('Desde',{exact:true}).fill('2026-11-01');await page.getByLabel('Hasta',{exact:true}).fill('2026-11-30');await expect(page.locator('.dashboard-results tbody tr')).toHaveCount(2);
  await selectValue(page.getByLabel('Área',{exact:true}), 'ss.gg');await expect(page.locator('.dashboard-results tbody tr')).toHaveCount(1);
  await selectValue(page.getByLabel('Responsable del área',{exact:true}), 'responsable@example.invalid');
- await page.getByLabel('Código de inspección').fill('001');
+ await page.getByLabel('Número de registro').fill('001');
  const download=page.waitForEvent('download');await page.getByRole('button',{name:'Descargar consolidado'}).click();const file=await download,path=(await file.path())!;
  const book=new ExcelJS.Workbook();await book.xlsx.readFile(path);const sheet=book.getWorksheet('Inspecciones')!;
  expect(sheet.rowCount).toBe(2);expect(sheet.getCell('A2').value).toBe('IH-2026-001');expect(sheet.getCell('F2').value).toContain('Inspectora adicional');expect(book.getWorksheet('Observaciones')!.rowCount).toBe(2);
@@ -100,19 +101,21 @@ test('cuenta sin administración no tiene pestaña ni consulta datos del panel',
  const state=await setup(page,context,false);await expect(page.getByRole('button',{name:'Gestión de Inspecciones',exact:true})).toHaveCount(0);expect(state.paths.some(path=>path.includes('berry_admin_'))).toBe(false);
 });
 
-test('administrador corrige un informe abierto con código y autor intactos, conserva el original ante un fallo y reintenta la misma edición',async({page,context})=>{
+test('administrador corrige un informe abierto con número de registro y autor intactos, conserva el original ante un fallo y reintenta la misma edición',async({page,context})=>{
  test.setTimeout(90000);const errors:string[]=[];page.on('pageerror',error=>errors.push(error.message));
  const state=await setup(page,context);state.editing=true;await panel(page);
  await page.locator('.dashboard-results tbody tr').filter({hasText:'IH-2026-001'}).getByRole('button',{name:'Revisar',exact:true}).click();
  await page.getByRole('button',{name:'Editar inspección',exact:true}).click();
  const editor=page.locator('.admin-inspection-editor');await expect(editor.getByRole('heading',{name:'Editar inspección',exact:true})).toBeVisible();
  await expect(editor.getByLabel('Responsable de la inspección')).toHaveAttribute('readonly','');
+ await editor.getByLabel('Fecha de inspección').fill('2026-11-12');
  await editor.getByRole('button',{name:'Actualizar sede y zona'}).click();
- await selectLocation(editor, 'Sede', 'Fundo');await selectLocation(editor, 'Zona de inspección', 'Armonía II');await editor.getByLabel('Área inspeccionada').fill('Taller de Maquinaria');
- await editor.locator('.responsibles').getByRole('combobox',{name:/Nombre completo/}).first().fill('Nueva');await page.getByRole('option',{name:/nueva@example.invalid/}).click();
+ await selectLocation(editor, 'Sede', 'Fundo');await selectLocation(editor, 'Zona de inspección', 'Armonía II');await editor.getByLabel('Área e instalación inspeccionada').fill('Taller de Maquinaria');
+ await editor.locator('.responsibles').getByRole('combobox',{name:/Nombre completo/}).first().fill('Nueva');await page.getByRole('option',{name:/nueva@example.invalid/}).click();await selectSecondResponsible(page,'admin@example.invalid');
  await page.setViewportSize({width:390,height:844});await page.screenshot({path:test.info().outputPath('editar-telefono.png'),fullPage:true});expect(await page.evaluate(()=>Array.from(document.querySelectorAll('main *')).filter(node=>node.getBoundingClientRect().right>innerWidth+1).map(node=>({tag:node.tagName,cls:node.className,right:node.getBoundingClientRect().right})).slice(0,15))).toEqual([]);
  await editor.getByRole('tab',{name:'Observaciones',exact:true}).click();await editor.getByLabel('Descripción').fill('Descripción corregida por administración');
  await editor.getByRole('tab',{name:'Cierre',exact:true}).click();await editor.getByRole('textbox',{name:'CONCLUSIONES Y RECOMENDACIONES',exact:true}).fill('Nuevo seguimiento verificado.');
+ await expect(editor.getByLabel('Fecha', { exact: true })).toHaveValue('2026-11-12');await expect(editor.getByLabel('Fecha', { exact: true })).not.toBeEditable();
  state.failEdit=true;await editor.getByRole('button',{name:'Guardar cambios',exact:true}).click();await expect(editor.getByRole('alert')).toContainText('El informe anterior se conserva');
  expect(state.rows[0].data.area).toBe('Maquinaria - Armonía 2');expect(state.rows[0].data.responsibles[0].personId).toBe(actor);
  expect(state.paths.filter(p=>p.endsWith('berry_prepare_admin_edit'))).toHaveLength(1);
@@ -122,24 +125,25 @@ test('administrador corrige un informe abierto con código y autor intactos, con
  expect(state.rows[0].code).toBe('IH-2026-001');expect(state.rows[0].author_id).toBe(other);expect(state.rows[0].data.inspector).toBe('Ana Torres');expect(state.rows[0].data.responsibles[0].name).toBe('Nueva Responsable');
  const download=page.waitForEvent('download');await page.getByRole('button',{name:'Descargar Excel',exact:true}).click();const book=new ExcelJS.Workbook();await book.xlsx.readFile((await (await download).path())!);const sheet=book.worksheets[0];expect(sheet.getCell('B5').text).toBe('IH-2026-001');expect(sheet.getCell('B11').text).toContain('Fundo – Armonía II – Taller de Maquinaria');
  expect(errors).toEqual([]);
+ expect(sheet.getCell('D11').text).toBe('12/11/2026');expect(sheet.getCell('H34').text).toBe('Fecha: 12/11/2026');
 });
 test('edición cancelada no escribe y un informe cerrado no ofrece editar',async({page,context})=>{
  const state=await setup(page,context);state.editing=true;await panel(page);
  await page.locator('.dashboard-results tbody tr').filter({hasText:'IH-2026-001'}).getByRole('button',{name:'Revisar',exact:true}).click();await page.getByRole('button',{name:'Editar inspección',exact:true}).click();
- await page.locator('.admin-inspection-editor').getByLabel('Área inspeccionada').fill('Edición descartada');
+ await page.locator('.admin-inspection-editor').getByLabel('Área e instalación inspeccionada').fill('Edición descartada');
  await page.locator('.admin-inspection-editor').getByRole('button',{name:'Cancelar',exact:true}).click();await page.getByRole('dialog').getByRole('button',{name:'Volver al informe',exact:true}).click();
  await expect(page.getByRole('heading',{name:'Maquinaria - Armonía 2',exact:true})).toBeVisible();expect(state.paths.some(p=>p.endsWith('berry_prepare_admin_edit'))).toBe(false);
  await page.getByRole('button',{name:'Volver',exact:true}).click();await page.locator('.dashboard-results tbody tr').filter({hasText:'IH-2026-003'}).getByRole('button',{name:'Revisar',exact:true}).click();await expect(page.getByRole('button',{name:'Editar inspección',exact:true})).toHaveCount(0);expect(state.editCalls).toBe(0);
 });
 
-test('eliminar desde la última columna confirma, conserva los otros códigos y actualiza estadísticas, filtros y caché',async({page,context})=>{
+test('eliminar desde la última columna confirma, conserva los otros números de registro y actualiza estadísticas, filtros y caché',async({page,context})=>{
  const state=await setup(page,context);await panel(page);await expect(page.getByText('Consolidado en Excel (.xlsx), sin imágenes.',{exact:true})).toHaveCount(0);
- expect(await page.locator('.dashboard-results th').allTextContents()).toEqual(['Código / Fecha','Área inspeccionada','Inspector','Responsable del área','Estado','Descargas','Eliminar']);
+ expect(await page.locator('.dashboard-results th').allTextContents()).toEqual(['Número de registro / Fecha','Área e instalación inspeccionada','Inspector','Responsable del área','Estado','Descargas','Eliminar']);
  const first=page.locator('.dashboard-results tbody tr').filter({hasText:'IH-2026-002'});await first.getByRole('button',{name:'Eliminar inspección IH-2026-002',exact:true}).click();const dialog=page.getByRole('dialog',{name:'Eliminar inspección',exact:true});await expect(dialog).toContainText('Su número permanecerá reservado');await dialog.getByRole('button',{name:'Cancelar',exact:true}).click();expect(state.deletes).toHaveLength(0);
  await first.getByRole('button',{name:'Eliminar inspección IH-2026-002',exact:true}).click();state.deleteFailure=true;await dialog.getByRole('button',{name:'Eliminar inspección',exact:true}).click();await expect(dialog.getByRole('alert')).toContainText('Actualiza el panel');await expect(first).toHaveCount(1);
  state.deleteFailure=false;await dialog.getByRole('button',{name:'Eliminar inspección',exact:true}).click();await expect(dialog).toHaveCount(0);await expect(page.locator('.dashboard-results tbody tr')).toHaveCount(2);await expect(page.getByRole('status')).toContainText('IH-2026-002 eliminada');
  expect(state.rows.map(r=>r.code)).toEqual(['IH-2026-001','IH-2026-003']);await expect(page.getByRole('button',{name:'Filtrar mes 2026-12: 1 inspecciones',exact:true})).toHaveCount(0);
- const download=page.waitForEvent('download');await page.getByRole('button',{name:'Descargar consolidado'}).click();const book=new ExcelJS.Workbook();await book.xlsx.readFile((await (await download).path())!);expect(book.getWorksheet('Inspecciones')!.getColumn(1).values.filter(Boolean)).toEqual(['Código','IH-2026-001','IH-2026-003']);
+ const download=page.waitForEvent('download');await page.getByRole('button',{name:'Descargar consolidado'}).click();const book=new ExcelJS.Workbook();await book.xlsx.readFile((await (await download).path())!);expect(book.getWorksheet('Inspecciones')!.getColumn(1).values.filter(Boolean)).toEqual(['Número de registro','IH-2026-001','IH-2026-003']);
  await page.getByRole('button',{name:'Mi perfil',exact:true}).click();await page.getByRole('button',{name:'Gestión de Inspecciones',exact:true}).click();await expect(page.locator('.dashboard-results tbody tr')).toHaveCount(2);await expect(page.getByText('IH-2026-002',{exact:true})).toHaveCount(0);
 });
 

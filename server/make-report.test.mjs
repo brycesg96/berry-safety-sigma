@@ -18,25 +18,56 @@ async function api(t,options={}){
  const send=async(input=body(),headers={})=>{const response=await fetch(`http://127.0.0.1:${server.address().port}${REPORT_PATH}`,{method:'POST',headers:{'Content-Type':'application/json',Origin:'https://berry.example',Authorization:`Bearer ${token}`,'Idempotency-Key':input.inspection?.id || randomUUID(),...headers},body:JSON.stringify(input)});return{status:response.status,data:await response.json()};};
  return{calls,send};
 }
+test('el autor aparece una vez en Para y conserva las asignaciones aunque figure también en CC',()=>{
+ const input=body();input.inspection.cc.push('ANA@example.com','ana@example.com');
+ const report=reportPayload(input),p=report.payload;
+ assert.deepEqual(p.destinatarios.para,['uno@example.com','dos@example.com','ana@example.com']);
+ assert.deepEqual(p.destinatarios.cc,['jefe@example.com','gerente@example.com']);
+ assert.deepEqual(p.outlook.cc,[{address:'jefe@example.com',name:''},{address:'gerente@example.com',name:''}]);
+ assert.equal(p.responsables.length,2);assert.ok(!p.responsables.some(person=>person.correo==='ana@example.com'));
+ input.inspection.responsibles.push({name:'Ana',email:'ANA@example.com'});
+ const alreadyAssigned=reportPayload(input).payload;
+ assert.equal(alreadyAssigned.destinatarios.para.filter(email=>email==='ana@example.com').length,1);
+ assert.equal(alreadyAssigned.outlook.para.filter(person=>person.address==='ana@example.com').length,1);
+ assert.ok(!alreadyAssigned.destinatarios.cc.includes('ana@example.com'));
+});
+test('cincuenta responsables conservan sus destinatarios y reciben la constancia junto al autor',()=>{
+ const input=body();input.inspection.responsibles=Array.from({length:50},(_,i)=>({name:`Responsable ${i}`,email:`persona${i}@example.com`}));
+ const p=reportPayload(input).payload;
+ assert.equal(p.responsables.length,50);assert.equal(p.destinatarios.para.length,51);
+ assert.equal(p.destinatarios.para.at(-1),'ana@example.com');
+});
+test('redacción anual separa al responsable de un único compañero SIGMA y usa datos del registro',()=>{
+ const input=body();input.inspection.area='Fundo – Área de prueba – Armonía II – Taller';
+ input.inspection.inspectors=[input.inspection.inspector,{name:'Luis <Sigma>',email:'luis@example.com'}];
+ const html=reportPayload(input).payload.cuerpo_html;
+ assert.ok(html.includes('Se ha registrado una inspección interna de seguridad y salud en el trabajo acorde a nuestro Programa Anual de Inspecciones, correspondiente a:'));
+ assert.ok(html.includes('<strong>Área e instalación inspeccionada:</strong> Fundo – Área de prueba – Armonía II – Taller'));
+ assert.ok(html.includes('<strong>Fecha de inspección:</strong> 04.11.2026'));
+ assert.ok(html.includes('<strong>Responsable de la inspección:</strong> Ana'));
+ assert.ok(html.includes('<strong>Compañero SIGMA:</strong> Luis &lt;Sigma&gt;'));
+ assert.ok(!html.includes('Compañero SIGMA:</strong> Ana'));
+ assert.ok(html.includes('Berry Safety – Seguridad Industrial y Gestión Medio Ambiental'));
+});
 test('informe: Para y CC deduplicados, HTML general escapado y XLSX real adjunto; sin confirmar Outlook',async t=>{
  const {send,calls}=await api(t);const input=body();const result=await send(input);
  assert.equal(result.status,200);assert.equal(result.data.email_requested,true);assert.equal(result.data.outlook_status,'not_confirmed');
  const p=JSON.parse(calls[0].request.body);
  assert.equal(p.mode,'inspection');assert.equal(p.send_email,true);assert.equal(p.codigo_reservado,false);
- assert.deepEqual(p.destinatarios,{para:['uno@example.com','dos@example.com'],cc:['jefe@example.com','gerente@example.com'],cco:[]});
- assert.deepEqual(p.outlook.para,[{address:'uno@example.com',name:'Persona Uno'},{address:'dos@example.com',name:'Persona Dos'}]);
- assert.ok(p.cuerpo_html.includes('Taller &lt;Armonía&gt; / Armonía 2'));assert.ok(p.cuerpo_html.includes('Excel adjunto'));
- assert.ok(p.cuerpo_html.includes('<strong>Compañero SIGMA:</strong> Ana'));assert.ok(p.cuerpo_html.includes('04.11.2026'));
+ assert.deepEqual(p.destinatarios,{para:['uno@example.com','dos@example.com','ana@example.com'],cc:['jefe@example.com','gerente@example.com'],cco:[]});
+ assert.deepEqual(p.outlook.para,[{address:'uno@example.com',name:'Persona Uno'},{address:'dos@example.com',name:'Persona Dos'},{address:'ana@example.com',name:'Ana'}]);
+ assert.ok(p.cuerpo_html.includes('Taller &lt;Armonía&gt;'));assert.ok(p.cuerpo_html.includes('Excel adjunto'));
+ assert.ok(p.cuerpo_html.includes('<strong>Responsable de la inspección:</strong> Ana'));assert.ok(!p.cuerpo_html.includes('Compañero SIGMA'));assert.ok(p.cuerpo_html.includes('04.11.2026'));
  assert.equal(p.adjuntos[0].contenido_base64,input.attachment.contentBase64);assert.equal(p.adjuntos[0].nombre,'REG_INS_TALLER ARMONÍA_04.11.2026.xlsx');
  assert.ok(!JSON.stringify(result.data).includes(env.MAKE_WEBHOOK_URL));assert.equal(calls[0].request.headers.Authorization,undefined);
 });
-test('el cuerpo menciona los tres compañeros SIGMA sin convertirlos en destinatarios y rechaza equipos inválidos',async t=>{
+test('el correo incluye al autor en Para y menciona a los inspectores adicionales sin añadirlos como destinatarios',async t=>{
  const {send,calls}=await api(t);const input=body();
  input.inspection.inspectors=[input.inspection.inspector,{name:'Luis <SST>',email:'luis@example.com'},{name:'María & José',email:'maria@example.com'}];
  assert.equal((await send(input)).status,200);
  const p=JSON.parse(calls[0].request.body);
- assert.ok(p.cuerpo_html.includes('<strong>Compañeros SIGMA:</strong> Ana, Luis &lt;SST&gt; y María &amp; José'));
- assert.deepEqual(p.destinatarios.para,['uno@example.com','dos@example.com']);
+ assert.ok(p.cuerpo_html.includes('<strong>Compañeros SIGMA:</strong> Luis &lt;SST&gt; y María &amp; José'));
+ assert.deepEqual(p.destinatarios.para,['uno@example.com','dos@example.com','ana@example.com']);
  assert.equal(p.inspectores.length,3);
  const four=body();four.inspection.inspectors=[four.inspection.inspector,...Array.from({length:3},(_,i)=>({name:`Inspector ${i}`,email:`team${i}@example.com`}))];assert.equal((await send(four)).status,200);
  const duplicated=body();duplicated.inspection.inspectors=[duplicated.inspection.inspector,duplicated.inspection.inspector];

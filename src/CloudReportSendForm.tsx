@@ -9,19 +9,21 @@ import { supabaseClient } from './supabase';
 import { mailEndpoint } from './mail-api';
 import type { Inspection } from './model';
 import { validateStep } from './model';
+import { completeInspectionCause } from './registration';
 
 export function CloudReportSendForm({ inspection, actorId, onChange, onBusyChange, onSave }: { inspection: Inspection; actorId: string; onChange: (inspection: Inspection) => void; onBusyChange?: (busy: boolean) => void; onSave?: () => Promise<Inspection> }) {
   const [busy, setBusy] = useState(false), [error, setError] = useState('');
   const lock = useRef(false), accounts = useContext(AccountDirectory);
-  const cc = inspection.emailCc || inspectionCopies(inspection.responsibles, accounts || []);
+  const cc = (inspection.emailCc || inspectionCopies(inspection.responsibles, accounts || [])).filter(email => email.toLowerCase() !== inspection.inspectorEmail.toLowerCase());
   const send = async () => {
     if (lock.current) return;
     lock.current = true; setBusy(true); onBusyChange?.(true); setError('');
     try {
       let input: { inspectionId: string; expectedRevision?: number; contentBase64?: string } = { inspectionId: inspection.id };
       if (!inspection.delivery) {
-        for (const step of [0,1,3]) if (Object.keys(validateStep(inspection, step)).length) throw new Error('Completa los datos de la inspección antes de enviarla.');
-        const saved = onSave ? await onSave() : await persistCloudInspection(inspection);
+        const completed = completeInspectionCause(inspection);
+        for (const step of [0,1,3]) if (Object.keys(validateStep(completed, step)).length) throw new Error('Completa los datos de la inspección antes de enviarla.');
+        const saved = onSave ? await onSave() : await persistCloudInspection(completed);
         const file = await buildExcel(saved);
         if (file.bytes.length > 3 * 1024 * 1024) throw new Error('El Excel supera 3 MB. Reduce las fotografías antes de enviar.');
         let binary = ''; for (let i = 0; i < file.bytes.length; i += 32768) binary += String.fromCharCode(...file.bytes.subarray(i, i + 32768));
@@ -44,5 +46,5 @@ export function CloudReportSendForm({ inspection, actorId, onChange, onBusyChang
       } catch { /* The original draft remains available for a retry. */ }
     } finally { lock.current = false; setBusy(false); onBusyChange?.(false); }
   };
-  return <div className="report-send-form"><p>{inspection.delivery ? inspection.emailDelivery?.message || 'El informe está guardado. Puedes comprobar el envío sin generar otro código ni repetir un correo ya solicitado.' : 'Las personas indicadas recibirán la inspección en su cuenta y el registro en formato Excel (.xlsx) adjunto al correo.'}</p><p><strong>Administradores (CC):</strong> {cc.length ? cc.join(', ') : 'Sin correos asociados'}</p><button type="button" className="button button-primary full-width" disabled={busy || cc.length > 50} onClick={() => void send()}>{busy ? <LoaderCircle className="spin" size={17}/> : <Send size={17}/>} {busy ? 'Comprobando…' : inspection.delivery ? 'Comprobar envío' : 'Enviar informe por correo'}</button>{cc.length > 50 && <p className="error-message" role="alert">Se permiten hasta 50 correos en copia.</p>}{error && <p className="notice notice-error" role="alert">{error}</p>}</div>;
+  return <div className="report-send-form"><p>{inspection.delivery ? inspection.emailDelivery?.message || 'El informe está guardado. Puedes comprobar el envío sin generar otro número de registro ni repetir un correo ya solicitado.' : 'Las personas indicadas recibirán la inspección en su cuenta y el registro en formato Excel (.xlsx) adjunto al correo.'}</p>{!inspection.delivery && <p>El correo también se enviará a <strong>{inspection.inspectorEmail}</strong> en Para.</p>}<p><strong>Partes interesadas (cc):</strong> {cc.length ? cc.join(', ') : 'Sin correos asociados'}</p><button type="button" className="button button-primary full-width" disabled={busy || cc.length > 50} onClick={() => void send()}>{busy ? <LoaderCircle className="spin" size={17}/> : <Send size={17}/>} {busy ? 'Comprobando…' : inspection.delivery ? 'Comprobar envío' : 'Enviar informe por correo'}</button>{cc.length > 50 && <p className="error-message" role="alert">Se permiten hasta 50 correos en copia.</p>}{error && <p className="notice notice-error" role="alert">{error}</p>}</div>;
 }

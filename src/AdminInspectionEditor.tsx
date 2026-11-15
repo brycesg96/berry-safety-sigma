@@ -2,7 +2,7 @@ import { Select } from './Select';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { ArrowLeft, Camera, Check, ImagePlus, LoaderCircle, Plus, Save, Trash2, X } from 'lucide-react';
 import type { Inspection, Observation, Evidence } from './model';
-import { newObservation, patchInspectionField, preparePhoto, setObservationClosingDate, validateStep } from './model';
+import { newObservation, newResponsible, patchInspectionField, preparePhoto, setObservationClosingDate, validateStep } from './model';
 import type { CloudProfile } from './cloud-account';
 import type { DemoAccount } from './accounts';
 import { AccountDirectory } from './AccountDirectory';
@@ -10,7 +10,7 @@ import { GeneralSection } from './GeneralSection';
 import { ClosingSection } from './ClosingSection';
 import { Badge, Field, Modal } from './components';
 import { PhotoViewer } from './PhotoViewer';
-import { registrationParticipantsOf } from './registration';
+import { registrationParticipantsOf, completeInspectionCause } from './registration';
 import { confirmedInspectionCode } from './inspection-code';
 import { adminEditPeople, AdminEditError, finishAdminEdit, prepareAdminEdit } from './admin-edit';
 import type { PreparedAdminEdit } from './admin-edit';
@@ -18,7 +18,7 @@ import './admin-edit.css';
 
 type Props = { inspection: Inspection; actor: CloudProfile; isCurrent: () => boolean; onCancel: () => void; onSaved: (inspection: Inspection) => void; onBusyChange: (busy: boolean) => void };
 export function AdminInspectionEditor({ inspection, actor, isCurrent, onCancel, onSaved, onBusyChange }: Props) {
-  const [draft, setDraft] = useState<Inspection>(() => ({ ...inspection, registrationParticipants: registrationParticipantsOf(inspection) }));
+  const [draft, setDraft] = useState<Inspection>(() => ({ ...inspection, responsibles: [...inspection.responsibles, ...Array.from({ length: Math.max(0, 2 - inspection.responsibles.length) }, newResponsible)], registrationParticipants: registrationParticipantsOf(inspection) }));
   const baseline = useRef(JSON.stringify(draft)), live = useRef(true), current = useRef(isCurrent); current.current = isCurrent;
   const [people, setPeople] = useState<DemoAccount[] | null>(null), [section, setSection] = useState(0), [errors, setErrors] = useState<Record<string, string>>({});
   const [error, setError] = useState(''), [busy, setBusy] = useState(false), [photoBusy, setPhotoBusy] = useState<string | null>(null);
@@ -47,15 +47,17 @@ export function AdminInspectionEditor({ inspection, actor, isCurrent, onCancel, 
   }
   async function save() {
     if (busy || photoBusy || signatureBusy.length) return;
+    const completed = completeInspectionCause(draft);
     if (!prepared) {
+      if (completed !== draft) setDraft(completed);
       for (const step of [0, 1, 3]) {
-        const found = validateStep(draft, step);
+        const found = validateStep(completed, step);
         if (Object.keys(found).length) { setErrors(found); setSection(step === 3 ? 2 : step); setError('Completa los campos indicados antes de guardar.'); window.scrollTo({ top: 0 }); return; }
       }
     }
     setBusy(true); setError('');
     try {
-      const candidate = prepared || await prepareAdminEdit(draft, actor.id);
+      const candidate = prepared || await prepareAdminEdit(completed, actor.id);
       if (!live.current || !current.current()) return;
       setPrepared(candidate);
       const updated = await finishAdminEdit(candidate, actor.id);
@@ -80,7 +82,7 @@ export function AdminInspectionEditor({ inspection, actor, isCurrent, onCancel, 
         <div className="evidence-label"><span>Evidencia fotográfica</span><span>{item.photos.length} / 8</span></div><div className="photos-grid">{item.photos.map((photo, photoIndex) => <div className="photo-thumb" key={photo.id}><button type="button" className="photo-preview" aria-label={`Ver foto ${photoIndex + 1} de observación ${index + 1}`} onClick={() => setPreview(photo)}><img src={photo.data} alt={photo.name}/></button><button type="button" className="photo-remove" aria-label={`Eliminar foto ${photoIndex + 1} de observación ${index + 1}`} onClick={() => observation(item.id, { photos: item.photos.filter(p => p.id !== photo.id) })}><X size={13}/></button></div>)}{item.photos.length < 8 && <label className="upload-zone upload-small">{photoBusy === item.id ? <LoaderCircle className="spin" size={22}/> : <ImagePlus size={22}/>}<strong>Añadir fotos</strong><input type="file" multiple accept="image/jpeg,image/png,image/webp" disabled={!!photoBusy} aria-label={`Añadir fotos a observación ${index + 1}`} onChange={e => { void photos(item, e.target.files); e.target.value = ''; }}/></label>}</div></div></div></section>)}
         {!draft.observations.length && <p className="inline-note"><Camera size={18}/>Añade al menos una observación.</p>}<button type="button" className="add-observation" onClick={() => patch('observations', [...draft.observations, newObservation(draft.defaultClosingDate)])}><Plus size={18}/>Añadir observación</button>{errors.observations && <p className="error-message" role="alert">{errors.observations}</p>}
       </div>}
-      {section === 2 && <ClosingSection draft={draft} errors={errors} patch={patch} onRegistrationChange={(id, value) => setDraft(old => ({ ...old, registrationDetails: { ...old.registrationDetails, [id]: value } }))} onRegistrationBusy={signatureStatus}/>}
+      {section === 2 && <ClosingSection draft={draft} errors={errors} patch={patch} onRegistrationChange={(id, value) => setDraft(old => ({ ...old, registrationDetails: { ...old.registrationDetails, [id]: { ...value, date: old.date } } }))} onRegistrationBusy={signatureStatus}/>}
       </div></fieldset></AccountDirectory.Provider>}
     <div className="admin-edit-footer"><button type="button" className="button button-outline" disabled={busy || !!photoBusy || signatureBusy.length > 0} onClick={() => dirty || prepared ? setDiscard(true) : onCancel()}>Cancelar</button><button type="button" className="button button-primary" disabled={!people || busy || !!photoBusy || signatureBusy.length > 0 || !dirty && !prepared} onClick={() => void save()}>{busy ? <LoaderCircle className="spin" size={17}/> : <Save size={17}/>} {busy ? 'Guardando informe y Excel…' : prepared ? 'Reintentar guardado' : 'Guardar cambios'}</button></div>
     {preview && <PhotoViewer photo={preview} onClose={() => setPreview(null)} onSave={async photo => { setDraft(old => ({ ...old, observations: old.observations.map(item => ({ ...item, photos: item.photos.map(p => p.id === photo.id ? photo : p) })) })); setPreview(photo); }}/> }

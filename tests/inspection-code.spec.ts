@@ -14,16 +14,16 @@ test('formato IH, año Lima, secuencia de tres dígitos mínimos y sin vuelta a 
   expect(() => formatInspectionCode(2026, 1.5)).toThrow();
 });
 
-test('código no editable en dos navegadores; borradores no consumen correlativos', async ({ browser }) => {
+test('número de registro no editable en dos navegadores; borradores no consumen correlativos', async ({ browser }) => {
   const first = await browser.newContext({ baseURL: test.info().project.use.baseURL }), second = await browser.newContext({ baseURL: test.info().project.use.baseURL });
   try {
     for (const context of [first, second]) {
       const page = await context.newPage(); await page.goto('./');
-      await expect(page.getByRole('textbox', { name: 'Código de inspección', exact: true })).toHaveAttribute('readonly', '');
-      await expect(page.getByRole('textbox', { name: 'Código de inspección', exact: true })).toHaveValue(/^IH-\d{4}-001$/);
-      const help = page.getByRole('button', { name: 'Información del código de inspección', exact: true });
+      await expect(page.getByRole('textbox', { name: 'Número de registro', exact: true })).toHaveAttribute('readonly', '');
+      await expect(page.getByRole('textbox', { name: 'Número de registro', exact: true })).toHaveValue(/^IH-\d{4}-001$/);
+      const help = page.getByRole('button', { name: 'Información del número de registro', exact: true });
       await help.focus();
-      await expect(page.getByText(/El código es tentativo y puede variar según quién envíe primero/)).toBeVisible();
+      await expect(page.getByText(/El número de registro es tentativo y puede variar según quién envíe primero/)).toBeVisible();
       await help.press('Escape');
       await expect(page.getByRole('tooltip')).toBeHidden();
     }

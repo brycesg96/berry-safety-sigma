@@ -23,6 +23,13 @@ test('desactivado por defecto; health no expone configuración', async t => {
   assert.equal((await send()).status, 503); assert.equal(calls.length, 0);
   assert.deepEqual(await (await fetch(base + '/healthz')).json(), { status: 'ok' });
 });
+test('health identifica la revisión desplegada sin exponer credenciales', async t => {
+  const revision = 'a'.repeat(40);
+  const { base } = await api(t, { env: { ...env, RENDER_GIT_COMMIT: revision } });
+  assert.deepEqual(await (await fetch(base + '/healthz')).json(), { status: 'ok', revision });
+  const invalid = await api(t, { env: { ...env, RENDER_GIT_COMMIT: 'not-a-commit' } });
+  assert.deepEqual(await (await fetch(invalid.base + '/healthz')).json(), { status: 'ok' });
+});
 test('configuración HTTPS de Make, token fuerte y orígenes exactos', () => {
   assert.equal(loadConfig(env).webhook, webhook);
   for (const value of ['http://hook.us2.make.com/private', 'https://evil.example/private', 'https://hook.us2.make.com/private?key=secret', 'https://user:secret@hook.us2.make.com/private']) assert.throws(() => loadConfig({ ...env, MAKE_WEBHOOK_URL: value }), /webhook HTTPS válido/);

@@ -2,13 +2,17 @@
 
 ## Qué está conectado
 
-Enviar inspección abre un formulario de envío real con los responsables elegidos como destinatarios Para. El administrador puede asociar correos de jefes o gerentes a cada cuenta en Administración → Cuentas permitidas → Correos de jefes y gerentes (CC). Son direcciones para copia, no altas de usuarios ni permisos. Se validan y deduplican; quienes ya estén en Para no se repiten en CC. La lista de CC se fija en el primer intento de correo del informe y se conserva en intentos posteriores.
+En cada envío real, **Para** incluye a los responsables seleccionados y al autor de la inspección, una sola vez por correo. Si el autor ya está asignado como responsable o figura entre las partes interesadas, se conserva una única entrada en Para y se excluye de CC. Los inspectores adicionales se mantienen en el informe; esta regla añade como constancia únicamente al autor principal.
+
+**Partes interesadas (cc)** contiene las demás direcciones en copia. Recibir la constancia no añade asignaciones ni permisos en la plataforma. Se conservan el adjunto, número de registro, huella del contenido e idempotencia del informe. Make sigue recibiendo las colecciones `outlook.para` y `outlook.cc` y sus equivalentes en `destinatarios`. Para aplicar esta regla en producción se debe desplegar la versión actualizada del backend de Render junto con la web.
+
+Las partes interesadas se configuran en **Gestión de Usuarios → Administrar usuarios → Partes interesadas (cc)**. Se validan y deduplican; las direcciones de Para no se repiten en CC. La lista de copias se fija en el primer intento de correo del informe y se conserva en intentos posteriores.
 
 El navegador genera el mismo Excel que usa Descargar Excel, con la plantilla entregada por el propietario, observaciones, fotografías, cierre y responsables del registro. No se asigna ni consume un código IH definitivo al enviar. La numeración central sigue pendiente.
 
 La web llama al backend Node por HTTPS: `POST /api/inspections/send`. La URL privada de Make permanece en `MAKE_WEBHOOK_URL` del servidor. El backend valida los campos, genera un mensaje HTML general y asunto, y envía el Excel en base64 con los destinatarios. No utiliza el cuerpo HTML aportado por un navegador.
 
-El asunto indica área y fecha. El cuerpo utiliza la redacción del propietario, pide revisar el Excel adjunto y muestra área, instalación, fecha y hasta tres compañeros SIGMA. Las observaciones detalladas están en el Excel, no en el mensaje.
+El asunto indica área y fecha. El cuerpo menciona el Programa Anual de Inspecciones, muestra el área e instalación inspeccionada y la fecha del registro, identifica al autor como Responsable de la inspección y lista únicamente a los inspectores adicionales como Compañero SIGMA o Compañeros SIGMA. Si no hay adicionales, omite esa línea. Cierra con Berry Safety – Seguridad Industrial y Gestión Medio Ambiental. Las observaciones detalladas se conservan en el Excel adjunto.
 
 ## Configuración en Make
 
@@ -64,34 +68,19 @@ Los interruptores globales `MAKE_REPORTS_ENABLED` y `MAKE_TEST_ENABLED` siguen f
 
 La API de sesiones anterior se conserva por compatibilidad durante el despliegue, pero la web nueva no la utiliza ni guarda credenciales o tokens de correo en el navegador. El bloqueo de activación que deshabilitaba Enviar informe por correo fue retirado completamente.
 
-## Cuerpo del correo acordado
+## Redacción vigente del correo
 
-Se ha registrado una inspección de seguridad y salud en el trabajo correspondiente a:
+Se ha registrado una inspección interna de seguridad y salud en el trabajo acorde a nuestro Programa Anual de Inspecciones, correspondiente a:
 
-**Área e instalación:** [Área] / [Instalación]
+- **Área e instalación inspeccionada:** ubicación del registro.
+- **Fecha de inspección:** fecha del registro en formato dd.mm.aaaa.
+- **Responsable de la inspección:** nombre completo del autor.
+- **Compañero SIGMA / Compañeros SIGMA:** segundo inspector y siguientes, si los hay.
 
-**Fecha de inspección:** [DD.MM.AAAA]
+Encontrarán el registro de la inspección en el archivo Excel adjunto. Por favor, revisen los hallazgos y gestionen las acciones propuestas para su atención y seguimiento.
 
-**Compañeros SIGMA:** [Nombre 1], [Nombre 2] y [Nombre 3]
+**Berry Safety – Seguridad Industrial y Gestión Medio Ambiental**
 
-Encontrarán el registro de la inspección en el **archivo Excel adjunto**. Por favor, revisen los hallazgos y gestionen las acciones propuestas para su atención y seguimiento.
+La fecha y los nombres son dinámicos. Los datos se escapan antes de generar HTML; el autor no se repite en la línea de compañeros. Los destinatarios y el adjunto conservan el flujo de registro y envío existente.
 
-**Berry Safety**
-
-Estos valores se rellenan automáticamente. Con una sola persona se usa «Compañero SIGMA»; con dos o tres, «Compañeros SIGMA». Se utiliza el mismo equipo del apartado Realizado por, incluido el autor, y esos participantes no se añaden automáticamente como destinatarios. `inspection.inspectors` admite de una a tres personas distintas, empezando por el autor; los clientes anteriores que omiten el campo conservan la mención del inspector principal.
-
-Si la inspección no tiene una instalación separada, se muestra solo el área y se omite la barra. El HTML conserva el escape de los datos de área, instalación y compañeros. El cuerpo ya no incluye saludo, «BR Sigma» ni el aviso de código pendiente. Make sigue usando `cuerpo_html`, sin modificar el mapeo. La nueva redacción requiere desplegar la última versión del backend en Render.
-
-El asunto se conserva: `Informe de inspección de seguridad - [Área] - [AAAA-MM-DD]`.
-
-## Plantilla y textos reutilizables (6 de noviembre de 2026)
-
-El Excel usa el formato entregado por el propietario, con su hoja de valoración, tamaños y ajustes de impresión. Descarga y adjunto usan el mismo generador. El nombre se deriva tanto en navegador como en API con `shared/report-filename.mjs`: `REG_INS_ÁREA EN MAYÚSCULAS_DD.MM.AAAA.xlsx`, tomando la fecha de inspección. El Dockerfile incluye esa carpeta compartida.
-
-Desde el 11 de noviembre, objetivo, descripción de la causa y conclusiones se reutilizan por cuenta. Una cuenta sin historial propio empieza con los tres campos vacíos. Solo Guardar o confirmar el envío con éxito actualiza los textos recordados; escribir sin guardar no lo hace. Los borradores existentes conservan su contenido y los informes recibidos nunca proporcionan textos para nuevas inspecciones. En otra sesión se recuperan de los registros guardados del autor. La copia del navegador también está separada por identificador de cuenta y se ignora la antigua copia global sin dueño verificable.
-
-La consulta histórica de solo lectura `POST /api/inspections/send` con `{ "action": "inspection.defaults" }` permanece disponible por compatibilidad, pero la interfaz actual no la consume ni consulta `berry_shared_texts`. No se requiere migración SQL para separar los textos de las cuentas. Las precargas sin otras modificaciones no generan borradores vacíos.
-
-El servidor conserva por compatibilidad el recibo y los textos históricos de informes aceptados por Make en SQLite. Una consulta, un rechazo o un reintento de un ID ya recibido no sustituye ese registro. La aceptación de Make sigue sin confirmar entrega a Outlook. Esta copia histórica compartida no se utiliza para completar formularios actuales.
-
-El SQLite del prototipo vive por defecto en `/tmp` y Render puede eliminarlo al sustituir la instancia. Los textos personales del espacio de trabajo autenticado se recuperan de las inspecciones guardadas en Supabase, sin depender de esa copia histórica de SQLite.
+`inspection.inspectors` conserva el autor en primer lugar y admite hasta tres inspectores adicionales. El autor recibe la constancia en Para. Los adicionales se mencionan en el cuerpo y se envían como destinatarios únicamente cuando también están asignados expresamente.

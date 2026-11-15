@@ -1,3 +1,5 @@
+import { selectSecondResponsible } from './responsible-fixture';
+import { inspectionFilterButton, selectInspectionFilter } from './list-filter-fixture';
 import { selectValue } from './select-fixture';
 import { selectLocation } from './location-fixture';
 import { test, expect } from '@playwright/test';
@@ -13,13 +15,18 @@ async function switchTo(page: Page, id: string) {
 }
 async function createReport(page: Page) {
   await page.goto('./');
-  await page.getByLabel('Área inspeccionada').fill('Taller - Armonía 2');
+  await page.evaluate(async () => {
+    const { readAccounts, addAccount } = await import('/src/accounts.ts');
+    if (!readAccounts().some(account => account.email === 'correction@example.invalid')) addAccount('demo-admin', { name: 'Encargada del levantamiento', email: 'correction@example.invalid', role: 'inspector' });
+  });
+  await page.getByLabel('Área e instalación inspeccionada').fill('Taller - Armonía 2');
   await selectLocation(page, 'Sede', 'Fundo'); await selectLocation(page, 'Zona de inspección', 'Armonía II');
   await page.getByLabel('Hora de inspección').fill('07:30'); await selectValue(page.getByLabel('AM o PM'), 'AM');
   await page.getByRole('radio', { name: 'Planeada', exact: true }).check();
   await page.getByRole('textbox', { name: 'Objetivo de la inspección interna', exact: true }).fill('Verificar las condiciones de seguridad.');
-  await page.getByRole('combobox', { name: /Nombre completo/ }).fill('bcespedes@hortifrut.com');
+  await page.getByRole('combobox', { name: /Nombre completo/ }).first().fill('bcespedes@hortifrut.com');
   await page.getByRole('listbox').getByRole('option', { name: /bcespedes@hortifrut.com/ }).click();
+  await selectSecondResponsible(page, 'correction@example.invalid');
   await page.getByRole('button', { name: 'Continuar', exact: true }).click();
   for (let i = 0; i < 2; i++) {
     await page.getByRole('button', { name: 'Añadir observación', exact: true }).click();
@@ -40,30 +47,30 @@ async function createReport(page: Page) {
   await expect(page.getByRole('heading', { name: 'Fundo – Armonía II – Taller - Armonía 2', exact: true })).toBeVisible();
 }
 async function openReceived(page: Page) {
-  await page.getByRole('button', { name: 'Inspecciones recibidas', exact: true }).click();
+  await page.getByRole('button', { name: 'Inspecciones asignadas', exact: true }).click();
   await page.getByRole('button', { name: 'Revisar inspección', exact: true }).click();
 }
 async function openReview(page: Page) {
   await page.getByRole('button', { name: 'Mis inspecciones', exact: true }).click();
   await expect(page.getByRole('button', { name: 'Mis inspecciones', exact: true }).locator('.nav-count')).toHaveText('1');
-  await selectValue(page.getByLabel('Filtrar por estado'), 'review');
+  await selectInspectionFilter(page, 'review');
   await page.getByRole('button', { name: 'Revisar informe', exact: true }).click();
 }
 test('destinatario envía evidencias, autor pide ajustes y cierra solo al aprobar todos los hallazgos', async ({ page }) => {
   test.setTimeout(90000);
   const errors: string[] = []; page.on('pageerror', e => errors.push(e.message));
   await page.goto('./');
-  await page.getByRole('button', { name: 'Inspecciones recibidas', exact: true }).click();
-  await expect(page.getByText('No tienes inspecciones recibidas')).toBeVisible();
+  await page.getByRole('button', { name: 'Inspecciones asignadas', exact: true }).click();
+  await expect(page.getByText('No tienes inspecciones asignadas')).toBeVisible();
   await createReport(page);
   const breadcrumb = page.getByRole('navigation', { name: 'Ruta de navegación' });
-  await expect(breadcrumb.locator('li')).toHaveText(['Espacio de trabajo', 'Mis inspecciones', 'En levantamiento']);
+  await expect(breadcrumb.locator('li')).toHaveText(['Espacio de trabajo', 'Mis inspecciones', 'Pendientes de atención']);
   await expect(page.getByRole('button', { name: 'Mis inspecciones', exact: true })).toHaveClass(/active/);
   await expect(page.getByRole('button', { name: 'Descargar PDF', exact: true })).toHaveCount(0);
   await switchTo(page, 'demo-inspector');
-  await expect(page.getByRole('button', { name: 'Inspecciones recibidas', exact: true }).locator('.nav-count')).toHaveText('1');
+  await expect(page.getByRole('button', { name: 'Inspecciones asignadas', exact: true }).locator('.nav-count')).toHaveText('1');
   await openReceived(page);
-  await expect(breadcrumb.locator('li')).toHaveText(['Espacio de trabajo', 'Inspecciones recibidas', 'Pendientes']);
+  await expect(breadcrumb.locator('li')).toHaveText(['Espacio de trabajo', 'Inspecciones asignadas', 'Pendientes']);
   const cards = page.locator('.followup-card');
   await expect(cards.nth(0).getByLabel('Estado', { exact: true })).toHaveAttribute('data-value', 'Pendiente');
   await selectValue(cards.nth(0).getByLabel('Estado', { exact: true }), 'Ejecutado');
@@ -84,9 +91,9 @@ test('destinatario envía evidencias, autor pide ajustes y cierra solo al aproba
   await page.reload(); await openReceived(page);
   await expect(cards.nth(0).getByLabel('Acción realizada')).toHaveValue('Corrección 1 realizada');
   await switchTo(page, 'demo-admin'); await openReview(page);
-  await expect(breadcrumb.locator('li')).toHaveText(['Espacio de trabajo', 'Mis inspecciones', 'Inspecciones a revisar']);
+  await expect(breadcrumb.locator('li')).toHaveText(['Espacio de trabajo', 'Mis inspecciones', 'Pendientes de validación']);
   await page.getByRole('button', { name: 'Volver a Mis inspecciones', exact: true }).click();
-  await expect(page.getByLabel('Filtrar por estado')).toHaveAttribute('data-value', 'review');
+  await expect(inspectionFilterButton(page, 'review')).toHaveAttribute('aria-pressed', 'true');
   await page.getByRole('button', { name: 'Revisar informe', exact: true }).click();
   await expect(page.getByRole('button', { name: 'Guardar estado', exact: true })).toHaveCount(0);
   await expect(cards.nth(0).getByLabel('Estado', { exact: true })).toBeDisabled();
@@ -111,7 +118,7 @@ test('destinatario envía evidencias, autor pide ajustes y cierra solo al aproba
   await expect(cards.nth(1).getByRole('status')).toHaveText('Ajustes solicitados. La observación volvió a Pendiente.');
   await page.reload();
   await page.getByRole('button', { name: 'Mis inspecciones', exact: true }).click();
-  await selectValue(page.getByLabel('Filtrar por estado'), 'pending');
+  await selectInspectionFilter(page, 'pending');
   await page.getByRole('button', { name: 'Revisar informe', exact: true }).click();
   await expect(cards.nth(1).getByLabel('Estado', { exact: true })).toHaveAttribute('data-value', 'Pendiente');
   await expect(cards.nth(0).getByLabel('Estado', { exact: true })).toHaveAttribute('data-value', 'Ejecutado');
@@ -168,14 +175,14 @@ test('destinatario envía evidencias, autor pide ajustes y cierra solo al aproba
   expect(content).toContain('LEVANTAMIENTO DE RESULTADOS DE LA INSPECCIÓN'); expect(content).toContain('Ejecutado');
   expect(workbook.getWorksheet('V.01')!.getImages()).toHaveLength(3); // Logo and two correction photos.
   await page.getByRole('button', { name: 'Mis inspecciones', exact: true }).click();
-  await expect(page.locator('.list-stats > div').filter({ hasText: 'Inspecciones cerradas' }).locator('strong')).toHaveText('1');
-  await expect(page.locator('.list-stats > div').filter({ hasText: 'Inspecciones a revisar' }).locator('strong')).toHaveText('0');
+  await expect(inspectionFilterButton(page, 'closed').locator('strong')).toHaveText('1');
+  await expect(inspectionFilterButton(page, 'review').locator('strong')).toHaveText('0');
   await expect(page.getByRole('button', { name: 'Mis inspecciones', exact: true }).locator('.nav-count')).toHaveCount(0);
-  await selectValue(page.getByLabel('Filtrar por estado'), 'closed');
+  await selectInspectionFilter(page, 'closed');
   await expect(page.locator('.inspection-list-row')).toHaveCount(1);
   await expect(page.locator('.list-status')).toHaveText('Cerrada');
   await switchTo(page, 'demo-inspector');
-  const inbox = page.getByRole('button', { name: 'Inspecciones recibidas', exact: true });
+  const inbox = page.getByRole('button', { name: 'Inspecciones asignadas', exact: true });
   await expect(inbox.locator('.nav-count')).toHaveCount(0);
   await inbox.click();
   await expect(page.getByRole('button', { name: 'Pendientes', exact: true })).toHaveAttribute('aria-pressed', 'true');
@@ -186,9 +193,9 @@ test('destinatario envía evidencias, autor pide ajustes y cierra solo al aproba
   await expect(page.locator('.inspection-list-row')).toHaveCount(1);
   await expect(page.locator('.inspection-list-info')).toContainText('Cerrada');
   await page.getByRole('button', { name: 'Revisar inspección', exact: true }).click();
-  await expect(breadcrumb.locator('li')).toHaveText(['Espacio de trabajo', 'Inspecciones recibidas', 'Cerradas']);
-  await expect(page.getByRole('button', { name: 'Inspecciones recibidas', exact: true })).toHaveClass(/active/);
-  await page.getByRole('button', { name: 'Volver a Inspecciones recibidas', exact: true }).click();
+  await expect(breadcrumb.locator('li')).toHaveText(['Espacio de trabajo', 'Inspecciones asignadas', 'Cerradas']);
+  await expect(page.getByRole('button', { name: 'Inspecciones asignadas', exact: true })).toHaveClass(/active/);
+  await page.getByRole('button', { name: 'Volver a Inspecciones asignadas', exact: true }).click();
   await expect(page.getByRole('button', { name: 'Cerradas', exact: true })).toHaveAttribute('aria-pressed', 'true');
   await page.getByRole('button', { name: 'Revisar inspección', exact: true }).click();
   await expect(cards.nth(0).getByLabel('Estado', { exact: true })).toBeDisabled();
@@ -235,8 +242,8 @@ test('autor y destinatario ven al mismo responsable antes de guardar y tras regi
   const downloadEvent = page.waitForEvent('download');
   await page.getByRole('button', { name: 'Descargar Excel', exact: true }).click();
   const book = new ExcelJS.Workbook(); await book.xlsx.readFile((await (await downloadEvent).path())!);
-  expect(book.getWorksheet('V.01')!.getCell('G20').value).toBe('Responsable destinataria');
-  expect(book.getWorksheet('V.01')!.getCell('G21').value).toBe('Responsable destinataria');
+  expect(book.getWorksheet('V.01')!.getCell('G20').text).toBe('Encargada del levantamiento');
+  expect(book.getWorksheet('V.01')!.getCell('G21').text).toBe('Encargada del levantamiento');
   await page.reload();
   await page.getByRole('button', { name: 'Mis inspecciones', exact: true }).click();
   await page.getByRole('button', { name: 'Revisar informe', exact: true }).click();

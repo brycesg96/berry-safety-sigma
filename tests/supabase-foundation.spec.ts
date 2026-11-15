@@ -18,5 +18,5 @@ test('cliente público preparado reconoce la estructura sin activar sincronizaci
     return supabaseFoundationStatus();
   });
   expect(status.sync_ready).toBe(false); expect(calls).toBe(1);
-  await expect(page.getByLabel('Área inspeccionada')).toBeVisible();
+  await expect(page.getByLabel('Área e instalación inspeccionada')).toBeVisible();
 });

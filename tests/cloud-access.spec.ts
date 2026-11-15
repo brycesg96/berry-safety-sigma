@@ -1,10 +1,12 @@
 import { test, expect } from '@playwright/test';
 import type { BrowserContext, Page } from '@playwright/test';
+import { mockOrganizationCatalog } from './organization-fixture';
+import { selectValue } from './select-fixture';
 
 const origin = 'https://rwacygoxhkxxxkvushmb.supabase.co';
 const id = '30000000-0000-4000-8000-000000000001';
 const email = 'cuenta@example.invalid';
-type Profile = { id: string; email: string; full_name: string; area: string; job_title: string; role: string; enabled: boolean; must_change_password?: boolean; can_create_inspections?: boolean; can_receive_inspections?: boolean; access_revision?: number; supervisor_emails?: string[]; deleted_at?: string | null };
+type Profile = { id: string; email: string; full_name: string; area: string; management?: string; job_title: string; role: string; enabled: boolean; must_change_password?: boolean; can_create_inspections?: boolean; can_receive_inspections?: boolean; access_revision?: number; supervisor_emails?: string[]; deleted_at?: string | null };
 const initialProfile = (): Profile => ({ id, email, full_name: '', area: '', job_title: '', role: 'admin', enabled: true, can_create_inspections: true, can_receive_inspections: true, access_revision: 1 });
 const user = { id, aud: 'authenticated', role: 'authenticated', email, email_confirmed_at: new Date().toISOString(), app_metadata: { provider: 'email', providers: ['email'] }, user_metadata: { role: 'admin', enabled: true }, identities: [], created_at: new Date().toISOString() };
 function session(identity = user) {
@@ -45,7 +47,7 @@ async function mock(context: BrowserContext, profile = initialProfile()) {
         const update = request.postDataJSON();
         state.updates.push(update);
         if (state.saveFails) return route.fulfill({ status: 503, json: { message: 'offline' } });
-        expect(Object.keys(update).sort()).toEqual(['area', 'full_name', 'job_title']);
+        expect(Object.keys(update).sort()).toEqual(['area', 'full_name', 'job_title', ...(state.profile.management !== undefined ? ['management'] : [])].sort());
         state.profile = { ...state.profile, ...update };
       }
       return route.fulfill({ json: state.profile });
@@ -70,7 +72,7 @@ test('recuperación: solicita el enlace PKCE y permite cambiar solo la contrase�
   await expect(page.getByRole('status')).toContainText('recibirás un enlace'); expect(passwordCalls).toBe(0);
   const callback = new URL(target); callback.searchParams.set('code', 'fictitious-recovery-code'); await page.goto(callback.href);
   await expect(page.getByRole('heading', { name: 'Crea una nueva contraseña' })).toBeVisible();
-  await expect(page.getByRole('button', { name: 'Gestión de Cuentas', exact: true })).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Gestión de Usuarios', exact: true })).toHaveCount(0);
   await page.getByLabel(/^Nueva contraseña/).fill('Recuperada!47'); await page.getByLabel(/^Repite la nueva contraseña/).fill('Recuperada!47'); await page.getByRole('button', { name: 'Actualizar contraseña', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'Inicia sesión', exact: true })).toBeVisible(); expect(passwordCalls).toBe(1);
   expect(await page.evaluate(() => JSON.stringify({ ...localStorage, ...sessionStorage }))).not.toContain('Recuperada!47');
@@ -189,7 +191,7 @@ test('cerrar sesión mientras llega el perfil no restaura datos de una cuenta an
 test('el acceso interno conserva el borrador guardado manualmente y vuelve al espacio de pruebas', async ({ page, context }) => {
   await mock(context);
   await page.goto('./');
-  await page.getByLabel('Área inspeccionada').fill('Borrador que debe conservarse');
+  await page.getByLabel('Área e instalación inspeccionada').fill('Borrador que debe conservarse');
   await page.getByRole('button', { name: 'Guardar', exact: true }).first().click();
   await expect(page.getByText('Guardado en este navegador', { exact: true })).toBeVisible();
   await page.getByRole('button', { name: 'Mi perfil', exact: true }).click();
@@ -197,9 +199,9 @@ test('el acceso interno conserva el borrador guardado manualmente y vuelve al es
   await expect(page.getByRole('heading', { name: 'Inicia sesión', exact: true })).toBeVisible();
   await expect(page).toHaveURL(/acceso=cuenta/);
   await page.getByRole('button', { name: 'Espacio de pruebas', exact: true }).click();
-  await expect(page.getByLabel('Área inspeccionada')).toHaveValue('Borrador que debe conservarse');
+  await expect(page.getByLabel('Área e instalación inspeccionada')).toHaveValue('Borrador que debe conservarse');
   await page.reload();
-  await expect(page.getByLabel('Área inspeccionada')).toHaveValue('Borrador que debe conservarse');
+  await expect(page.getByLabel('Área e instalación inspeccionada')).toHaveValue('Borrador que debe conservarse');
 });
 
 test('el primer ingreso exige una contraseña personal, rechaza la temporal y vuelve al acceso tras actualizar', async ({ page, context }) => {
@@ -214,7 +216,7 @@ test('el primer ingreso exige una contraseña personal, rechaza la temporal y vu
   });
   await login(page);
   await expect(page.getByRole('heading', { name: 'Actualiza tu contraseña', exact: true })).toBeVisible();
-  await expect(page.getByRole('button', { name: 'Gestión de Cuentas', exact: true })).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Gestión de Usuarios', exact: true })).toHaveCount(0);
   await expect(page.getByRole('button', { name: 'Espacio de pruebas', exact: true })).toHaveCount(0);
   await expect(page.getByLabel('Nombres y apellidos')).toHaveCount(0);
   await page.getByLabel(/^Nueva contraseña/).fill('0123456789');
@@ -246,8 +248,8 @@ test('el administrador crea usuarios reales sin añadir cuentas locales y conser
     await route.fulfill({ json: { ok: true, account: { id: '30000000-0000-4000-8000-000000000002', ...body, enabled: true, must_change_password: true } } });
   });
   await login(page);
-  await page.getByRole('button', { name: 'Gestión de Cuentas', exact: true }).click();
-  await expect(page.getByRole('heading', { name: 'Gestión de Cuentas', exact: true })).toBeVisible();
+  await page.getByRole('button', { name: 'Gestión de Usuarios', exact: true }).click();
+  await expect(page.getByRole('heading', { name: 'Gestión de Usuarios', exact: true })).toBeVisible();
   await page.getByLabel('Nombres y apellidos').fill('Persona de Prueba');
   await page.getByLabel(/^Correo del usuario/).fill('persona@example.invalid');
   await page.getByLabel(/^Área/).fill('Mantenimiento');
@@ -274,7 +276,7 @@ test('el administrador crea usuarios reales sin añadir cuentas locales y conser
   expect(calls).toHaveLength(2); expect(calls[0].id).toBe(calls[1].id);
   expect(calls[1].body).toMatchObject({ can_create_inspections: true, can_receive_inspections: true, role: 'inspector' });
   await expect(page.locator('.account-row')).toHaveCount(0);
-  await page.getByRole('button', { name: 'Gestión de Usuarios', exact: true }).click();
+  await page.getByRole('button', { name: 'Administrar usuarios', exact: true }).click();
   await expect(page.getByRole('button', { name: 'Crear usuario', exact: true })).toHaveCount(0);
   await expect(page.locator('.account-row')).toContainText('Persona de Prueba');
   await expect(page.locator('.account-row')).toContainText('Contraseña temporal');
@@ -334,7 +336,7 @@ test('Atrás cierra la sesión y vuelve al acceso; recordar cuenta conserva solo
   await expect(page.getByLabel(/^Correo electrónico/)).toHaveValue('');
 });
 
-test('Gestión de Usuarios conserva permisos, desactivación y eliminación sin duplicar las inspecciones', async ({ page, context }) => {
+test('Administrar usuarios conserva permisos, desactivación y eliminación sin duplicar las inspecciones', async ({ page, context }) => {
   const actor = { ...initialProfile(), full_name: 'Admin real', area: 'Seguridad', must_change_password: false };
   await mock(context, actor);
   let target = { ...actor, id: '30000000-0000-4000-8000-000000000002', email: 'otra@example.invalid', full_name: 'Otra persona', role: 'inspector', can_create_inspections: false, can_receive_inspections: true, access_revision: 1, deleted_at: null as string | null };
@@ -350,12 +352,12 @@ test('Gestión de Usuarios conserva permisos, desactivación y eliminación sin 
   await page.route('**/api/accounts/inspections', route => route.fulfill({ json: { ok: true, inspections: [report] } }));
   let removed = false;
   await page.route('**/api/accounts/inspections/delete', route => { expect(route.request().postDataJSON()).toEqual({ id: report.id, expectedRevision: 7 }); removed = true; return route.fulfill({ json: { ok: true } }); });
-  await login(page); await page.getByRole('button', { name: 'Gestión de Cuentas', exact: true }).click();
+  await login(page); await page.getByRole('button', { name: 'Gestión de Usuarios', exact: true }).click();
   await expect(page.getByRole('button', { name: 'Todas las inspecciones', exact: true })).toHaveCount(0);
   await expect(page.locator('.account-row')).toHaveCount(0);
-  await page.getByRole('button', { name: 'Gestión de Usuarios', exact: true }).click();
+  await page.getByRole('button', { name: 'Administrar usuarios', exact: true }).click();
   const row = page.locator('.account-row').filter({ hasText: target.email });
-  await row.getByRole('button', { name: 'Editar permisos' }).click();
+  await row.getByRole('button', { name: 'Permisos' }).click();
   const dialog = page.getByRole('dialog');
   await expect(dialog).toContainText('Actualmente solo puede recibir inspecciones.');
   await expect(dialog.getByRole('switch')).toHaveCount(2);
@@ -404,7 +406,7 @@ test('una cuenta inhabilitada ve los administradores vigentes y una eliminada no
 });
 
 
-test('Gestión de Cuentas reutiliza la lista al cambiar de sección, la actualiza en segundo plano y limpia la caché al salir', async ({ page, context }) => {
+test('Gestión de Usuarios reutiliza la lista al cambiar de sección, la actualiza en segundo plano y limpia la caché al salir', async ({ page, context }) => {
   const actor = { ...initialProfile(), full_name: 'Administrador de prueba', area: 'Seguridad', must_change_password: false };
   await mock(context, actor);
   let version = 'Persona en memoria', calls = 0, block = false;
@@ -414,12 +416,12 @@ test('Gestión de Cuentas reutiliza la lista al cambiar de sección, la actualiz
     if (block) await new Promise<void>(resolve => { resumes.push(resolve); });
     await route.fulfill({ json: { ok: true, accounts: [actor, { ...actor, id: '30000000-0000-4000-8000-000000000002', email: 'persona@example.invalid', full_name: version, role: 'inspector' }] } });
   });
-  await login(page); await page.getByRole('button', { name: 'Gestión de Cuentas', exact: true }).click();
-  await page.getByRole('button', { name: 'Gestión de Usuarios', exact: true }).click();
+  await login(page); await page.getByRole('button', { name: 'Gestión de Usuarios', exact: true }).click();
+  await page.getByRole('button', { name: 'Administrar usuarios', exact: true }).click();
   await expect(page.locator('.account-row')).toContainText(['Administrador de prueba', 'Persona en memoria']);
   await page.getByRole('button', { name: 'Mi perfil', exact: true }).click();
   const beforeReturn = calls; block = true;
-  await page.getByRole('button', { name: 'Gestión de Cuentas', exact: true }).click();
+  await page.getByRole('button', { name: 'Gestión de Usuarios', exact: true }).click();
   await expect.poll(() => calls).toBeGreaterThan(beforeReturn);
   try { await expect(page.locator('.account-row').filter({ hasText: 'Persona en memoria' })).toBeVisible(); }
   finally { version = 'Persona actualizada'; block = false; for (const resume of resumes) resume(); resumes = []; }
@@ -428,8 +430,8 @@ test('Gestión de Cuentas reutiliza la lista al cambiar de sección, la actualiz
   await expect(page.getByRole('heading', { name: 'Inicia sesión' })).toBeVisible();
   await page.getByLabel(/^Correo electrónico/).fill(email); await page.getByLabel(/^Contraseña/).fill('Fictitious!47'); await page.getByRole('button', { name: 'Iniciar sesión', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'Mi perfil', exact: true })).toBeVisible();
-  const beforeSignIn = calls; block = true; await page.getByRole('button', { name: 'Gestión de Cuentas', exact: true }).click();
-  await page.getByRole('button', { name: 'Gestión de Usuarios', exact: true }).click();
+  const beforeSignIn = calls; block = true; await page.getByRole('button', { name: 'Gestión de Usuarios', exact: true }).click();
+  await page.getByRole('button', { name: 'Administrar usuarios', exact: true }).click();
   await expect.poll(() => calls).toBeGreaterThan(beforeSignIn);
   try { await expect(page.locator('.account-row')).toHaveCount(0); await expect(page.getByText('Consultando cuentas…', { exact: true })).toBeVisible(); }
   finally { block = false; for (const resume of resumes) resume(); resumes = []; }
@@ -437,7 +439,7 @@ test('Gestión de Cuentas reutiliza la lista al cambiar de sección, la actualiz
 });
 
 
-test('Editar CC conserva valores al fallar, valida correos, guarda sin cambiar permisos y permite borrar todos los CC', async ({page,context}) => {
+test('Partes interesadas (cc) conserva valores al fallar, valida correos, guarda sin cambiar permisos y permite borrar todos los CC', async ({page,context}) => {
  const actor={...initialProfile(),full_name:'Administradora',area:'Seguridad',must_change_password:false};await mock(context,actor);
  let target={...actor,id:'30000000-0000-4000-8000-000000000002',email:'persona@example.invalid',full_name:'Persona destinataria',role:'inspector',supervisor_emails:['anterior@example.invalid']};
  let fail=false;const updates:any[]=[];
@@ -447,22 +449,27 @@ test('Editar CC conserva valores al fallar, valida correos, guarda sin cambiar p
   if(fail)return route.fulfill({status:503,json:{ok:false,message:'No se pudo guardar. Reintenta.'}});
   target={...target,supervisor_emails:body.permissions.supervisor_emails,access_revision:target.access_revision!+1};return route.fulfill({json:{ok:true,account:target}});
  });
- await login(page);await page.getByRole('button',{name:'Gestión de Cuentas',exact:true}).click();
+ await login(page);await page.getByRole('button',{name:'Gestión de Usuarios',exact:true}).click();
  await expect(page.getByRole('button',{name:'Agregar Usuario',exact:true})).toHaveAttribute('aria-current','page');await expect(page.locator('.account-row')).toHaveCount(0);
- await page.getByRole('button',{name:'Gestión de Usuarios',exact:true}).click();await expect(page.getByRole('button',{name:'Crear usuario',exact:true})).toHaveCount(0);
- const row=page.locator('.account-row').filter({hasText:target.email});await row.getByRole('button',{name:'Editar CC',exact:true}).click();const dialog=page.getByRole('dialog',{name:'Administradores (CC)',exact:true});
- await expect(dialog.getByLabel('Administradores (CC)')).toHaveValue('anterior@example.invalid');await dialog.getByLabel('Administradores (CC)').fill('no-es-correo');await dialog.getByRole('button',{name:'Guardar CC',exact:true}).click();await expect(dialog.getByRole('alert')).toContainText('correos válidos');expect(updates).toHaveLength(0);
- await dialog.getByLabel('Administradores (CC)').fill('NUEVO@example.invalid, nuevo@example.invalid, segunda@example.invalid');fail=true;await dialog.getByRole('button',{name:'Guardar CC',exact:true}).click();await expect(dialog.getByRole('alert')).toContainText('Reintenta');await expect(dialog.getByLabel('Administradores (CC)')).toHaveValue('NUEVO@example.invalid, nuevo@example.invalid, segunda@example.invalid');
- fail=false;await dialog.getByRole('button',{name:'Guardar CC',exact:true}).click();await expect(page.getByRole('status')).toHaveText('Administradores (CC) actualizados.');expect(target.supervisor_emails).toEqual(['nuevo@example.invalid','segunda@example.invalid']);
+ await expect(page.locator('.administration-actor')).toHaveText('AdministradoraAdministrador');
+ await expect(page.getByLabel('Partes interesadas (cc)')).toHaveAttribute('placeholder','persona1@hortifrut.com, persona2@hortifrut.com');
+ await page.getByRole('button',{name:'Administrar usuarios',exact:true}).click();await expect(page.getByRole('button',{name:'Crear usuario',exact:true})).toHaveCount(0);
+ const row=page.locator('.account-row').filter({hasText:target.email});await row.getByRole('button',{name:'Partes interesadas (cc)',exact:true}).click();const dialog=page.getByRole('dialog',{name:'Partes interesadas (cc)',exact:true});
+ await expect(dialog.getByLabel('Partes interesadas (cc)')).toHaveAttribute('placeholder','persona1@hortifrut.com, persona2@hortifrut.com');
+ await expect(dialog).toContainText('Separa los correos con comas. Las partes interesadas serán puestas en copia en las próximas notificaciones dirigidas a este usuario.');
+ await expect(dialog.getByLabel('Partes interesadas (cc)')).toHaveValue('anterior@example.invalid');await dialog.getByLabel('Partes interesadas (cc)').fill('no-es-correo');await dialog.getByRole('button',{name:'Guardar CC',exact:true}).click();await expect(dialog.getByRole('alert')).toContainText('correos válidos');expect(updates).toHaveLength(0);
+ await dialog.getByLabel('Partes interesadas (cc)').fill('NUEVO@example.invalid, nuevo@example.invalid, segunda@example.invalid');fail=true;await dialog.getByRole('button',{name:'Guardar CC',exact:true}).click();await expect(dialog.getByRole('alert')).toContainText('Reintenta');await expect(dialog.getByLabel('Partes interesadas (cc)')).toHaveValue('NUEVO@example.invalid, nuevo@example.invalid, segunda@example.invalid');
+ fail=false;await dialog.getByRole('button',{name:'Guardar CC',exact:true}).click();await expect(page.getByRole('status')).toHaveText('Partes interesadas (cc) actualizadas.');expect(target.supervisor_emails).toEqual(['nuevo@example.invalid','segunda@example.invalid']);
  expect(updates[1].permissions).toEqual({enabled:true,role:'inspector',can_create_inspections:true,can_receive_inspections:true,supervisor_emails:['nuevo@example.invalid','segunda@example.invalid']});
- await page.getByRole('button',{name:'Mi perfil',exact:true}).click();await page.getByRole('button',{name:'Gestión de Cuentas',exact:true}).click();await expect(page.getByRole('button',{name:'Gestión de Usuarios',exact:true})).toHaveAttribute('aria-current','page');
- await row.getByRole('button',{name:'Editar CC',exact:true}).click();await expect(dialog.getByLabel('Administradores (CC)')).toHaveValue('nuevo@example.invalid, segunda@example.invalid');
- await page.setViewportSize({width:390,height:844});await page.screenshot({path:test.info().outputPath('editar-cc-telefono.png'),fullPage:true});expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
- await dialog.getByLabel('Administradores (CC)').fill('');await dialog.getByRole('button',{name:'Guardar CC',exact:true}).click();await expect(dialog).toHaveCount(0);expect(target.supervisor_emails).toEqual([]);
- await page.screenshot({path:test.info().outputPath('gestion-usuarios-telefono.png'),fullPage:true});expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
+ await page.getByRole('button',{name:'Mi perfil',exact:true}).click();await page.getByRole('button',{name:'Gestión de Usuarios',exact:true}).click();await expect(page.getByRole('button',{name:'Administrar usuarios',exact:true})).toHaveAttribute('aria-current','page');
+ await row.getByRole('button',{name:'Partes interesadas (cc)',exact:true}).click();await expect(dialog.getByLabel('Partes interesadas (cc)')).toHaveValue('nuevo@example.invalid, segunda@example.invalid');
+ await page.setViewportSize({width:390,height:844});await page.screenshot({path:test.info().outputPath('editar-cc-telefono.png'),fullPage:true,animations:'disabled'});expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
+ await dialog.screenshot({path:test.info().outputPath('partes-interesadas.png'),animations:'disabled'});
+ await dialog.getByLabel('Partes interesadas (cc)').fill('');await dialog.getByRole('button',{name:'Guardar CC',exact:true}).click();await expect(dialog).toHaveCount(0);expect(target.supervisor_emails).toEqual([]);
+ await page.screenshot({path:test.info().outputPath('gestion-usuarios-telefono.png'),fullPage:true,animations:'disabled'});expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
 });
 
-for (const width of [1366, 390]) test(`Gestión de Usuarios busca por nombre, cargo y área entre más de 50 cuentas sin consultar al escribir (${width}px)`, async ({ page, context }) => {
+for (const width of [1366, 390]) test(`Administrar usuarios busca por nombre, cargo y área entre más de 50 cuentas sin consultar al escribir (${width}px)`, async ({ page, context }) => {
   await page.setViewportSize({ width, height: 900 });
   const actor = { ...initialProfile(), full_name: 'Administradora', area: 'SIGMA', job_title: 'Supervisora', must_change_password: false };
   await mock(context, actor);
@@ -470,21 +477,42 @@ for (const width of [1366, 390]) test(`Gestión de Usuarios busca por nombre, ca
   let reads = 0, mutations = 0;
   await page.route('**/api/accounts', route => { reads++; return route.fulfill({ json: { ok: true, accounts } }); });
   await page.route('**/api/accounts/manage', route => { mutations++; return route.fulfill({ status: 500, json: { ok: false } }); });
-  await login(page); await page.getByRole('button', { name: 'Gestión de Cuentas', exact: true }).click(); await page.getByRole('button', { name: 'Gestión de Usuarios', exact: true }).click();
-  const rows = page.locator('.account-row'), search = page.getByRole('searchbox', { name: 'Buscar usuarios por nombre, cargo o área', exact: true });
-  await expect(rows).toHaveCount(61); await expect(search).toHaveAttribute('placeholder', 'Buscar por nombre, cargo o área');
+  await login(page); await page.getByRole('button', { name: 'Gestión de Usuarios', exact: true }).click(); await page.getByRole('button', { name: 'Administrar usuarios', exact: true }).click();
+  await expect(page.locator('.administration-actor')).toHaveText('AdministradoraAdministrador');
+  await page.locator('.cloud-administration .page-heading').screenshot({ path: test.info().outputPath(`administrador-${width}.png`) });
+  const rows = page.locator('.account-row'), search = page.getByRole('searchbox', { name: 'Buscar usuarios por nombre, gerencia, área o cargo', exact: true });
+  await expect(rows).toHaveCount(61); await expect(search).toHaveAttribute('placeholder', 'Buscar por nombre, gerencia, área o cargo');
   await page.locator('.account-users-heading').screenshot({ path: test.info().outputPath(`buscar-usuarios-${width}.png`) });
   const baseline = reads;
   for (const query of ['  JOSE   alvarez  ', 'JEFE de PRODUCCION', 'gestion ambiental', 'jose produccion ambiental']) {
-    await search.fill(query); await expect(rows).toHaveCount(1); await expect(rows).toContainText('José Álvarez'); await expect(page.getByRole('heading', { name: 'Usuarios', exact: false })).toHaveText('Usuarios 1 de 61');
+    await search.fill(query); await expect(rows).toHaveCount(1); await expect(rows).toContainText('José Álvarez'); await expect(page.getByRole('heading', { name: 'Usuarios', exact: false, level: 2 })).toHaveText('Usuarios 1 de 61');
   }
-  await page.getByRole('button', { name: 'Agregar Usuario', exact: true }).click(); await page.getByRole('button', { name: 'Gestión de Usuarios', exact: true }).click(); await expect(search).toHaveValue('jose produccion ambiental'); await expect(rows).toHaveCount(1);
-  await rows.getByRole('button', { name: 'Editar permisos', exact: true }).click(); await expect(page.getByRole('dialog', { name: 'Permisos de José Álvarez', exact: true })).toBeVisible(); await page.getByRole('dialog').getByRole('button', { name: 'Cancelar', exact: true }).click();
-  await search.fill('ninguna coincidencia'); await expect(rows).toHaveCount(0); await expect(page.getByText('No hay usuarios que coincidan con tu búsqueda.', { exact: true })).toBeVisible(); await expect(page.getByRole('heading', { name: 'Usuarios', exact: false })).toHaveText('Usuarios 0 de 61');
+  await page.getByRole('button', { name: 'Agregar Usuario', exact: true }).click(); await page.getByRole('button', { name: 'Administrar usuarios', exact: true }).click(); await expect(search).toHaveValue('jose produccion ambiental'); await expect(rows).toHaveCount(1);
+  await rows.getByRole('button', { name: 'Permisos', exact: true }).click(); await expect(page.getByRole('dialog', { name: 'Permisos de José Álvarez', exact: true })).toBeVisible(); await page.getByRole('dialog').getByRole('button', { name: 'Cancelar', exact: true }).click();
+  await search.fill('ninguna coincidencia'); await expect(rows).toHaveCount(0); await expect(page.getByText('No hay usuarios que coincidan con tu búsqueda.', { exact: true })).toBeVisible(); await expect(page.getByRole('heading', { name: 'Usuarios', exact: false, level: 2 })).toHaveText('Usuarios 0 de 61');
   await page.getByRole('button', { name: 'Limpiar búsqueda de usuarios', exact: true }).click(); await expect(rows).toHaveCount(61); await expect(search).toBeFocused(); await expect(search).toHaveValue('');
   await search.fill('   '); await expect(rows).toHaveCount(61); expect(reads).toBe(baseline); expect(mutations).toBe(0);
   await search.fill('gestion ambiental'); accounts[38].area = 'Recursos Humanos'; await page.getByRole('button', { name: 'Actualizar lista', exact: true }).click();
   await expect.poll(() => reads).toBe(baseline + 1); await expect(rows).toHaveCount(0); await expect(search).toHaveValue('gestion ambiental');
   await page.getByRole('button', { name: 'Limpiar búsqueda de usuarios', exact: true }).click(); await expect(rows).toHaveCount(61); expect(mutations).toBe(0);
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+});
+
+for (const width of [1366,390]) test(`perfil autenticado conserva gerencia y área sin cambiar permisos (${width}px)`, async({page,context})=>{
+ await page.setViewportSize({width,height:900});await mockOrganizationCatalog(page);
+ const profile={...initialProfile(),full_name:'Persona de prueba',area:'Área anterior',job_title:'Supervisora',management:'',must_change_password:false};
+ const state=await mock(context,profile);await login(page);
+ await selectValue(page.getByRole('combobox',{name:'Gerencia',exact:true}),'Gerencia de prueba A');
+ await selectValue(page.getByRole('combobox',{name:'Área',exact:true}),'Área de prueba A2');
+ state.saveFails=true;await page.getByRole('button',{name:'Guardar perfil',exact:true}).click();
+ await expect(page.getByRole('combobox',{name:'Área',exact:true})).toHaveText('Área de prueba A2');
+ await expect(page.getByRole('alert')).toContainText('No se guardó el perfil');
+ state.saveFails=false;await page.getByRole('button',{name:'Guardar perfil',exact:true}).click();
+ await expect(page.getByText('Perfil guardado en tu cuenta.',{exact:true})).toBeVisible();
+ expect(state.profile.management).toBe('Gerencia de prueba A');expect(state.profile.area).toBe('Área de prueba A2');
+ expect(state.profile.role).toBe('admin');expect(state.profile.enabled).toBe(true);
+ expect(Object.keys(state.updates.at(-1)!).sort()).toEqual(['area','full_name','job_title','management']);
+ await page.reload();await expect(page.getByRole('combobox',{name:'Gerencia',exact:true})).toHaveText('Gerencia de prueba A');
+ await expect(page.getByRole('combobox',{name:'Área',exact:true})).toHaveText('Área de prueba A2');
+ expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
 });

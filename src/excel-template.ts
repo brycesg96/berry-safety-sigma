@@ -1,7 +1,7 @@
 import JSZip from 'jszip';
-import type { Evidence, Inspection } from './model';
+import type { Evidence, Inspection, Responsible } from './model';
 import { formatInspectionTime } from './inspection-time';
-import { closingRemarksOf, inspectionPeople, registrationPeople } from './registration';
+import { closingRemarksOf, inspectionPeople, registrationPeople, registrationDate } from './registration';
 import { confirmedInspectionCode } from './inspection-code';
 
 // Patch the original OOXML package rather than round-tripping it through a
@@ -150,6 +150,29 @@ class InspectionForm {
     inlineText(this.sheet, cell, value);
   }
 
+  people(reference: string, people: Responsible[]) {
+    const cell = this.cells.get(reference);
+    if (!cell) throw new Error(`No se encontró la celda ${reference} del informe.`);
+    const content = node(this.sheet, S, 'is');
+    const append = (text: string, size: number, color: string, bold = false) => {
+      const run = node(this.sheet, S, 'r');
+      const properties = node(this.sheet, S, 'rPr');
+      properties.appendChild(node(this.sheet, S, 'rFont', { val: 'Arial' }));
+      properties.appendChild(node(this.sheet, S, 'sz', { val: size }));
+      properties.appendChild(node(this.sheet, S, 'color', { rgb: color }));
+      if (bold) properties.appendChild(node(this.sheet, S, 'b'));
+      const value = node(this.sheet, S, 't', {}, text);
+      value.setAttributeNS('http://www.w3.org/XML/1998/namespace', 'xml:space', 'preserve');
+      run.append(properties, value); content.appendChild(run);
+    };
+    people.filter(person => person.name.trim()).forEach((person, index) => {
+      append(`${index ? '\n' : ''}${person.name.trim()}`, 14, 'FF202D27', true);
+      if (person.jobTitle?.trim()) append(`\n${person.jobTitle.trim()}`, 11, 'FF757575');
+    });
+    cell.replaceChildren(content); cell.setAttribute('t', 'inlineStr');
+    this.wrap(reference);
+  }
+
   wrap(reference: string) {
     const cell = this.cells.get(reference)!;
     const original = cell.getAttribute('s') || '0';
@@ -290,9 +313,12 @@ export async function fillInspectionTemplate(d: Inspection): Promise<Uint8Array>
   form.extendObservations(d.observations.length);
   const extra = Math.max(0, d.observations.length - 5);
   form.text('B5', confirmedInspectionCode(d) || 'PENDIENTE DE REGISTRO');
+  form.text('A10', 'ÁREA E INSTALACIÓN INSPECCIONADA');
   form.text('A11', d.area);
   form.text('D11', printedDate(d.date));
-  form.text('G11', d.responsibles.map(p => p.name).join('\n'));
+  const separatedResponsibles = d.responsibles.length >= 2;
+  if (separatedResponsibles) form.people('G11', d.responsibles.slice(0, 1));
+  else form.text('G11', d.responsibles.map(p => p.name).join('\n'));
   const people = registrationPeople(d);
   form.text('J11', inspectionPeople(d).map(p => p.name).join('\n'));
   form.text('A14', formatInspectionTime(d.inspectionTime, d.inspectionPeriod));
@@ -307,7 +333,8 @@ export async function fillInspectionTemplate(d: Inspection): Promise<Uint8Array>
     if (!Object.hasOwn(RISK_LABELS, observation.severity)) throw new Error('Selecciona un nivel de riesgo válido para cada observación.');
     form.text(`E${row}`, RISK_LABELS[observation.severity]);
     form.text(`F${row}`, observation.correctiveAction);
-    form.text(`G${row}`, correction?.responsibleName ?? d.responsibles[0]?.name ?? '');
+    if (separatedResponsibles) form.people(`G${row}`, d.responsibles.slice(1));
+    else form.text(`G${row}`, correction?.responsibleName ?? d.responsibles[0]?.name ?? '');
     form.text(`I${row}`, correction?.state || 'Pendiente');
     form.text(`J${row}`, printedDate(correction?.date || observation.dueDate));
     await form.pictures(observation.photos, row, 3);
@@ -322,7 +349,7 @@ export async function fillInspectionTemplate(d: Inspection): Promise<Uint8Array>
     const details = d.registrationDetails?.[person.id];
     form.text(`A${row}`, `Nombre: ${person.name}`);
     form.text(`E${row}`, `Cargo: ${details?.jobTitle ?? ('jobTitle' in person ? person.jobTitle : '') ?? ''}`);
-    form.text(`H${row}`, `Fecha: ${printedDate(details?.date || d.date)}`);
+    form.text(`H${row}`, `Fecha: ${printedDate(registrationDate(d, person.id))}`);
     for (const column of ['A', 'E', 'H']) form.wrap(`${column}${row}`);
     if (details?.signature) await form.pictures([details.signature], row, 9, 3, true);
   }

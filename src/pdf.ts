@@ -106,7 +106,8 @@ export async function buildPdf(inspection: Inspection) {
     const area = merged.find(m => contains(m, column, row)) || { left: column, right: column, top: row, bottom: row };
     const rule = conditionals.filter(cf => cf.areas.some(a => contains(a, column, row))).flatMap(cf => cf.rules).find(r => r.getAttribute('type') === 'containsText' && text.toLowerCase().includes((r.getAttribute('text') || '\0').toLowerCase()));
     const override = rule ? differential[number(rule, 'dxfId')] : undefined;
-    return { column, row, text, style, area, override };
+    const richRuns = all(element, S, 'r').map(run => ({ text: child(run, 't')?.textContent || '', properties: child(run, 'rPr') }));
+    return { column, row, text, style, area, override, richRuns };
   }).filter(c => c.column < 12 && c.row < lastRow);
   const margins = all(sheet, S, 'pageMargins')[0];
   const top = number(margins, 'top', 0.315) * 72, bottom = number(margins, 'bottom', 0.315) * 72;
@@ -182,6 +183,31 @@ export async function buildPdf(inspection: Inspection) {
       const pad = 3 * scale;
       const w = sum(widths.slice(cell.area.left, cell.area.right + 1)) * scale - pad * 2;
       const h = sum(heights.slice(cell.area.top, cell.area.bottom + 1)) * scale - pad * 2;
+      if (cell.richRuns.length) {
+        // Each name and job line retains the formatting stored in the XLSX.
+        let factor = scale;
+        let lines: { text: string; size: number; bold: boolean; color: string }[] = [];
+        let height = 0;
+        for (let attempt = 0; attempt < 12; attempt++) {
+          lines = cell.richRuns.flatMap(run => {
+            const size = number(child(run.properties, 'sz'), 'val', number(child(font, 'sz'), 'val', 11)) * factor;
+            const bold = !!child(run.properties, 'b');
+            pdf.setFont('Report', bold ? 'bold' : 'normal'); pdf.setFontSize(size);
+            return run.text.split('\n').filter(text => text.trim()).flatMap(text => (pdf.splitTextToSize(text.replace(/\t/g, ' '), w) as string[]).map(text => ({ text, size, bold, color: color(child(run.properties, 'color') || child(font, 'color')) })));
+          });
+          height = sum(lines.map(line => line.size * 1.15));
+          if (height <= h) break;
+          factor *= Math.min(0.9, h / height);
+        }
+        const x = left + xs[cell.column] * scale + pad + (align === 'center' ? w / 2 : align === 'right' ? w : 0);
+        const vertical = alignment?.getAttribute('vertical');
+        let y = ys.get(cell.row)! + pad + (vertical === 'center' ? Math.max(0, (h - height) / 2) : vertical === 'top' ? 0 : Math.max(0, h - height));
+        for (const line of lines) {
+          pdf.setFont('Report', line.bold ? 'bold' : 'normal'); pdf.setFontSize(line.size); pdf.setTextColor(line.color);
+          pdf.text(line.text, x, y, { align, baseline: 'top' }); y += line.size * 1.15;
+        }
+        continue;
+      }
       let size = number(child(font, 'sz'), 'val', 11) * scale;
       let lines: string[] = [];
       for (let attempt = 0; attempt < 12; attempt++) {

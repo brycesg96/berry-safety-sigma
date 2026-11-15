@@ -859,6 +859,30 @@ test('the one-time pilot reset preserves the verified owner, removes the other a
   assert.equal((await db.query('select count(*) as count from public.berry_inspections')).rows[0].count,1);
 });
 
+
+const organizationMigration = await readFile(new URL('../migrations/202611150013_organization.sql', import.meta.url), 'utf8');
+test('organization upgrade preserves records and profile permissions; canonical inspection text includes the department', async()=>{
+ const before=(await db.query('select id,revision,data from public.berry_inspections order by id')).rows;
+ const roles=(await db.query('select id,role,enabled,can_create_inspections,can_receive_inspections from public.berry_profiles order by id')).rows;
+ await db.exec(organizationMigration);
+ assert.deepEqual((await db.query('select id,revision,data from public.berry_inspections order by id')).rows,before);
+ assert.deepEqual((await db.query('select id,role,enabled,can_create_inspections,can_receive_inspections from public.berry_profiles order by id')).rows,roles);
+ await db.query('update public.berry_profiles set enabled=true,must_change_password=false,deleted_at=null where id in($1,$2)',[users.author,users.recipient]);
+ await as('authenticated',users.author,"update public.berry_profiles set management='Gerencia de prueba' where id=$1",[users.author],{iat:99999999999});
+ assert.equal((await db.query('select management from public.berry_profiles where id=$1',[users.author])).rows[0].management,'Gerencia de prueba');
+ assert.equal((await as('authenticated',users.author,"update public.berry_profiles set management='No permitido' where id=$1 returning id",[users.recipient],{iat:99999999999})).rows.length,0);
+ await denied(()=>as('authenticated',users.author,"update public.berry_profiles set role='admin' where id=$1",[users.author],{iat:99999999999}));
+ await assert.rejects(()=>as('authenticated',users.author,'update public.berry_profiles set management=$1 where id=$2',['x'.repeat(251),users.author],{iat:99999999999}),error=>error.code==='23514');
+ const location={site:'Fundo',management:'Gerencia de prueba',department:'Área de prueba',zone:'Armonía II',detail:'Taller de maquinaria'};
+ assert.equal((await db.query('select berry_private.location_area($1) as value',[location])).rows[0].value,'Fundo – Área de prueba – Armonía II – Taller de maquinaria');
+ assert.equal((await db.query('select berry_private.location_area($1) as value',[{site:'Fundo',zone:'Armonía II',detail:'Taller antiguo'}])).rows[0].value,'Fundo – Armonía II – Taller antiguo');
+ await assert.rejects(()=>db.query('select berry_private.location_area($1)',[{...location,department:42}]),error=>error.code==='22023');
+ const person=(await db.query('select berry_private.report_person($1) as value',[{id:'row',personId:users.author,name:'Nombre falso',email:'falso@example.invalid',management:'Gerencia falsa'}])).rows[0].value;
+ assert.equal(person.management,'Gerencia de prueba');assert.notEqual(person.name,'Nombre falso');
+ await db.exec(organizationMigration);
+ assert.equal((await db.query('select management from public.berry_profiles where id=$1',[users.author])).rows[0].management,'Gerencia de prueba');
+});
+
 let failed;
 try {
   await setup();

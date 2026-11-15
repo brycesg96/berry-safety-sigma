@@ -37,7 +37,7 @@ export function buildSample(requestId, now = new Date()) {
     adjuntos: [{ nombre: 'EJEMPLO-NO-ES-INFORME.xlsx', tipo: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', contenido_base64: readFileSync(new URL('./fixtures/example.xlsx', import.meta.url)).toString('base64') }],
     destinatarios: { para: ['responsable@example.invalid'], cc: ['supervisor@example.invalid'], cco: ['auditoria@example.invalid'] },
     asunto: `[PRUEBA — NO ENVIAR CORREO] Inspección ${number}`,
-    cuerpo_html: `<h2>Inspección de prueba — Berry Safety / BR Sigma</h2><p>Este mensaje contiene datos ficticios. No enviar correo.</p><table><tr><th>Número de ejemplo</th><td>${number}</td></tr><tr><th>Fecha</th><td>${date}</td></tr><tr><th>Fundo</th><td>Fundo de prueba - Armonía 2</td></tr><tr><th>Área</th><td>Taller de Maquinaria</td></tr></table><p>No se ha reservado ningún código ni registrado una inspección real.</p>`,
+    cuerpo_html: `<h2>Inspección de prueba — Berry Safety / BR Sigma</h2><p>Este mensaje contiene datos ficticios. No enviar correo.</p><table><tr><th>Número de ejemplo</th><td>${number}</td></tr><tr><th>Fecha</th><td>${date}</td></tr><tr><th>Fundo</th><td>Fundo de prueba - Armonía 2</td></tr><tr><th>Área</th><td>Taller de Maquinaria</td></tr></table><p>No se ha reservado ningún número de registro ni registrado una inspección real.</p>`,
   };
 }
 export function reply(res, status, data, cors = {}) {
@@ -66,7 +66,10 @@ export function createMakeTestHandler({ env = process.env, fetchImpl = fetch, no
     const origin = req.headers.origin;
     const cors = origin && config.origins.has(origin) ? { 'Access-Control-Allow-Origin': origin, Vary: 'Origin', 'Access-Control-Allow-Methods': 'POST, OPTIONS', 'Access-Control-Allow-Headers': 'Authorization, Content-Type, Idempotency-Key' } : {};
     const fail = (status, code, message) => reply(res, status, { ok: false, code, message }, cors);
-    if (req.url === '/healthz' && req.method === 'GET') { reply(res, 200, { status: 'ok' }); return; }
+    if (req.url === '/healthz' && req.method === 'GET') {
+      const revision = /^[0-9a-f]{40}$/i.test(env.RENDER_GIT_COMMIT || '') ? env.RENDER_GIT_COMMIT : undefined;
+      reply(res, 200, { status: 'ok', ...(revision ? { revision } : {}) }); return;
+    }
     if (req.url !== MAKE_TEST_PATH) { fail(404, 'NOT_FOUND', 'Ruta no disponible.'); return; }
     if ((prototype && !origin) || origin && !config.origins.has(origin)) { fail(403, 'ORIGIN_NOT_ALLOWED', 'Origen de la aplicación no permitido.'); return; }
     if (req.method === 'OPTIONS') { res.writeHead(204, { ...cors, 'Cache-Control': 'no-store' }); res.end(); return; }

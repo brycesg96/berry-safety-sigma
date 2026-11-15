@@ -21,11 +21,15 @@ export function reportPayload(input) {
     team = d.inspectors.map(p => ({ nombre: text(p?.name,250), correo: email(p?.email) }));
     if (team[0].correo !== inspector.correo || team[0].nombre !== inspector.nombre || new Set(team.map(p => p.correo)).size !== team.length) throw new Error('INVALID_REPORT');
   }
-  const companionNames = new Intl.ListFormat('es', { style:'long', type:'conjunction' }).format(team.map(p => p.nombre));
+  const companions = team.slice(1);
+  const companionNames = new Intl.ListFormat('es', { style:'long', type:'conjunction' }).format(companions.map(p => p.nombre));
   if (!Array.isArray(d.responsibles) || !d.responsibles.length || d.responsibles.length > 50 || !Array.isArray(d.cc) || d.cc.length > 50) throw new Error('INVALID_REPORT');
   const seen = new Set(); const people = [];
   for (const p of d.responsibles) { const address=email(p.email); const name=text(p.name,250); if (!seen.has(address)) {seen.add(address);people.push({address,name});} }
   const cc = [...new Set(d.cc.map(email))].filter(address => !seen.has(address));
+  // The author's receipt changes mail routing; the saved assignment and registry hash stay intact.
+  const to = seen.has(inspector.correo) ? people : [...people, { address: inspector.correo, name: inspector.nombre }];
+  const mailCc = cc.filter(address => address !== inspector.correo);
   if (!Number.isInteger(d.observationCount) || d.observationCount < 1 || d.observationCount > 500) throw new Error('INVALID_REPORT');
   const base64 = input.attachment?.contentBase64;
   if (typeof base64 !== 'string' || base64.length > Math.ceil(MAX_EXCEL_BYTES/3)*4 || !/^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/.test(base64)) throw new Error('INVALID_ATTACHMENT');
@@ -39,12 +43,12 @@ export function reportPayload(input) {
   if (texts) Object.assign(metadata,{texts});
   const payload = {
     schema_version:'1.1',source:'Berry Safety / BR Sigma',request_id:d.id,inspection_id:d.id,
-    mode:'inspection',send_email:true,es_ejemplo:false,codigo_reservado:false,numero:'SIN CÓDIGO DEFINITIVO',
+    mode:'inspection',send_email:true,es_ejemplo:false,codigo_reservado:false,numero:'SIN NÚMERO DE REGISTRO DEFINITIVO',
     fecha:date,fundo:facility,area,inspector,inspectores:team,responsables:people.map(p=>({nombre:p.name,correo:p.address})),
-    destinatarios:{para:people.map(p=>p.address),cc,cco:[]},
-    outlook:{para:people,cc:cc.map(address=>({address,name:''})),cco:[]},
+    destinatarios:{para:to.map(p=>p.address),cc:mailCc,cco:[]},
+    outlook:{para:to,cc:mailCc.map(address=>({address,name:''})),cco:[]},
     asunto:`Informe de inspección de seguridad - ${area.replace(/[\r\n]+/g,' ')} - ${date}`,
-    cuerpo_html:`<p>Se ha registrado una inspección de seguridad y salud en el trabajo correspondiente a:</p><p><strong>Área e instalación:</strong> ${[area,facility].filter(Boolean).map(escape).join(' / ')}<br><strong>Fecha de inspección:</strong> ${date.split('-').reverse().join('.')}<br><strong>${team.length === 1 ? 'Compañero SIGMA' : 'Compañeros SIGMA'}:</strong> ${escape(companionNames)}</p><p>Encontrarán el registro de la inspección en el <strong>archivo Excel adjunto</strong>. Por favor, revisen los hallazgos y gestionen las acciones propuestas para su atención y seguimiento.</p><p><strong>Berry Safety</strong></p>`,
+    cuerpo_html:`<p>Se ha registrado una inspección interna de seguridad y salud en el trabajo acorde a nuestro Programa Anual de Inspecciones, correspondiente a:</p><p><strong>Área e instalación inspeccionada:</strong> ${escape(area)}<br><strong>Fecha de inspección:</strong> ${date.split('-').reverse().join('.')}<br><strong>Responsable de la inspección:</strong> ${escape(inspector.nombre)}${companions.length ? `<br><strong>${companions.length === 1 ? 'Compañero SIGMA' : 'Compañeros SIGMA'}:</strong> ${escape(companionNames)}` : ''}</p><p>Encontrarán el registro de la inspección en el <strong>archivo Excel adjunto</strong>. Por favor, revisen los hallazgos y gestionen las acciones propuestas para su atención y seguimiento.</p><p><strong>Berry Safety – Seguridad Industrial y Gestión Medio Ambiental</strong></p>`,
     adjuntos:[{nombre:reportFilename(area,date),tipo:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',contenido_base64:base64}],
   };
   return {payload, texts, hash:createHash('sha256').update(JSON.stringify(metadata)).digest('hex')};

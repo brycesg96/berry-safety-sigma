@@ -1,6 +1,10 @@
 import type { Inspection, Evidence } from './model';
 export const CLOSING_LIMIT = 1200;
+export const NO_UNFAVORABLE_RESULTS = 'No aplica (sin resultados desfavorables)';
+export const completeInspectionCause = (draft: Inspection): Inspection => draft.unfavorableCause?.trim() ? draft : { ...draft, unfavorableCause: NO_UNFAVORABLE_RESULTS };
 export type RegistrationDetails = { jobTitle: string; initialJobTitle?: string; date: string; signature?: Evidence };
+// Sent reports retain their historical dates; editable drafts use the inspection date.
+export const registrationDate = (draft: Inspection, personId: string) => draft.delivery ? draft.registrationDetails?.[personId]?.date || draft.date : draft.date;
 export function closingRemarksOf(d: Inspection): string {
   return d.closingRemarks ?? [d.conclusions?.trim() ? `Conclusiones:\n${d.conclusions}` : '', d.recommendations?.trim() ? `Recomendaciones:\n${d.recommendations}` : ''].filter(Boolean).join('\n\n');
 }

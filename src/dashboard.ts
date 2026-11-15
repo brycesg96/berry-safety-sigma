@@ -10,7 +10,7 @@ export type DashboardRow = CloudInspectionRow & { code: string };
 export type DashboardCache = { actorId: string; rows: DashboardRow[]; updatedAt: string };
 export const dashboardText = (value: string) => value.normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim().toLocaleLowerCase('es');
 export const dashboardState = (row: DashboardRow) => row.workflow === 'closed' ? 'closed' : Object.values(row.data.delivery?.corrections || {}).some(item => item.decision === 'review') ? 'review' : 'open';
-export const dashboardStateLabel = (row: DashboardRow) => ({ closed: 'Cerrada', review: 'En revisión', open: 'En levantamiento' })[dashboardState(row)];
+export const dashboardStateLabel = (row: DashboardRow) => ({ closed: 'Cerrada', review: 'Pendiente de validación', open: 'Pendiente de atención' })[dashboardState(row)];
 export type DashboardFilters = { code: string; from: string; to: string; inspector: string[]; area: string; responsible: string[]; state: string };
 export const emptyDashboardFilters = (): DashboardFilters => ({ code: '', from: '', to: '', inspector: [], area: '', responsible: [], state: '' });
 export const responsibleArea = (person: { area?: string }) => person.area?.trim() || 'Sin área registrada';
@@ -54,8 +54,8 @@ export async function buildConsolidated(rows: DashboardRow[]) {
   const { default: ExcelJS } = await import('exceljs');
   const book = new ExcelJS.Workbook(); book.creator = 'Berry Safety';
   const summary = book.addWorksheet('Inspecciones'), observations = book.addWorksheet('Observaciones');
-  const summaryHeaders = ['Código', 'Fecha de inspección', 'Hora', 'Instalación', 'Área inspeccionada', 'Inspectores', 'Correos de inspectores', 'Responsables del área', 'Correos de responsables', 'Estado de inspección', 'Observaciones', 'Ejecutadas', 'Objetivo', 'Resultados desfavorables', 'Conclusiones y recomendaciones'];
-  const observationHeaders = ['Código', 'Fecha de inspección', 'Área inspeccionada', 'Observación', 'Descripción', 'Nivel de riesgo', 'Medida correctiva', 'Cierre previsto', 'Estado', 'Responsable del levantamiento', 'Fecha de cierre', 'Decisión del revisor'];
+  const summaryHeaders = ['Número de registro', 'Fecha de inspección', 'Hora', 'Instalación', 'Área e instalación inspeccionada', 'Inspectores', 'Correos de inspectores', 'Responsables del área', 'Correos de responsables', 'Estado de inspección', 'Observaciones', 'Ejecutadas', 'Objetivo', 'Resultados desfavorables', 'Conclusiones y recomendaciones'];
+  const observationHeaders = ['Número de registro', 'Fecha de inspección', 'Área e instalación inspeccionada', 'Observación', 'Descripción', 'Nivel de riesgo', 'Medida correctiva', 'Cierre previsto', 'Estado', 'Responsable del levantamiento', 'Fecha de cierre', 'Decisión del revisor'];
   summary.addRow(summaryHeaders); observations.addRow(observationHeaders);
   for (const row of rows) {
     const data = row.data, people = inspectionPeople(data), metrics = dashboardMetrics([row], '');

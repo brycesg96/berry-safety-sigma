@@ -14,7 +14,7 @@ Hasta completar los pasos 1–4, la pantalla muestra el error de configuración 
 
 ## Uso desde la app
 
-Después de completar su perfil por primera vez, una cuenta habilitada entra directamente al espacio de trabajo en **Mis inspecciones**. Recargar esa vista mantiene la lista; abrirla no crea un borrador vacío. **Nueva inspección** inicia el formulario y **Continuar** recupera un borrador guardado. El perfil se abre voluntariamente desde **Mi perfil → Ir a mi perfil**; los administradores encuentran allí **Gestión de Cuentas** y **Gestión de Inspecciones**. Volver desde la cuenta abre otra vez **Mis inspecciones**. Los enlaces explícitos a perfil o administración conservan su destino al recargar, con los mismos controles de permisos. El cambio de contraseña obligatorio, la recuperación y las cuentas inhabilitadas mantienen sus pantallas previas al espacio de trabajo.
+Después de completar su perfil por primera vez, una cuenta habilitada entra directamente al espacio de trabajo en **Mis inspecciones**. Recargar esa vista mantiene la lista; abrirla no crea un borrador vacío. **Nueva inspección** inicia el formulario y **Continuar** recupera un borrador guardado. El perfil se abre voluntariamente desde **Mi perfil → Ir a mi perfil**; los administradores encuentran allí **Gestión de Usuarios** y **Gestión de Inspecciones**. Volver desde la cuenta abre otra vez **Mis inspecciones**. Los enlaces explícitos a perfil o administración conservan su destino al recargar, con los mismos controles de permisos. El cambio de contraseña obligatorio, la recuperación y las cuentas inhabilitadas mantienen sus pantallas previas al espacio de trabajo.
 
 El administrador introduce nombre, correo, área, puesto, los accesos Administrador e Inspecciones y, si corresponde, correos de administradores en copia. Nombre y correo son obligatorios. La contraseña temporal solicitada es `0123456789`; se muestra de solo lectura con opción para verla. No se envían invitaciones por correo.
 
@@ -57,7 +57,7 @@ Administración → Usuarios → Administrar usuarios es la única gestión de a
 
 ## Desactivar y eliminar cuentas
 
-En Gestión de Cuentas → Gestión de Usuarios, cada usuario tiene acciones separadas para **Desactivar/Reactivar** y **Eliminar**. Desactivar impide el acceso a datos y retira a la persona de los selectores de nuevas inspecciones. La cuenta permanece y se puede reactivar. El ingreso muestra «Cuenta inhabilitada» y los nombres/correos de los administradores actuales habilitados que ya actualizaron su contraseña. Los contactos se consultan al abrir esa pantalla y al recuperar el foco; no se mantienen como una lista fija.
+En Gestión de Usuarios → Administrar usuarios, cada usuario tiene acciones separadas para **Desactivar/Reactivar** y **Eliminar**. Desactivar impide el acceso a datos y retira a la persona de los selectores de nuevas inspecciones. La cuenta permanece y se puede reactivar. El ingreso muestra «Cuenta inhabilitada» y los nombres/correos de los administradores actuales habilitados que ya actualizaron su contraseña. Los contactos se consultan al abrir esa pantalla y al recuperar el foco; no se mantienen como una lista fija.
 
 Eliminar retira el acceso y la cuenta de las listas, manteniendo su identidad para las inspecciones y documentos históricos. No elimina sus informes, sus levantamientos ni su autoría. La persona no vuelve a estar disponible como destinataria de nuevas inspecciones. Esta eliminación es lógica; no equivale al borrado excepcional del piloto.
 
@@ -78,7 +78,7 @@ Las lecturas del perfil, directorio y listado de inspecciones realizan un solo i
 
 ## Organización y edición de copias
 
-**Agregar Usuario** se dedica al alta; **Gestión de Usuarios** reúne las cuentas existentes. Cada fila ofrece **Editar CC**, que abre **Administradores (CC)** con los correos actuales. Permite añadir, sustituir o quitar todos los correos sin alterar permisos ni datos de perfil. El [paso 11](../supabase/migrations/202611090011_account_copies.sql) conserva los controles de administrador, el último administrador utilizable, el historial y la numeración. Mantiene los correos de copia cuando un cliente anterior actualiza únicamente permisos. Las cuentas retiradas no son editables. La API existente admite este cambio sin otro despliegue de Render.
+**Agregar Usuario** se dedica al alta; **Administrar usuarios** reúne las cuentas existentes. Cada fila ofrece **Partes interesadas (cc)**, que abre **Partes interesadas (cc)** con los correos actuales. Permite añadir, sustituir o quitar todos los correos sin alterar permisos ni datos de perfil. El [paso 11](../supabase/migrations/202611090011_account_copies.sql) conserva los controles de administrador, el último administrador utilizable, el historial y la numeración. Mantiene los correos de copia cuando un cliente anterior actualiza únicamente permisos. Las cuentas retiradas no son editables. La API existente admite este cambio sin otro despliegue de Render.
 
 
 ## Perfil del primer ingreso

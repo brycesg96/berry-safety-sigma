@@ -1,3 +1,4 @@
+import { selectSecondResponsible } from './responsible-fixture';
 import { selectValue } from './select-fixture';
 import { saveAndOpenList } from './save-fixture';
 import { selectLocation } from './location-fixture';
@@ -8,15 +9,16 @@ import { mockDirectory } from './directory-fixture';
 test.beforeEach(async ({ page }) => { await mockDirectory(page); });
 
 async function fillGeneral(page: Page) {
-  await page.getByLabel('Área inspeccionada').fill('Almacén y despacho');
+  await page.getByLabel('Área e instalación inspeccionada').fill('Almacén y despacho');
   await selectLocation(page, 'Sede', 'Fundo'); await selectLocation(page, 'Zona de inspección', 'Armonía II');
   await page.getByLabel('Hora de inspección').fill('07:30');
   await selectValue(page.getByLabel('AM o PM'), 'AM');
   await page.getByRole('radio', { name: 'Planeada', exact: true }).check();
   await page.getByLabel('Fecha de inspección').fill('2026-11-03');
   await page.getByRole('textbox', { name: 'Objetivo de la inspección interna', exact: true }).fill('Verificar las condiciones de almacenamiento y las rutas de evacuación.');
-  await page.getByLabel(/Nombre completo/).fill('Ana Torres');
+  await page.getByLabel(/Nombre completo/).first().fill('Ana Torres');
   await page.getByRole('listbox').getByRole('option', { name: /Ana Torres/ }).click();
+  await selectSecondResponsible(page, 'jose@example.com', 'José');
 }
 
 test('recorrido completo con evidencia, persistencia y un Excel válido', async ({ page }) => {
@@ -25,10 +27,7 @@ test('recorrido completo con evidencia, persistencia y un Excel válido', async 
   await page.setViewportSize({ width: 1440, height: 1080 });
   await page.goto('./');
   await fillGeneral(page);
-  await page.getByRole('button', { name: 'Añadir', exact: true }).click();
-  const responsibles = page.locator('.responsible-row');
-  await responsibles.nth(1).getByLabel('Nombre completo').fill('José Rojas');
-  await page.getByRole('listbox').getByRole('option', { name: /José Rojas/ }).click();
+  const responsibles = page.locator('.responsibles .responsible-row');
   await expect(responsibles).toHaveCount(2);
   await page.getByRole('button', { name: 'Continuar', exact: true }).click();
   await page.getByRole('button', { name: 'Añadir observación', exact: true }).click();
@@ -51,14 +50,14 @@ test('recorrido completo con evidencia, persistencia y un Excel válido', async 
   await expect(page.locator('.observation-card')).toHaveCount(2);
   await expect(page.locator('.photo-thumb')).toHaveCount(1);
   await page.getByRole('button', { name: 'Continuar', exact: true }).click();
-  await expect(page.getByRole('heading', { name: 'Resumen de observaciones' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'RESUMEN DE OBSERVACIONES' })).toBeVisible();
   await expect(page.locator('.review-observation')).toHaveCount(2);
   await expect(page.getByText('Retirar las cajas y señalizar la ruta de evacuación.')).toBeVisible();
   await page.getByRole('button', { name: 'Continuar', exact: true }).click();
   await page.getByRole('textbox', { name: 'CONCLUSIONES Y RECOMENDACIONES', exact: true }).fill('Se identificó una condición de criticidad alta que requiere atención inmediata.');
   await page.getByRole('textbox', { name: 'DESCRIPCIÓN DE LA CAUSA ANTE RESULTADOS DESFAVORABLES DE LA INSPECCIÓN', exact: true }).fill('Verificar diariamente que la ruta de evacuación permanezca despejada.');
   await page.getByRole('button', { name: 'Continuar', exact: true }).click();
-  await expect(page.getByRole('heading', { name: 'Revisión final' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'REVISIÓN FINAL' })).toBeVisible();
   await expect(page.getByText('Ana Torres', { exact: true })).toBeVisible();
   const requestUrls: string[] = [];
   page.on('request', request => { if (request.method() === 'POST') requestUrls.push(request.url()); });
@@ -94,13 +93,13 @@ test('recorrido completo con evidencia, persistencia y un Excel válido', async 
 test('validación de campos y observación obligatoria', async ({ page }) => {
   await page.goto('./');
   await page.getByRole('button', { name: 'Continuar', exact: true }).click();
-  await expect(page.getByText('Completa el área inspeccionada.')).toBeVisible();
+  await expect(page.getByText('Completa el área e instalación inspeccionada.')).toBeVisible();
   await fillGeneral(page);
-  await page.getByRole('combobox', { name: /Nombre completo/ }).fill('Persona sin seleccionar');
-  await expect(page.getByLabel(/Correo electrónico/)).toHaveValue('');
+  await page.getByRole('combobox', { name: /Nombre completo/ }).first().fill('Persona sin seleccionar');
+  await expect(page.getByLabel(/Correo electrónico/).first()).toHaveValue('');
   await page.getByRole('button', { name: 'Continuar', exact: true }).click();
-  await expect(page.getByText('Selecciona una persona del directorio.')).toBeVisible();
-  await page.getByRole('combobox', { name: /Nombre completo/ }).fill('Ana');
+  await expect(page.getByText('Selecciona una persona del directorio.').first()).toBeVisible();
+  await page.getByRole('combobox', { name: /Nombre completo/ }).first().fill('Ana');
   await page.getByRole('listbox').getByRole('option', { name: /Ana Torres/ }).click();
   await page.getByRole('button', { name: 'Continuar', exact: true }).click();
   await page.getByRole('button', { name: 'Continuar', exact: true }).click();
@@ -135,7 +134,7 @@ test('móvil: menú, borradores, búsqueda y eliminación', async ({ page }) => 
   await page.getByLabel('Buscar inspecciones').fill('Almacén');
   await expect(page.locator('.inspection-list-row')).toHaveCount(1);
   await page.getByRole('button', { name: 'Continuar', exact: true }).click();
-  await expect(page.getByLabel('Área inspeccionada')).toHaveValue('Almacén y despacho');
+  await expect(page.getByLabel('Área e instalación inspeccionada')).toHaveValue('Almacén y despacho');
   await saveAndOpenList(page);
   await page.getByRole('button', { name: 'Eliminar inspección Fundo – Armonía II – Almacén y despacho', exact: true }).click();
   await page.getByRole('button', { name: 'Conservar inspección' }).click();

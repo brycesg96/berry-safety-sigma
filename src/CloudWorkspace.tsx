@@ -18,7 +18,7 @@ export function CloudWorkspace({ profile, exit, onAccount }: { profile: CloudPro
       if (!active) return;
       const directory = data?.filter(row => !row.deleted_at);
       if (error || !directory?.some(row => row.id === profile.id)) { setError('No pudimos abrir tu espacio de trabajo. Revisa tu conexión y tu acceso.'); return; }
-      setAccounts(directory.map(row => ({ id: row.id, email: row.email, name: row.full_name || row.email, area: row.area, jobTitle: row.job_title, role: row.role, enabled: row.enabled, supervisorEmails: row.supervisor_emails || [], canCreateInspections: row.can_create_inspections, canReceiveInspections: row.can_receive_inspections })));
+      setAccounts(directory.map(row => ({ id: row.id, email: row.email, name: row.full_name || row.email, area: row.area, management: row.management, jobTitle: row.job_title, role: row.role, enabled: row.enabled, supervisorEmails: row.supervisor_emails || [], canCreateInspections: row.can_create_inspections, canReceiveInspections: row.can_receive_inspections })));
       setError('');
     };
     void refresh();

@@ -1,3 +1,4 @@
+import { selectSecondResponsible } from './responsible-fixture';
 import { selectValue } from './select-fixture';
 import { selectLocation } from './location-fixture';
 import { test, expect } from '@playwright/test';
@@ -9,13 +10,14 @@ async function atStart(locator: Locator) {
 async function general(page: Page) {
   await page.route('**/api/people?*', route => route.fulfill({ json: { people: [] } }));
   await page.goto('./');
-  await page.getByLabel('Área inspeccionada').fill('Taller - Armonía 2');
+  await page.getByLabel('Área e instalación inspeccionada').fill('Taller - Armonía 2');
   await selectLocation(page, 'Sede', 'Fundo'); await selectLocation(page, 'Zona de inspección', 'Armonía II');
   await page.getByLabel('Hora de inspección').fill('07:30'); await selectValue(page.getByLabel('AM o PM'), 'AM');
   await page.getByRole('radio', { name: 'Planeada', exact: true }).check();
   await page.getByRole('textbox', { name: 'Objetivo de la inspección interna', exact: true }).fill('Revisar condiciones de seguridad.');
-  await page.getByRole('combobox', { name: /Nombre completo/ }).fill('Bryan');
+  await page.getByRole('combobox', { name: /Nombre completo/ }).first().fill('Bryan');
   await page.getByRole('listbox').getByRole('option', { name: /bcespedes@hortifrut.com/ }).click();
+  await selectSecondResponsible(page);
 }
 for (const viewport of [{ width: 1366, height: 900 }, { width: 390, height: 844 }]) {
   test(`pasos mantienen el encabezado y Editar abre la observación exacta (${viewport.width}px)`, async ({ page }) => {
@@ -23,8 +25,16 @@ for (const viewport of [{ width: 1366, height: 900 }, { width: 390, height: 844 
     if (viewport.width < 500) await page.emulateMedia({ reducedMotion: 'reduce' });
     await general(page);
     const start = page.getByText('SEGURIDAD INDUSTRIAL Y GESTIÓN MEDIO AMBIENTAL', { exact: true });
+    const heading = page.locator('.form-card-heading h2');
+    await expect(heading).toHaveText('INFORMACIÓN GENERAL');
+    await expect(page.locator('.form-footer')).not.toContainText('Borrador privado');
+    const notice = page.getByRole('status').filter({ hasText: 'Tienes cambios pendientes.' });
+    await expect(notice).toHaveClass('inspection-unsaved-notice');
+    await expect(notice.locator('strong').first()).toHaveCSS('font-weight', '750');
+    await notice.screenshot({ path: test.info().outputPath(`aviso-pendiente-${viewport.width}.png`) });
     await page.getByRole('button', { name: 'Continuar', exact: true }).click();
     await atStart(start);
+    await expect(heading).toHaveText('RESULTADO DE LA INSPECCIÓN');
     for (let index = 0; index < 3; index++) {
       await page.getByRole('button', { name: 'Añadir observación', exact: true }).click();
       const card = page.locator('.observation-card').nth(index);
@@ -34,6 +44,11 @@ for (const viewport of [{ width: 1366, height: 900 }, { width: 390, height: 844 
     }
     await page.getByRole('button', { name: 'Continuar', exact: true }).click();
     await atStart(start);
+    await expect(heading).toHaveText('RESUMEN DE OBSERVACIONES');
+    await page.getByRole('button', { name: 'Añadir o editar observaciones', exact: true }).click();
+    await expect(page.getByRole('button', { name: 'Añadir observación', exact: true })).toBeFocused();
+    await expect(page.getByRole('button', { name: 'Añadir observación', exact: true })).toBeInViewport({ ratio: 1 });
+    await page.getByRole('button', { name: 'Continuar', exact: true }).click();
     await page.getByRole('button', { name: 'Editar observación 2', exact: true }).click();
     const second = page.locator('.observation-card').nth(1);
     await atStart(second);
@@ -60,9 +75,14 @@ for (const viewport of [{ width: 1366, height: 900 }, { width: 390, height: 844 
     await page.getByRole('button', { name: 'Continuar', exact: true }).click();
     await page.getByRole('button', { name: 'Continuar', exact: true }).click();
     await atStart(start);
+    await expect(heading).toHaveText('CIERRE DE LA INSPECCIÓN');
+    await expect(page.locator('.form-card-heading')).toContainText('los datos de quien es responsable de este registro');
+    await expect(page.locator('.closing-cause-guidance strong')).toHaveText(['el origen o motivo raíz por el cual existe el acto o condición subestándar', '¿por qué ocurrió o por qué está presente ese hallazgo?', 'No aplica (sin resultados desfavorables)']);
+    await page.locator('.closing-entry').first().screenshot({ path: test.info().outputPath(`causa-raiz-${viewport.width}.png`) });
     await page.getByRole('textbox', { name: 'CONCLUSIONES Y RECOMENDACIONES', exact: true }).fill('Corregir los tres hallazgos.');
     await page.getByRole('button', { name: 'Continuar', exact: true }).click();
     await atStart(start);
+    await expect(heading).toHaveText('REVISIÓN FINAL');
     await page.getByRole('button', { name: 'Anterior', exact: true }).click();
     await atStart(start);
   });

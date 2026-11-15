@@ -2,7 +2,8 @@ import { selectValue } from './select-fixture';
 import { saveAndOpenList } from './save-fixture';
 import { test, expect } from '@playwright/test';
 import type { Page } from '@playwright/test';
-import { hasInspectionContent, newInspection, newObservation, newResponsible } from '../src/model';
+import { hasInspectionContent, newInspection, newObservation, newResponsible, patchInspectionField } from '../src/model';
+import { registrationDate } from '../src/registration';
 
 async function storedCount(page: Page) {
   return page.evaluate(async () => {
@@ -11,6 +12,19 @@ async function storedCount(page: Page) {
     const count = await new Promise<number>((resolve, reject) => { const req = db.transaction('inspections', 'readonly').objectStore('inspections').count(); req.onsuccess = () => resolve(req.result); req.onerror = () => reject(req.error); }); db.close(); return count;
   });
 }
+
+test('la fecha de inspección actualiza todos los responsables sin perder firmas y los enviados conservan su fecha histórica', () => {
+  const signature = { id: 'signature', name: 'firma.png', data: 'data:image/png;base64,signature' };
+  const draft = { ...newInspection({ name: 'Inspectora', email: 'test@example.invalid' }), date: '2026-11-01', registrationDetails: { first: { date: '2026-11-02', jobTitle: 'Supervisora', signature }, second: { date: '2026-11-03', jobTitle: 'Inspector' } } };
+  expect(registrationDate(draft, 'first')).toBe('2026-11-01');
+  const updated = patchInspectionField(draft, 'date', '2026-11-15');
+  expect(Object.values(updated.registrationDetails).map(record => record.date)).toEqual(['2026-11-15', '2026-11-15']);
+  expect(updated.registrationDetails.first.signature).toEqual(signature);
+  expect(updated.registrationDetails.first.jobTitle).toBe('Supervisora');
+  const sent = { ...draft, delivery: { sentAt: '2026-11-03T15:00:00Z', recipientIds: [], corrections: {}, revision: 1 } };
+  expect(registrationDate(sent, 'first')).toBe('2026-11-02');
+  expect(draft.registrationDetails.first.date).toBe('2026-11-02');
+});
 
 test('contenido real: los datos automáticos y las filas vacías no inician una inspección', () => {
   const empty = newInspection({ name: 'Bryan', email: 'bryx.96@gmail.com', accountId: 'demo-admin' });
@@ -26,12 +40,12 @@ test('abrir, navegar y cambiar de cuenta no crea borradores; escribir no guarda;
   await expect(page.getByRole('button', { name: 'Guardar y salir', exact: true })).toHaveCount(0);
   await expect(page.getByText('SEGURIDAD INDUSTRIAL Y GESTIÓN MEDIO AMBIENTAL', { exact: true })).toBeVisible();
   const nav = page.locator('.sidebar-nav');
-  await page.getByLabel('Área inspeccionada').fill('   ');
+  await page.getByLabel('Área e instalación inspeccionada').fill('   ');
   await page.getByRole('button', { name: 'Guardar', exact: true }).first().click();
   await expect(page.getByText('Sin iniciar', { exact: true })).toBeVisible();
   await page.clock.runFor(1000); await expect(page.getByText('Sin iniciar', { exact: true })).toBeVisible();
   expect(await storedCount(page)).toBe(0);
-  for (const destination of ['Mis inspecciones', 'Administración', 'Inspecciones recibidas']) {
+  for (const destination of ['Mis inspecciones', 'Administración', 'Inspecciones asignadas']) {
     await nav.getByRole('button', { name: destination, exact: true }).click();
     await nav.getByRole('button', { name: 'Nueva inspección', exact: true }).click();
     await page.clock.runFor(1000); expect(await storedCount(page)).toBe(0);
@@ -45,7 +59,7 @@ test('abrir, navegar y cambiar de cuenta no crea borradores; escribir no guarda;
   await page.getByRole('button', { name: 'Cerrar ventana', exact: true }).click();
   await expect(page.getByRole('button', { name: 'Continuar', exact: true })).toBeEnabled();
   await page.clock.runFor(1000); expect(await storedCount(page)).toBe(0);
-  await page.getByLabel('Área inspeccionada').fill('Taller - Armonía 2');
+  await page.getByLabel('Área e instalación inspeccionada').fill('Taller - Armonía 2');
   await page.clock.runFor(1000); await expect(page.getByText('Cambios sin guardar',{exact:true})).toBeVisible(); await page.getByRole('button',{name:'Guardar',exact:true}).first().click(); await expect(page.getByText('Guardado en este navegador', { exact: true })).toBeVisible();
   expect(await storedCount(page)).toBe(1);
   await nav.getByRole('button', { name: 'Mis inspecciones', exact: true }).click();
@@ -54,7 +68,7 @@ test('abrir, navegar y cambiar de cuenta no crea borradores; escribir no guarda;
   await page.clock.runFor(1000); expect(await storedCount(page)).toBe(1);
   await nav.getByRole('button', { name: 'Mis inspecciones', exact: true }).click();
   await page.getByRole('button', { name: 'Continuar', exact: true }).click();
-  await page.getByLabel('Área inspeccionada').fill('   ');
+  await page.getByLabel('Área e instalación inspeccionada').fill('   ');
   await page.clock.runFor(1000); await page.getByRole('button',{name:'Guardar',exact:true}).first().click(); await expect(page.getByText('Sin iniciar', { exact: true })).toBeVisible();
   await nav.getByRole('button', { name: 'Mis inspecciones', exact: true }).click();
   await expect(page.locator('.inspection-list-row')).toHaveCount(0); expect(await storedCount(page)).toBe(0);
@@ -69,7 +83,7 @@ test('abrir, navegar y cambiar de cuenta no crea borradores; escribir no guarda;
 
 for (const width of [1366, 390]) test(`salir de una inspección permite cancelar, descartar o guardar y salir (${width}px)`, async ({ page }) => {
   await page.setViewportSize({ width, height: 900 }); await page.goto('./');
-  const field = page.getByLabel('Área inspeccionada');
+  const field = page.getByLabel('Área e instalación inspeccionada');
   const dialog = page.getByRole('dialog', { name: '¿Qué quieres hacer con los cambios?', exact: true });
   async function navigate(name: string) {
     const menu = page.getByRole('button', { name: 'Abrir menú', exact: true });
@@ -85,9 +99,9 @@ for (const width of [1366, 390]) test(`salir de una inspección permite cancelar
   await navigate('Mis inspecciones'); await dialog.getByRole('button', { name: 'Descartar cambios', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'Mis inspecciones', exact: true })).toBeVisible(); expect(await storedCount(page)).toBe(0);
   await navigate('Nueva inspección'); await expect(field).toHaveValue('');
-  await field.fill('Borrador conservado'); await navigate('Inspecciones recibidas');
+  await field.fill('Borrador conservado'); await navigate('Inspecciones asignadas');
   await dialog.getByRole('button', { name: 'Guardar y salir', exact: true }).click();
-  await expect(page.getByRole('heading', { name: 'Inspecciones recibidas', exact: true })).toBeVisible(); expect(await storedCount(page)).toBe(1);
+  await expect(page.getByRole('heading', { name: 'Inspecciones asignadas', exact: true })).toBeVisible(); expect(await storedCount(page)).toBe(1);
   await navigate('Mis inspecciones'); await page.locator('.inspection-list-row').getByRole('button', { name: 'Continuar', exact: true }).click();
   await expect(field).toHaveValue('Borrador conservado'); await field.fill('Cambio que descarto'); await navigate('Administración');
   await dialog.getByRole('button', { name: 'Descartar cambios', exact: true }).click(); await expect(page.locator('.sidebar-nav button.active')).toContainText('Administración');

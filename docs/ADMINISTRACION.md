@@ -1,6 +1,10 @@
 # Administración de usuarios
 
-El menú lateral del espacio de trabajo muestra **Administración** a las cuentas administradoras. Este acceso reúne **Gestión de Cuentas** y **Gestión de Inspecciones**, y permite añadir otras herramientas más adelante. El nombre general del acceso no cambia los permisos ni los destinos de esas herramientas.
+El portal muestra **Gestión de Usuarios** como sección principal. Su encabezado identifica al administrador por su nombre completo junto al distintivo **Administrador**. Las pestañas internas son **Agregar Usuario** y **Administrar usuarios**; cada fila conserva las acciones **Permisos**, **Partes interesadas (cc)**, activación y eliminación.
+
+Las partes interesadas se introducen con el ejemplo `persona1@hortifrut.com, persona2@hortifrut.com` y la indicación: «Separa los correos con comas. Las partes interesadas serán puestas en copia en las próximas notificaciones dirigidas a este usuario». El cambio de nombres conserva los correos guardados y los mismos controles de acceso, validación y auditoría.
+
+El menú lateral del espacio de trabajo muestra **Administración** a las cuentas administradoras. Este acceso reúne **Gestión de Usuarios** y **Gestión de Inspecciones**, y permite añadir otras herramientas más adelante. El nombre general del acceso no cambia los permisos ni los destinos de esas herramientas.
 
 ## Gestión única con Supabase
 
@@ -8,11 +12,11 @@ Administración → Usuarios ofrece una única entrada: **Administrar usuarios**
 
 El formulario de añadir cuentas locales, su lista con edición/activación y la pestaña duplicada de Inicio de sesión se retiraron el 8 de noviembre de 2026. Las altas nuevas se realizan únicamente en la gestión de Supabase. Las pestañas Funciones y permisos e Integraciones se conservan.
 
-En **Gestión de Cuentas**, **Agregar Usuario** contiene únicamente el formulario de alta. **Gestión de Usuarios** contiene la lista de cuentas con **Editar permisos**, **Editar CC**, **Desactivar/Reactivar** y **Eliminar**. El portal usa nombre, correo, área, puesto, permisos y correos en copia. La contraseña temporal es `0123456789` y el primer ingreso exige cambiarla. Correo, permisos y acceso se verifican con Auth y la base de datos; una cuenta de inspecciones no obtiene acceso administrativo por abrir el enlace de Usuarios. Los permisos y el acceso se editan desde Gestión de Usuarios; la protección del último administrador y el historial se mantienen.
+En **Gestión de Usuarios**, **Agregar Usuario** contiene únicamente el formulario de alta. **Administrar usuarios** contiene la lista de cuentas con **Permisos**, **Partes interesadas (cc)**, **Desactivar/Reactivar** y **Eliminar**. El portal usa nombre, correo, área, puesto, permisos y correos en copia. La contraseña temporal es `0123456789` y el primer ingreso exige cambiarla. Correo, permisos y acceso se verifican con Auth y la base de datos; una cuenta de inspecciones no obtiene acceso administrativo por abrir el enlace de Usuarios. Los permisos y el acceso se editan desde Administrar usuarios; la protección del último administrador y el historial se mantienen.
 
 Acceso directo: `https://brycesg96.github.io/berry-safety-sigma/?acceso=cuenta&seccion=usuarios`.
 
-La edición de **Administradores (CC)** reutiliza `/api/accounts/manage` y necesita ejecutar el [paso 11](../supabase/migrations/202611090011_account_copies.sql) sobre el paso 10 ya instalado. No requiere nuevas variables ni otro despliegue de Render. El administrador puede sustituir o vaciar los correos, separados por comas (máximo 50). Se validan y normalizan con controles de versión y auditoría. Los cambios se aplican a próximos envíos; los informes ya enviados conservan sus copias históricas. [Gestión de cuentas, contraseña temporal y recuperación](USUARIOS.md).
+La edición de **Partes interesadas (cc)** reutiliza `/api/accounts/manage` y necesita ejecutar el [paso 11](../supabase/migrations/202611090011_account_copies.sql) sobre el paso 10 ya instalado. No requiere nuevas variables ni otro despliegue de Render. El administrador puede sustituir o vaciar los correos, separados por comas (máximo 50). Se validan y normalizan con controles de versión y auditoría. Los cambios se aplican a próximos envíos; los informes ya enviados conservan sus copias históricas. [Gestión de cuentas, contraseña temporal y recuperación](USUARIOS.md).
 
 ## Datos del espacio de pruebas anterior
 
@@ -28,11 +32,11 @@ Las pruebas de interfaz comprueban la ausencia del formulario local, conservaci�
 
 ## Eliminación de inspecciones
 
-La pestaña anterior «Todas las inspecciones» se retiró de Gestión de Cuentas. **Gestión de Inspecciones → Inspecciones registradas** dispone de una columna **Eliminar**, a la derecha de **Descargas**. La confirmación identifica código y área; cancelar no cambia nada. El borrado usa la versión actual del registro y conserva el código reservado. Al completarse, actualiza la lista, las estadísticas, los filtros y la caché del panel. El consolidado posterior excluye el registro eliminado.
+La pestaña anterior «Todas las inspecciones» se retiró de Gestión de Usuarios. **Gestión de Inspecciones → Inspecciones registradas** dispone de una columna **Eliminar**, a la derecha de **Descargas**. La confirmación identifica código y área; cancelar no cambia nada. El borrado usa la versión actual del registro y conserva el código reservado. Al completarse, actualiza la lista, las estadísticas, los filtros y la caché del panel. El consolidado posterior excluye el registro eliminado.
 
 
 ## Buscar usuarios
 
-Gestión de Usuarios incluye una lupa y el buscador «Buscar por nombre, cargo o área» junto al título Usuarios. Filtra por los nombres, puesto y área organizativa de las cuentas cargadas, sin distinguir mayúsculas ni tildes. Se pueden combinar palabras de esos campos. El contador indica coincidencias y total; limpiar la búsqueda restaura la lista completa. Si no hay coincidencias, se indica explícitamente.
+Administrar usuarios incluye una lupa y el buscador «Buscar por nombre, cargo o área» junto al título Usuarios. Filtra por los nombres, puesto y área organizativa de las cuentas cargadas, sin distinguir mayúsculas ni tildes. Se pueden combinar palabras de esos campos. El contador indica coincidencias y total; limpiar la búsqueda restaura la lista completa. Si no hay coincidencias, se indica explícitamente.
 
-La búsqueda no modifica cuentas ni solicita datos por cada letra. Actualizar lista mantiene la búsqueda y aplica el filtro a los datos nuevos. Editar permisos, CC, activar o eliminar continúan usando el identificador y la revisión del usuario seleccionado, con los controles administrativos existentes.
+La búsqueda no modifica cuentas ni solicita datos por cada letra. Actualizar lista mantiene la búsqueda y aplica el filtro a los datos nuevos. Permisos, CC, activar o eliminar continúan usando el identificador y la revisión del usuario seleccionado, con los controles administrativos existentes.
