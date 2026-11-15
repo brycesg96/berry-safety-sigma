@@ -29,7 +29,7 @@ export function dashboardPeopleOptions(rows: DashboardRow[], role: 'inspector' |
   return options.map((option, i) => options.some((other, j) => i !== j && other.label === option.label) ? { ...option, label: `${option.label} · persona ${options.filter((other, j) => j <= i && other.label === option.label).length}` } : option).sort((a, b) => a.label.localeCompare(b.label, 'es'));
 }
 export const dashboardState = (row: DashboardRow) => row.workflow === 'closed' ? 'closed' : Object.values(row.data.delivery?.corrections || {}).some(item => item.decision === 'review') ? 'review' : 'open';
-export const dashboardStateLabel = (row: DashboardRow) => ({ closed: 'Cerrada', review: 'Pendiente de validación', open: 'Pendiente de atención' })[dashboardState(row)];
+export const dashboardStateLabel = (row: DashboardRow) => ({ closed: 'Cerrada', review: 'Por validar / aprobar', open: 'En espera de respuesta' })[dashboardState(row)];
 export type DashboardFilters = { code: string; from: string; to: string; inspector: string[]; management: string; area: string; responsible: string[]; state: string };
 export const emptyDashboardFilters = (): DashboardFilters => ({ code: '', from: '', to: '', inspector: [], management: '', area: '', responsible: [], state: '' });
 export const responsibleArea = (person: { area?: string }) => person.area?.trim() || 'Sin área registrada';

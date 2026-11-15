@@ -16,9 +16,11 @@ function saved(ownerId: string): SavedTexts | null {
   // The former shared key is deliberately ignored; its text has no verified owner.
   try { const value: unknown = JSON.parse(localStorage.getItem(keyFor(ownerId)) || 'null'); return valid(value) ? value : null; } catch { return null; }
 }
-export function lastInspectionTexts(ownerId: string): InspectionTexts { return { ...(saved(ownerId)?.texts || EMPTY) }; }
+export function lastInspectionTexts(ownerId: string): InspectionTexts { return { ...(saved(ownerId)?.texts || EMPTY), unfavorableCause: '' }; }
 function snapshot(draft: Inspection, at: string): SavedTexts {
-  return { texts: { objective: draft.objective, unfavorableCause: draft.unfavorableCause || '', closingRemarks: closingRemarksOf(draft) }, acceptedAt: at };
+  // Causes describe this inspection alone. The report keeps its own cause,
+  // while reusable defaults retain only the objective and closing remarks.
+  return { texts: { objective: draft.objective, unfavorableCause: '', closingRemarks: closingRemarksOf(draft) }, acceptedAt: at };
 }
 function store(ownerId: string, value: SavedTexts) {
   try { localStorage.setItem(keyFor(ownerId), JSON.stringify(value)); } catch { /* Confirmed inspections remain the source on the next load. */ }
@@ -39,5 +41,5 @@ export function inspectionTextsFor(ownerId: string, inspections: readonly Inspec
     if (valid(value) && (!latest || Date.parse(value.acceptedAt) > Date.parse(latest.acceptedAt))) latest = value;
   }
   if (latest) store(ownerId, latest);
-  return { ...(latest?.texts || EMPTY) };
+  return { ...(latest?.texts || EMPTY), unfavorableCause: '' };
 }

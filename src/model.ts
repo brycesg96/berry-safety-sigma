@@ -79,7 +79,7 @@ export const newResponsible = (): Responsible => ({ id: id(), name: '', email: '
 export const newObservation = (closingDate = ''): Observation => ({ id: id(), description: '', correctiveAction: '', severity: 'media', dueDate: closingDate, photos: [] });
 export const newInspection = (profile: Profile, defaults?: InspectionTexts): Inspection => {
   const date = new Date().toLocaleDateString('en-CA');
-  const texts = defaults || lastInspectionTexts(profile.accountId || 'demo-admin');
+  const texts = { ...(defaults || lastInspectionTexts(profile.accountId || 'demo-admin')), unfavorableCause: '' };
   return ({
   id: id(), ownerId: profile.accountId || 'demo-admin', ...(profile.storage ? { storage: profile.storage } : {}), company: EMPLOYER.name, ruc: EMPLOYER.ruc, facility: '', area: '', type: '', otherType: '', registrationNumber: '', inspectionTime: '', inspectionPeriod: '',
   date, initialInspectionDate: date, ...texts, initialReportTexts: { ...texts }, responsibles: [newResponsible(), newResponsible()],
@@ -121,7 +121,7 @@ export const emailValid = (email: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e
 export function validateStep(d: Inspection, step: number): Record<string, string> {
   const errors: Record<string, string> = {};
   if (step === 0) {
-    if (d.areaLocation) Object.assign(errors, locationErrors(d.areaLocation));
+    if (d.areaLocation) Object.assign(errors, locationErrors(d.areaLocation, !!d.delivery));
     for (const [key, label] of [['area', 'el área e instalación inspeccionada'], ['date', 'la fecha'], ['inspectionTime', 'la hora de inspección'], ['inspector', 'el responsable de la inspección'], ['objective', 'el objetivo']] as const) {
       if (!d[key].trim()) errors[key] = `Completa ${label}.`;
     }

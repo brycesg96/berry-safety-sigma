@@ -202,7 +202,7 @@ function WorkspaceApp({ initialAccounts, exit, onCloudAccess, cloud }: { initial
     if (item.delivery) return item;
     if (!canCreate || saving.current) return;
     saving.current = true;
-    if (hasInspectionContent(item)) {
+    if (item.step >= 3 && hasInspectionContent(item)) {
       item = completeInspectionCause(item);
       const inspectionId = item.id;
       setDraft(current => current.id === inspectionId && !current.unfavorableCause?.trim() ? { ...current, unfavorableCause: NO_UNFAVORABLE_RESULTS } : current);
@@ -448,14 +448,14 @@ function WorkspaceApp({ initialAccounts, exit, onCloudAccess, cloud }: { initial
   const listStates = [
     { value: 'all', label: 'Todas tus inspecciones', icon: <ClipboardList size={22}/> },
     { value: 'draft', label: 'Borradores', icon: <Pencil size={22}/> },
-    { value: 'pending', label: 'Pendientes de atención', icon: <ClipboardCheck size={22}/> },
-    { value: 'review', label: 'Pendientes de validación', icon: <Search size={22}/> },
+    { value: 'pending', label: 'En espera de respuesta', icon: <ClipboardCheck size={22}/> },
+    { value: 'review', label: 'Por validar / aprobar', icon: <Search size={22}/> },
     { value: 'closed', label: 'Cerradas', icon: <FileCheck2 size={22}/> },
   ] as const;
 
   const counts = { alta: draft.observations.filter(o => o.severity === 'alta').length, media: draft.observations.filter(o => o.severity === 'media').length, baja: draft.observations.filter(o => o.severity === 'baja').length };
   const following = view === 'followup' && followUp;
-  const breadcrumbSection = following ? followUpOrigin === 'received' ? inspectionClosed(following) ? 'Cerradas' : 'Pendientes' : inspectionClosed(following) ? 'Inspecciones cerradas' : needsReview(following) ? 'Pendientes de validación' : 'Pendientes de atención' : view === 'editor' ? 'Nueva inspección' : view === 'admin' ? 'Administración' : view === 'received' ? 'Observaciones a mi cargo' : 'Mis inspecciones';
+  const breadcrumbSection = following ? followUpOrigin === 'received' ? inspectionClosed(following) ? 'Cerradas' : 'Pendientes' : inspectionClosed(following) ? 'Inspecciones cerradas' : needsReview(following) ? 'Por validar / aprobar' : 'En espera de respuesta' : view === 'editor' ? 'Nueva inspección' : view === 'admin' ? 'Administración' : view === 'received' ? 'Observaciones a mi cargo' : 'Mis inspecciones';
 
 
   return <AccountDirectory.Provider value={cloud ? accounts : undefined}><div className="app-shell" spellCheck={false}>

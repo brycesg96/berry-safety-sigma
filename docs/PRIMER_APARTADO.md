@@ -60,4 +60,4 @@ Esta actualización no publica la web ni modifica la configuración de GitHub Pa
 
 Sede y Zona de inspección usan menús propios de la plataforma, con opciones verdes, marca de selección y soporte de teclado/tacto. La zona depende de la sede; volver a elegir la misma sede conserva la zona actual. El prefijo de la ubicación se muestra como una etiqueta redondeada junto al texto editable. La información sigue exportándose completa en la celda existente del Excel.
 
-Gerencia y Área organizativa se incorporan como selectores dependientes. Su catálogo oficial y el paso 13 se describen en [Gerencia, área y ubicación inspeccionada](ORGANIZACION.md). El texto compuesto sigue el orden Sede – Área – Zona de inspección – Instalación inspeccionada.
+Gerencia y Área organizativa se incorporan como selectores dependientes. Su catálogo oficial y el paso 13 se describen en [Gerencia, área y ubicación inspeccionada](ORGANIZACION.md). El texto compuesto sigue el orden Sede – Zona de inspección – Área – Instalación inspeccionada.

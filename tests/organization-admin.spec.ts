@@ -70,7 +70,7 @@ test('catálogo IPERC inicial respeta gerencias naranjas, empleados, practicante
 
 for (const width of [1366, 390]) test(`administrar listas comparte cambios con otra cuenta, permite añadir un puesto omitido y conserva valores históricos (${width}px)`, async ({ browser, page, context }) => {
   await page.setViewportSize({ width, height: 900 }); const state = stateOf(); await mock(context, state); await login(page);
-  await expect(page.getByRole('heading', { name: 'Gestión de Áreas', exact: true })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Gestión de áreas e instalaciones', exact: true })).toBeVisible();
   await page.getByRole('button', { name: organizationLabel('Gerencia de prueba'), exact: true }).click(); await page.getByRole('button', { name: organizationLabel('Área de prueba'), exact: true }).click();
   await page.getByRole('button', { name: 'Añadir puesto', exact: true }).click(); const dialog = page.getByRole('dialog', { name: 'Añadir puesto', exact: true });
   await dialog.getByLabel('Nombre del puesto').fill('Operario autorizado'); state.failSave = true; await dialog.getByRole('button', { name: 'Guardar', exact: true }).click();
@@ -107,7 +107,7 @@ test('añadir gerencia y área, editar con padre válido y rechazar una edición
 
 test('usuario sin administración no consulta la gestión y un fallo del catálogo no ofrece listas antiguas', async ({ page, context }) => {
   const state = stateOf(); await mock(context, state, member); await login(page, member);
-  await expect(page.getByRole('heading', { name: 'Mi perfil', exact: true })).toBeVisible(); await expect(page.getByRole('button', { name: 'Gestión de Áreas', exact: true })).toHaveCount(0); expect(state.paths).not.toContain('/rest/v1/rpc/berry_admin_organization');
+  await expect(page.getByRole('heading', { name: 'Mi perfil', exact: true })).toBeVisible(); await expect(page.getByRole('button', { name: 'Gestión de áreas e instalaciones', exact: true })).toHaveCount(0); expect(state.paths).not.toContain('/rest/v1/rpc/berry_admin_organization');
   state.catalogFails = true; await page.reload(); await expect(page.getByRole('button', { name: 'Reintentar catálogo', exact: true })).toBeVisible(); await expect(page.getByRole('combobox', { name: 'Gerencia', exact: true })).toBeDisabled();
   state.catalogFails = false; await page.getByRole('button', { name: 'Reintentar catálogo', exact: true }).click(); await expect(page.getByRole('combobox', { name: 'Gerencia', exact: true })).toBeEnabled();
 });

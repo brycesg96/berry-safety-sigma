@@ -19,7 +19,6 @@ async function createReport(page: Page) {
     const { readAccounts, addAccount } = await import('/src/accounts.ts');
     if (!readAccounts().some(account => account.email === 'correction@example.invalid')) addAccount('demo-admin', { name: 'Encargada del levantamiento', email: 'correction@example.invalid', role: 'inspector' });
   });
-  await page.getByLabel('Área e instalación inspeccionada').fill('Taller - Armonía 2');
   await selectLocation(page, 'Sede', 'Fundo'); await selectLocation(page, 'Zona de inspección', 'Armonía II');
   await page.getByLabel('Hora de inspección').fill('07:30'); await selectValue(page.getByLabel('AM o PM'), 'AM');
   await page.getByRole('radio', { name: 'Planeada', exact: true }).check();
@@ -44,7 +43,7 @@ async function createReport(page: Page) {
   await page.getByText('Compartir solo en este navegador', { exact: true }).click();
   await expect(page.getByText('No se ha enviado ningún correo.')).toBeVisible();
   await page.getByRole('button', { name: 'Enviar a destinatarios de prueba' }).click();
-  await expect(page.getByRole('heading', { name: 'Fundo – CONTROL DE GESTIÓN – Armonía II – Taller - Armonía 2', exact: true })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Fundo – Armonía II – Control de Gestión', exact: true })).toBeVisible();
 }
 async function openReceived(page: Page) {
   await page.getByRole('button', { name: 'Observaciones a mi cargo', exact: true }).click();
@@ -64,7 +63,7 @@ test('destinatario envía evidencias, autor pide ajustes y cierra solo al aproba
   await expect(page.getByText('No tienes informes a tu cargo')).toBeVisible();
   await createReport(page);
   const breadcrumb = page.getByRole('navigation', { name: 'Ruta de navegación' });
-  await expect(breadcrumb.locator('li')).toHaveText(['Espacio de trabajo', 'Mis inspecciones', 'Pendientes de atención']);
+  await expect(breadcrumb.locator('li')).toHaveText(['Espacio de trabajo', 'Mis inspecciones', 'En espera de respuesta']);
   await expect(page.getByRole('button', { name: 'Mis inspecciones', exact: true })).toHaveClass(/active/);
   await expect(page.getByRole('button', { name: 'Descargar PDF', exact: true })).toHaveCount(0);
   await switchTo(page, 'demo-inspector');
@@ -91,7 +90,7 @@ test('destinatario envía evidencias, autor pide ajustes y cierra solo al aproba
   await page.reload(); await openReceived(page);
   await expect(cards.nth(0).getByLabel('Acción realizada')).toHaveValue('Corrección 1 realizada');
   await switchTo(page, 'demo-admin'); await openReview(page);
-  await expect(breadcrumb.locator('li')).toHaveText(['Espacio de trabajo', 'Mis inspecciones', 'Pendientes de validación']);
+  await expect(breadcrumb.locator('li')).toHaveText(['Espacio de trabajo', 'Mis inspecciones', 'Por validar / aprobar']);
   await page.getByRole('button', { name: 'Volver a Mis inspecciones', exact: true }).click();
   await expect(inspectionFilterButton(page, 'review')).toHaveAttribute('aria-pressed', 'true');
   await page.getByRole('button', { name: 'Revisar informe', exact: true }).click();

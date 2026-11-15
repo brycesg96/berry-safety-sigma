@@ -973,9 +973,9 @@ const identityOwnReport='99800000-0000-4000-8000-000000000006',identityReceivedR
 let originalPerson,rehirePerson;
 const identityInput={email:'historia@example.invalid',full_name:'Persona Coincidente',area:'',job_title:'',role:'inspector',supervisor_emails:[],can_create_inspections:true,can_receive_inspections:true};
 const identityRpc=(name,values)=>as('authenticated',users.author,`select public.${name}(${values.map((_,i)=>`$${i+1}`).join(',')}) as value`,values,freshCatalogClaims);
-async function identityReport(author,id,recipient) {
+async function identityReport(author,id,recipient,extra={}) {
  await as('authenticated',author,'select public.berry_ensure_draft($1)',[id],freshCatalogClaims);
- const data={...cloudData(),id,ownerId:author,responsibles:[{id:'recipient',personId:recipient}]};
+ const data={...cloudData(),...extra,id,ownerId:author,responsibles:[{id:'recipient',personId:recipient}]};
  const row=(await as('authenticated',author,'select public.berry_save_draft($1,1,$2) as value',[id,data],freshCatalogClaims)).rows[0].value;
  const lease=(await as('authenticated',author,'select public.berry_prepare_report($1,$2,$3) as value',[id,row.revision,sourceHash],freshCatalogClaims)).rows[0].value.lease;
  const doc={filename:'REG_INS_TALLER_05.11.2026.xlsx',sha256:documentHash,byte_size:2000,storage_path:`2026/11-NOVIEMBRE/${id}/${documentHash}/REG_INS_TALLER_05.11.2026.xlsx`};
@@ -1223,6 +1223,85 @@ test('expired email attempts and revoked administrators cannot commit Auth or pr
  // reservation authorizes the exact email independently of provider ordering.
  await db.query("update auth.users set email='confirmado@example.invalid' where id=$1",[emailUser]);
  assert.equal((await db.query('select email from public.berry_profiles where id=$1',[emailUser])).rows[0].email,'confirmado@example.invalid');
+});
+
+const locationOrderMigration = await readFile(new URL('../migrations/202611150018_location_order.sql', import.meta.url), 'utf8');
+test('new location order matches the client while historical locations and reports retain their recorded text',async()=>{
+ const before=(await db.query('select * from public.berry_inspections order by id')).rows;
+ await db.exec(locationOrderMigration);
+ assert.deepEqual((await db.query('select * from public.berry_inspections order by id')).rows,before);
+ const location={site:'Fundo',zone:'Armonía II',department:'Seguridad Industrial y Gestión Medio Ambiental',departmentNomenclature:'SIGMA',detail:'Taller'};
+ assert.equal((await db.query('select berry_private.location_area($1) as value',[location])).rows[0].value,'Fundo – SIGMA – Armonía II – Taller');
+ const current={...location,textOrder:'site-zone-area'};
+ assert.equal((await db.query('select berry_private.location_area($1) as value',[current])).rows[0].value,'Fundo – Armonía II – SIGMA – Taller');
+ assert.equal((await db.query('select berry_private.location_area($1) as value',[{...current,site:'Packing Chao',zone:'Packing Chao',department:'Operaciones Industriales',departmentNomenclature:''}])).rows[0].value,'Packing Chao – Packing Chao – Operaciones Industriales – Taller');
+ for(const invalid of [false,12,null,'otro']) await assert.rejects(()=>db.query('select berry_private.location_area($1)',[{...location,textOrder:invalid}]),error=>error.code==='22023');
+ const id='99400000-0000-4000-8000-000000000001';
+ await identityRpc('berry_ensure_draft',[id]);
+ const saved=(await identityRpc('berry_save_draft',[id,1,{...cloudData(),id,areaLocation:current,responsibles:[{id:'self',personId:users.author}]}])).rows[0].value;
+ assert.equal(saved.data.area,'Fundo – Armonía II – SIGMA – Taller');assert.equal(saved.data.areaLocation.textOrder,'site-zone-area');
+ const after=(await db.query('select * from public.berry_inspections order by id')).rows;
+ await db.exec(locationOrderMigration);
+ assert.deepEqual((await db.query('select * from public.berry_inspections order by id')).rows,after);
+});
+
+const locationCatalogMigration = await readFile(new URL('../migrations/202611150019_location_catalog.sql', import.meta.url), 'utf8');
+const locationSite='99300000-0000-4000-8000-000000000001',locationZone='99300000-0000-4000-8000-000000000002',locationInstallation='99300000-0000-4000-8000-000000000003';
+const locationRpc=(values,actor=users.author)=>as('authenticated',actor,'select public.berry_manage_location($1,$2,$3,$4,$5,$6) as value',values,freshCatalogClaims);
+let physicalLocation,pendingPhysicalReport;
+test('physical catalog imports the existing sites and zones without inventing installations or changing any records',async()=>{
+ const before=(await db.query('select * from public.berry_inspections order by id')).rows;
+ const profiles=(await db.query('select * from public.berry_profiles order by id')).rows;
+ await db.exec(locationCatalogMigration);
+ assert.deepEqual((await db.query('select * from public.berry_inspections order by id')).rows,before);
+ assert.deepEqual((await db.query('select * from public.berry_profiles order by id')).rows,profiles);
+ const catalog=(await identityRpc('berry_location_catalog',[])).rows[0].value;
+ assert.equal(catalog.installationsReady,false);assert.equal(catalog.nodes.filter(node=>node.kind==='site').length,5);assert.equal(catalog.nodes.filter(node=>node.kind==='zone').length,19);assert.equal(catalog.nodes.filter(node=>node.kind==='installation').length,0);
+ await denied(()=>as('anon',null,'select public.berry_location_catalog()'));
+ await denied(()=>as('authenticated',catalogUser,'select public.berry_admin_locations()',[],freshCatalogClaims));
+ await denied(()=>as('authenticated',users.author,'select * from public.berry_locations',[],freshCatalogClaims));
+ await denied(()=>locationRpc([locationSite,'site',null,'No permitido',true,null],catalogUser));
+});
+test('administrators manage sites and zones with valid parents, revisions, duplicate checks, retirement and restoration while installations stay locked',async()=>{
+ const site=(await locationRpc([locationSite,'site',null,'Sede de prueba',true,null])).rows[0].value;assert.equal(site.revision,1);
+ await locationRpc([locationZone,'zone',locationSite,'Zona de prueba',true,null]);
+ await assert.rejects(()=>locationRpc([locationInstallation,'installation',locationZone,'Instalación no autorizada',true,null]),error=>error.code==='22023');
+ await assert.rejects(()=>locationRpc(['99300000-0000-4000-8000-000000000004','zone',locationSite,'Zona de prueba',true,null]),error=>error.code==='23505');
+ await assert.rejects(()=>locationRpc([locationZone,'zone',locationZone,'Ciclo inválido',true,1]),error=>error.code==='22023');
+ const updated=(await locationRpc([locationZone,'zone',locationSite,'Zona corregida',true,1])).rows[0].value;assert.equal(updated.revision,2);
+ await assert.rejects(()=>locationRpc([locationZone,'zone',locationSite,'Otra edición',true,1]),error=>error.code==='40001');
+ await locationRpc([locationSite,'site',null,'Sede de prueba',false,1]);assert.ok(!(await identityRpc('berry_location_catalog',[])).rows[0].value.nodes.some(node=>node.id===locationZone));
+ await locationRpc([locationSite,'site',null,'Sede de prueba',true,2]);assert.ok((await identityRpc('berry_location_catalog',[])).rows[0].value.nodes.some(node=>node.id===locationZone));
+});
+test('pending installation catalog permits a complete inspection using only site, zone and area and binds names to actual catalog IDs',async()=>{
+ physicalLocation={source:'catalog',siteId:locationSite,zoneId:locationZone,site:'Nombre forjado',zone:'Otro nombre',detail:'Instalación inventada',installationPending:false,management:'Gerencia de prueba',department:'Área de prueba',departmentDisplay:'Área de Prueba',textOrder:'site-zone-area'};
+ const id='99300000-0000-4000-8000-000000000005';await identityRpc('berry_ensure_draft',[id]);
+ const saved=(await identityRpc('berry_save_draft',[id,1,{...cloudData(),id,areaLocation:physicalLocation,responsibles:[{id:'self',personId:users.author}]}])).rows[0].value;
+ assert.equal(saved.data.area,'Sede de prueba – Zona corregida – Área de Prueba');assert.equal(saved.data.areaLocation.detail,'');assert.equal(saved.data.areaLocation.installationPending,true);
+ await db.query('select berry_private.require_location($1)',[saved.data]);
+ pendingPhysicalReport='99300000-0000-4000-8000-000000000006';
+ await identityReport(users.author,pendingPhysicalReport,users.author,{areaLocation:{...physicalLocation,detail:''}});
+});
+test('loading the official installation list enables dependent installations and cannot be bypassed with a pending flag or an installation from another zone',async()=>{
+ // Fixture-only activation simulates the later official import; production is left pending.
+ await db.query('update berry_private.location_settings set installations_ready=true where singleton');
+ await locationRpc([locationInstallation,'installation',locationZone,'Taller de prueba',true,null]);
+ const location={...physicalLocation,site:'Sede de prueba',zone:'Zona corregida',installationId:locationInstallation,detail:'Texto forjado',installationPending:true};
+ const normalized=(await db.query('select berry_private.canonical_location($1,$2) as value',['99300000-0000-4000-8000-000000000007',location])).rows[0].value;
+ assert.equal(normalized.detail,'Taller de prueba');assert.equal(normalized.installationPending,false);
+ await db.query('select berry_private.require_location($1)',[{id:'99300000-0000-4000-8000-000000000007',areaLocation:normalized}]);
+ const oldPending=(await db.query('select data from public.berry_inspections where id=$1',[pendingPhysicalReport])).rows[0].data;
+ await db.query('select berry_private.require_location($1)',[oldPending]);
+ const historical=(await db.query('select berry_private.canonical_location($1,$2) as value',[pendingPhysicalReport,oldPending.areaLocation])).rows[0].value;assert.deepEqual(historical,oldPending.areaLocation);
+ await assert.rejects(()=>db.query('select berry_private.require_location($1)',[{id:'99300000-0000-4000-8000-000000000007',areaLocation:{...normalized,detail:'',installationId:undefined,installationPending:true}}]),error=>error.code==='22023');
+ await assert.rejects(()=>db.query('select berry_private.canonical_location($1,$2)',['99300000-0000-4000-8000-000000000007',{...location,zoneId:'49b49753-a8d6-571e-a064-c9f0c961d1d9'}]),error=>error.code==='22023');
+});
+test('catalog reinstallation preserves administrator edits, the later activation and all historical snapshots',async()=>{
+ await locationRpc([locationInstallation,'installation',locationZone,'Taller corregido',true,1]);
+ const nodes=(await db.query('select * from public.berry_locations order by id')).rows,records=(await db.query('select * from public.berry_inspections order by id')).rows;
+ await db.exec(await readFile(new URL('../operations/activate-locations-20261115.sql',import.meta.url),'utf8'));
+ assert.deepEqual((await db.query('select * from public.berry_locations order by id')).rows,nodes);assert.deepEqual((await db.query('select * from public.berry_inspections order by id')).rows,records);
+ assert.equal((await identityRpc('berry_location_catalog',[])).rows[0].value.installationsReady,true);
 });
 
 let failed;

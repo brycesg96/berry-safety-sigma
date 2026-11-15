@@ -13,7 +13,7 @@ const singular = { management: 'gerencia', area: 'área', position: 'puesto' };
 const plural = { management: 'Gerencias', area: 'Áreas', position: 'Puestos' };
 type Editor = { node: OrganizationNode; creating: boolean; displayName: string };
 
-export function CloudOrganization({ isCurrent, onBusyChange }: { isCurrent: () => boolean; onBusyChange: (busy: boolean) => void }) {
+export function AreaCatalog({ isCurrent, onBusyChange }: { isCurrent: () => boolean; onBusyChange: (busy: boolean) => void }) {
   const [nodes, setNodes] = useState<OrganizationNode[]>([]);
   const [management, setManagement] = useState(''), [area, setArea] = useState('');
   const [query, setQuery] = useState(''), [showRemoved, setShowRemoved] = useState(false);
@@ -82,8 +82,8 @@ export function CloudOrganization({ isCurrent, onBusyChange }: { isCurrent: () =
   };
   const editParentKind = editor?.node.kind === 'area' ? 'management' : 'area';
   const parentOptions = nodes.filter(node => node.kind === editParentKind && (active(node) || node.id === editor?.node.parent_id)).sort((a, b) => a.name.localeCompare(b.name, 'es')).map(node => ({ value: node.id, label: organizationLabel(node.name), description: node.kind === 'area' ? organizationLabel(byId.get(node.parent_id!)?.name) : !active(node) ? 'Retirada' : undefined }));
-  return <section className="organization-admin" aria-label="Gestión de Áreas">
-    <div className="organization-heading"><div><h1>Gestión de Áreas</h1><p>Administra las gerencias, áreas y puestos disponibles en los perfiles y las inspecciones.</p></div><button type="button" className="button button-outline" disabled={loading || locked.current} onClick={() => void refreshAll()}>{loading ? <LoaderCircle size={16} className="spin"/> : <RefreshCw size={16}/>}Actualizar listas</button></div>
+  return <section className="organization-catalog" aria-label="Catálogo de áreas">
+    <div className="organization-heading"><div><h2>Gerencias, áreas y puestos</h2><p>Administra las gerencias, áreas y puestos disponibles en los perfiles y las inspecciones.</p></div><button type="button" className="button button-outline" disabled={loading || locked.current} onClick={() => void refreshAll()}>{loading ? <LoaderCircle size={16} className="spin"/> : <RefreshCw size={16}/>}Actualizar listas</button></div>
     {error && !editor && !removing && <p role="alert" className="notice notice-error">{error}</p>}{message && <p role="status" className="account-success cloud-message">{message}</p>}
     <div className="organization-toolbar"><div className="account-user-search"><Search size={18} aria-hidden="true"/><input type="search" aria-label="Buscar gerencias, áreas o puestos" placeholder="Buscar gerencias, áreas o puestos" value={query} onChange={event => setQuery(event.target.value)}/></div><label className="organization-removed-toggle"><input type="checkbox" checked={showRemoved} onChange={event => setShowRemoved(event.target.checked)}/>Mostrar elementos retirados</label></div>
     <p className="organization-totals">{nodes.filter(node => node.kind === 'management' && active(node)).length} gerencias · {nodes.filter(node => node.kind === 'area' && active(node)).length} áreas · {nodes.filter(node => node.kind === 'position' && active(node)).length} puestos</p>

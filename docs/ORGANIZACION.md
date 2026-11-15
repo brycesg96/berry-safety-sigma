@@ -10,7 +10,7 @@ El resultado son **18 gerencias, 60 áreas y 300 puestos por área**, sin duplic
 
 Cada entrada del catálogo contiene `management`, su lista `areas` y `positions`, un objeto cuyas claves son las áreas y cuyos valores son sus listas de puestos. La configuración del primer perfil exige que todas las áreas tengan puestos. Elegir otra gerencia limpia el área y puesto anteriores; elegir otra área limpia el puesto. Los valores anteriores se conservan visibles para que su propietario pueda corregirlos, pero una nueva selección debe pertenecer a la relación oficial. No se migra ni se infiere una gerencia a partir de nombres escritos previamente.
 
-## Gestión de Áreas
+## Gestión de áreas e instalaciones
 
 Es una cuarta pestaña del portal, al mismo nivel que Mi perfil, Gestión de Usuarios y Gestión de Inspecciones. Solo un administrador habilitado con contraseña personal puede consultar y modificar la gestión. Permite buscar, añadir, cambiar nombres, cambiar el padre de áreas y puestos, retirar y restaurar elementos. Retirar una gerencia o área oculta sus descendientes mientras esté retirada, pero no altera sus estados individuales ni los textos de los perfiles e informes anteriores. Las áreas sin puestos activos y las gerencias sin áreas completas no se ofrecen como nuevas selecciones del perfil.
 
@@ -40,8 +40,22 @@ El [paso 14](../supabase/migrations/202611150014_organization_catalog.sql) añad
 
 El campo de ubicación física se llama **Área e instalación inspeccionada**. El Excel individual cambia su rótulo a **ÁREA E INSTALACIÓN INSPECCIONADA** y compone el contenido en este orden:
 
-**Sede – Área – Zona de inspección – Instalación inspeccionada**.
+**Sede – Zona de inspección – Área – Instalación inspeccionada**.
 
 Gerencia y área organizativa se almacenan como `areaLocation.management` y `areaLocation.department`; la gerencia no forma parte de ese texto, según el orden solicitado. La columna `data.area` conserva el texto compuesto, utilizado por búsquedas, correo y nombre del archivo. La exportación también lo recompone desde la ubicación estructurada para evitar textos desactualizados. El servidor aplica el mismo orden y admite los registros anteriores sin área organizativa.
 
 Los informes anteriores que solo tienen un área libre conservan ese texto. No se reescriben archivos históricos almacenados. Se conservan numeración, responsables, firmas y permisos; los cambios del formulario requieren Guardar o Enviar, como antes.
+
+El [paso 18](../supabase/migrations/202611150018_location_order.sql), posterior al paso 17, añade el orden **Sede → Zona → Área → Instalación** a las ubicaciones nuevas o editadas. El campo, el texto guardado, el Excel y el correo utilizan el mismo orden. La ubicación conserva `textOrder: "site-zone-area"` para recordar el formato elegido; los informes anteriores sin ese indicador mantienen su composición original. La migración no modifica registros ni archivos existentes.
+
+## Áreas e instalaciones
+
+El apartado se llama **Gestión de áreas e instalaciones** y tiene dos pestañas. **Áreas** conserva Gerencia → Área → Puesto y la abreviatura del área. **Instalaciones** administra Sede → Zona → Instalación con búsqueda, altas, edición, cambio de padre, retirada y restauración. Sus operaciones tienen control de revisión, validación del parentesco y auditoría, y solo las puede ejecutar un administrador habilitado.
+
+La semilla física conserva únicamente las cinco sedes y diecinueve zonas ya proporcionadas por el propietario. No se extraen instalaciones de informes anteriores ni se inventan opciones. La lista oficial de instalaciones se recibirá después: hasta entonces, el selector **Instalación** y su alta administrativa permanecen bloqueados con **Lista de instalaciones pendiente**. Las sedes y zonas sí se pueden administrar. Las inspecciones nuevas pueden completarse con Sede, Zona y Área mientras siga pendiente esa lista.
+
+En la inspección, **Área e instalación inspeccionada** se muestra después de los desplegables como una etiqueta verde, sin caja ni texto editable. Compone **Sede – Zona – Área (o su abreviatura) – Instalación**, omitiendo únicamente los componentes pendientes. El mismo texto se conserva en el registro y en el Excel. Cambiar sede limpia zona e instalación; cambiar zona limpia instalación. Las ubicaciones se vinculan a identificadores del catálogo y guardan sus nombres como una copia histórica: editar o retirar lugares no reescribe los informes anteriores.
+
+El [paso 19](../supabase/migrations/202611150019_location_catalog.sql), posterior al paso 18, activa el catálogo compartido y la validación de ubicaciones. El [script conjunto de los pasos 18 y 19](../supabase/operations/activate-locations-20261115.sql) se ejecuta sobre una base con el paso 17 y conserva registros, archivos, numeración y cambios administrativos al repetirse. Hasta activarlo, las cuentas en la nube conservan el formulario anterior para poder seguir trabajando; al entrar de nuevo, se habilita el formulario con la etiqueta verde. No requiere otro cambio de API en Render.
+
+Cuando se reciba la lista oficial, se importarán las instalaciones bajo sus zonas y se activará `berry_private.location_settings.installations_ready`. Este indicador queda apagado en esta entrega. Una vez activado, Instalación pasa a ser obligatoria para las inspecciones nuevas; los informes enviados durante la etapa pendiente conservan su contenido y pueden seguir su proceso de cierre.

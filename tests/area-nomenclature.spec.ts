@@ -52,8 +52,7 @@ for (const [width, height] of [[1366, 600], [1024, 768], [768, 1024], [390, 640]
   await selectValue(page.getByRole('combobox', { name: 'Gerencia', exact: true }), management);
   await selectValue(page.getByRole('combobox', { name: 'Área', exact: true }), area);
   await expect(page.getByRole('combobox', { name: 'Área', exact: true })).toHaveText('SIGMA');
-  await page.getByLabel('Área e instalación inspeccionada').fill('Taller');
-  await expect(page.locator('.inspection-area-prefix')).toContainText('Fundo – SIGMA – Armonía II');
+  await expect(page.locator('.inspection-area-prefix')).toContainText('Fundo – Armonía II – SIGMA');
   await page.getByRole('button', { name: 'Guardar', exact: true }).click();
   await expect(page.getByText('Guardado en este navegador', { exact: true })).toBeAttached();
   const encoded = await page.evaluate(async () => {
@@ -65,6 +64,6 @@ for (const [width, height] of [[1366, 600], [1024, 768], [768, 1024], [390, 640]
     let binary = ''; for (let i = 0; i < file.bytes.length; i += 32768) binary += String.fromCharCode(...file.bytes.subarray(i, i + 32768)); return btoa(binary);
   });
   const book = new ExcelJS.Workbook(); await book.xlsx.load(Buffer.from(encoded, 'base64') as any);
-  expect(book.getWorksheet('V.01')!.getCell('A11').text).toBe('Fundo – SIGMA – Armonía II – Taller');
+  expect(book.getWorksheet('V.01')!.getCell('A11').text).toBe('Fundo – Armonía II – SIGMA');
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
 });

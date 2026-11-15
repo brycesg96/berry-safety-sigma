@@ -12,4 +12,6 @@ Un guardado fallido no se muestra como confirmado. El formulario permanece abier
 
 Enviar, aprobar, solicitar ajustes, guardar el estado y completar el archivo final continúan siendo acciones explícitas del flujo existente. Consultar listas o abrir informes no inicia guardados del formulario ni del Excel final.
 
+La causa de los resultados desfavorables empieza vacía en cada inspección nueva y muestra su recomendación dentro del cuadro. No se reutiliza la causa de otras inspecciones, aunque pertenezcan a la misma cuenta; objetivo y conclusiones mantienen su comportamiento anterior. Al salir de ese cuadro vacío o con espacios, se completa con **No aplica (sin resultados desfavorables)**. El campo es obligatorio al completar la inspección y admite esa respuesta automática. Guardar en los pasos anteriores a Cierre no adelanta el relleno. Un borrador en curso conserva su propia causa al guardarlo y retomarlo; no se borran informes ni textos existentes.
+
 Este cambio no modifica el esquema, los permisos, la asignación transaccional de números de registro ni los borradores e inspecciones existentes. No requiere ejecutar SQL. La revisión integral de estabilidad y rendimiento queda pendiente.

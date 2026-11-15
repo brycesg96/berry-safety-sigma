@@ -1,0 +1,194 @@
+[
+  {
+    "id": "838233d5-5f8f-540a-8e02-62127ed65b93",
+    "parent_id": null,
+    "kind": "site",
+    "name": "Fundo",
+    "enabled": true,
+    "revision": 1
+  },
+  {
+    "id": "49b49753-a8d6-571e-a064-c9f0c961d1d9",
+    "parent_id": "838233d5-5f8f-540a-8e02-62127ed65b93",
+    "kind": "zone",
+    "name": "Armonía I",
+    "enabled": true,
+    "revision": 1
+  },
+  {
+    "id": "80885ecf-79d9-545d-861d-0b0dc2e9d88b",
+    "parent_id": "838233d5-5f8f-540a-8e02-62127ed65b93",
+    "kind": "zone",
+    "name": "Armonía II",
+    "enabled": true,
+    "revision": 1
+  },
+  {
+    "id": "3ed904eb-6fcc-533e-8b50-3170aca109ff",
+    "parent_id": "838233d5-5f8f-540a-8e02-62127ed65b93",
+    "kind": "zone",
+    "name": "Armonía III",
+    "enabled": true,
+    "revision": 1
+  },
+  {
+    "id": "050155bd-bee5-55da-9a79-ef3779df1c03",
+    "parent_id": "838233d5-5f8f-540a-8e02-62127ed65b93",
+    "kind": "zone",
+    "name": "Armonía IV",
+    "enabled": true,
+    "revision": 1
+  },
+  {
+    "id": "76f40822-a453-5a23-a74a-3e4912e7a807",
+    "parent_id": "838233d5-5f8f-540a-8e02-62127ed65b93",
+    "kind": "zone",
+    "name": "Esperanza I",
+    "enabled": true,
+    "revision": 1
+  },
+  {
+    "id": "c0994cc7-ce8c-5096-868d-15b6566a8b52",
+    "parent_id": "838233d5-5f8f-540a-8e02-62127ed65b93",
+    "kind": "zone",
+    "name": "Esperanza II",
+    "enabled": true,
+    "revision": 1
+  },
+  {
+    "id": "b2e644a6-e0b4-5490-b6ff-2e83a723670e",
+    "parent_id": "838233d5-5f8f-540a-8e02-62127ed65b93",
+    "kind": "zone",
+    "name": "Esperanza III",
+    "enabled": true,
+    "revision": 1
+  },
+  {
+    "id": "257fb8ad-5b90-59d1-b5e9-c156f133ec97",
+    "parent_id": "838233d5-5f8f-540a-8e02-62127ed65b93",
+    "kind": "zone",
+    "name": "Ilusión I",
+    "enabled": true,
+    "revision": 1
+  },
+  {
+    "id": "4160fd73-0f59-51a7-9656-860e64e875e0",
+    "parent_id": "838233d5-5f8f-540a-8e02-62127ed65b93",
+    "kind": "zone",
+    "name": "Ilusión II",
+    "enabled": true,
+    "revision": 1
+  },
+  {
+    "id": "f556fba6-7226-550e-9408-f56f78031bdb",
+    "parent_id": "838233d5-5f8f-540a-8e02-62127ed65b93",
+    "kind": "zone",
+    "name": "Remanso I",
+    "enabled": true,
+    "revision": 1
+  },
+  {
+    "id": "91e0ad54-37b1-5283-955c-43f862defbcc",
+    "parent_id": "838233d5-5f8f-540a-8e02-62127ed65b93",
+    "kind": "zone",
+    "name": "Remanso II",
+    "enabled": true,
+    "revision": 1
+  },
+  {
+    "id": "91fa1643-f270-5a82-be2d-0d19b111dd21",
+    "parent_id": "838233d5-5f8f-540a-8e02-62127ed65b93",
+    "kind": "zone",
+    "name": "San Luis",
+    "enabled": true,
+    "revision": 1
+  },
+  {
+    "id": "8941278e-4b3e-579a-bd99-d2b5043a2869",
+    "parent_id": "838233d5-5f8f-540a-8e02-62127ed65b93",
+    "kind": "zone",
+    "name": "Tumi",
+    "enabled": true,
+    "revision": 1
+  },
+  {
+    "id": "4d5f0653-b282-5d1d-8325-1866e96ffaab",
+    "parent_id": null,
+    "kind": "site",
+    "name": "Exteriores",
+    "enabled": true,
+    "revision": 1
+  },
+  {
+    "id": "7a386661-4ff8-5720-bc31-d156c85b391f",
+    "parent_id": "4d5f0653-b282-5d1d-8325-1866e96ffaab",
+    "kind": "zone",
+    "name": "Chao",
+    "enabled": true,
+    "revision": 1
+  },
+  {
+    "id": "670574ce-81ad-5946-a51a-735c9e8637af",
+    "parent_id": "4d5f0653-b282-5d1d-8325-1866e96ffaab",
+    "kind": "zone",
+    "name": "Otros",
+    "enabled": true,
+    "revision": 1
+  },
+  {
+    "id": "fae918e6-00e9-5d77-b205-e52be7ad2dcc",
+    "parent_id": "4d5f0653-b282-5d1d-8325-1866e96ffaab",
+    "kind": "zone",
+    "name": "Semillero",
+    "enabled": true,
+    "revision": 1
+  },
+  {
+    "id": "383e4d75-4bdd-56bd-950b-24a7132b660b",
+    "parent_id": null,
+    "kind": "site",
+    "name": "Packing Chao",
+    "enabled": true,
+    "revision": 1
+  },
+  {
+    "id": "da8b476c-6bb4-5d25-916d-b2aeac2e4734",
+    "parent_id": "383e4d75-4bdd-56bd-950b-24a7132b660b",
+    "kind": "zone",
+    "name": "Packing Chao",
+    "enabled": true,
+    "revision": 1
+  },
+  {
+    "id": "36ce71c9-78a6-5154-b012-2dd3cbf6ca19",
+    "parent_id": null,
+    "kind": "site",
+    "name": "Packing Salaverry",
+    "enabled": true,
+    "revision": 1
+  },
+  {
+    "id": "b91dd34b-b44a-5319-ae16-8184b9357d40",
+    "parent_id": "36ce71c9-78a6-5154-b012-2dd3cbf6ca19",
+    "kind": "zone",
+    "name": "Packing Salaverry",
+    "enabled": true,
+    "revision": 1
+  },
+  {
+    "id": "67fc4cfc-50ca-5cd2-8538-e203179fa5d5",
+    "parent_id": null,
+    "kind": "site",
+    "name": "Trujillo",
+    "enabled": true,
+    "revision": 1
+  },
+  {
+    "id": "a8fa6dd5-7726-5261-928e-464bd5e3cc18",
+    "parent_id": "67fc4cfc-50ca-5cd2-8538-e203179fa5d5",
+    "kind": "zone",
+    "name": "Quintanas",
+    "enabled": true,
+    "revision": 1
+  }
+]

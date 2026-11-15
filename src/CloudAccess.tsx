@@ -3,7 +3,8 @@ import { organizationCatalogReady, profileOrganizationErrors } from './organizat
 import { organizationCatalogState, resetOrganizationCatalog } from './organization-catalog';
 import { refreshOrganizationCatalog } from './organization-api';
 import { useOrganizationCatalog } from './useOrganizationCatalog';
-import { CloudOrganization } from './CloudOrganization';
+import { CloudOrganization } from './CloudOrganizationManager';
+import { refreshLocationCatalog, resetLocationCatalog } from './location-catalog';
 import { useEffect, useRef, useState } from 'react';
 import type { Session } from '@supabase/supabase-js';
 import { ArrowLeft, Check, Eye, EyeOff, LoaderCircle, LockKeyhole, LogOut, ShieldCheck } from 'lucide-react';
@@ -85,11 +86,11 @@ export function CloudAccess({ exit, onReturn, onSessionChange, initialSection = 
   useEffect(() => {
     let active = true;
     let authEvent = false;
-    resetOrganizationCatalog();
+    resetOrganizationCatalog(); resetLocationCatalog();
     const accept = (next: Session | null) => {
       if (!active) return;
       if (next?.user.id !== sessionRef.current?.user.id) {
-        generation.current++; administrationCache.current = null; dashboardCache.current = null; clearCloudRuntime(); resetOrganizationCatalog(); setIdentityReady(false);
+        generation.current++; administrationCache.current = null; dashboardCache.current = null; clearCloudRuntime(); resetOrganizationCatalog(); resetLocationCatalog(); setIdentityReady(false);
         setProfile(null); setProfileError(''); setForm(blank()); setFormError(''); setSaved(false); setPassword('');
         setShowPassword(false);
         setNewPassword(''); setRepeatPassword(''); setPasswordError('');
@@ -117,7 +118,7 @@ export function CloudAccess({ exit, onReturn, onSessionChange, initialSection = 
       if (error) setLoginError('No pudimos recuperar tu sesión. Vuelve a iniciar sesión.');
       accept(data.session);
     }).catch(() => { if (active) { setLoginError('No pudimos recuperar tu sesión. Vuelve a intentarlo.'); accept(null); } });
-    return () => { active = false; generation.current++; subscription.unsubscribe(); resetOrganizationCatalog('preview'); };
+    return () => { active = false; generation.current++; subscription.unsubscribe(); resetOrganizationCatalog('preview'); resetLocationCatalog('preview'); };
   }, []);
 
   useEffect(() => {
@@ -140,6 +141,8 @@ export function CloudAccess({ exit, onReturn, onSessionChange, initialSection = 
   useEffect(() => {
     let active = true;
     setWorkspaceChecked(false); setWorkspaceError('');
+    let locationsEnabled = false;
+    const refreshLocations = () => { if (locationsEnabled) void refreshLocationCatalog(() => active && sessionRef.current?.user.id === ownProfile?.id).catch(() => {}); };
     if (!ownProfile?.enabled || ownProfile.must_change_password) { setWorkspaceReady(false); return; }
     void supabaseFoundationStatus().then(status => {
       if (!active) return;
@@ -147,8 +150,12 @@ export function CloudAccess({ exit, onReturn, onSessionChange, initialSection = 
       setIdentityReady(!!status.account_identity_version);
       if (status.organization_catalog_version) void refreshOrganizationCatalog(() => active && sessionRef.current?.user.id === ownProfile.id).catch(() => {});
       else resetOrganizationCatalog();
+      locationsEnabled = !!status.location_catalog_version;
+      if (locationsEnabled) refreshLocations();
+      else resetLocationCatalog();
     }).catch(() => { if (active) { setWorkspaceReady(false); setWorkspaceChecked(true); setWorkspaceError('No pudimos abrir tu espacio de trabajo. Revisa tu conexión y vuelve a intentarlo.'); } });
-    return () => { active = false; };
+    window.addEventListener('focus', refreshLocations); window.addEventListener('online', refreshLocations);
+    return () => { active = false; window.removeEventListener('focus', refreshLocations); window.removeEventListener('online', refreshLocations); };
   }, [ownProfile?.id, ownProfile?.enabled, ownProfile?.must_change_password]);
 
   useEffect(() => {
@@ -248,7 +255,7 @@ export function CloudAccess({ exit, onReturn, onSessionChange, initialSection = 
   return <div className="cloud-account-page" spellCheck={false}>
     <header className="cloud-account-header"><Brand/>{onReturn && !ownProfile?.must_change_password && !passwordRecovery && <button type="button" className="cloud-return" disabled={!!busy || reportBusy} onClick={() => dirty ? setConfirmLeave('return') : onReturn()}><ArrowLeft size={17}/>Espacio de pruebas</button>}</header>
     <main className={`cloud-account-main ${showDashboard ? 'cloud-account-dashboard-main' : showAdmin || showOrganization ? 'cloud-account-admin-main' : ''}`}>
-      {(section !== 'workspace' || workspaceChecked && !workspaceReady && !workspaceError) && ownProfile?.enabled && !ownProfile.must_change_password && !passwordRecovery && ownProfile.role === 'admin' && !completingProfile && <nav className="admin-tabs" aria-label="Cuenta y administración"><button type="button" aria-current={section === 'profile' ? 'page' : undefined} disabled={!!busy || reportBusy} onClick={() => setSection('profile')}>Mi perfil</button><button type="button" aria-current={section === 'admin' ? 'page' : undefined} disabled={!!busy || dirty || reportBusy} onClick={() => setSection('admin')}>Gestión de Usuarios</button><button type="button" aria-current={section === 'dashboard' ? 'page' : undefined} disabled={!!busy || dirty || reportBusy} onClick={() => setSection('dashboard')}>Gestión de Inspecciones</button><button type="button" aria-current={section === 'organization' ? 'page' : undefined} disabled={!!busy || dirty || reportBusy} onClick={() => setSection('organization')}>Gestión de Áreas</button></nav>}
+      {(section !== 'workspace' || workspaceChecked && !workspaceReady && !workspaceError) && ownProfile?.enabled && !ownProfile.must_change_password && !passwordRecovery && ownProfile.role === 'admin' && !completingProfile && <nav className="admin-tabs" aria-label="Cuenta y administración"><button type="button" aria-current={section === 'profile' ? 'page' : undefined} disabled={!!busy || reportBusy} onClick={() => setSection('profile')}>Mi perfil</button><button type="button" aria-current={section === 'admin' ? 'page' : undefined} disabled={!!busy || dirty || reportBusy} onClick={() => setSection('admin')}>Gestión de Usuarios</button><button type="button" aria-current={section === 'dashboard' ? 'page' : undefined} disabled={!!busy || dirty || reportBusy} onClick={() => setSection('dashboard')}>Gestión de Inspecciones</button><button type="button" aria-current={section === 'organization' ? 'page' : undefined} disabled={!!busy || dirty || reportBusy} onClick={() => setSection('organization')}>Gestión de áreas e instalaciones</button></nav>}
       {showOrganization ? <><CloudOrganization key={ownProfile!.id} isCurrent={() => sessionRef.current?.user.id === ownProfile!.id} onBusyChange={setReportBusy}/><button type="button" className="cloud-logout" disabled={!!busy || reportBusy} onClick={() => void logout()}><LogOut size={17}/>Cerrar sesión en este dispositivo</button></> : showDashboard ? <><InspectionDashboard actor={ownProfile!} cache={dashboardCache} isCurrent={() => sessionRef.current?.user.id === ownProfile!.id} onBusyChange={setReportBusy}/><button type="button" className="cloud-logout" disabled={!!busy || reportBusy} onClick={() => void logout()}><LogOut size={17}/>Cerrar sesión en este dispositivo</button></> : showAdmin ? <><CloudAdministration key={ownProfile!.id} actor={ownProfile!} identityReady={identityReady} cache={administrationCache} onBusyChange={setReportBusy} isCurrent={() => sessionRef.current?.user.id === ownProfile!.id} onSelfChange={next => { setProfile(next); setForm(fieldsOf(next)); if (next.role !== 'admin') { administrationCache.current = null; dashboardCache.current = null; setSection('profile'); } }}/><button type="button" className="cloud-logout" disabled={!!busy || reportBusy} onClick={() => void logout()}><LogOut size={17}/>Cerrar sesión en este dispositivo</button>{formError && <p role="alert" className="error-message cloud-message">{formError}</p>}</> : <section className="cloud-account-card" aria-busy={!ready || profileLoading || !!busy}>
         <div className="cloud-account-icon"><ShieldCheck size={27}/></div>
         {!ready ? <><h1 ref={heading} tabIndex={-1}>Tu cuenta</h1><p className="cloud-loading" role="status"><LoaderCircle size={18} className="spin"/>Comprobando tu sesión…</p></> : !session && recoveryRequest ? <>

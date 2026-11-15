@@ -2,7 +2,7 @@ import { supabaseClient } from './supabase';
 import { beginOrganizationCatalogRefresh, finishOrganizationCatalogRefresh } from './organization-catalog';
 import type { OrganizationEntry, OrganizationNode } from './organization-catalog';
 
-const failure = (code?: string) => code === 'PGRST202' ? 'Gestión de Áreas está pendiente de activación.' : code === '42501' ? 'No tienes acceso a la gestión de áreas. Actualiza tu sesión.' : 'No pudimos consultar las gerencias, áreas y puestos. Revisa tu conexión y vuelve a intentarlo.';
+const failure = (code?: string) => code === 'PGRST202' ? 'La gestión de áreas e instalaciones está pendiente de activación.' : code === '42501' ? 'No tienes acceso a la gestión de áreas. Actualiza tu sesión.' : 'No pudimos consultar las gerencias, áreas y puestos. Revisa tu conexión y vuelve a intentarlo.';
 function catalogResponse(data: unknown): OrganizationEntry[] {
   if (!Array.isArray(data) || data.some(entry => !entry || typeof entry.management !== 'string' || !Array.isArray(entry.areas) || entry.areas.some((area: unknown) => typeof area !== 'string') || entry.areaNomenclatures !== undefined && (!entry.areaNomenclatures || typeof entry.areaNomenclatures !== 'object' || Array.isArray(entry.areaNomenclatures) || Object.values(entry.areaNomenclatures).some(alias => typeof alias !== 'string' || alias.length > 50)) || !entry.positions || typeof entry.positions !== 'object' || entry.areas.some((area: string) => !Array.isArray(entry.positions[area]) || entry.positions[area].some((job: unknown) => typeof job !== 'string')))) throw new Error('El catálogo de áreas no pudo verificarse. Vuelve a actualizarlo.');
   return data;

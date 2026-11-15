@@ -15,7 +15,6 @@ test('empleador fijo, tres tipos, Otro con detalle y máximo 560', async ({ page
   await expect(page.getByRole('textbox', { name: 'Número de registro', exact: true })).toHaveAttribute('readonly', '');
   await expect(employer.getByText('Solo lectura')).toHaveCount(0);
   await expect(employer.locator('svg')).toHaveCount(0);
-  await page.getByLabel('Área e instalación inspeccionada').fill('Taller');
   await selectLocation(page, 'Sede', 'Fundo'); await selectLocation(page, 'Zona de inspección', 'Armonía II');
   await page.getByLabel('Hora de inspección').fill('08:40');
   await selectValue(page.getByLabel('AM o PM'), 'AM');
@@ -94,25 +93,26 @@ test('borrador anterior conserva el objetivo largo y solicita corregirlo', async
   await expect(page.getByRole('radio', { checked: true })).toHaveCount(0);
 });
 
-test('sede y zona dependientes conservan la etiqueta y el texto editable al guardar y recargar', async ({ page }) => {
+test('sede y zona dependientes conservan la ubicación compuesta al guardar y recargar, sin entrada manual', async ({ page }) => {
  await page.goto('./');
- const site=page.getByRole('combobox',{name:'Sede',exact:true}),zone=page.getByRole('combobox',{name:'Zona de inspección',exact:true}),area=page.getByRole('textbox',{name:'Área e instalación inspeccionada',exact:true});
+ const site=page.getByRole('combobox',{name:'Sede',exact:true}),zone=page.getByRole('combobox',{name:'Zona de inspección',exact:true});
  await expect(zone).toBeDisabled();await site.click();expect(await page.getByRole('listbox').getByRole('option').allTextContents()).not.toContain('Puerto Morín');
- await selectLocation(page,'Sede','Fundo');await selectLocation(page,'Zona de inspección','Armonía II');await area.fill('Taller de Maquinaria');await selectLocation(page,'Sede','Fundo');await expect(zone).toHaveText('Armonía II');
- await expect(page.locator('.inspection-area-prefix')).toHaveText('Fundo – Control de Gestión – Armonía II –');
- await area.fill('Actividad corregida');await expect(page.locator('.inspection-area-prefix')).toHaveText('Fundo – Control de Gestión – Armonía II –');
- await selectLocation(page,'Sede','Exteriores');await expect(zone).toHaveText('Selecciona una zona');await zone.click();expect(await page.getByRole('listbox').getByRole('option').allTextContents()).toEqual(['Selecciona una zona','Chao','Otros','Semillero']);await selectLocation(page,'Zona de inspección','Chao');
- await expect(area).toHaveValue('Actividad corregida');await page.getByRole('button',{name:'Guardar',exact:true}).first().click();await expect(page.getByText('Guardado en este navegador',{exact:true})).toBeVisible();await page.reload();await expect(site).toHaveText('Exteriores');await expect(zone).toHaveText('Chao');await expect(area).toHaveValue('Actividad corregida');
+ await selectLocation(page,'Sede','Fundo');await selectLocation(page,'Zona de inspección','Armonía II');
+ const summary=page.getByRole('region',{name:'Área e instalación inspeccionada',exact:true});await expect(summary.locator('input,textarea')).toHaveCount(0);
+ await expect(summary.locator('.inspection-area-prefix')).toHaveText('Fundo – Armonía II – Control de Gestión');
+ await selectLocation(page,'Sede','Exteriores');await expect(zone).toHaveText('Selecciona una zona');await zone.click();expect(await page.getByRole('listbox').getByRole('option').allTextContents()).toEqual(['Chao','Otros','Semillero']);await selectLocation(page,'Zona de inspección','Chao');
+ await page.getByRole('button',{name:'Guardar',exact:true}).first().click();await expect(page.getByText('Guardado en este navegador',{exact:true})).toBeVisible();await page.reload();await expect(site).toHaveText('Exteriores');await expect(zone).toHaveText('Chao');
+ await expect(summary.locator('.inspection-area-prefix')).toHaveText('Exteriores – Chao – Control de Gestión');
 });
 
 test('menús de ubicación con teclado y Escape, sin desbordamiento y con opción seleccionada visible',async({page})=>{
  await page.goto('./');const site=page.getByRole('combobox',{name:'Sede',exact:true}),zone=page.getByRole('combobox',{name:'Zona de inspección',exact:true});
  await site.focus();await site.press('f');await site.press('Enter');await expect(site).toHaveText('Fundo');
- await zone.focus();await zone.press('a');await zone.press('ArrowDown');await zone.press('Enter');await expect(zone).toHaveText('Armonía II');
+ await zone.focus();await zone.press('ArrowDown');await zone.press('ArrowDown');await zone.press('Enter');await expect(zone).toHaveText('Armonía II');
  await site.press('ArrowDown');await site.press('ArrowDown');await site.press('Escape');await expect(site).toHaveText('Fundo');await expect(page.getByRole('listbox')).toHaveCount(0);
- await page.getByRole('textbox',{name:'Área e instalación inspeccionada',exact:true}).fill('Taller de maquinaria');await site.click();await expect(page.getByRole('option',{name:'Fundo',exact:true})).toHaveAttribute('aria-selected','true');await page.screenshot({path:test.info().outputPath('ubicacion-escritorio.png'),fullPage:true});await site.press('Escape');
+ await site.click();await expect(page.getByRole('option',{name:'Fundo',exact:true})).toHaveAttribute('aria-selected','true');await page.screenshot({path:test.info().outputPath('ubicacion-escritorio.png'),fullPage:true});await site.press('Escape');
  await page.setViewportSize({width:390,height:844});await zone.scrollIntoViewIfNeeded();await zone.click();const menu=page.getByRole('listbox'),bounds=await menu.boundingBox();expect(bounds!.y).toBeGreaterThanOrEqual(0);expect(bounds!.y+bounds!.height).toBeLessThanOrEqual(845);expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);await page.screenshot({path:test.info().outputPath('ubicacion-telefono.png'),fullPage:true});
- await page.getByRole('option',{name:'Tumi',exact:true}).click();await expect(zone).toHaveText('Tumi');await expect(page.locator('.inspection-area-prefix')).toHaveText('Fundo – Tumi –');
+ await page.getByRole('option',{name:'Tumi',exact:true}).click();await expect(zone).toHaveText('Tumi');await expect(page.locator('.inspection-area-prefix')).toHaveText('Fundo – Tumi');
  await site.click();await page.mouse.click(385,100);await expect(page.getByRole('listbox')).toHaveCount(0);
 });
 
@@ -120,7 +120,7 @@ test.describe('ubicación en pantalla táctil',()=>{
  test.use({viewport:{width:390,height:844},isMobile:true,hasTouch:true});
  test('permite elegir y desplazarse entre zonas con el dedo',async({page})=>{
   await page.goto('./');await page.getByRole('combobox',{name:'Sede',exact:true}).tap();await page.getByRole('option',{name:'Fundo',exact:true}).tap();await page.getByRole('combobox',{name:'Zona de inspección',exact:true}).tap();
-  await page.getByRole('option',{name:'Tumi',exact:true}).tap();await expect(page.getByRole('combobox',{name:'Zona de inspección',exact:true})).toHaveText('Tumi');await page.getByRole('textbox',{name:'Área e instalación inspeccionada',exact:true}).fill('Taller de maquinaria');
-  await expect(page.locator('.inspection-area-prefix')).toHaveText('Fundo – Tumi –');expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);await page.screenshot({path:test.info().outputPath('ubicacion-tactil.png'),fullPage:true});
+  await page.getByRole('option',{name:'Tumi',exact:true}).tap();await expect(page.getByRole('combobox',{name:'Zona de inspección',exact:true})).toHaveText('Tumi');
+  await expect(page.locator('.inspection-area-prefix')).toHaveText('Fundo – Tumi');expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);await page.screenshot({path:test.info().outputPath('ubicacion-tactil.png'),fullPage:true});
  });
 });

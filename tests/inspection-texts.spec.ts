@@ -11,7 +11,6 @@ const objective = (page: Page) => page.getByRole('textbox', { name: 'Objetivo de
 const cause = (page: Page) => page.getByRole('textbox', { name: 'DESCRIPCIÓN DE LA CAUSA ANTE RESULTADOS DESFAVORABLES DE LA INSPECCIÓN', exact: true });
 const remarks = (page: Page) => page.getByRole('textbox', { name: 'CONCLUSIONES Y RECOMENDACIONES', exact: true });
 async function closing(page: Page) {
-  await page.getByLabel('Área e instalación inspeccionada').fill('Área de prueba');
   await selectLocation(page, 'Sede', 'Fundo'); await selectLocation(page, 'Zona de inspección', 'Armonía II');
   await page.getByLabel('Hora de inspección').fill('07:30'); await selectValue(page.getByLabel('AM o PM'), 'AM');
   await page.getByRole('radio', { name: 'Planeada', exact: true }).check();
@@ -36,6 +35,8 @@ test('la causa vacía usa No aplica sin crear una inspección solo por ese texto
   const draft = newInspection({ name: 'Inspectora', email: 'prueba@example.invalid' });
   expect(hasInspectionContent(completeInspectionCause(draft))).toBe(false);
   const previousDefault = newInspection({ name: 'Inspectora', email: 'prueba@example.invalid' }, { objective: '', closingRemarks: '', unfavorableCause: NO_UNFAVORABLE_RESULTS });
+  expect(previousDefault.unfavorableCause).toBe('');
+  expect(previousDefault.initialReportTexts?.unfavorableCause).toBe('');
   expect(hasInspectionContent(completeInspectionCause({ ...previousDefault, unfavorableCause: '' }))).toBe(false);
   expect(completeInspectionCause({ ...draft, unfavorableCause: '  \n ' }).unfavorableCause).toBe(NO_UNFAVORABLE_RESULTS);
   expect(completeInspectionCause({ ...draft, unfavorableCause: 'Falta de mantenimiento.' }).unfavorableCause).toBe('Falta de mantenimiento.');
@@ -43,9 +44,12 @@ test('la causa vacía usa No aplica sin crear una inspección solo por ese texto
   expect(validateStep(completeInspectionCause(draft), 3)).not.toHaveProperty('unfavorableCause');
 });
 
-for (const width of [1366, 390]) test(`borrar una causa propia o recordada rellena No aplica y solo Guardar lo conserva (${width}px)`, async ({ page }) => {
+for (const width of [1366, 390]) test(`cada inspección empieza sin causa, Guardar al inicio no la rellena y salir del cuadro vacío usa No aplica (${width}px)`, async ({ page }) => {
   await page.setViewportSize({ width, height: 900 }); await mockDirectory(page); await page.goto('./');
-  await objective(page).fill('Verificar las condiciones.'); await closing(page);
+  await objective(page).fill('Verificar las condiciones.');
+  await page.getByRole('button', { name: 'Guardar', exact: true }).click();
+  await expect(page.getByText('Guardado en este navegador', { exact: true })).toBeAttached();
+  await page.reload(); await closing(page);
   await expect(cause(page)).toHaveAttribute('aria-required', 'true');
   await expect(cause(page)).toHaveValue('');
   await expect(cause(page)).toHaveAttribute('placeholder', /Debes consignar el origen o motivo raíz[\s\S]*\n\nSi no hubo hallazgos desfavorables, indica únicamente: No aplica \(sin resultados desfavorables\)\./);
@@ -60,6 +64,7 @@ for (const width of [1366, 390]) test(`borrar una causa propia o recordada relle
   await cause(page).fill('Causa propia guardada.'); await remarks(page).fill('Revisar las medidas.');
   await page.getByRole('button', { name: 'Guardar', exact: true }).click();
   await expect(page.getByText('Guardado en este navegador', { exact: true })).toBeAttached();
+  await page.reload(); await expect(cause(page)).toHaveValue('Causa propia guardada.');
   const readCause = () => page.evaluate(async () => { const { loadInspections } = await import('/src/model.ts'); return (await loadInspections()).find(item => item.ownerId === 'demo-admin')?.unfavorableCause; });
   await cause(page).fill(''); await expect(cause(page)).toHaveValue(''); await remarks(page).focus();
   await expect(cause(page)).toHaveValue(NO_UNFAVORABLE_RESULTS); expect(await readCause()).toBe('Causa propia guardada.');
@@ -70,7 +75,7 @@ for (const width of [1366, 390]) test(`borrar una causa propia o recordada relle
   await page.locator('.closing-entry').first().screenshot({ path: test.info().outputPath(`sin-resultados-${width}.png`) });
   await page.locator('.closing-entry').nth(1).screenshot({ path: test.info().outputPath(`guia-recomendaciones-${width}.png`) });
   await cause(page).fill('Causa recordada de la cuenta.'); await startNew(page); await closing(page);
-  await expect(cause(page)).toHaveValue('Causa recordada de la cuenta.'); await cause(page).fill(''); await remarks(page).focus(); await expect(cause(page)).toHaveValue(NO_UNFAVORABLE_RESULTS);
+  await expect(cause(page)).toHaveValue(''); await cause(page).focus(); await remarks(page).focus(); await expect(cause(page)).toHaveValue(NO_UNFAVORABLE_RESULTS);
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
 });
 
