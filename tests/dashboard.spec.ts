@@ -183,3 +183,51 @@ test('el consolidado conserva la medida correctiva y excluye los textos internos
  expect(text).toContain(observation.correctiveAction);for(const value of ['Texto privado de la acción realizada.','Mensaje privado de revisión.','Acción realizada','Comentario del revisor'])expect(text).not.toContain(value);
  expect(report.data.delivery.corrections[observation.id].action).toBe('Texto privado de la acción realizada.');
 });
+
+for (const width of [1366,390]) test(`gerencias combinan filtros y estadísticas, sin duplicar una inspección por sus responsables (${width}px)`,async({page,context})=>{
+ await page.setViewportSize({width,height:900});const state=await setup(page,context);
+ state.rows[0].data.areaLocation={site:'Fundo',zone:'Armonía II',detail:'Taller',management:'Gerencia de prueba A'};
+ state.rows[0].data.responsibles[0].management='Gerencia anterior del responsable';
+ state.rows[1].data.responsibles[0].management='Gerencia de prueba A';
+ state.rows[1].data.responsibles.push({id:'second',name:'Segunda persona',email:'segunda@example.invalid',area:'Recursos Humanos',management:'Gerencia de prueba A'},{id:'third',name:'Tercera persona',email:'tercera@example.invalid',area:'Área exclusiva B',management:'Gerencia de prueba B'});
+ await panel(page);const rows=page.locator('.dashboard-results tbody tr'),chart=page.locator('.dashboard-chart').filter({has:page.getByRole('heading',{name:'Inspecciones por gerencia',exact:true})});
+ await expect(chart.getByRole('button',{name:'Filtrar gerencia Gerencia de prueba A',exact:true})).toContainText('2');
+ await expect(chart.getByRole('button',{name:'Filtrar gerencia Gerencia de prueba B',exact:true})).toContainText('1');
+ await expect(chart.getByRole('button',{name:'Filtrar gerencia Sin gerencia registrada',exact:true})).toContainText('1');
+ await expect(chart.getByRole('button',{name:'Filtrar gerencia Gerencia anterior del responsable',exact:true})).toHaveCount(0);
+ await page.getByLabel('Gerencia',{exact:true}).click();await page.getByRole('searchbox',{name:'Buscar gerencias',exact:true}).fill('prueba a');await page.getByRole('option',{name:'Gerencia de prueba A',exact:true}).click();await expect(rows).toHaveCount(2);
+ await selectValue(page.getByLabel('Área',{exact:true}),'area exclusiva b');await expect(rows).toHaveCount(0);
+ await selectValue(page.getByLabel('Gerencia',{exact:true}),'gerencia de prueba b');await expect(rows).toHaveCount(1);await expect(rows).toContainText('IH-2026-002');
+ await page.getByRole('button',{name:'Limpiar filtros',exact:true}).click();await chart.getByRole('button',{name:'Filtrar gerencia Sin gerencia registrada',exact:true}).click();await expect(rows).toHaveCount(1);await expect(rows).toContainText('IH-2026-003');
+ await page.getByRole('button',{name:'Limpiar filtros',exact:true}).click();await chart.getByRole('button',{name:'Filtrar gerencia Gerencia de prueba A',exact:true}).click();await page.getByLabel('Desde',{exact:true}).fill('2026-12-01');await page.getByLabel('Hasta',{exact:true}).fill('2026-12-31');await expect(rows).toHaveCount(1);
+ const download=page.waitForEvent('download');await page.getByRole('button',{name:'Descargar consolidado',exact:true}).click();const book=new ExcelJS.Workbook();await book.xlsx.readFile((await (await download).path())!);expect(book.getWorksheet('Inspecciones')!.rowCount).toBe(2);expect(book.getWorksheet('Inspecciones')!.getCell('A2').text).toBe('IH-2026-002');
+ await page.getByRole('button',{name:'Limpiar filtros',exact:true}).click();await page.locator('.dashboard-charts').screenshot({path:test.info().outputPath(`gerencias-${width}.png`)});expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
+});
+
+for (const width of [1366,390]) test(`la tabla muestra ocho filas completas y permite recorrer el resto sin limitar el consolidado (${width}px)`,async({page,context})=>{
+ await page.setViewportSize({width,height:900});const state=await setup(page,context);const original=state.rows[0];
+ state.rows=Array.from({length:12},(_,n)=>{const row=structuredClone(original);row.id=`67000000-0000-4000-8000-${String(n+1).padStart(12,'0')}`;row.code=`IH-2026-${String(n+1).padStart(3,'0')}`;row.data.id=row.id;row.data.serverRegistration={...row.data.serverRegistration,inspectionId:row.id,code:row.code};row.data.inspector=n%2?'Inspectora con nombres y apellidos de varias líneas para comprobar la altura de cada fila':'Ana Torres';return row;});
+ await page.getByRole('button',{name:'Gestión de Inspecciones',exact:true}).click();await expect(page.locator('.dashboard-results tbody tr')).toHaveCount(12);
+ const region=page.getByRole('region',{name:'Lista de inspecciones registradas',exact:true});
+ const dimensions=()=>region.evaluate(el=>{const rows=el.querySelectorAll('tbody tr'),top=el.getBoundingClientRect().top;return{overflow:el.scrollHeight>el.clientHeight,eighthBottom:rows[7]?.getBoundingClientRect().bottom-top,ninthTop:rows[8]?.getBoundingClientRect().top-top,height:el.clientHeight,scroll:el.scrollTop};});
+ await expect.poll(async()=>{const d=await dimensions();return d.overflow&&d.eighthBottom<=d.height+1&&d.ninthTop>=d.height-1;}).toBe(true);
+ await region.focus();await region.press('End');await expect.poll(async()=>(await dimensions()).scroll).toBeGreaterThan(0);
+ expect(await region.evaluate(el=>Math.abs(el.querySelector('th')!.getBoundingClientRect().top-el.getBoundingClientRect().top))).toBeLessThan(2);
+ await expect.poll(()=>region.evaluate(el=>el.querySelector('tbody tr:last-child')!.getBoundingClientRect().bottom-el.getBoundingClientRect().top<=el.clientHeight+1)).toBe(true);
+ await page.getByLabel('Número de registro').fill('IH-2026-001');await expect(page.locator('.dashboard-results tbody tr')).toHaveCount(1);await expect.poll(()=>region.evaluate(el=>el.scrollHeight<=el.clientHeight+1)).toBe(true);
+ await page.getByRole('button',{name:'Limpiar filtros',exact:true}).click();await expect(page.locator('.dashboard-results tbody tr')).toHaveCount(12);
+ const download=page.waitForEvent('download');await page.getByRole('button',{name:'Descargar consolidado',exact:true}).click();const book=new ExcelJS.Workbook();await book.xlsx.readFile((await (await download).path())!);expect(book.getWorksheet('Inspecciones')!.rowCount).toBe(13);
+ await region.evaluate(el=>{el.scrollTop=0;});await region.screenshot({path:test.info().outputPath(`ocho-inspecciones-${width}.png`)});expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
+});
+
+for (const width of [1366,390]) test(`los filtros agrupan el regreso de la misma persona y distinguen otra identidad con nombre y correo iguales (${width}px)`,async({page,context})=>{
+ await page.setViewportSize({width,height:900});const state=await setup(page,context);
+ const accounts=['65000000-0000-4000-8000-000000000001','65000000-0000-4000-8000-000000000002','65000000-0000-4000-8000-000000000003'];
+ const persons=['64000000-0000-4000-8000-000000000001','64000000-0000-4000-8000-000000000001','64000000-0000-4000-8000-000000000002'];
+ state.rows.forEach((row,n)=>{row.author_id=accounts[n];row.data.ownerId=accounts[n];row.data.inspector='Persona Coincidente';row.data.inspectorEmail='misma@example.invalid';row.data.additionalInspectors=[];row.data.responsibles=[{id:accounts[n],personId:accounts[n],name:'Persona Coincidente',email:'misma@example.invalid',area:'Área de prueba'}];row.identityLinks={[accounts[n]]:{personId:persons[n],name:'Persona Coincidente',email:'misma@example.invalid',management:'Gerencia de prueba',area:'Área de prueba',current:n===2,createdAt:'2026-11-01T12:00:00Z'}};});
+ await panel(page);await page.getByRole('combobox',{name:'Inspector',exact:true}).click();const options=page.getByRole('option');await expect(options).toHaveCount(2);const labels=await options.allTextContents();expect(new Set(labels).size).toBe(2);expect(labels.some(label=>label.includes('cuenta actual'))).toBe(true);expect(labels.some(label=>label.includes('registro anterior'))).toBe(true);expect(labels.some(label=>persons.some(id=>label.includes(id)))).toBe(false);
+ await page.getByRole('option').filter({hasText:'registro anterior'}).click();await page.getByRole('button',{name:'Listo',exact:true}).click();await expect(page.locator('.dashboard-results tbody tr')).toHaveCount(2);await expect(page.locator('.dashboard-results tbody')).not.toContainText('IH-2026-003');
+ await selectValue(page.getByRole('combobox',{name:'Responsable del área',exact:true}),persons[2]);await expect(page.locator('.dashboard-results tbody tr')).toHaveCount(0);
+ await page.getByRole('combobox',{name:'Inspector',exact:true}).click();await page.getByRole('button',{name:'Limpiar selección',exact:true}).click();await page.getByRole('button',{name:'Listo',exact:true}).click();await expect(page.locator('.dashboard-results tbody tr')).toHaveCount(1);await expect(page.locator('.dashboard-results tbody')).toContainText('IH-2026-003');
+ await page.locator('.dashboard-filters').screenshot({path:test.info().outputPath(`identidades-${width}.png`)});expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
+});

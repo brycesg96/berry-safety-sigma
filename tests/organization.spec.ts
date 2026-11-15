@@ -3,7 +3,7 @@ import ExcelJS from 'exceljs';
 import { organizationCatalog, mockOrganizationCatalog } from './organization-fixture';
 import { selectValue } from './select-fixture';
 import { selectLocation } from './location-fixture';
-import { organizationErrors, organizationOptions } from '../src/organization';
+import { organizationErrors, organizationOptions, organizationCatalogReady, profileOrganizationErrors } from '../src/organization';
 import { locationText, locationErrors } from '../src/inspection-location';
 
 test('gerencias filtran áreas, conservan valores anteriores y la ubicación respeta el orden del formato', () => {
@@ -12,6 +12,12 @@ test('gerencias filtran áreas, conservan valores anteriores y la ubicación res
   expect(organizationErrors('Gerencia de prueba A', 'Área de prueba B1', organizationCatalog)).toHaveProperty('department');
   expect(organizationErrors('Gerencia de prueba B', 'Área de prueba B1', organizationCatalog)).toEqual({});
   expect(organizationErrors('', 'Área anterior', [])).toEqual({});
+  expect(organizationCatalogReady([])).toBe(false);
+  expect(organizationCatalogReady(organizationCatalog)).toBe(true);
+  expect(organizationOptions('Gerencia de prueba A', 'Área de prueba A1', organizationCatalog).positions.map(item => item.value)).toEqual(['Puesto de prueba A1', 'Segundo puesto de prueba A1']);
+  expect(profileOrganizationErrors('Gerencia de prueba A', 'Área de prueba A1', 'Puesto de prueba B1', true, organizationCatalog)).toHaveProperty('job_title');
+  expect(profileOrganizationErrors('', '', '', true, [])).toHaveProperty('organization');
+  expect(profileOrganizationErrors('Gerencia de prueba A', 'Área de prueba A1', 'Puesto de prueba A1', true, organizationCatalog)).toEqual({});
   expect(locationText({ site: 'Fundo', department: ' Producción ', zone: 'Armonía II', detail: ' Taller ' })).toBe('Fundo – Producción – Armonía II – Taller');
   expect(locationText({ site: 'Fundo', zone: 'Armonía II', detail: 'Taller anterior' })).toBe('Fundo – Armonía II – Taller anterior');
   expect(locationErrors({ site: 'Fundo', department: 'a'.repeat(250), zone: 'Armonía II', detail: 'x'.repeat(250) })).toHaveProperty('area');
@@ -19,7 +25,7 @@ test('gerencias filtran áreas, conservan valores anteriores y la ubicación res
 
 for (const width of [1366, 390]) test(`gerencia y área dependientes, perfiles independientes y Excel con la ubicación completa (${width}px)`, async ({ page }) => {
   await page.setViewportSize({ width, height: 900 }); await mockOrganizationCatalog(page); await page.route('**/api/people?*', route => route.fulfill({ json: { people: [] } })); await page.goto('./');
-  await selectLocation(page, 'Sede', 'Fundo'); await selectLocation(page, 'Zona de inspección', 'Armonía II');
+  await selectLocation(page, 'Sede', 'Fundo', false); await selectLocation(page, 'Zona de inspección', 'Armonía II', false);
   const management = page.getByRole('combobox', { name: 'Gerencia', exact: true }), area = page.getByRole('combobox', { name: 'Área', exact: true });
   await expect(area).toBeDisabled(); await selectValue(management, 'Gerencia de prueba A'); await selectValue(area, 'Área de prueba A2');
   await selectValue(management, 'Gerencia de prueba B'); await expect(area).toHaveText('Selecciona un área');
@@ -30,6 +36,7 @@ for (const width of [1366, 390]) test(`gerencia y área dependientes, perfiles i
   await expect(management).toHaveText('Gerencia de prueba B'); await expect(area).toHaveText('Área de prueba B1');
   await page.getByRole('button', { name: 'Mi perfil', exact: true }).click(); const dialog = page.getByRole('dialog', { name: 'Mi perfil', exact: true });
   await selectValue(dialog.getByRole('combobox', { name: 'Gerencia', exact: true }), 'Gerencia de prueba A'); await selectValue(dialog.getByRole('combobox', { name: 'Área', exact: true }), 'Área de prueba A1');
+  await selectValue(dialog.getByRole('combobox', { name: 'Puesto', exact: true }), 'Puesto de prueba A1');
   await dialog.getByRole('button', { name: 'Guardar perfil', exact: true }).click();
   await expect(page.getByText('Gerencia de prueba A — Área de prueba A1', { exact: false }).first()).toBeVisible(); await expect(area).toHaveText('Área de prueba B1');
   await page.getByRole('button', { name: 'Cerrar aviso', exact: true }).click();

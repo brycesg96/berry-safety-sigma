@@ -1,6 +1,6 @@
 # Administración de usuarios
 
-El portal muestra **Gestión de Usuarios** como sección principal. Su encabezado identifica al administrador por su nombre completo junto al distintivo **Administrador**. Las pestañas internas son **Agregar Usuario** y **Administrar usuarios**; cada fila conserva las acciones **Permisos**, **Partes interesadas (cc)**, activación y eliminación.
+El portal reúne **Mi perfil**, **Gestión de Usuarios**, **Gestión de Inspecciones** y **Gestión de Áreas**. Gestión de Usuarios identifica al administrador por su nombre completo junto al distintivo **Administrador**. Sus pestañas internas son **Agregar Usuario** y **Administrar usuarios**; cada fila conserva las acciones **Permisos**, **Partes interesadas (cc)**, activación y eliminación. Gestión de Áreas mantiene el catálogo compartido de gerencias, áreas y puestos mediante las funciones protegidas del paso 14.
 
 Las partes interesadas se introducen con el ejemplo `persona1@hortifrut.com, persona2@hortifrut.com` y la indicación: «Separa los correos con comas. Las partes interesadas serán puestas en copia en las próximas notificaciones dirigidas a este usuario». El cambio de nombres conserva los correos guardados y los mismos controles de acceso, validación y auditoría.
 
@@ -12,7 +12,7 @@ Administración → Usuarios ofrece una única entrada: **Administrar usuarios**
 
 El formulario de añadir cuentas locales, su lista con edición/activación y la pestaña duplicada de Inicio de sesión se retiraron el 8 de noviembre de 2026. Las altas nuevas se realizan únicamente en la gestión de Supabase. Las pestañas Funciones y permisos e Integraciones se conservan.
 
-En **Gestión de Usuarios**, **Agregar Usuario** contiene únicamente el formulario de alta. **Administrar usuarios** contiene la lista de cuentas con **Permisos**, **Partes interesadas (cc)**, **Desactivar/Reactivar** y **Eliminar**. El portal usa nombre, correo, área, puesto, permisos y correos en copia. La contraseña temporal es `0123456789` y el primer ingreso exige cambiarla. Correo, permisos y acceso se verifican con Auth y la base de datos; una cuenta de inspecciones no obtiene acceso administrativo por abrir el enlace de Usuarios. Los permisos y el acceso se editan desde Administrar usuarios; la protección del último administrador y el historial se mantienen.
+En **Gestión de Usuarios**, **Agregar Usuario** contiene únicamente el formulario de alta: nombre, correo, permisos y correos en copia, sin área ni puesto. **Administrar usuarios** contiene la lista de cuentas con **Permisos**, **Partes interesadas (cc)**, **Desactivar/Reactivar** y **Eliminar**. La contraseña temporal es `0123456789` y el primer ingreso exige cambiarla y completar el perfil obligatorio con **Gerencia → Área → Puesto** antes de entrar al espacio de trabajo. Correo, permisos y acceso se verifican con Auth y la base de datos; una cuenta de inspecciones no obtiene acceso administrativo por abrir el enlace de Usuarios. Los permisos y el acceso se editan desde Administrar usuarios; la protección del último administrador y el historial se mantienen.
 
 Acceso directo: `https://brycesg96.github.io/berry-safety-sigma/?acceso=cuenta&seccion=usuarios`.
 

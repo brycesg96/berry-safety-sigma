@@ -9,11 +9,12 @@ const secret = 'sb_secret_fictitious_server_key_123456789012345';
 const actorId = '60000000-0000-4000-8000-000000000001';
 const userId = '60000000-0000-4000-8000-000000000002';
 const requestId = '60000000-0000-4000-8000-000000000003';
+const previousId = '60000000-0000-4000-8000-000000000004';
 const jwt = `eyJhbGciOiJIUzI1NiJ9.${Buffer.from(JSON.stringify({ sub: actorId, iat: 100 })).toString('base64url')}.fictitious`;
 const account = { email: 'new@example.invalid', full_name: 'Nueva Persona', area: 'Prevención', job_title: 'Supervisora', role: 'inspector', supervisor_emails: [] };
 const response = (data, status = 200) => new Response(data === null ? null : JSON.stringify(data), { status, headers: { 'Content-Type': 'application/json' } });
 async function setup(t, extra = {}) {
-  const state = { calls: [], role: 'admin', enabled: true, temporary: false, credentialsAfter: 0, authValid: true, recovered: false, created: false, passwordRejected: false, prepareConflict: false, ...extra };
+  const state = { calls: [], role: 'admin', enabled: true, temporary: false, credentialsAfter: 0, authValid: true, recovered: false, created: false, passwordRejected: false, prepareConflict: false, retired: false, released: false, resolved: false, releaseFails: false, resolutionMode: 'rehire', ...extra };
   const env = { BERRY_ALLOWED_ORIGINS: origin, NODE_ENV: 'production', BERRY_PROTOTYPE_MODE: 'true', SUPABASE_URL: project, SUPABASE_SECRET_KEY: secret, ...(extra.env || {}) };
   const server = createApi({ env, fetchImpl: async (address, options) => {
     const url = new URL(address), path = url.pathname;
@@ -24,6 +25,16 @@ async function setup(t, extra = {}) {
     if (path === '/auth/v1/user') return state.authValid ? response({ id: actorId, user_metadata: { role: 'admin' } }) : response({ message: 'private provider diagnostic' }, 401);
     if (path === '/rest/v1/berry_profiles') return response([{ id: actorId, role: state.role, enabled: state.enabled, must_change_password: state.temporary, credentials_valid_after: state.credentialsAfter }]);
     if (path === '/rest/v1/rpc/berry_admin_accounts') return response([{ ...account, id: userId, enabled: true, must_change_password: true }]);
+    if (path === '/rest/v1/rpc/berry_account_matches') return response([{ id: previousId, full_name: account.full_name, email: account.email, deleted_at: '2026-11-01T12:00:00Z', can_restore: true, can_rehire: true, access_revision: 3 }]);
+    if (path === '/rest/v1/rpc/berry_begin_account_resolution') { state.resolutionMode = body.p_mode; return response({ operation_id: requestId, previous_id: previousId, mode: body.p_mode, needs_archive: true, archive_email: `${previousId}@retired.berry-safety.invalid`, released_at: state.released ? '2026-11-15T12:00:00Z' : null, completed_at: state.resolved ? '2026-11-15T12:00:00Z' : null, new_user_id: state.resolved ? userId : null }); }
+    if (path === '/rest/v1/rpc/berry_begin_account_restore') return state.restoreExpired ? response({ code: '22023', message: 'RESTORE_EXPIRED' }, 400) : response({ operation_id: requestId, previous_id: previousId, mode: 'restore', completed_at: state.restoreCommitted ? '2026-11-15T12:00:00Z' : null, new_user_id: state.restoreCommitted ? previousId : null });
+    if (path === '/rest/v1/rpc/berry_finish_account_restore') { state.restoreCommitted = true; return response({ ...account, id: previousId, person_id: previousId, enabled: true, must_change_password: !state.personalPasswordSet }); }
+    if (path === `/auth/v1/admin/users/${previousId}`) {
+      if (options.method === 'PUT') { if(body.app_metadata?.berry_restore_operation) state.restoreMarker=true;else state.retired = true; return response({ id: previousId }); }
+      return response({ id: previousId, email: state.retired ? `${previousId}@retired.berry-safety.invalid` : account.email, app_metadata: state.restoreMarker ? { berry_restore_operation: requestId } : state.retired ? { berry_retired_operation: requestId } : { provider: 'email' } });
+    }
+    if (path === '/rest/v1/rpc/berry_release_resolution_email') { if (state.releaseFails) return response({ code: 'XX000' }, 503); state.released = true; return response({}); }
+    if (path === '/rest/v1/rpc/berry_finish_account_resolution') { state.resolved = true; return response({ ...account, id: userId, person_id: state.resolutionMode === 'rehire' ? previousId : userId, enabled: true, must_change_password: true }); }
     if (path === '/rest/v1/rpc/berry_prepare_account') return state.prepareConflict ? response({ code: '23505', message: 'private SQL diagnostic' }, 409) : response({ request_id: requestId, user_id: state.created ? userId : null });
     if (path === '/rest/v1/rpc/berry_find_account_request') return response(state.recovered || state.created ? userId : null);
     if (path === '/auth/v1/admin/users') { state.created = true; return response({ id: userId }); }
@@ -117,4 +128,47 @@ test('a rejected password never clears the requirement and provider diagnostics 
   const operations = api.state.calls.filter(call => call.path === '/rest/v1/rpc/berry_password_operation');
   assert.deepEqual(operations.map(call => call.body.p_action), ['begin', 'failed']);
   assert.ok(!JSON.stringify(result.data).includes('private'));
+});
+
+test('matching names and emails are disclosed only to verified administrators and never create or reset Auth users', async t => {
+  const api = await setup(t);
+  const matched = await api.send('/api/accounts/matches', { email: account.email, full_name: account.full_name });
+  assert.equal(matched.status, 200); assert.equal(matched.data.matches[0].id, previousId);
+  assert.ok(!api.state.calls.some(call => call.path.startsWith('/auth/v1/admin/users')));
+  api.state.role = 'inspector';
+  assert.equal((await api.send('/api/accounts/matches', { email: account.email, full_name: account.full_name })).status, 403);
+  assert.equal((await api.send('/api/accounts/resolve', { account, previousId, expectedRevision: 3, mode: 'rehire' })).status, 403);
+});
+for (const mode of ['rehire', 'new_person']) test(`resolution ${mode} retires only the deleted Auth identity, creates a different access and never adopts its old UUID`, async t => {
+  const api = await setup(t);
+  const result = await api.send('/api/accounts/resolve', { account, previousId, expectedRevision: 3, mode });
+  assert.equal(result.status, 200); assert.equal(result.data.account.id, userId); assert.notEqual(result.data.account.id, previousId);
+  assert.equal(result.data.account.person_id, mode === 'rehire' ? previousId : userId);
+  const retired = api.state.calls.find(call => call.path === `/auth/v1/admin/users/${previousId}` && call.method === 'PUT');
+  assert.equal(retired.body.email, `${previousId}@retired.berry-safety.invalid`); assert.notEqual(retired.body.password, TEMPORARY_PASSWORD); assert.equal(retired.body.ban_duration, '876000h');
+  const creation = api.state.calls.find(call => call.path === '/auth/v1/admin/users'); assert.equal(creation.body.email, account.email); assert.equal(creation.body.password, TEMPORARY_PASSWORD);
+  const count = api.state.calls.filter(call => call.path === '/auth/v1/admin/users').length;
+  assert.equal((await api.send('/api/accounts/resolve', { account, previousId, expectedRevision: 3, mode })).status, 200);
+  assert.equal(api.state.calls.filter(call => call.path === '/auth/v1/admin/users').length, count);
+});
+test('an uncertain retirement never creates the next access; retry resumes the same operation without a second Auth identity', async t => {
+  const api = await setup(t, { releaseFails: true });
+  const input = { account, previousId, expectedRevision: 3, mode: 'rehire' };
+  assert.equal((await api.send('/api/accounts/resolve', input)).status, 503);
+  assert.ok(api.state.retired); assert.ok(!api.state.created);
+  api.state.releaseFails = false;
+  assert.equal((await api.send('/api/accounts/resolve', input)).status, 200);
+  assert.equal(api.state.calls.filter(call => call.path === `/auth/v1/admin/users/${previousId}` && call.method === 'PUT').length, 1);
+  assert.equal(api.state.calls.filter(call => call.path === '/auth/v1/admin/users').length, 1);
+});
+
+test('accidental restoration resets only the previous account and a completed retry never resets its new personal password',async t=>{
+ const api=await setup(t);const body={account,previousId,expectedRevision:3,mode:'restore'};
+ const result=await api.send('/api/accounts/resolve',body);assert.equal(result.status,200);assert.equal(result.data.account.id,previousId);assert.equal(result.data.account.must_change_password,true);
+ const resets=api.state.calls.filter(call=>call.path===`/auth/v1/admin/users/${previousId}`&&call.method==='PUT');assert.equal(resets.length,1);assert.equal(resets[0].body.password,TEMPORARY_PASSWORD);assert.equal(resets[0].body.ban_duration,'none');assert.equal(resets[0].body.app_metadata.berry_restore_operation,requestId);
+ assert.ok(!api.state.calls.some(call=>call.path==='/auth/v1/admin/users'));api.state.personalPasswordSet=true;
+ const replay=await api.send('/api/accounts/resolve',body);assert.equal(replay.status,200);assert.equal(replay.data.account.must_change_password,false);assert.equal(api.state.calls.filter(call=>call.path===`/auth/v1/admin/users/${previousId}`&&call.method==='PUT').length,1);
+});
+test('an expired restoration stops before touching Auth and offers an actionable deadline message',async t=>{
+ const api=await setup(t,{restoreExpired:true});const result=await api.send('/api/accounts/resolve',{account,previousId,expectedRevision:3,mode:'restore'});assert.equal(result.status,400);assert.match(result.data.message,/tres meses/);assert.ok(!api.state.calls.some(call=>call.path.startsWith('/auth/v1/admin/users')));
 });

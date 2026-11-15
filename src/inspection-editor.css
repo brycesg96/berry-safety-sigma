@@ -1,8 +1,8 @@
-.inspection-unsaved-notice{display:flex;align-items:center;gap:10px;margin:0 0 16px;padding:12px 15px;border:1px solid #e6d3a0;border-left:4px solid #b38428;border-radius:8px;background:#fff8e7;color:#715016;font-size:12px;line-height:1.7}
-.inspection-unsaved-notice>svg{flex-shrink:0}
+.inspection-unsaved-notice{margin:0 0 16px;color:#715016;font-size:12px;line-height:1.7}
 .inspection-unsaved-notice strong{font-weight:750}
-.closing-cause-guidance{margin:-8px 0 15px;color:#52634f;font-size:12px;line-height:1.8}
-.closing-cause-guidance strong{font-weight:700;color:#344e3c}
+.closing-text-field textarea:focus::placeholder{opacity:0}
+.closing-text-field.closing-text-unfavorableCause textarea{min-height:180px}
+.closing-text-field.closing-text-closingRemarks textarea{min-height:130px}
+@media(max-width:600px){.closing-text-field.closing-text-unfavorableCause textarea{min-height:230px}.closing-text-field.closing-text-closingRemarks textarea{min-height:150px}}
 .add-observation:focus-visible{outline:3px solid #a7cbb0;outline-offset:3px}
-
-.closing-no-results-guidance,.closing-recommendation-example{display:block;margin-top:8px}
+.inspection-editor .recipient-list{margin-top:18px}

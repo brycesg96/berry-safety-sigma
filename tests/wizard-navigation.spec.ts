@@ -77,7 +77,7 @@ for (const viewport of [{ width: 1366, height: 900 }, { width: 390, height: 844 
     await atStart(start);
     await expect(heading).toHaveText('CIERRE DE LA INSPECCIÓN');
     await expect(page.locator('.form-card-heading')).toContainText('los datos de quien es responsable de este registro');
-    await expect(page.locator('.closing-cause-guidance strong')).toHaveText(['el origen o motivo raíz por el cual existe el acto o condición subestándar', '¿por qué ocurrió o por qué está presente ese hallazgo?', 'No aplica (sin resultados desfavorables)']);
+    await expect(page.getByRole('textbox', { name: 'DESCRIPCIÓN DE LA CAUSA ANTE RESULTADOS DESFAVORABLES DE LA INSPECCIÓN', exact: true })).toHaveAttribute('placeholder', /el origen o motivo raíz[\s\S]*¿por qué ocurrió o por qué está presente ese hallazgo\?[\s\S]*No aplica \(sin resultados desfavorables\)/);
     await page.locator('.closing-entry').first().screenshot({ path: test.info().outputPath(`causa-raiz-${viewport.width}.png`) });
     await page.getByRole('textbox', { name: 'CONCLUSIONES Y RECOMENDACIONES', exact: true }).fill('Corregir los tres hallazgos.');
     await page.getByRole('button', { name: 'Continuar', exact: true }).click();

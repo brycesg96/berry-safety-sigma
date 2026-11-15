@@ -8,6 +8,6 @@ En el Excel individual, **Responsable del área inspeccionada** muestra únicame
 
 Las inspecciones antiguas con un único destinatario conservan su representación anterior al generar una copia. No se reescriben archivos históricos almacenados, revisiones, permisos ni números de registro. No hace falta ejecutar SQL para este ajuste del formulario y la presentación.
 
-En la revisión final, el apartado se llama **Responsables del levantamiento de observaciones** y aclara: «Las siguientes personas recibirán esta inspección en sus correos electrónicos y en sus cuentas».
+En la revisión final, el apartado se llama **Responsables del área inspeccionada\*** y aclara: «Las siguientes personas recibirán el informe de esta inspección en sus correos electrónicos y en sus cuentas de Berry Safety. Asimismo, serán responsables de levantar las observaciones identificadas». La lista de personas y correos tiene 18 px de separación respecto a la explicación.
 
 Los textos visibles de la aplicación, filtros, avisos, consolidado y mensajes del servicio utilizan **número de registro**. Se conservan las claves técnicas de las integraciones y el mecanismo de asignación de correlativos.

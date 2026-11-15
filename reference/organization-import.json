@@ -1,0 +1,1530 @@
+{
+  "source": "ACTUALIZACIÓN DE MATRICES IPERC 2026 - Seguimiento.xlsx",
+  "sha256": "ea9051f9a4f5175675607d33a978c8618fb61478d6a7cff536c12f40560c8dd1",
+  "summary_sheet": "Tabla ",
+  "detail_sheet": "Puestos O",
+  "classification_sheet": "BD Puestos",
+  "excluded_managements": [
+    "GERENCIA CORPORATIVA DE OPERACIONES",
+    "GERENCIA CORPORATIVA DE PLANIFICACIÓN COMERCIAL",
+    "GERENCIA DE AUDITORÍA INTERNA CORPORATIVA",
+    "GERENCIA DE COMPLIANCE & INTERNAL AUDIT",
+    "GERENCIA DE EXPORTACIONES",
+    "GERENCIA DE RRHH CORPORATIVO",
+    "GERENCIA DE RRHH REGIONAL CONO SUR",
+    "GERENCIA DE SOP REGIONAL",
+    "GERENCIA GENERAL",
+    "GERENCIA GENERAL CONO SUR"
+  ],
+  "counts": {
+    "managements": 18,
+    "areas": 60,
+    "positions": 300,
+    "excluded": 209,
+    "duplicates": 5,
+    "reasons": {
+      "no_empleado_segun_clasificacion": 135,
+      "gerencia_naranja": 44,
+      "puesto_de_practicante": 18,
+      "no_vigente": 10,
+      "puesto_operativo_excluido_por_el_usuario": 2
+    }
+  },
+  "excluded_rows": [
+    {
+      "row": 8,
+      "management": "GERENCIA CONTROL DE GESTIÓN",
+      "area": "CONTROL DE GESTIÓN",
+      "position": "PRACTICANTE PROFESIONAL",
+      "reason": "no_empleado_segun_clasificacion"
+    },
+    {
+      "row": 9,
+      "management": "GERENCIA CONTROL DE GESTIÓN",
+      "area": "CONTROL DE GESTIÓN",
+      "position": "PRACTICANTE PROFESIONAL",
+      "reason": "no_empleado_segun_clasificacion"
+    },
+    {
+      "row": 10,
+      "management": "GERENCIA CORPORATIVA DE OPERACIONES",
+      "area": "COMPRAS CORPORATIVAS",
+      "position": "JEFE DE PLANIFICACION E INTELIGENCIA DE COMPRAS",
+      "reason": "gerencia_naranja"
+    },
+    {
+      "row": 11,
+      "management": "GERENCIA CORPORATIVA DE OPERACIONES",
+      "area": "COMPRAS CORPORATIVAS",
+      "position": "ANALISTA DE GESTIÓN DE COMPRAS",
+      "reason": "gerencia_naranja"
+    },
+    {
+      "row": 12,
+      "management": "GERENCIA CORPORATIVA DE OPERACIONES",
+      "area": "COMPRAS CORPORATIVAS",
+      "position": "ANALISTA TRANSACCIONAL CORPORATIVO",
+      "reason": "gerencia_naranja"
+    },
+    {
+      "row": 13,
+      "management": "GERENCIA CORPORATIVA DE OPERACIONES",
+      "area": "COMPRAS CORPORATIVAS",
+      "position": "COORDINADOR DE COMPRAS CORPORATIVO",
+      "reason": "gerencia_naranja"
+    },
+    {
+      "row": 14,
+      "management": "GERENCIA CORPORATIVA DE OPERACIONES",
+      "area": "COMPRAS CORPORATIVAS",
+      "position": "COORDINADOR DE COMPRAS CORPORATIVO CAPEX",
+      "reason": "gerencia_naranja"
+    },
+    {
+      "row": 15,
+      "management": "GERENCIA CORPORATIVA DE OPERACIONES",
+      "area": "COMPRAS CORPORATIVAS",
+      "position": "COORDINADOR DE COMPRAS CORPORATIVO JR.",
+      "reason": "gerencia_naranja"
+    },
+    {
+      "row": 16,
+      "management": "GERENCIA CORPORATIVA DE OPERACIONES",
+      "area": "COMPRAS CORPORATIVAS",
+      "position": "COORDINADOR DE COMPRAS TI CORPORATIVO",
+      "reason": "gerencia_naranja"
+    },
+    {
+      "row": 17,
+      "management": "GERENCIA CORPORATIVA DE OPERACIONES",
+      "area": "INOCUIDAD ALIMENTARIA REGIONAL",
+      "position": "COORDINADOR DE SISTEMAS DE GESTION INTEGRADOS",
+      "reason": "gerencia_naranja"
+    },
+    {
+      "row": 18,
+      "management": "GERENCIA CORPORATIVA DE OPERACIONES",
+      "area": "SOP CORPORATIVO",
+      "position": "S&OP PROCESS OPTIMISATION SPECIALIST",
+      "reason": "gerencia_naranja"
+    },
+    {
+      "row": 19,
+      "management": "GERENCIA CORPORATIVA DE OPERACIONES",
+      "area": "SOP CORPORATIVO",
+      "position": "SUPPLY PLANNER",
+      "reason": "gerencia_naranja"
+    },
+    {
+      "row": 20,
+      "management": "GERENCIA CORPORATIVA DE PLANIFICACIÓN COMERCIAL",
+      "area": "PLANIFICACION COMERCIAL",
+      "position": "COMMERCIAL STRATEGY COORDINATOR",
+      "reason": "gerencia_naranja"
+    },
+    {
+      "row": 25,
+      "management": "GERENCIA CORPORATIVA DE VIVEROS, HUBS Y LICENCIAS",
+      "area": "HUB",
+      "position": "OBRERO DE LABORES HUB",
+      "reason": "no_empleado_segun_clasificacion"
+    },
+    {
+      "row": 26,
+      "management": "GERENCIA CORPORATIVA DE VIVEROS, HUBS Y LICENCIAS",
+      "area": "HUB",
+      "position": "OBRERO DE MICROPROPAGACIÓN",
+      "reason": "no_empleado_segun_clasificacion"
+    },
+    {
+      "row": 39,
+      "management": "GERENCIA DE ADM Y FINANZAS",
+      "area": "CONTABILIDAD",
+      "position": "PRACTICANTE PROFESIONAL",
+      "reason": "puesto_de_practicante"
+    },
+    {
+      "row": 47,
+      "management": "GERENCIA DE ADM Y FINANZAS",
+      "area": "LEGAL",
+      "position": "ASISTENTE LEGAL",
+      "reason": "no_vigente"
+    },
+    {
+      "row": 48,
+      "management": "GERENCIA DE ADM Y FINANZAS",
+      "area": "LEGAL",
+      "position": "PRACTICANTE PROFESIONAL",
+      "reason": "puesto_de_practicante"
+    },
+    {
+      "row": 68,
+      "management": "GERENCIA DE ASUNTOS CORPORATIVOS & COMPLIANCE",
+      "area": "ASUNTOS CORPORATIVOS Y DESARROLLO COMUNITARIO",
+      "position": "PRACTICANTE PROFESIONAL",
+      "reason": "puesto_de_practicante"
+    },
+    {
+      "row": 70,
+      "management": "GERENCIA DE AUDITORÍA INTERNA CORPORATIVA",
+      "area": "AUDITORÍA INTERNA CORPORATIVA",
+      "position": "CORPORATE SENIOR AUDITOR",
+      "reason": "gerencia_naranja"
+    },
+    {
+      "row": 71,
+      "management": "GERENCIA DE AUDITORÍA INTERNA CORPORATIVA",
+      "area": "AUDITORÍA INTERNA CORPORATIVA",
+      "position": "HEAD OF INTERNAL AUDIT AND QUALITY ASSURANCE",
+      "reason": "gerencia_naranja"
+    },
+    {
+      "row": 72,
+      "management": "GERENCIA DE CALIDAD",
+      "area": "CALIDAD",
+      "position": "ANALISTA CORPORATIVO DE CALIDAD",
+      "reason": "no_vigente"
+    },
+    {
+      "row": 79,
+      "management": "GERENCIA DE CALIDAD",
+      "area": "CALIDAD",
+      "position": "PRACTICANTE PROFESIONAL",
+      "reason": "puesto_de_practicante"
+    },
+    {
+      "row": 80,
+      "management": "GERENCIA DE CALIDAD",
+      "area": "CALIDAD",
+      "position": "QUALITY CORPORATE DIRECTOR",
+      "reason": "no_vigente"
+    },
+    {
+      "row": 82,
+      "management": "GERENCIA DE CALIDAD",
+      "area": "CALIDAD",
+      "position": "SUPERVISOR DE CALIDAD",
+      "reason": "no_empleado_segun_clasificacion"
+    },
+    {
+      "row": 83,
+      "management": "GERENCIA DE CALIDAD",
+      "area": "CALIDAD",
+      "position": "SUPERVISOR DE CALIDAD",
+      "reason": "no_empleado_segun_clasificacion"
+    },
+    {
+      "row": 84,
+      "management": "GERENCIA DE CALIDAD",
+      "area": "CALIDAD",
+      "position": "TECNICO DE ASEGURAMIENTO DE LA CALIDAD",
+      "reason": "no_empleado_segun_clasificacion"
+    },
+    {
+      "row": 88,
+      "management": "GERENCIA DE CALIDAD",
+      "area": "POST COSECHA",
+      "position": "TÉCNICO DE POST COSECHA",
+      "reason": "no_empleado_segun_clasificacion"
+    },
+    {
+      "row": 89,
+      "management": "GERENCIA DE CALIDAD",
+      "area": "POSTCOSECHA",
+      "position": "PRACTICANTE PROFESIONAL",
+      "reason": "no_empleado_segun_clasificacion"
+    },
+    {
+      "row": 90,
+      "management": "GERENCIA DE COMPLIANCE & INTERNAL AUDIT",
+      "area": "COMPLIANCE & INTERNAL AUDIT",
+      "position": "AUDITOR INTERNO SENIOR",
+      "reason": "gerencia_naranja"
+    },
+    {
+      "row": 91,
+      "management": "GERENCIA DE COMPLIANCE & INTERNAL AUDIT",
+      "area": "COMPLIANCE & INTERNAL AUDIT",
+      "position": "COMPLIANCE AMERICA",
+      "reason": "gerencia_naranja"
+    },
+    {
+      "row": 92,
+      "management": "GERENCIA DE COMPLIANCE & INTERNAL AUDIT",
+      "area": "COMPLIANCE & INTERNAL AUDIT",
+      "position": "LÍDER AUDITORÍA INTERNA PERU / ECUADOR / COLOMBIA",
+      "reason": "gerencia_naranja"
+    },
+    {
+      "row": 97,
+      "management": "GERENCIA DE COSECHA",
+      "area": "COSECHA",
+      "position": "SUPERVISOR DE ABASTECIMIENTO DE COSECHA",
+      "reason": "no_empleado_segun_clasificacion"
+    },
+    {
+      "row": 99,
+      "management": "GERENCIA DE COSECHA",
+      "area": "COSECHA",
+      "position": "ESTIBADOR",
+      "reason": "no_empleado_segun_clasificacion"
+    },
+    {
+      "row": 102,
+      "management": "GERENCIA DE COSECHA",
+      "area": "COSECHA",
+      "position": "JEFE GENERAL DE COSECHA",
+      "reason": "no_vigente"
+    },
+    {
+      "row": 103,
+      "management": "GERENCIA DE COSECHA",
+      "area": "COSECHA",
+      "position": "OBRERO DE APLICATIVOS Y TAREO MÓVIL",
+      "reason": "no_empleado_segun_clasificacion"
+    },
+    {
+      "row": 104,
+      "management": "GERENCIA DE COSECHA",
+      "area": "COSECHA",
+      "position": "OBRERO DE COSECHA",
+      "reason": "no_empleado_segun_clasificacion"
+    },
+    {
+      "row": 105,
+      "management": "GERENCIA DE COSECHA",
+      "area": "COSECHA",
+      "position": "PRACTICANTE PROFESIONAL",
+      "reason": "puesto_de_practicante"
+    },
+    {
+      "row": 107,
+      "management": "GERENCIA DE COSECHA",
+      "area": "COSECHA",
+      "position": "SUPERVISOR DE CUADRILLA",
+      "reason": "no_empleado_segun_clasificacion"
+    },
+    {
+      "row": 110,
+      "management": "GERENCIA DE EXPORTACIONES",
+      "area": "EXPORTACIONES",
+      "position": "ANALISTA SR. DE EXPORTACIONES AMERICA",
+      "reason": "gerencia_naranja"
+    },
+    {
+      "row": 111,
+      "management": "GERENCIA DE EXPORTACIONES",
+      "area": "EXPORTACIONES",
+      "position": "ASISTENTE DE LIQUIDACIONES",
+      "reason": "gerencia_naranja"
+    },
+    {
+      "row": 112,
+      "management": "GERENCIA DE EXPORTACIONES",
+      "area": "EXPORTACIONES",
+      "position": "ASISTENTE DE OPERACIONES DE EXPORTACIÓN",
+      "reason": "gerencia_naranja"
+    },
+    {
+      "row": 113,
+      "management": "GERENCIA DE EXPORTACIONES",
+      "area": "EXPORTACIONES",
+      "position": "COORDINADOR DE IMPORTACIONES",
+      "reason": "gerencia_naranja"
+    },
+    {
+      "row": 114,
+      "management": "GERENCIA DE EXPORTACIONES",
+      "area": "EXPORTACIONES",
+      "position": "COORDINADOR DE INVENTARIOS DE EXPORTACIÓN AMÉRICA",
+      "reason": "gerencia_naranja"
+    },
+    {
+      "row": 115,
+      "management": "GERENCIA DE EXPORTACIONES",
+      "area": "EXPORTACIONES",
+      "position": "COORDINADOR DE LIQUIDACIONES",
+      "reason": "gerencia_naranja"
+    },
+    {
+      "row": 116,
+      "management": "GERENCIA DE EXPORTACIONES",
+      "area": "EXPORTACIONES",
+      "position": "COORDINADOR DE OPERACIONES DE EXPORTACION",
+      "reason": "gerencia_naranja"
+    },
+    {
+      "row": 117,
+      "management": "GERENCIA DE EXPORTACIONES",
+      "area": "EXPORTACIONES",
+      "position": "GESTOR DE OPERACIONES",
+      "reason": "gerencia_naranja"
+    },
+    {
+      "row": 118,
+      "management": "GERENCIA DE EXPORTACIONES",
+      "area": "EXPORTACIONES",
+      "position": "GESTOR DOCUMENTARIO DE EXPORTACIONES",
+      "reason": "gerencia_naranja"
+    },
+    {
+      "row": 119,
+      "management": "GERENCIA DE EXPORTACIONES",
+      "area": "EXPORTACIONES",
+      "position": "JEFE DE GESTIÓN DOCUMENTAL DE EXPORTACIONES AMERICA",
+      "reason": "gerencia_naranja"
+    },
+    {
+      "row": 120,
+      "management": "GERENCIA DE EXPORTACIONES",
+      "area": "EXPORTACIONES",
+      "position": "JEFE DE INVENTARIO DE EXPORTACIÓN AMÉRICA",
+      "reason": "gerencia_naranja"
+    },
+    {
+      "row": 121,
+      "management": "GERENCIA DE EXPORTACIONES",
+      "area": "EXPORTACIONES",
+      "position": "JEFE DE OPERACIONES DE EXPORTACION",
+      "reason": "gerencia_naranja"
+    },
+    {
+      "row": 122,
+      "management": "GERENCIA DE EXPORTACIONES",
+      "area": "EXPORTACIONES",
+      "position": "PLANNER DE EXPORTACIONES",
+      "reason": "gerencia_naranja"
+    },
+    {
+      "row": 123,
+      "management": "GERENCIA DE EXPORTACIONES",
+      "area": "EXPORTACIONES",
+      "position": "REGIONAL EXPORT MANAGER",
+      "reason": "gerencia_naranja"
+    },
+    {
+      "row": 124,
+      "management": "GERENCIA DE EXPORTACIONES",
+      "area": "EXPORTACIONES",
+      "position": "SUB GERENTE DE EXPORTACIONES",
+      "reason": "gerencia_naranja"
+    },
+    {
+      "row": 129,
+      "management": "GERENCIA DE FOOD SAFETY & CERTIFICACIONES",
+      "area": "FOOD SAFETY & CERTIFICACIONES",
+      "position": "TECNICO DE INOCUIDAD",
+      "reason": "no_empleado_segun_clasificacion"
+    },
+    {
+      "row": 130,
+      "management": "GERENCIA DE FOOD SAFETY & CERTIFICACIONES",
+      "area": "FOOD SAFETY & CERTIFICACIONES",
+      "position": "TECNICO DE MICROBIOLOGÍA",
+      "reason": "no_empleado_segun_clasificacion"
+    },
+    {
+      "row": 131,
+      "management": "GERENCIA DE LOGÍSTICA",
+      "area": "COMPRAS",
+      "position": "PRACTICANTE PROFESIONAL",
+      "reason": "no_empleado_segun_clasificacion"
+    },
+    {
+      "row": 134,
+      "management": "GERENCIA DE LOGÍSTICA",
+      "area": "ALMACÉN",
+      "position": "AUXILIAR DE ALMACÉN AGROQUÍMICOS",
+      "reason": "no_empleado_segun_clasificacion"
+    },
+    {
+      "row": 135,
+      "management": "GERENCIA DE LOGÍSTICA",
+      "area": "ALMACÉN",
+      "position": "AUXILIAR DE CONTROL DE INVENTARIOS",
+      "reason": "no_empleado_segun_clasificacion"
+    },
+    {
+      "row": 136,
+      "management": "GERENCIA DE LOGÍSTICA",
+      "area": "ALMACÉN",
+      "position": "AUXILIAR DE DESPACHO",
+      "reason": "no_empleado_segun_clasificacion"
+    },
+    {
+      "row": 137,
+      "management": "GERENCIA DE LOGÍSTICA",
+      "area": "ALMACÉN",
+      "position": "AUXILIAR DE PRODUCTO NO EXPORTABLE",
+      "reason": "no_empleado_segun_clasificacion"
+    },
+    {
+      "row": 138,
+      "management": "GERENCIA DE LOGÍSTICA",
+      "area": "ALMACÉN",
+      "position": "AUXILIAR DE SUMINISTROS",
+      "reason": "no_empleado_segun_clasificacion"
+    },
+    {
+      "row": 143,
+      "management": "GERENCIA DE LOGÍSTICA",
+      "area": "ALMACÉN",
+      "position": "OPERADOR DE ALMACÉN AGROQUÍMICOS",
+      "reason": "no_empleado_segun_clasificacion"
+    },
+    {
+      "row": 144,
+      "management": "GERENCIA DE LOGÍSTICA",
+      "area": "ALMACÉN",
+      "position": "OPERADOR DE GRIFO",
+      "reason": "no_empleado_segun_clasificacion"
+    },
+    {
+      "row": 145,
+      "management": "GERENCIA DE LOGÍSTICA",
+      "area": "ALMACÉN",
+      "position": "OPERADOR DE MONTACARGA",
+      "reason": "no_empleado_segun_clasificacion"
+    },
+    {
+      "row": 146,
+      "management": "GERENCIA DE LOGÍSTICA",
+      "area": "ALMACÉN",
+      "position": "OPERARIO ALMACEN COSECHA",
+      "reason": "no_empleado_segun_clasificacion"
+    },
+    {
+      "row": 147,
+      "management": "GERENCIA DE LOGÍSTICA",
+      "area": "ALMACÉN",
+      "position": "OPERARIO ALMACEN COSECHA",
+      "reason": "no_empleado_segun_clasificacion"
+    },
+    {
+      "row": 148,
+      "management": "GERENCIA DE LOGÍSTICA",
+      "area": "ALMACÉN",
+      "position": "OPERARIO DE ALMACÉN DE JABAS",
+      "reason": "no_empleado_segun_clasificacion"
+    },
+    {
+      "row": 149,
+      "management": "GERENCIA DE LOGÍSTICA",
+      "area": "ALMACÉN",
+      "position": "OPERARIO DE ALMACÉN DE RESIDUOS SOLIDOS",
+      "reason": "no_empleado_segun_clasificacion"
+    },
+    {
+      "row": 150,
+      "management": "GERENCIA DE LOGÍSTICA",
+      "area": "ALMACÉN",
+      "position": "OPERARIO DE DESPACHOS",
+      "reason": "no_empleado_segun_clasificacion"
+    },
+    {
+      "row": 151,
+      "management": "GERENCIA DE LOGÍSTICA",
+      "area": "ALMACÉN",
+      "position": "OPERARIO DE DESPACHOS",
+      "reason": "no_empleado_segun_clasificacion"
+    },
+    {
+      "row": 152,
+      "management": "GERENCIA DE LOGÍSTICA",
+      "area": "ALMACÉN",
+      "position": "OPERARIO DE SUMINISTROS",
+      "reason": "no_empleado_segun_clasificacion"
+    },
+    {
+      "row": 154,
+      "management": "GERENCIA DE LOGÍSTICA",
+      "area": "ALMACÉN",
+      "position": "SUPERVISOR DE ALMACEN COSECHA",
+      "reason": "no_empleado_segun_clasificacion"
+    },
+    {
+      "row": 174,
+      "management": "GERENCIA DE OPERACIONES AGRÍCOLAS",
+      "area": "OPERACIONES Y SERVICIOS GENERALES",
+      "position": "OBRERO DE CARPINTERIA",
+      "reason": "no_empleado_segun_clasificacion"
+    },
+    {
+      "row": 175,
+      "management": "GERENCIA DE OPERACIONES AGRÍCOLAS",
+      "area": "OPERACIONES Y SERVICIOS GENERALES",
+      "position": "OBRERO DE COMEDOR",
+      "reason": "no_empleado_segun_clasificacion"
+    },
+    {
+      "row": 176,
+      "management": "GERENCIA DE OPERACIONES AGRÍCOLAS",
+      "area": "OPERACIONES Y SERVICIOS GENERALES",
+      "position": "OBRERO DE CONSTRUCCIÓN",
+      "reason": "no_empleado_segun_clasificacion"
+    },
+    {
+      "row": 177,
+      "management": "GERENCIA DE OPERACIONES AGRÍCOLAS",
+      "area": "OPERACIONES Y SERVICIOS GENERALES",
+      "position": "OBRERO DE DE DISTRIBUCIÓN SERVICIOS GENERALES",
+      "reason": "no_empleado_segun_clasificacion"
+    },
+    {
+      "row": 178,
+      "management": "GERENCIA DE OPERACIONES AGRÍCOLAS",
+      "area": "OPERACIONES Y SERVICIOS GENERALES",
+      "position": "OBRERO DE SERVICIOS GENERALES",
+      "reason": "no_empleado_segun_clasificacion"
+    },
+    {
+      "row": 179,
+      "management": "GERENCIA DE OPERACIONES AGRÍCOLAS",
+      "area": "OPERACIONES Y SERVICIOS GENERALES",
+      "position": "OPERADOR DE PLANTA DE TRATAMIENTO DE AGUA POTABLE",
+      "reason": "no_empleado_segun_clasificacion"
+    },
+    {
+      "row": 180,
+      "management": "GERENCIA DE OPERACIONES AGRÍCOLAS",
+      "area": "OPERACIONES Y SERVICIOS GENERALES",
+      "position": "SUPERVISOR DE CONSTRUCCIONES",
+      "reason": "no_empleado_segun_clasificacion"
+    },
+    {
+      "row": 181,
+      "management": "GERENCIA DE OPERACIONES AGRÍCOLAS",
+      "area": "OPERACIONES Y SERVICIOS GENERALES",
+      "position": "SUPERVISOR DE DISTRIBUCIÓN SERVICIOS GENERALES",
+      "reason": "no_empleado_segun_clasificacion"
+    },
+    {
+      "row": 185,
+      "management": "GERENCIA DE OPERACIONES AGRÍCOLAS",
+      "area": "SEGURIDAD PATRIMONIAL",
+      "position": "OPERADOR CCTV",
+      "reason": "puesto_operativo_excluido_por_el_usuario"
+    },
+    {
+      "row": 187,
+      "management": "GERENCIA DE OPERACIONES AGRÍCOLAS",
+      "area": "TALLER Y MAQUINARIA",
+      "position": "COORDINADOR DE ELECTRIFICACIÓN Y BOMBEO",
+      "reason": "no_vigente"
+    },
+    {
+      "row": 190,
+      "management": "GERENCIA DE OPERACIONES AGRÍCOLAS",
+      "area": "TALLER Y MAQUINARIA",
+      "position": "COORDINADOR DE TALLER MECANICO Y MAQUINARIA",
+      "reason": "no_vigente"
+    },
+    {
+      "row": 193,
+      "management": "GERENCIA DE OPERACIONES AGRÍCOLAS",
+      "area": "TALLER Y MAQUINARIA",
+      "position": "LLANTERO",
+      "reason": "no_empleado_segun_clasificacion"
+    },
+    {
+      "row": 194,
+      "management": "GERENCIA DE OPERACIONES AGRÍCOLAS",
+      "area": "TALLER Y MAQUINARIA",
+      "position": "MECÁNICO N0",
+      "reason": "no_empleado_segun_clasificacion"
+    },
+    {
+      "row": 195,
+      "management": "GERENCIA DE OPERACIONES AGRÍCOLAS",
+      "area": "TALLER Y MAQUINARIA",
+      "position": "MECÁNICO N1",
+      "reason": "no_empleado_segun_clasificacion"
+    },
+    {
+      "row": 196,
+      "management": "GERENCIA DE OPERACIONES AGRÍCOLAS",
+      "area": "TALLER Y MAQUINARIA",
+      "position": "MECÁNICO N2",
+      "reason": "no_empleado_segun_clasificacion"
+    },
+    {
+      "row": 197,
+      "management": "GERENCIA DE OPERACIONES AGRÍCOLAS",
+      "area": "TALLER Y MAQUINARIA",
+      "position": "MECÁNICO N3",
+      "reason": "no_empleado_segun_clasificacion"
+    },
+    {
+      "row": 198,
+      "management": "GERENCIA DE OPERACIONES AGRÍCOLAS",
+      "area": "TALLER Y MAQUINARIA",
+      "position": "MECÁNICO N3",
+      "reason": "no_empleado_segun_clasificacion"
+    },
+    {
+      "row": 199,
+      "management": "GERENCIA DE OPERACIONES AGRÍCOLAS",
+      "area": "TALLER Y MAQUINARIA",
+      "position": "OPERADOR DE MAQUINA CHIPEADORA",
+      "reason": "no_empleado_segun_clasificacion"
+    },
+    {
+      "row": 200,
+      "management": "GERENCIA DE OPERACIONES AGRÍCOLAS",
+      "area": "TALLER Y MAQUINARIA",
+      "position": "OPERADOR DE MAQUINARIA",
+      "reason": "puesto_operativo_excluido_por_el_usuario"
+    },
+    {
+      "row": 201,
+      "management": "GERENCIA DE OPERACIONES AGRÍCOLAS",
+      "area": "TALLER Y MAQUINARIA",
+      "position": "OPERADOR DE MAQUINARIA AGRÍCOLA",
+      "reason": "no_empleado_segun_clasificacion"
+    },
+    {
+      "row": 202,
+      "management": "GERENCIA DE OPERACIONES AGRÍCOLAS",
+      "area": "TALLER Y MAQUINARIA",
+      "position": "OPERADOR DE RETROEXCAVADORA",
+      "reason": "no_empleado_segun_clasificacion"
+    },
+    {
+      "row": 204,
+      "management": "GERENCIA DE OPERACIONES AGRÍCOLAS",
+      "area": "TALLER Y MAQUINARIA",
+      "position": "SOLDADOR N0",
+      "reason": "no_empleado_segun_clasificacion"
+    },
+    {
+      "row": 205,
+      "management": "GERENCIA DE OPERACIONES AGRÍCOLAS",
+      "area": "TALLER Y MAQUINARIA",
+      "position": "SOLDADOR N1",
+      "reason": "no_empleado_segun_clasificacion"
+    },
+    {
+      "row": 206,
+      "management": "GERENCIA DE OPERACIONES AGRÍCOLAS",
+      "area": "TALLER Y MAQUINARIA",
+      "position": "SOLDADOR N2",
+      "reason": "no_empleado_segun_clasificacion"
+    },
+    {
+      "row": 207,
+      "management": "GERENCIA DE OPERACIONES AGRÍCOLAS",
+      "area": "TALLER Y MAQUINARIA",
+      "position": "SOLDADOR N2",
+      "reason": "no_empleado_segun_clasificacion"
+    },
+    {
+      "row": 212,
+      "management": "GERENCIA DE OPERACIONES AGRÍCOLAS",
+      "area": "TALLER Y MAQUINARIA",
+      "position": "TÉCNICO DE AUTOMATIZACIÓN Y CONTROL N0",
+      "reason": "no_empleado_segun_clasificacion"
+    },
+    {
+      "row": 213,
+      "management": "GERENCIA DE OPERACIONES AGRÍCOLAS",
+      "area": "TALLER Y MAQUINARIA",
+      "position": "TÉCNICO DE AUTOMATIZACIÓN Y CONTROL N1",
+      "reason": "no_empleado_segun_clasificacion"
+    },
+    {
+      "row": 214,
+      "management": "GERENCIA DE OPERACIONES AGRÍCOLAS",
+      "area": "TALLER Y MAQUINARIA",
+      "position": "TECNICO DE AUTOMATIZACION Y CONTROL N2",
+      "reason": "no_empleado_segun_clasificacion"
+    },
+    {
+      "row": 216,
+      "management": "GERENCIA DE OPERACIONES AGRÍCOLAS",
+      "area": "TALLER Y MAQUINARIA",
+      "position": "TECNICO DE MANTTO ELECTRICO Y EQUIPOS DE BOMBEO N2",
+      "reason": "no_empleado_segun_clasificacion"
+    },
+    {
+      "row": 218,
+      "management": "GERENCIA DE OPERACIONES AGRÍCOLAS",
+      "area": "TALLER Y MAQUINARIA",
+      "position": "TÉCNICO DE MANTTO. ELECTRICO Y EQUIPOS DE BOMBEO N0",
+      "reason": "no_empleado_segun_clasificacion"
+    },
+    {
+      "row": 219,
+      "management": "GERENCIA DE OPERACIONES AGRÍCOLAS",
+      "area": "TALLER Y MAQUINARIA",
+      "position": "TÉCNICO DE MANTTO. ELECTRICO Y EQUIPOS DE BOMBEO N1",
+      "reason": "no_empleado_segun_clasificacion"
+    },
+    {
+      "row": 220,
+      "management": "GERENCIA DE OPERACIONES AGRÍCOLAS",
+      "area": "TALLER Y MAQUINARIA",
+      "position": "TÉCNICO DE PLANCHADO Y PINTURA",
+      "reason": "no_empleado_segun_clasificacion"
+    },
+    {
+      "row": 221,
+      "management": "GERENCIA DE OPERACIONES AGRÍCOLAS",
+      "area": "TALLER Y MAQUINARIA",
+      "position": "TORNERO",
+      "reason": "no_empleado_segun_clasificacion"
+    },
+    {
+      "row": 222,
+      "management": "GERENCIA DE OPERACIONES AGRÍCOLAS",
+      "area": "TRANSPORTE DE CARGA Y PERSONAL",
+      "position": "CHOFER",
+      "reason": "no_empleado_segun_clasificacion"
+    },
+    {
+      "row": 223,
+      "management": "GERENCIA DE OPERACIONES AGRÍCOLAS",
+      "area": "TRANSPORTE DE CARGA Y PERSONAL",
+      "position": "CHOFER",
+      "reason": "no_empleado_segun_clasificacion"
+    },
+    {
+      "row": 226,
+      "management": "GERENCIA DE OPERACIONES AGRÍCOLAS",
+      "area": "TRANSPORTE DE CARGA Y PERSONAL",
+      "position": "INSPECTOR DE TRANSPORTE DE PERSONAL",
+      "reason": "no_empleado_segun_clasificacion"
+    },
+    {
+      "row": 228,
+      "management": "GERENCIA DE OPERACIONES AGRÍCOLAS",
+      "area": "TRANSPORTE DE CARGA Y PERSONAL",
+      "position": "OPERADOR DE BALANZA",
+      "reason": "no_empleado_segun_clasificacion"
+    },
+    {
+      "row": 236,
+      "management": "GERENCIA DE OPERACIONES FILIAL",
+      "area": "TECNOLOGIA DE LA INFORMACION",
+      "position": "COORDINADOR DE PROYECTOS TI",
+      "reason": "no_vigente"
+    },
+    {
+      "row": 242,
+      "management": "GERENCIA DE OPERACIONES FILIAL",
+      "area": "TECNOLOGIA DE LA INFORMACION",
+      "position": "JEFE DE SISTEMAS Y PROCESOS",
+      "reason": "no_vigente"
+    },
+    {
+      "row": 243,
+      "management": "GERENCIA DE OPERACIONES FILIAL",
+      "area": "TECNOLOGIA DE LA INFORMACION",
+      "position": "PRACTICANTE PROFESIONAL",
+      "reason": "puesto_de_practicante"
+    },
+    {
+      "row": 246,
+      "management": "GERENCIA DE OPERACIONES INDUSTRIALES",
+      "area": "CAE",
+      "position": "CONTROLADOR DE CAE",
+      "reason": "no_empleado_segun_clasificacion"
+    },
+    {
+      "row": 248,
+      "management": "GERENCIA DE OPERACIONES INDUSTRIALES",
+      "area": "CAE",
+      "position": "OPERADOR DE ENFRIAMIENTO",
+      "reason": "no_empleado_segun_clasificacion"
+    },
+    {
+      "row": 249,
+      "management": "GERENCIA DE OPERACIONES INDUSTRIALES",
+      "area": "CAE",
+      "position": "OPERADOR DE SANITIZADO",
+      "reason": "no_empleado_segun_clasificacion"
+    },
+    {
+      "row": 250,
+      "management": "GERENCIA DE OPERACIONES INDUSTRIALES",
+      "area": "CAE",
+      "position": "OPERARIO DE CAE",
+      "reason": "no_empleado_segun_clasificacion"
+    },
+    {
+      "row": 252,
+      "management": "GERENCIA DE OPERACIONES INDUSTRIALES",
+      "area": "DESPACHO",
+      "position": "CONTROLADOR DE DESPACHO",
+      "reason": "no_empleado_segun_clasificacion"
+    },
+    {
+      "row": 254,
+      "management": "GERENCIA DE OPERACIONES INDUSTRIALES",
+      "area": "DESPACHO",
+      "position": "OPERADOR DE MONTACARGA",
+      "reason": "no_empleado_segun_clasificacion"
+    },
+    {
+      "row": 255,
+      "management": "GERENCIA DE OPERACIONES INDUSTRIALES",
+      "area": "DESPACHO",
+      "position": "OPERARIO DE DESPACHO",
+      "reason": "no_empleado_segun_clasificacion"
+    },
+    {
+      "row": 258,
+      "management": "GERENCIA DE OPERACIONES INDUSTRIALES",
+      "area": "MANTENIMIENTO PLANTA",
+      "position": "OPERADOR DE MAQUINAS",
+      "reason": "no_empleado_segun_clasificacion"
+    },
+    {
+      "row": 259,
+      "management": "GERENCIA DE OPERACIONES INDUSTRIALES",
+      "area": "MANTENIMIENTO PLANTA",
+      "position": "OPERARIO DE MANTENIMIENTO",
+      "reason": "no_empleado_segun_clasificacion"
+    },
+    {
+      "row": 261,
+      "management": "GERENCIA DE OPERACIONES INDUSTRIALES",
+      "area": "MANTENIMIENTO PLANTA",
+      "position": "PRACTICANTE PROFESIONAL",
+      "reason": "puesto_de_practicante"
+    },
+    {
+      "row": 263,
+      "management": "GERENCIA DE OPERACIONES INDUSTRIALES",
+      "area": "MANTENIMIENTO PLANTA",
+      "position": "TECNICO DE MANTENIMIENTO",
+      "reason": "no_empleado_segun_clasificacion"
+    },
+    {
+      "row": 264,
+      "management": "GERENCIA DE OPERACIONES INDUSTRIALES",
+      "area": "MANTENIMIENTO PLANTA",
+      "position": "TECNICO ELECTRICISTA",
+      "reason": "no_empleado_segun_clasificacion"
+    },
+    {
+      "row": 265,
+      "management": "GERENCIA DE OPERACIONES INDUSTRIALES",
+      "area": "MANTENIMIENTO PLANTA",
+      "position": "TECNICO ELECTRONICO",
+      "reason": "no_empleado_segun_clasificacion"
+    },
+    {
+      "row": 266,
+      "management": "GERENCIA DE OPERACIONES INDUSTRIALES",
+      "area": "MANTENIMIENTO PLANTA",
+      "position": "TECNICO FRIGORISTA",
+      "reason": "no_empleado_segun_clasificacion"
+    },
+    {
+      "row": 267,
+      "management": "GERENCIA DE OPERACIONES INDUSTRIALES",
+      "area": "MANTENIMIENTO PLANTA",
+      "position": "TECNICO MECANICO",
+      "reason": "no_empleado_segun_clasificacion"
+    },
+    {
+      "row": 271,
+      "management": "GERENCIA DE OPERACIONES INDUSTRIALES",
+      "area": "OPERACIONES INDUSTRIALES",
+      "position": "PRACTICANTE PROFESIONAL",
+      "reason": "puesto_de_practicante"
+    },
+    {
+      "row": 274,
+      "management": "GERENCIA DE OPERACIONES INDUSTRIALES",
+      "area": "PRODUCCION PLANTA",
+      "position": "CONTROLADOR DE PRODUCCIÓN",
+      "reason": "no_empleado_segun_clasificacion"
+    },
+    {
+      "row": 277,
+      "management": "GERENCIA DE OPERACIONES INDUSTRIALES",
+      "area": "PRODUCCION PLANTA",
+      "position": "JEFE DE RECEPCION",
+      "reason": "no_vigente"
+    },
+    {
+      "row": 278,
+      "management": "GERENCIA DE OPERACIONES INDUSTRIALES",
+      "area": "PRODUCCION PLANTA",
+      "position": "OPERADOR DE ABASTECIMIENTO",
+      "reason": "no_empleado_segun_clasificacion"
+    },
+    {
+      "row": 279,
+      "management": "GERENCIA DE OPERACIONES INDUSTRIALES",
+      "area": "PRODUCCION PLANTA",
+      "position": "OPERADOR DE ENFRIAMIENTO",
+      "reason": "no_empleado_segun_clasificacion"
+    },
+    {
+      "row": 280,
+      "management": "GERENCIA DE OPERACIONES INDUSTRIALES",
+      "area": "PRODUCCION PLANTA",
+      "position": "OPERADOR DE MONTACARGA",
+      "reason": "no_empleado_segun_clasificacion"
+    },
+    {
+      "row": 281,
+      "management": "GERENCIA DE OPERACIONES INDUSTRIALES",
+      "area": "PRODUCCION PLANTA",
+      "position": "OPERARIO DE PRODUCCIÓN",
+      "reason": "no_empleado_segun_clasificacion"
+    },
+    {
+      "row": 282,
+      "management": "GERENCIA DE OPERACIONES INDUSTRIALES",
+      "area": "PRODUCCION PLANTA",
+      "position": "OPERARIO DE PRODUCCIÓN",
+      "reason": "no_empleado_segun_clasificacion"
+    },
+    {
+      "row": 284,
+      "management": "GERENCIA DE OPERACIONES INDUSTRIALES",
+      "area": "SERVICIOS GENERALES PLANTA",
+      "position": "CONTROLADOR DE SERVICIOS GENERALES",
+      "reason": "no_empleado_segun_clasificacion"
+    },
+    {
+      "row": 285,
+      "management": "GERENCIA DE OPERACIONES INDUSTRIALES",
+      "area": "SERVICIOS GENERALES PLANTA",
+      "position": "OPERADOR DE PLANTA DE TRATAMIENTO DE AGUA POTABLE",
+      "reason": "no_empleado_segun_clasificacion"
+    },
+    {
+      "row": 286,
+      "management": "GERENCIA DE OPERACIONES INDUSTRIALES",
+      "area": "SERVICIOS GENERALES PLANTA",
+      "position": "OPERADOR DE SERVICIOS GENERALES",
+      "reason": "no_empleado_segun_clasificacion"
+    },
+    {
+      "row": 287,
+      "management": "GERENCIA DE OPERACIONES INDUSTRIALES",
+      "area": "SERVICIOS GENERALES PLANTA",
+      "position": "OPERARIO DE SERVICIOS GENERALES",
+      "reason": "no_empleado_segun_clasificacion"
+    },
+    {
+      "row": 295,
+      "management": "GERENCIA DE PRODUCCION",
+      "area": "I&D Y NUEVOS PROYECTOS",
+      "position": "EVALUADOR I&D",
+      "reason": "no_empleado_segun_clasificacion"
+    },
+    {
+      "row": 297,
+      "management": "GERENCIA DE PRODUCCION",
+      "area": "I&D Y NUEVOS PROYECTOS",
+      "position": "OPERARIO DE COMPOSTERA",
+      "reason": "no_empleado_segun_clasificacion"
+    },
+    {
+      "row": 298,
+      "management": "GERENCIA DE PRODUCCION",
+      "area": "I&D Y NUEVOS PROYECTOS",
+      "position": "OPERARIO DE LABORATORIO",
+      "reason": "no_empleado_segun_clasificacion"
+    },
+    {
+      "row": 299,
+      "management": "GERENCIA DE PRODUCCION",
+      "area": "I&D Y NUEVOS PROYECTOS",
+      "position": "SUPERVISOR DE COMPOSTERA",
+      "reason": "no_empleado_segun_clasificacion"
+    },
+    {
+      "row": 302,
+      "management": "GERENCIA DE PRODUCCION",
+      "area": "LABORATORIO DE SANIDAD",
+      "position": "AUXILIAR DE LABORATORIO DE SANIDAD",
+      "reason": "no_empleado_segun_clasificacion"
+    },
+    {
+      "row": 304,
+      "management": "GERENCIA DE PRODUCCION",
+      "area": "LABORATORIO DE SANIDAD",
+      "position": "OBRERO DE LABORATORIO DE SANIDAD",
+      "reason": "no_empleado_segun_clasificacion"
+    },
+    {
+      "row": 305,
+      "management": "GERENCIA DE PRODUCCION",
+      "area": "LABORATORIO DE SANIDAD",
+      "position": "PRACTICANTE PROFESIONAL",
+      "reason": "puesto_de_practicante"
+    },
+    {
+      "row": 310,
+      "management": "GERENCIA DE PRODUCCION",
+      "area": "PRODUCCION ARANDANOS",
+      "position": "EVALUADOR DE APICULTURA",
+      "reason": "no_empleado_segun_clasificacion"
+    },
+    {
+      "row": 311,
+      "management": "GERENCIA DE PRODUCCION",
+      "area": "PRODUCCION ARANDANOS",
+      "position": "EVALUADOR DE FENOLOGÍA",
+      "reason": "no_empleado_segun_clasificacion"
+    },
+    {
+      "row": 314,
+      "management": "GERENCIA DE PRODUCCION",
+      "area": "PRODUCCION ARANDANOS",
+      "position": "OBRERO DE PODA",
+      "reason": "no_empleado_segun_clasificacion"
+    },
+    {
+      "row": 315,
+      "management": "GERENCIA DE PRODUCCION",
+      "area": "PRODUCCION ARANDANOS",
+      "position": "OBRERO DE PRODUCCIÓN",
+      "reason": "no_empleado_segun_clasificacion"
+    },
+    {
+      "row": 316,
+      "management": "GERENCIA DE PRODUCCION",
+      "area": "PRODUCCION ARANDANOS",
+      "position": "OPERADOR DE FILTRADO",
+      "reason": "no_empleado_segun_clasificacion"
+    },
+    {
+      "row": 317,
+      "management": "GERENCIA DE PRODUCCION",
+      "area": "PRODUCCION ARANDANOS",
+      "position": "PRACTICANTE PROFESIONAL",
+      "reason": "puesto_de_practicante"
+    },
+    {
+      "row": 318,
+      "management": "GERENCIA DE PRODUCCION",
+      "area": "PRODUCCION ARANDANOS",
+      "position": "PRACTICANTE PROFESIONAL",
+      "reason": "puesto_de_practicante"
+    },
+    {
+      "row": 319,
+      "management": "GERENCIA DE PRODUCCION",
+      "area": "PRODUCCION ARANDANOS",
+      "position": "REGADOR",
+      "reason": "no_empleado_segun_clasificacion"
+    },
+    {
+      "row": 322,
+      "management": "GERENCIA DE PRODUCCION",
+      "area": "PRODUCCION ARANDANOS",
+      "position": "SUPERVISOR DE LABORES",
+      "reason": "no_empleado_segun_clasificacion"
+    },
+    {
+      "row": 323,
+      "management": "GERENCIA DE PRODUCCION",
+      "area": "PRODUCCION ARANDANOS",
+      "position": "SUPERVISOR DE PODA",
+      "reason": "no_empleado_segun_clasificacion"
+    },
+    {
+      "row": 324,
+      "management": "GERENCIA DE PRODUCCION",
+      "area": "PRODUCCION ARANDANOS",
+      "position": "SUPERVISOR DE PRODUCCION",
+      "reason": "no_empleado_segun_clasificacion"
+    },
+    {
+      "row": 325,
+      "management": "GERENCIA DE PRODUCCION",
+      "area": "RIEGO",
+      "position": "AUXILIAR DE MANTENIMIENTO DE EQUIPOS DE RIEGO",
+      "reason": "no_empleado_segun_clasificacion"
+    },
+    {
+      "row": 328,
+      "management": "GERENCIA DE PRODUCCION",
+      "area": "RIEGO",
+      "position": "OBRERO DE EVALUACIÓN DEL SISTEMA DE RIEGO",
+      "reason": "no_empleado_segun_clasificacion"
+    },
+    {
+      "row": 329,
+      "management": "GERENCIA DE PRODUCCION",
+      "area": "RIEGO",
+      "position": "OBRERO DE MANTENIMIENTO DE EQUIPOS DE RIEGO",
+      "reason": "no_empleado_segun_clasificacion"
+    },
+    {
+      "row": 330,
+      "management": "GERENCIA DE PRODUCCION",
+      "area": "RIEGO",
+      "position": "OPERADOR DE INFRAESTRUCTURA HIDRAÚLICA",
+      "reason": "no_empleado_segun_clasificacion"
+    },
+    {
+      "row": 331,
+      "management": "GERENCIA DE PRODUCCION",
+      "area": "RIEGO",
+      "position": "PRACTICANTE PROFESIONAL",
+      "reason": "puesto_de_practicante"
+    },
+    {
+      "row": 339,
+      "management": "GERENCIA DE PRODUCCION",
+      "area": "SANIDAD",
+      "position": "EVALUADOR DE PLAGAS Y ENFERMEDADES",
+      "reason": "no_empleado_segun_clasificacion"
+    },
+    {
+      "row": 341,
+      "management": "GERENCIA DE PRODUCCION",
+      "area": "SANIDAD",
+      "position": "OBRERO DE SANIDAD",
+      "reason": "no_empleado_segun_clasificacion"
+    },
+    {
+      "row": 342,
+      "management": "GERENCIA DE PRODUCCION",
+      "area": "SANIDAD",
+      "position": "SUPERVISOR DE SANIDAD",
+      "reason": "no_empleado_segun_clasificacion"
+    },
+    {
+      "row": 346,
+      "management": "GERENCIA DE PRODUCCION",
+      "area": "VIVEROS",
+      "position": "EVALUADOR DE VIVEROS",
+      "reason": "no_empleado_segun_clasificacion"
+    },
+    {
+      "row": 349,
+      "management": "GERENCIA DE PRODUCCION",
+      "area": "VIVEROS",
+      "position": "OBRERO DE VIVEROS",
+      "reason": "no_empleado_segun_clasificacion"
+    },
+    {
+      "row": 350,
+      "management": "GERENCIA DE PRODUCCION",
+      "area": "VIVEROS",
+      "position": "OPERADOR DE FILTRADO",
+      "reason": "no_empleado_segun_clasificacion"
+    },
+    {
+      "row": 351,
+      "management": "GERENCIA DE PRODUCCION",
+      "area": "VIVEROS",
+      "position": "OPERADOR DE MAQUINA - VIVEROS",
+      "reason": "no_empleado_segun_clasificacion"
+    },
+    {
+      "row": 352,
+      "management": "GERENCIA DE PRODUCCION",
+      "area": "VIVEROS",
+      "position": "OPERADOR DE MAQUINA PODADORA",
+      "reason": "no_empleado_segun_clasificacion"
+    },
+    {
+      "row": 353,
+      "management": "GERENCIA DE PRODUCCION",
+      "area": "VIVEROS",
+      "position": "REGADOR - VIVEROS",
+      "reason": "no_empleado_segun_clasificacion"
+    },
+    {
+      "row": 354,
+      "management": "GERENCIA DE PRODUCCION",
+      "area": "VIVEROS",
+      "position": "SUPERVISOR DE EVALUACIONES VIVEROS",
+      "reason": "no_empleado_segun_clasificacion"
+    },
+    {
+      "row": 355,
+      "management": "GERENCIA DE PRODUCCION",
+      "area": "VIVEROS",
+      "position": "SUPERVISOR DE VIVEROS",
+      "reason": "no_empleado_segun_clasificacion"
+    },
+    {
+      "row": 356,
+      "management": "GERENCIA DE PRODUCCION",
+      "area": "LABORATORIO DE SANIDAD",
+      "position": "AUXILIAR DE ENSAYOS",
+      "reason": "no_empleado_segun_clasificacion"
+    },
+    {
+      "row": 357,
+      "management": "GERENCIA DE PRODUCCION GLOBAL",
+      "area": "GENETICA",
+      "position": "AUXILIAR DE LABORATORIO DE PROGRAMA GENÉTICO",
+      "reason": "no_empleado_segun_clasificacion"
+    },
+    {
+      "row": 362,
+      "management": "GERENCIA DE PRODUCCION GLOBAL",
+      "area": "GENETICA",
+      "position": "OBRERO DE PROGRAMA GENÉTICO",
+      "reason": "no_empleado_segun_clasificacion"
+    },
+    {
+      "row": 363,
+      "management": "GERENCIA DE PRODUCCION GLOBAL",
+      "area": "GENETICA",
+      "position": "OPERARIO DE RIEGO PROGRAMA GENÉTICO",
+      "reason": "no_empleado_segun_clasificacion"
+    },
+    {
+      "row": 364,
+      "management": "GERENCIA DE PRODUCCION GLOBAL",
+      "area": "GENETICA",
+      "position": "PRACTICANTE PROFESIONAL",
+      "reason": "no_empleado_segun_clasificacion"
+    },
+    {
+      "row": 388,
+      "management": "GERENCIA DE PROYECCIONES AGRICOLAS",
+      "area": "PROYECCIONES AGRICOLAS",
+      "position": "EVALUADOR DE PROYECCIONES AGRICOLAS",
+      "reason": "no_empleado_segun_clasificacion"
+    },
+    {
+      "row": 390,
+      "management": "GERENCIA DE PROYECCIONES AGRICOLAS",
+      "area": "PROYECCIONES AGRICOLAS",
+      "position": "INSPECTOR DE PROYECCIONES AGRICOLAS",
+      "reason": "no_empleado_segun_clasificacion"
+    },
+    {
+      "row": 393,
+      "management": "GERENCIA DE PROYECCIONES AGRICOLAS",
+      "area": "PROYECCIONES AGRICOLAS",
+      "position": "PRACTICANTE PROFESIONAL",
+      "reason": "no_empleado_segun_clasificacion"
+    },
+    {
+      "row": 395,
+      "management": "GERENCIA DE PROYECCIONES AGRICOLAS",
+      "area": "PROYECCIONES AGRICOLAS",
+      "position": "SUPERVISOR DE PROYECCIONES AGRICOLAS",
+      "reason": "no_empleado_segun_clasificacion"
+    },
+    {
+      "row": 407,
+      "management": "GERENCIA DE RECURSOS HUMANOS",
+      "area": "ATENCION AL TRABAJADOR",
+      "position": "PRACTICANTE PROFESIONAL",
+      "reason": "puesto_de_practicante"
+    },
+    {
+      "row": 409,
+      "management": "GERENCIA DE RECURSOS HUMANOS",
+      "area": "ATENCION AL TRABAJADOR - FUNDO",
+      "position": "AUXILIAR DE RECURSOS HUMANOS",
+      "reason": "no_empleado_segun_clasificacion"
+    },
+    {
+      "row": 410,
+      "management": "GERENCIA DE RECURSOS HUMANOS",
+      "area": "ATENCION AL TRABAJADOR - FUNDO",
+      "position": "CHOFER",
+      "reason": "no_empleado_segun_clasificacion"
+    },
+    {
+      "row": 414,
+      "management": "GERENCIA DE RECURSOS HUMANOS",
+      "area": "CAMPAMENTOS Y CONCESIONARIOS",
+      "position": "OPERARIO DE LIMPIEZA",
+      "reason": "no_empleado_segun_clasificacion"
+    },
+    {
+      "row": 420,
+      "management": "GERENCIA DE RECURSOS HUMANOS",
+      "area": "CANALES DIGITALES",
+      "position": "PRACTICANTE PROFESIONAL",
+      "reason": "puesto_de_practicante"
+    },
+    {
+      "row": 438,
+      "management": "GERENCIA DE RECURSOS HUMANOS",
+      "area": "DESARROLLO ORGANIZACIONAL",
+      "position": "PRACTICANTE PROFESIONAL",
+      "reason": "puesto_de_practicante"
+    },
+    {
+      "row": 465,
+      "management": "GERENCIA DE RECURSOS HUMANOS",
+      "area": "RELACIONES LABORALES",
+      "position": "PRACTICANTE PROFESIONAL",
+      "reason": "puesto_de_practicante"
+    },
+    {
+      "row": 473,
+      "management": "GERENCIA DE RECURSOS HUMANOS",
+      "area": "SEGURIDAD INDUSTRIAL Y GESTION MEDIO AMBIENTAL",
+      "position": "PRACTICANTE PROFESIONAL",
+      "reason": "puesto_de_practicante"
+    },
+    {
+      "row": 479,
+      "management": "GERENCIA DE RECURSOS HUMANOS",
+      "area": "SERVICIOS MÉDICOS",
+      "position": "CONDUCTOR DE AMBULANCIA",
+      "reason": "no_empleado_segun_clasificacion"
+    },
+    {
+      "row": 484,
+      "management": "GERENCIA DE RECURSOS HUMANOS",
+      "area": "SERVICIOS MÉDICOS",
+      "position": "PRACTICANTE PROFESIONAL",
+      "reason": "puesto_de_practicante"
+    },
+    {
+      "row": 486,
+      "management": "GERENCIA DE RIEGO CORPORATIVO",
+      "area": "RIEGO CORPORATIVO",
+      "position": "OBRERO DE AUTOMATIZACIÓN Y CONTROL",
+      "reason": "no_empleado_segun_clasificacion"
+    },
+    {
+      "row": 487,
+      "management": "GERENCIA DE RIEGO CORPORATIVO",
+      "area": "RIEGO CORPORATIVO",
+      "position": "OBRERO DE INSTALACION DE EQUIPOS DE RIEGO",
+      "reason": "no_empleado_segun_clasificacion"
+    },
+    {
+      "row": 498,
+      "management": "GERENCIA DE RRHH CORPORATIVO",
+      "area": "RRHH CORPORATIVO",
+      "position": "COORDINADOR DE CAPACITACION Y TALENTO CORPORATIVO",
+      "reason": "gerencia_naranja"
+    },
+    {
+      "row": 499,
+      "management": "GERENCIA DE RRHH CORPORATIVO",
+      "area": "RRHH CORPORATIVO",
+      "position": "JEFE DE DESARROLLO CORPORATIVO",
+      "reason": "gerencia_naranja"
+    },
+    {
+      "row": 500,
+      "management": "GERENCIA DE RRHH REGIONAL CONO SUR",
+      "area": "RRHH REGIONAL CONO SUR",
+      "position": "COORDINADOR DE PROYECTOS & PEOPLE ANALYTICS HR AME",
+      "reason": "gerencia_naranja"
+    },
+    {
+      "row": 501,
+      "management": "GERENCIA DE RRHH REGIONAL CONO SUR",
+      "area": "RRHH REGIONAL CONO SUR",
+      "position": "GERENTE REGIONAL DE RRHH CONO SUR/ PROYECTOS PERSO",
+      "reason": "gerencia_naranja"
+    },
+    {
+      "row": 502,
+      "management": "GERENCIA DE SOP REGIONAL",
+      "area": "SOP REGIONAL",
+      "position": "S&OP PLANNER NORTE AMERICA",
+      "reason": "gerencia_naranja"
+    },
+    {
+      "row": 503,
+      "management": "GERENCIA DE SOP REGIONAL",
+      "area": "SOP REGIONAL",
+      "position": "SUPPLY PLANNING MANAGER- BLUEBERRIES",
+      "reason": "gerencia_naranja"
+    },
+    {
+      "row": 504,
+      "management": "GERENCIA GENERAL",
+      "area": "GERENCIA GENERAL",
+      "position": "ASISTENTE DE GERENCIA",
+      "reason": "gerencia_naranja"
+    },
+    {
+      "row": 505,
+      "management": "GERENCIA GENERAL",
+      "area": "GERENCIA GENERAL",
+      "position": "GERENTE DE OPERACIONES FILIAL",
+      "reason": "gerencia_naranja"
+    },
+    {
+      "row": 506,
+      "management": "GERENCIA GENERAL",
+      "area": "GERENCIA GENERAL",
+      "position": "GERENTE GENERAL PERU",
+      "reason": "gerencia_naranja"
+    },
+    {
+      "row": 507,
+      "management": "GERENCIA GENERAL",
+      "area": "GERENCIA GENERAL",
+      "position": "GESTOR DE PROYECTOS",
+      "reason": "gerencia_naranja"
+    },
+    {
+      "row": 508,
+      "management": "GERENCIA GENERAL",
+      "area": "SOP",
+      "position": "JEFE DE SUPPLY PLANNING",
+      "reason": "gerencia_naranja"
+    },
+    {
+      "row": 509,
+      "management": "GERENCIA GENERAL",
+      "area": "SOP",
+      "position": "SUPPLY PLANNER",
+      "reason": "gerencia_naranja"
+    },
+    {
+      "row": 510,
+      "management": "GERENCIA GENERAL CONO SUR",
+      "area": "GERENCIA GENERAL CONO SUR",
+      "position": "GENERAL MANAGER CONO SUR",
+      "reason": "gerencia_naranja"
+    },
+    {
+      "row": 513,
+      "management": "GERENCIA TI CORPORATIVO",
+      "area": "GLOBAL CLOUD DEVELOPMENT",
+      "position": "SOFTWARE DEVELOPER",
+      "reason": "no_vigente"
+    }
+  ],
+  "duplicate_rows": [
+    {
+      "row": 387,
+      "management": "GERENCIA DE PROYECCIONES AGRICOLAS",
+      "area": "PROYECCIONES AGRICOLAS",
+      "position": "ESPECIALISTA EN TECNOLOGÍAS DE INFORMACIÓN GEOGRÁF"
+    },
+    {
+      "row": 398,
+      "management": "GERENCIA DE RECURSOS HUMANOS",
+      "area": "ATENCION AL TRABAJADOR",
+      "position": "ASISTENTA SOCIAL"
+    },
+    {
+      "row": 402,
+      "management": "GERENCIA DE RECURSOS HUMANOS",
+      "area": "ATENCION AL TRABAJADOR",
+      "position": "AUXILIAR DE BIENESTAR SOCIAL"
+    },
+    {
+      "row": 483,
+      "management": "GERENCIA DE RECURSOS HUMANOS",
+      "area": "SERVICIOS MÉDICOS",
+      "position": "MÉDICO OCUPACIONAL"
+    },
+    {
+      "row": 485,
+      "management": "GERENCIA DE RECURSOS HUMANOS",
+      "area": "SERVICIOS MÉDICOS",
+      "position": "SUPERVISOR DE SERVICIOS MEDICOS"
+    }
+  ]
+}

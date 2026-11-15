@@ -47,9 +47,16 @@ for (const width of [1366, 390]) test(`borrar una causa propia o recordada relle
   await page.setViewportSize({ width, height: 900 }); await mockDirectory(page); await page.goto('./');
   await objective(page).fill('Verificar las condiciones.'); await closing(page);
   await expect(cause(page)).toHaveAttribute('aria-required', 'true');
-  await expect(page.locator('.closing-recommendations-guidance')).toContainText('Lo que describas en las causas debe tener una solución directa y clara.');
-  await expect(page.locator('.closing-recommendation-example em')).toHaveText(['falta de capacitación', 'programar capacitación']);
-  await expect(page.locator('.closing-no-results-guidance')).toHaveText('Si no hubo hallazgos desfavorables, indica únicamente: No aplica (sin resultados desfavorables).');
+  await expect(cause(page)).toHaveValue('');
+  await expect(cause(page)).toHaveAttribute('placeholder', /Debes consignar el origen o motivo raíz[\s\S]*\n\nSi no hubo hallazgos desfavorables, indica únicamente: No aplica \(sin resultados desfavorables\)\./);
+  await expect(remarks(page)).toHaveAttribute('placeholder', 'Lo que describas en las causas debe tener una solución directa y clara.\nPor ejemplo, si la causa fue falta de capacitación, la recomendación debe ser programar capacitación.');
+  for (const [index, field] of [cause(page), remarks(page)].entries()) {
+    await field.scrollIntoViewIfNeeded();
+    expect(await field.evaluate(el => el.scrollHeight <= el.clientHeight)).toBe(true);
+    await field.screenshot({ path: test.info().outputPath(`indicaciones-${index === 0 ? 'causa' : 'conclusiones'}-${width}.png`) });
+    await field.focus();
+    expect(await field.evaluate(el => getComputedStyle(el, '::placeholder').opacity)).toBe('0');
+  }
   await cause(page).fill('Causa propia guardada.'); await remarks(page).fill('Revisar las medidas.');
   await page.getByRole('button', { name: 'Guardar', exact: true }).click();
   await expect(page.getByText('Guardado en este navegador', { exact: true })).toBeAttached();
@@ -73,12 +80,12 @@ test('cuentas nuevas empiezan en blanco; borradores guardados recuerdan solo sus
   await page.addInitScript(() => localStorage.setItem('berry-last-submitted-texts', JSON.stringify({ acceptedAt: '2099-11-06T15:00:00Z', texts: { objective: 'Texto global antiguo', unfavorableCause: 'Causa global', closingRemarks: 'Cierre global' } })));
   await page.route('**/api/inspections/send', route => { sharedReads++; return route.fulfill({ json: { ok: true, defaults: { texts: { objective: 'Texto global', unfavorableCause: 'Causa global', closingRemarks: 'Cierre global' }, acceptedAt: '2099-11-06T15:00:00Z' } } }); });
   await page.goto('./'); await expect(objective(page)).toHaveValue('');
-  await objective(page).fill('Objetivo privado de la primera cuenta.'); await closing(page); await expect(cause(page)).toHaveValue('No aplica (sin resultados desfavorables)'); await expect(remarks(page)).toHaveValue('');
+  await objective(page).fill('Objetivo privado de la primera cuenta.'); await closing(page); await expect(cause(page)).toHaveValue(''); await expect(remarks(page)).toHaveValue('');
   await cause(page).fill('Causa privada A.'); await remarks(page).fill('Recomendación privada A.');
   await startNew(page); await expect(objective(page)).toHaveValue('Objetivo privado de la primera cuenta.');
   // Defaults by themselves must not create a new draft or block changing account.
   await switchTo(page, 'demo-inspector'); await expect(objective(page)).toHaveValue('');
-  await objective(page).fill('Objetivo privado B.'); await closing(page); await expect(cause(page)).toHaveValue('No aplica (sin resultados desfavorables)'); await expect(remarks(page)).toHaveValue('');
+  await objective(page).fill('Objetivo privado B.'); await closing(page); await expect(cause(page)).toHaveValue(''); await expect(remarks(page)).toHaveValue('');
   await cause(page).fill('Causa privada B.'); await remarks(page).fill('Recomendación privada B.');
   await startNew(page); await expect(objective(page)).toHaveValue('Objetivo privado B.');
   await switchTo(page, 'demo-admin'); await expect(cause(page)).toHaveValue('Causa privada A.'); await expect(remarks(page)).toHaveValue('Recomendación privada A.');

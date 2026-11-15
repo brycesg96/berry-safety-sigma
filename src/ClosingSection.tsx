@@ -1,5 +1,4 @@
 import { FileText, Search } from 'lucide-react';
-import { useEffect, useId, useRef } from 'react';
 import { Field, SectionTitle } from './components';
 import { PerformersSection } from './PerformersSection';
 import type { Inspection } from './model';
@@ -7,17 +6,9 @@ import type { RegistrationDetails } from './registration';
 import { CLOSING_LIMIT, closingRemarksOf, NO_UNFAVORABLE_RESULTS } from './registration';
 
 export function ClosingSection({ draft, errors, patch, onRegistrationChange, onRegistrationBusy }: { draft: Inspection; errors: Record<string, string>; patch: <K extends keyof Inspection>(key: K, value: Inspection[K]) => void; onRegistrationChange: (id: string, data: RegistrationDetails) => void; onRegistrationBusy?: (id: string, busy: boolean) => void }) {
-  const initialized = useRef<string | null>(null);
-  const guidanceId = useId();
-  useEffect(() => {
-    if (initialized.current === draft.id) return;
-    initialized.current = draft.id;
-    if (!draft.unfavorableCause?.trim()) patch('unfavorableCause', NO_UNFAVORABLE_RESULTS);
-  }, [draft.id, draft.unfavorableCause, patch]);
-
   const fields = [
-    { key: 'unfavorableCause', title: 'DESCRIPCIÓN DE LA CAUSA ANTE RESULTADOS DESFAVORABLES DE LA INSPECCIÓN', icon: <Search size={19}/>, value: draft.unfavorableCause || '', placeholder: 'Consigna aquí el origen o motivo raíz del hallazgo.' },
-    { key: 'closingRemarks', title: 'CONCLUSIONES Y RECOMENDACIONES', icon: <FileText size={19}/>, value: closingRemarksOf(draft), placeholder: 'Escribe conclusiones y recomendaciones que atiendan las causas descritas.' },
+    { key: 'unfavorableCause', title: 'DESCRIPCIÓN DE LA CAUSA ANTE RESULTADOS DESFAVORABLES DE LA INSPECCIÓN', icon: <Search size={19}/>, value: draft.unfavorableCause || '', placeholder: `Debes consignar el origen o motivo raíz por el cual existe el acto o condición subestándar que detectaste en el campo. Recuerda que no se trata de volver a describir el problema, sino de responder ¿por qué ocurrió o por qué está presente ese hallazgo?\n\nSi no hubo hallazgos desfavorables, indica únicamente: ${NO_UNFAVORABLE_RESULTS}.` },
+    { key: 'closingRemarks', title: 'CONCLUSIONES Y RECOMENDACIONES', icon: <FileText size={19}/>, value: closingRemarksOf(draft), placeholder: 'Lo que describas en las causas debe tener una solución directa y clara.\nPor ejemplo, si la causa fue falta de capacitación, la recomendación debe ser programar capacitación.' },
   ] as const;
 
   return <div className="form-body closing-body">
@@ -25,16 +16,8 @@ export function ClosingSection({ draft, errors, patch, onRegistrationChange, onR
       {i > 0 && <div className="section-divider"/>}
       <section className="closing-entry">
         <SectionTitle title={field.title} icon={field.icon}/>
-        {field.key === 'unfavorableCause' ? <p className="closing-cause-guidance" id={`${guidanceId}-cause`}>
-          Debes consignar <strong>el origen o motivo raíz por el cual existe el acto o condición subestándar</strong> que detectaste en el campo. Recuerda que no se trata de volver a describir el problema, sino de responder <strong>¿por qué ocurrió o por qué está presente ese hallazgo?</strong>
-          <span className="closing-no-results-guidance">Si no hubo hallazgos desfavorables, indica únicamente: <strong>{NO_UNFAVORABLE_RESULTS}</strong>.</span>
-        </p> : <p className="closing-cause-guidance closing-recommendations-guidance" id={`${guidanceId}-recommendations`}>
-          Lo que describas en las causas debe tener una solución directa y clara.
-          <span className="closing-recommendation-example">Por ejemplo, si la causa fue <em>falta de capacitación</em>, la recomendación debe ser <em>programar capacitación</em>.</span>
-        </p>}
-        <div className="objective-field">
+        <div className={`objective-field closing-text-field closing-text-${field.key}`}>
           <Field className="objective-input" label={field.title} required error={errors[field.key]}>{props => <textarea {...props}
-            aria-describedby={[props['aria-describedby'], `${guidanceId}-${field.key === 'unfavorableCause' ? 'cause' : 'recommendations'}`].filter(Boolean).join(' ')}
             spellCheck lang="es-PE" rows={2} maxLength={CLOSING_LIMIT} value={field.value} placeholder={field.placeholder}
             onChange={e => patch(field.key, e.target.value)}
             onBlur={e => { if (field.key === 'unfavorableCause' && !e.target.value.trim()) patch(field.key, NO_UNFAVORABLE_RESULTS); }}/>}</Field>

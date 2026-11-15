@@ -5,32 +5,58 @@ import { cloudRpc, hydrateCloudInspection } from './cloud-store';
 import { supabaseClient } from './supabase';
 import { closingRemarksOf, inspectionPeople } from './registration';
 import { formatInspectionTime } from './inspection-time';
+import type { SelectOption } from './Select';
 
-export type DashboardRow = CloudInspectionRow & { code: string };
+type IdentityLink = { personId: string; name: string; email: string; management?: string; area?: string; current: boolean; createdAt: string };
+export type DashboardRow = CloudInspectionRow & { code: string; identityLinks?: Record<string, IdentityLink> };
 export type DashboardCache = { actorId: string; rows: DashboardRow[]; updatedAt: string };
 export const dashboardText = (value: string) => value.normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim().toLocaleLowerCase('es');
+type DashboardPerson = { id: string; personId?: string; name: string; email: string };
+export const dashboardPersonKey = (row: DashboardRow, person: DashboardPerson) => row.identityLinks?.[person.personId || person.id]?.personId || person.email.trim().toLowerCase();
+export function dashboardPeopleOptions(rows: DashboardRow[], role: 'inspector' | 'responsible'): SelectOption[] {
+  const people = new Map<string, { value: string; name: string; email: string; area?: string; management?: string; current: boolean }>();
+  for (const row of rows) for (const person of role === 'inspector' ? inspectionPeople(row.data) : row.data.responsibles) {
+    const link = row.identityLinks?.[person.personId || person.id], value = dashboardPersonKey(row, person);
+    if (!people.has(value)) people.set(value, { value, name: link?.name || person.name, email: link?.email || person.email, area: link?.area, management: link?.management, current: link?.current ?? true });
+  }
+  const list = [...people.values()];
+  const options = list.map(person => {
+    const duplicate = list.some(other => other.value !== person.value && dashboardText(other.name) === dashboardText(person.name));
+    return { value: person.value, label: duplicate ? `${person.name} — ${person.current ? 'cuenta actual' : 'registro anterior'} (${[person.email, person.area].filter(Boolean).join(' · ')})` : person.name, description: [person.email, person.management, person.area].filter(Boolean).join(' · ') };
+  });
+  return options.map((option, i) => options.some((other, j) => i !== j && other.label === option.label) ? { ...option, label: `${option.label} · persona ${options.filter((other, j) => j <= i && other.label === option.label).length}` } : option).sort((a, b) => a.label.localeCompare(b.label, 'es'));
+}
 export const dashboardState = (row: DashboardRow) => row.workflow === 'closed' ? 'closed' : Object.values(row.data.delivery?.corrections || {}).some(item => item.decision === 'review') ? 'review' : 'open';
 export const dashboardStateLabel = (row: DashboardRow) => ({ closed: 'Cerrada', review: 'Pendiente de validación', open: 'Pendiente de atención' })[dashboardState(row)];
-export type DashboardFilters = { code: string; from: string; to: string; inspector: string[]; area: string; responsible: string[]; state: string };
-export const emptyDashboardFilters = (): DashboardFilters => ({ code: '', from: '', to: '', inspector: [], area: '', responsible: [], state: '' });
+export type DashboardFilters = { code: string; from: string; to: string; inspector: string[]; management: string; area: string; responsible: string[]; state: string };
+export const emptyDashboardFilters = (): DashboardFilters => ({ code: '', from: '', to: '', inspector: [], management: '', area: '', responsible: [], state: '' });
 export const responsibleArea = (person: { area?: string }) => person.area?.trim() || 'Sin área registrada';
+const responsibleManagement = (person: { management?: string }) => person.management?.trim() || 'Sin gerencia registrada';
 export function dashboardAreas(row: DashboardRow) {
   const names = row.data.responsibles.length ? row.data.responsibles.map(responsibleArea) : ['Sin área registrada'];
   return [...new Map(names.map(name => [dashboardText(name), name])).entries()].map(([key, name]) => ({ key, name }));
 }
+export function dashboardManagements(row: DashboardRow) {
+  const inspectedManagement = row.data.areaLocation?.management?.trim();
+  const names = inspectedManagement ? [inspectedManagement] : row.data.responsibles.length ? row.data.responsibles.map(responsibleManagement) : ['Sin gerencia registrada'];
+  return [...new Map(names.map(name => [dashboardText(name), name])).entries()].map(([key, name]) => ({ key, name }));
+}
 export function filterDashboard(rows: DashboardRow[], filters: DashboardFilters) {
   return rows.filter(row => dashboardText(row.code).includes(dashboardText(filters.code)) && (!filters.from || row.data.date >= filters.from) && (!filters.to || row.data.date <= filters.to)
-    && (!filters.inspector.length || inspectionPeople(row.data).some(person => filters.inspector.includes(person.email.trim().toLowerCase())))
-    && ((!filters.area && !filters.responsible.length) || (row.data.responsibles.length ? row.data.responsibles : [{ email: '', area: '' }]).some(person =>
-      (!filters.area || dashboardText(responsibleArea(person)) === filters.area) && (!filters.responsible.length || filters.responsible.includes(person.email.trim().toLowerCase()))))
+    && (!filters.inspector.length || inspectionPeople(row.data).some(person => filters.inspector.includes(dashboardPersonKey(row, person))))
+    && (!filters.management || dashboardManagements(row).some(item => item.key === filters.management))
+    && ((!filters.area && !filters.responsible.length) || (row.data.responsibles.length ? row.data.responsibles : [{ email: '', area: '', management: '' }]).some(person =>
+      (!filters.management || !!row.data.areaLocation?.management?.trim() || dashboardText(responsibleManagement(person)) === filters.management)
+      && (!filters.area || dashboardText(responsibleArea(person)) === filters.area) && (!filters.responsible.length || 'id' in person && filters.responsible.includes(dashboardPersonKey(row, person as DashboardPerson)))))
     && (!filters.state || dashboardState(row) === filters.state));
 }
 export function dashboardMetrics(rows: DashboardRow[], today: string) {
   let observations = 0, executed = 0, overdue = 0;
-  const months = new Map<string, number>(), areas = new Map<string, { name: string; count: number }>(), risk = { baja: 0, media: 0, alta: 0 };
+  const months = new Map<string, number>(), areas = new Map<string, { name: string; count: number }>(), managements = new Map<string, { name: string; count: number }>(), risk = { baja: 0, media: 0, alta: 0 };
   for (const row of rows) {
     const month = row.data.date.slice(0, 7); months.set(month, (months.get(month) || 0) + 1);
     for (const { key, name } of dashboardAreas(row)) { const area = areas.get(key) || { name, count: 0 }; area.count++; areas.set(key, area); }
+    for (const { key, name } of dashboardManagements(row)) { const management = managements.get(key) || { name, count: 0 }; management.count++; managements.set(key, management); }
     for (const observation of row.data.observations) {
       observations++; if (observation.severity in risk) risk[observation.severity]++;
       const done = row.data.delivery?.corrections[observation.id]?.state === 'Ejecutado' || row.workflow === 'closed';
@@ -38,7 +64,8 @@ export function dashboardMetrics(rows: DashboardRow[], today: string) {
     }
   }
   return { total: rows.length, closed: rows.filter(row => row.workflow === 'closed').length, observations, executed, pending: observations - executed, overdue, risk,
-    months: [...months].sort(([a], [b]) => a.localeCompare(b)), areas: [...areas].map(([key, value]) => ({ key, ...value })).sort((a, b) => b.count - a.count || a.name.localeCompare(b.name, 'es')) };
+    months: [...months].sort(([a], [b]) => a.localeCompare(b)), areas: [...areas].map(([key, value]) => ({ key, ...value })).sort((a, b) => b.count - a.count || a.name.localeCompare(b.name, 'es')),
+    managements: [...managements].map(([key, value]) => ({ key, ...value })).sort((a, b) => b.count - a.count || a.name.localeCompare(b.name, 'es')) };
 }
 export async function loadDashboard(): Promise<DashboardRow[]> {
   const { data, error } = await supabaseClient().rpc('berry_admin_dashboard');

@@ -13,6 +13,7 @@ export type CloudProfile = {
   deleted_at?: string | null;
   /** UI onboarding only; never used to grant access or permissions. */
   profile_setup_required?: boolean;
+  person_id?: string;
 };
 
 function profileSetupCompleted(metadata: Record<string, unknown>) {
@@ -105,6 +106,18 @@ export async function cloudAccounts(): Promise<CloudProfile[]> {
 }
 export async function createCloudAccount(input: { full_name: string; email: string; area: string; job_title: string; management?: string; role: string; supervisor_emails: string[]; can_create_inspections?: boolean; can_receive_inspections?: boolean }, requestId: string): Promise<CloudProfile> {
   const result = await accountRequest('/api/accounts', { method: 'POST', body: input, requestId });
+  return profileRow(result.account, result.account?.id);
+}
+export type NewCloudAccount = Parameters<typeof createCloudAccount>[0];
+export type AccountResolutionMode = 'rehire' | 'new_person' | 'restore';
+export type AccountMatch = { id: string; person_id: string; email: string; full_name: string; management: string; area: string; job_title: string; deleted_at: string | null; enabled: boolean; access_revision: number; same_email: boolean; owns_email: boolean; can_restore: boolean; can_rehire: boolean; restore_until: string | null; pending?: { mode: AccountResolutionMode; input: NewCloudAccount } | null };
+export async function cloudAccountMatches(email: string, full_name: string): Promise<AccountMatch[]> {
+  const result = await accountRequest('/api/accounts/matches', { method: 'POST', body: { email, full_name } });
+  if (!Array.isArray(result.matches) || result.matches.some((item: AccountMatch) => !item || typeof item.id !== 'string' || typeof item.email !== 'string' || typeof item.full_name !== 'string' || !Number.isSafeInteger(item.access_revision))) throw new Error('No pudimos comprobar las coincidencias. Vuelve a intentarlo.');
+  return result.matches;
+}
+export async function resolveCloudAccount(account: NewCloudAccount, match: AccountMatch, mode: AccountResolutionMode, requestId: string): Promise<CloudProfile> {
+  const result = await accountRequest('/api/accounts/resolve', { method: 'POST', body: { account, previousId: match.id, expectedRevision: match.access_revision, mode }, requestId });
   return profileRow(result.account, result.account?.id);
 }
 export type AccountPermissions = { enabled: boolean; role: 'admin' | 'inspector'; can_create_inspections: boolean; can_receive_inspections: boolean };

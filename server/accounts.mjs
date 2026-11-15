@@ -1,4 +1,4 @@
-import { randomUUID } from 'node:crypto';
+import { randomUUID, randomBytes } from 'node:crypto';
 import { bodyOf, loadConfig, reply } from './make-test.mjs';
 import { newPasswordError, TEMPORARY_PASSWORD } from '../shared/account-rules.mjs';
 
@@ -7,6 +7,8 @@ export const PASSWORD_PATH = '/api/accounts/password';
 export const ACCOUNT_MANAGE_PATH = '/api/accounts/manage';
 export const ADMIN_REPORTS_PATH = '/api/accounts/inspections';
 export const ADMIN_DELETE_REPORT_PATH = '/api/accounts/inspections/delete';
+export const ACCOUNT_MATCHES_PATH = '/api/accounts/matches';
+export const ACCOUNT_RESOLVE_PATH = '/api/accounts/resolve';
 class ApiError extends Error {
   constructor(status, code, message) { super(message); this.status = status; this.code = code; }
 }
@@ -60,7 +62,7 @@ export function createAccountsHandler({ env = process.env, fetchImpl = fetch, no
       if (code === '55P03' || code === '40001') throw new ApiError(409, 'OPERATION_BUSY', 'Hay otra operación en curso. Espera un momento y vuelve a intentarlo.');
       if (code === '42501') throw new ApiError(403, 'ACCESS_DENIED', 'Tu cuenta no tiene permiso para esta operación.');
       if (code === '22023') {
-        const messages={ LAST_ADMIN_REQUIRED:'Debe permanecer al menos una cuenta administradora habilitada que ya haya actualizado su contraseña.', CANNOT_DISABLE_SELF:'Utiliza otra cuenta administradora para deshabilitar o eliminar tu propia cuenta.' };
+        const messages={ LAST_ADMIN_REQUIRED:'Debe permanecer al menos una cuenta administradora habilitada que ya haya actualizado su contraseña.', CANNOT_DISABLE_SELF:'Utiliza otra cuenta administradora para deshabilitar o eliminar tu propia cuenta.', PERSON_ALREADY_ACTIVE:'Esta persona ya tiene una cuenta vigente. Utiliza esa cuenta o indica que se trata de otra persona.', RESOLUTION_NOT_MATCHED:'La cuenta seleccionada no coincide con el nombre ni el correo indicados.', RESTORE_EXPIRED:'El plazo de tres meses para restablecer esta cuenta ya venció. Puedes registrar su reincorporación sin acceso al historial anterior.' };
         throw new ApiError(400, 'INVALID_ACCOUNT', messages[result.data?.message] || 'Revisa los datos y los permisos de la cuenta.');
       }
       if (code === 'PGRST202' || code === '42703') throw new ApiError(503, 'ACCOUNTS_MIGRATION_REQUIRED', 'Falta instalar la actualización de gestión de usuarios.');
@@ -84,6 +86,19 @@ export function createAccountsHandler({ env = process.env, fetchImpl = fetch, no
     if (needsAdmin && (profile.role !== 'admin' || profile.must_change_password !== false)) throw new ApiError(403, 'ADMIN_REQUIRED', profile.must_change_password ? 'Actualiza tu contraseña temporal antes de continuar.' : 'Esta función requiere una cuenta administradora.');
     return { token, profile };
   }
+  async function createAccount(account, requestedId, actor) {
+    const reserved = await rpc('berry_prepare_account', { p_request_id: requestedId, p_input: account }, actor.token);
+    let userId = reserved.user_id || await rpc('berry_find_account_request', { p_request_id: reserved.request_id });
+    if (!userId) {
+      const created = await upstream('/auth/v1/admin/users', { method: 'POST', body: { email: account.email, password: TEMPORARY_PASSWORD, email_confirm: true, user_metadata: { full_name: account.full_name }, app_metadata: { berry_request_id: reserved.request_id } } });
+      if (!created.ok) {
+        userId = await rpc('berry_find_account_request', { p_request_id: reserved.request_id });
+        if (!userId) throw new ApiError(created.status === 422 || created.status === 409 ? 409 : 503, 'ACCOUNT_NOT_CREATED', 'No se confirmó el alta. El correo puede estar registrado. Reintenta conservando los mismos datos.');
+      } else userId = created.data?.id;
+    }
+    if (!userId) throw unavailable();
+    return rpc('berry_finish_account', { p_request_id: reserved.request_id, p_user_id: userId }, actor.token);
+  }
   return async function handle(req, res) {
     const origin = req.headers.origin;
     const cors = origins.has(origin) ? { 'Access-Control-Allow-Origin': origin, Vary: 'Origin', 'Access-Control-Allow-Methods': 'GET, POST, OPTIONS', 'Access-Control-Allow-Headers': 'Authorization, Content-Type, Idempotency-Key' } : {};
@@ -91,7 +106,7 @@ export function createAccountsHandler({ env = process.env, fetchImpl = fetch, no
     try {
       if (!origin || !origins.has(origin)) throw new ApiError(403, 'ORIGIN_NOT_ALLOWED', 'Origen de la aplicación no permitido.');
       if (req.method === 'OPTIONS') { res.writeHead(204, { 'Cache-Control': 'no-store', ...cors }); res.end(); return; }
-      if (![ACCOUNTS_PATH, PASSWORD_PATH,ACCOUNT_MANAGE_PATH,ADMIN_REPORTS_PATH,ADMIN_DELETE_REPORT_PATH].includes(req.url) || !['GET', 'POST'].includes(req.method) || [PASSWORD_PATH,ACCOUNT_MANAGE_PATH,ADMIN_DELETE_REPORT_PATH].includes(req.url) && req.method !== 'POST' || req.url===ADMIN_REPORTS_PATH && req.method!=='GET') throw new ApiError(405, 'METHOD_NOT_ALLOWED', 'Método no permitido.');
+      if (![ACCOUNTS_PATH, PASSWORD_PATH,ACCOUNT_MANAGE_PATH,ADMIN_REPORTS_PATH,ADMIN_DELETE_REPORT_PATH,ACCOUNT_MATCHES_PATH,ACCOUNT_RESOLVE_PATH].includes(req.url) || !['GET', 'POST'].includes(req.method) || [PASSWORD_PATH,ACCOUNT_MANAGE_PATH,ADMIN_DELETE_REPORT_PATH,ACCOUNT_MATCHES_PATH,ACCOUNT_RESOLVE_PATH].includes(req.url) && req.method !== 'POST' || req.url===ADMIN_REPORTS_PATH && req.method!=='GET') throw new ApiError(405, 'METHOD_NOT_ALLOWED', 'Método no permitido.');
       if (!config) throw unavailable();
       const time = now().getTime(), address = req.socket.remoteAddress || 'unknown';
       for (const [key, value] of attempts) if (value.until <= time) attempts.delete(key);
@@ -107,6 +122,45 @@ export function createAccountsHandler({ env = process.env, fetchImpl = fetch, no
       if ((req.headers['content-type'] || '').split(';')[0].trim().toLowerCase() !== 'application/json') throw new ApiError(415, 'JSON_REQUIRED', 'Envía la solicitud en formato JSON.');
       let input;
       try { input = await bodyOf(req, 65536); } catch { throw new ApiError(400, 'INVALID_BODY', 'La solicitud no es válida.'); }
+      if (req.url === ACCOUNT_MATCHES_PATH) {
+        if (!input || Object.keys(input).some(key => !['email', 'full_name'].includes(key))) throw new ApiError(400, 'INVALID_REQUEST', 'Revisa el nombre y el correo.');
+        const account = normalizedAccount({ ...input, role: 'inspector' });
+        reply(res, 200, { ok: true, matches: await rpc('berry_account_matches', { p_email: account.email, p_name: account.full_name }, actor.token) }, cors); return;
+      }
+      if (req.url === ACCOUNT_RESOLVE_PATH) {
+        if (!input || Object.keys(input).some(key => !['account', 'previousId', 'expectedRevision', 'mode'].includes(key)) || !['rehire', 'new_person', 'restore'].includes(input.mode) || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(input.previousId) || !Number.isSafeInteger(input.expectedRevision) || input.expectedRevision < 1) throw new ApiError(400, 'INVALID_RESOLUTION', 'Selecciona la cuenta y cómo deseas continuar.');
+        const account = normalizedAccount(input.account);
+        const operationId = req.headers['idempotency-key'];
+        if (typeof operationId !== 'string' || !/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(operationId)) throw new ApiError(400, 'REQUEST_ID_REQUIRED', 'La operación necesita un identificador único.');
+        const restoring = input.mode === 'restore';
+        const operation = await rpc(restoring ? 'berry_begin_account_restore' : 'berry_begin_account_resolution', { p_operation: operationId, p_previous: input.previousId, p_expected: input.expectedRevision, ...(!restoring ? { p_mode: input.mode } : {}), p_input: account }, actor.token);
+        if (operation.completed_at && operation.new_user_id) {
+          const restored = await rpc(restoring ? 'berry_finish_account_restore' : 'berry_finish_account_resolution', { p_operation: operation.operation_id, ...(!restoring ? { p_user_id: operation.new_user_id } : {}) }, actor.token);
+          reply(res, 200, { ok: true, account: restored }, cors); return;
+        }
+        if (restoring) {
+          const previous = await upstream(`/auth/v1/admin/users/${encodeURIComponent(operation.previous_id)}`);
+          if (!previous.ok || previous.data?.id !== operation.previous_id || previous.data.email?.toLowerCase() !== account.email) throw new ApiError(503, 'ACCOUNT_NOT_CONFIRMED', 'No pudimos verificar la cuenta anterior. Reintenta sin cambiar los datos.');
+          if (previous.data.app_metadata?.berry_restore_operation !== operation.operation_id) {
+            const reset = await upstream(`/auth/v1/admin/users/${encodeURIComponent(operation.previous_id)}`, { method: 'PUT', body: { password: TEMPORARY_PASSWORD, ban_duration: 'none', app_metadata: { ...previous.data.app_metadata, berry_restore_operation: operation.operation_id } } });
+            if (!reset.ok || reset.data?.id !== operation.previous_id) throw new ApiError(503, 'ACCOUNT_NOT_CONFIRMED', 'No pudimos confirmar la nueva contraseña temporal. Reintenta sin cambiar los datos.');
+          }
+          const result = await rpc('berry_finish_account_restore', { p_operation: operation.operation_id }, actor.token);
+          reply(res, 200, { ok: true, account: result }, cors); return;
+        }
+        if (operation.needs_archive && !operation.released_at) {
+          const previous = await upstream(`/auth/v1/admin/users/${encodeURIComponent(operation.previous_id)}`);
+          if (!previous.ok || previous.data?.id !== operation.previous_id) throw new ApiError(503, 'ACCOUNT_NOT_CONFIRMED', 'No pudimos verificar la cuenta anterior. Reintenta sin cambiar los datos.');
+          if (previous.data.app_metadata?.berry_retired_operation !== operation.operation_id || previous.data.email?.toLowerCase() !== operation.archive_email) {
+            const archived = await upstream(`/auth/v1/admin/users/${encodeURIComponent(operation.previous_id)}`, { method: 'PUT', body: { email: operation.archive_email, email_confirm: true, password: randomBytes(36).toString('base64url'), ban_duration: '876000h', app_metadata: { ...previous.data.app_metadata, berry_retired_operation: operation.operation_id } } });
+            if (!archived.ok || archived.data?.id !== operation.previous_id) throw new ApiError(503, 'ACCOUNT_NOT_CONFIRMED', 'No pudimos confirmar la retirada del acceso anterior. Reintenta sin cambiar los datos.');
+          }
+          await rpc('berry_release_resolution_email', { p_operation: operation.operation_id }, actor.token);
+        }
+        const created = await createAccount(account, operation.operation_id, actor);
+        const result = await rpc('berry_finish_account_resolution', { p_operation: operation.operation_id, p_user_id: created.id }, actor.token);
+        reply(res, 200, { ok: true, account: result }, cors); return;
+      }
       if (req.url === PASSWORD_PATH) {
         if (!input || Object.keys(input).length !== 1 || !Object.hasOwn(input, 'password')) throw new ApiError(400, 'INVALID_PASSWORD', 'Revisa la nueva contraseña.');
         const error = newPasswordError(input.password);
@@ -137,17 +191,7 @@ export function createAccountsHandler({ env = process.env, fetchImpl = fetch, no
       const account = normalizedAccount(input);
       const requestedId = req.headers['idempotency-key'];
       if (typeof requestedId !== 'string' || !/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(requestedId)) throw new ApiError(400, 'REQUEST_ID_REQUIRED', 'El alta necesita un identificador único.');
-      const reserved = await rpc('berry_prepare_account', { p_request_id: requestedId, p_input: account }, actor.token);
-      let userId = reserved.user_id || await rpc('berry_find_account_request', { p_request_id: reserved.request_id });
-      if (!userId) {
-        const created = await upstream('/auth/v1/admin/users', { method: 'POST', body: { email: account.email, password: TEMPORARY_PASSWORD, email_confirm: true, user_metadata: { full_name: account.full_name }, app_metadata: { berry_request_id: reserved.request_id } } });
-        if (!created.ok) {
-          userId = await rpc('berry_find_account_request', { p_request_id: reserved.request_id });
-          if (!userId) throw new ApiError(created.status === 422 || created.status === 409 ? 409 : 503, 'ACCOUNT_NOT_CREATED', 'No se confirmó el alta. El correo puede estar registrado. Reintenta conservando los mismos datos.');
-        } else userId = created.data?.id;
-      }
-      if (!userId) throw unavailable();
-      const profile = await rpc('berry_finish_account', { p_request_id: reserved.request_id, p_user_id: userId }, actor.token);
+      const profile = await createAccount(account, requestedId, actor);
       reply(res, 200, { ok: true, account: profile, message: profile.must_change_password ? 'Cuenta creada. El usuario deberá cambiar su contraseña temporal al entrar.' : 'La cuenta ya está creada y conserva su contraseña personal.' }, cors);
     } catch (error) { fail(error); }
   };

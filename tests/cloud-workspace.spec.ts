@@ -1,6 +1,7 @@
 import { selectSecondResponsible } from './responsible-fixture';
 import { selectValue } from './select-fixture';
 import { selectLocation } from './location-fixture';
+import { mockOrganizationCatalog } from './organization-fixture';
 import { test, expect } from '@playwright/test';
 import type { BrowserContext, Page } from '@playwright/test';
 import { createHash } from 'node:crypto';
@@ -16,7 +17,7 @@ const png={name:'evidencia.png',mimeType:'image/png',buffer:Buffer.from('iVBORw0
 type Row={id:string;author_id:string;workflow:string;revision:number;updated_at:string;deleted_at?:string|null;code?:string;data:any;final_excel_stored?:boolean};
 const stateOf=()=>({rows:new Map<string,Row>(),files:new Map<string,Buffer>(),documents:new Map<string,any>(),sends:0,saves:0,paths:[] as string[],retired:new Set<string>(),failSave:false,failFinal:false,schemaFails:false,profileFails:false,finalizes:0,nextSequence:null as number|null,previewCalls:0,previewFails:false,profileSaveFails:false,profileSetupFails:false,profileMetadataUpdates:[] as Record<string,unknown>[]});
 type State=ReturnType<typeof stateOf>;
-async function mock(context:BrowserContext,state:State,actor:string,overrides:Partial<typeof profiles[number]>={},metadata:Record<string,unknown>={}) {
+async function mock(context:BrowserContext,state:State,actor:string,overrides:Partial<typeof profiles[number]> & {management?:string}={},metadata:Record<string,unknown>={}) {
   const profile={...profiles.find(p=>p.id===actor)!,...overrides};
   const user={id:actor,aud:'authenticated',role:'authenticated',email:profile.email,email_confirmed_at:new Date().toISOString(),app_metadata:{provider:'email',providers:['email']},user_metadata:metadata,identities:[],created_at:new Date().toISOString()};
   const token=`eyJhbGciOiJIUzI1NiJ9.${Buffer.from(JSON.stringify({sub:actor,iat:100,exp:Math.floor(Date.now()/1000)+3600,role:'authenticated'})).toString('base64url')}.fictitious`;
@@ -31,7 +32,7 @@ async function mock(context:BrowserContext,state:State,actor:string,overrides:Pa
     if(path==='/rest/v1/rpc/berry_next_registration') { expect(req.headers().authorization).toBe(`Bearer ${token}`);state.previewCalls++;if(state.previewFails)return route.fulfill({status:503,json:{message:'offline'}});const sequence=state.nextSequence??state.sends+1;return route.fulfill({json:{code:`IH-2026-${String(sequence).padStart(3,'0')}`,year:2026,sequence,checked_at:'2026-11-09T12:00:00Z'}}); }
     if(path==='/rest/v1/rpc/berry_schema_status')return route.fulfill({status:state.schemaFails?503:200,json:state.schemaFails?{message:'offline'}:{schema_version:'202611070001',stage:'reports',sync_ready:true,reports_version:'202611080003'}});
     expect(req.headers().authorization).toBe(`Bearer ${token}`);
-    if(path==='/rest/v1/berry_profiles'&&req.method()==='PATCH'){if(state.profileSaveFails)return route.fulfill({status:503,json:{message:'offline'}});const data=req.postDataJSON();expect(Object.keys(data).sort()).toEqual(['area','full_name','job_title']);Object.assign(profile,data);}
+    if(path==='/rest/v1/berry_profiles'&&req.method()==='PATCH'){if(state.profileSaveFails)return route.fulfill({status:503,json:{message:'offline'}});const data=req.postDataJSON();expect(Object.keys(data).sort()).toEqual(['area','full_name','job_title',...(profile.management!==undefined?['management']:[])]);Object.assign(profile,data);}
     if(path==='/rest/v1/berry_profiles')return route.fulfill({status:state.profileFails?503:200,json:state.profileFails?{code:'PGRST002',message:'Service unavailable'}:url.searchParams.has('id')?profile:profiles.map(p=>p.id===actor?profile:p)});
     if(path==='/rest/v1/berry_shared_texts')return route.fulfill({json:null});
     if(path==='/rest/v1/rpc/berry_cloud_tombstones')return route.fulfill({json:req.postDataJSON().p_ids.filter((id:string)=>state.retired.has(id))});
@@ -492,37 +493,54 @@ async function firstLogin(page:Page,actor:string,password='Fictitious!47'){
  await page.goto('./?acceso=cuenta');await page.getByLabel(/^Correo electrónico/).fill(profiles.find(p=>p.id===actor)!.email);await page.getByLabel(/^Contraseña/).fill(password);await page.getByRole('button',{name:'Iniciar sesión',exact:true}).click();
 }
 
-test('primer perfil requiere área y cargo, conserva la edición ante fallos y se recuerda en otra sesión y dispositivo',async({browser,page,context})=>{
+for (const width of [1366,390]) test(`primer perfil exige gerencia, área y puesto, conserva la edición ante fallos y se recuerda en otra sesión y dispositivo (${width}px)`,async({browser,page,context})=>{
+ await page.setViewportSize({width,height:900});await mockOrganizationCatalog(page);
  const state=stateOf(),metadata:Record<string,unknown>={berry_profile_setup_required:true};
- const profile=await mock(context,state,recipient,{area:'',job_title:''},metadata);await firstLogin(page,recipient);
- await expect(page.getByRole('heading',{name:'Mi perfil',exact:true})).toBeVisible();await expect(page.getByText(/Este paso se solicita una sola vez/)).toBeVisible();
- await expect(page.getByRole('button',{name:'Entrar al espacio de trabajo',exact:true})).toHaveCount(0);await expect(page.getByRole('textbox',{name:'Puesto',exact:true})).toHaveAttribute('required','');
- await page.getByRole('textbox',{name:'Área',exact:true}).fill('Producción');await page.getByRole('button',{name:'Guardar perfil',exact:true}).click();expect(state.profileMetadataUpdates).toHaveLength(0);expect(state.paths).not.toContain('/rest/v1/rpc/berry_cloud_session');
- await page.getByRole('textbox',{name:'Puesto',exact:true}).fill('Supervisor de Producción');state.profileSaveFails=true;await page.getByRole('button',{name:'Guardar perfil',exact:true}).click();await expect(page.getByRole('alert')).toContainText('No se guardó el perfil');
- expect(metadata.berry_profile_setup_completed_at).toBeUndefined();await expect(page.getByRole('textbox',{name:'Puesto',exact:true})).toHaveValue('Supervisor de Producción');
- state.profileSaveFails=false;state.profileSetupFails=true;await page.getByRole('button',{name:'Guardar perfil',exact:true}).click();await expect(page.getByRole('alert')).toContainText('No pudimos confirmar la configuración');expect(metadata.berry_profile_setup_required).toBe(true);
- state.profileSetupFails=false;await page.getByRole('button',{name:'Guardar perfil',exact:true}).click();await expect(page.getByRole('heading',{name:'Mis inspecciones',exact:true})).toBeVisible();
- expect(metadata.berry_profile_setup_required).toBe(false);expect(typeof metadata.berry_profile_setup_completed_at).toBe('string');expect(state.rows.size).toBe(0);expect(state.saves).toBe(0);expect(state.sends).toBe(0);
- // Completing this step is remembered even if the user later clears their optional job title.
- profile.job_title='';
+ const profile=await mock(context,state,recipient,{management:'',area:'',job_title:''},metadata);await firstLogin(page,recipient);
+ const management=page.getByRole('combobox',{name:'Gerencia',exact:true}),area=page.getByRole('combobox',{name:'Área',exact:true}),position=page.getByRole('combobox',{name:'Puesto',exact:true});
+ const save=page.getByRole('button',{name:'Guardar y continuar',exact:true});
+ await expect(page.getByRole('heading',{name:'Mi perfil',exact:true})).toBeVisible();await expect(page.getByText(/Este paso es obligatorio y se solicita una sola vez/)).toBeVisible();
+ await expect(page.getByRole('button',{name:'Entrar al espacio de trabajo',exact:true})).toHaveCount(0);await expect(position).toHaveAttribute('aria-required','true');await expect(area).toBeDisabled();await expect(position).toBeDisabled();
+ await save.click();await expect(page.getByRole('alert')).toContainText('Selecciona una gerencia');expect(state.profileMetadataUpdates).toHaveLength(0);expect(state.paths).not.toContain('/rest/v1/rpc/berry_cloud_session');
+ await selectValue(management,'Gerencia de prueba A');await selectValue(area,'Área de prueba A1');await save.click();await expect(page.getByRole('alert')).toContainText('Selecciona un puesto');
+ await selectValue(position,'Puesto de prueba A1');await selectValue(area,'Área de prueba A2');await expect(position).toHaveText('Selecciona un puesto');
+ await position.click();await expect(page.getByRole('option',{name:'Puesto de prueba A1',exact:true})).toHaveCount(0);await page.getByRole('searchbox',{name:'Buscar puestos',exact:true}).press('Escape');
+ await selectValue(management,'Gerencia de prueba B');await expect(area).toHaveText('Selecciona un área');await expect(position).toBeDisabled();
+ await selectValue(area,'Área de prueba B1');await selectValue(position,'Puesto de prueba B1');
+ state.profileSaveFails=true;await save.click();await expect(page.getByRole('alert')).toContainText('No se guardó el perfil');expect(metadata.berry_profile_setup_completed_at).toBeUndefined();await expect(position).toHaveText('Puesto de prueba B1');
+ state.profileSaveFails=false;state.profileSetupFails=true;await save.click();await expect(page.getByRole('alert')).toContainText('No pudimos confirmar la configuración');expect(metadata.berry_profile_setup_required).toBe(true);expect(state.paths).not.toContain('/rest/v1/rpc/berry_cloud_session');
+ await page.locator('.cloud-account-card').screenshot({path:test.info().outputPath(`perfil-obligatorio-${width}.png`)});
+ state.profileSetupFails=false;await save.click();await expect(page.getByRole('heading',{name:'Mis inspecciones',exact:true})).toBeVisible();
+ expect(profile).toMatchObject({management:'Gerencia de prueba B',area:'Área de prueba B1',job_title:'Puesto de prueba B1'});expect(metadata.berry_profile_setup_required).toBe(false);expect(typeof metadata.berry_profile_setup_completed_at).toBe('string');expect(state.rows.size).toBe(0);expect(state.saves).toBe(0);expect(state.sends).toBe(0);
  await page.getByRole('button',{name:'Cerrar sesión',exact:true}).click();await page.getByRole('dialog',{name:'¿Estás seguro de salir?',exact:true}).getByRole('button',{name:'Salir',exact:true}).click();await login(page,recipient);
- const device=await browser.newContext();try{await mock(device,state,recipient,profile,metadata);const other=await device.newPage();await login(other,recipient);await expect(other.locator('.cloud-profile-heading')).toHaveCount(0);expect(await other.evaluate(()=>localStorage.getItem('berry-demo-accounts-v1'))).toBeNull();}finally{await device.close();}
+ const device=await browser.newContext();try{await mock(device,state,recipient,profile,metadata);const other=await device.newPage();await mockOrganizationCatalog(other);await login(other,recipient);await expect(other.locator('.cloud-profile-heading')).toHaveCount(0);expect(await other.evaluate(()=>localStorage.getItem('berry-demo-accounts-v1'))).toBeNull();}finally{await device.close();}
 });
 
 test('una cuenta nueva con datos precargados confirma Mi perfil después de cambiar la contraseña temporal',async({page,context})=>{
- const state=stateOf(),metadata:Record<string,unknown>={};const profile=await mock(context,state,recipient,{must_change_password:true},metadata);
+ await mockOrganizationCatalog(page);const state=stateOf(),metadata:Record<string,unknown>={};const profile=await mock(context,state,recipient,{must_change_password:true,management:''},metadata);
  await page.route('**/api/accounts/password',route=>{profile.must_change_password=false;return route.fulfill({json:{ok:true}});});await firstLogin(page,recipient);
  await expect(page.getByRole('heading',{name:'Actualiza tu contraseña',exact:true})).toBeVisible();await expect(page.getByRole('textbox',{name:'Área',exact:true})).toHaveCount(0);
  await page.getByLabel(/^Nueva contraseña/).fill('Personal!Clave47');await page.getByLabel(/^Repite la nueva contraseña/).fill('Personal!Clave47');await page.getByRole('button',{name:'Actualizar contraseña',exact:true}).click();
  await expect(page.getByRole('heading',{name:'Inicia sesión',exact:true})).toBeVisible();expect(metadata.berry_profile_setup_required).toBe(true);
- await firstLogin(page,recipient,'Personal!Clave47');await expect(page.getByRole('heading',{name:'Mi perfil',exact:true})).toBeVisible();await expect(page.getByRole('textbox',{name:'Área',exact:true})).toHaveValue('Mantenimiento');
- await expect(page.getByRole('button',{name:'Guardar perfil',exact:true})).toBeEnabled();await page.getByRole('button',{name:'Guardar perfil',exact:true}).click();await expect(page.getByRole('heading',{name:'Mis inspecciones',exact:true})).toBeVisible();
+ await firstLogin(page,recipient,'Personal!Clave47');await expect(page.getByRole('heading',{name:'Mi perfil',exact:true})).toBeVisible();await expect(page.getByRole('combobox',{name:'Área',exact:true})).toHaveText('Mantenimiento');
+ await selectValue(page.getByRole('combobox',{name:'Gerencia',exact:true}),'Gerencia de prueba B');await selectValue(page.getByRole('combobox',{name:'Área',exact:true}),'Área de prueba B1');await selectValue(page.getByRole('combobox',{name:'Puesto',exact:true}),'Puesto de prueba B1');
+ await page.getByRole('button',{name:'Guardar y continuar',exact:true}).click();await expect(page.getByRole('heading',{name:'Mis inspecciones',exact:true})).toBeVisible();
  expect(metadata.berry_profile_setup_required).toBe(false);expect(state.rows.size).toBe(0);
 });
 
 test('un perfil incompleto sin confirmación no salta al panel administrativo por un enlace directo',async({page,context})=>{
- const state=stateOf();await mock(context,state,author,{area:'',job_title:''});await firstLogin(page,author);
+ await mockOrganizationCatalog(page);const state=stateOf();await mock(context,state,author,{management:'',area:'',job_title:''});await firstLogin(page,author);
  await expect(page.getByRole('heading',{name:'Mi perfil',exact:true})).toBeVisible();await page.goto('./?acceso=cuenta&seccion=usuarios');
  await expect(page.getByRole('heading',{name:'Mi perfil',exact:true})).toBeVisible();await expect(page.getByRole('button',{name:'Gestión de Usuarios',exact:true})).toHaveCount(0);expect(state.paths.some(path=>path.includes('berry_admin_'))).toBe(false);
- await page.getByRole('textbox',{name:'Área',exact:true}).fill('SIGMA');await page.getByRole('textbox',{name:'Puesto',exact:true}).fill('Supervisora');await page.getByRole('button',{name:'Guardar perfil',exact:true}).click();await expect(page.getByRole('heading',{name:'Mis inspecciones',exact:true})).toBeVisible();
+ await selectValue(page.getByRole('combobox',{name:'Gerencia',exact:true}),'Gerencia de prueba B');await selectValue(page.getByRole('combobox',{name:'Área',exact:true}),'Área de prueba B1');await selectValue(page.getByRole('combobox',{name:'Puesto',exact:true}),'Puesto de prueba B1');await page.getByRole('button',{name:'Guardar y continuar',exact:true}).click();await expect(page.getByRole('heading',{name:'Mis inspecciones',exact:true})).toBeVisible();
+});
+
+
+test('sin catálogo oficial el primer perfil permanece pendiente y las cuentas anteriores conservan el acceso',async({page,context})=>{
+ const state=stateOf();await mock(context,state,author,{management:'',area:'',job_title:''});await firstLogin(page,author);
+ await expect(page.getByText('La lista de gerencias, áreas y puestos está pendiente de configuración. Contacta a un administrador para completar tu perfil.',{exact:true})).toBeVisible();
+ await expect(page.getByRole('button',{name:'Guardar y continuar',exact:true})).toBeDisabled();await expect(page.getByRole('combobox',{name:'Gerencia',exact:true})).toBeDisabled();
+ await page.goto('./?acceso=cuenta&seccion=panel');await expect(page.getByRole('heading',{name:'Mi perfil',exact:true})).toBeVisible();expect(state.paths).not.toContain('/rest/v1/rpc/berry_cloud_session');expect(state.profileMetadataUpdates).toHaveLength(0);
+ await page.getByRole('button',{name:'Cerrar sesión en este dispositivo',exact:true}).click();
+ await mock(context,state,author);await login(page,author);await expect(page.getByRole('heading',{name:'Mis inspecciones',exact:true})).toBeVisible();
 });

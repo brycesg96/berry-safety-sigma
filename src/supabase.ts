@@ -33,5 +33,5 @@ export async function supabaseFoundationStatus() {
   const { data, error } = await supabaseClient().rpc('berry_schema_status').abortSignal(AbortSignal.timeout(8000));
   if (error) throw new Error('Falta ejecutar o verificar el script inicial de Supabase.');
   if (data?.schema_version !== '202611070001') throw new Error('La estructura de Supabase no coincide con la versión de la app.');
-  return data as { schema_version: string; stage: string; sync_ready: boolean };
+  return data as { schema_version: string; stage: string; sync_ready: boolean; organization_catalog_version?: string; account_identity_version?: string };
 }

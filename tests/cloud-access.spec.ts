@@ -252,8 +252,8 @@ test('el administrador crea usuarios reales sin añadir cuentas locales y conser
   await expect(page.getByRole('heading', { name: 'Gestión de Usuarios', exact: true })).toBeVisible();
   await page.getByLabel('Nombres y apellidos').fill('Persona de Prueba');
   await page.getByLabel(/^Correo del usuario/).fill('persona@example.invalid');
-  await page.getByLabel(/^Área/).fill('Mantenimiento');
-  await page.getByLabel('Puesto', { exact: true }).fill('Supervisor');
+  await expect(page.getByLabel('Área', { exact: true })).toHaveCount(0);
+  await expect(page.getByLabel('Puesto', { exact: true })).toHaveCount(0);
   await page.getByRole('button', { name: 'Mostrar contraseña temporal', exact: true }).click();
   await expect(page.getByLabel('Contraseña temporal', { exact: true })).toHaveValue('0123456789');
   await expect(page.getByLabel('Contraseña temporal', { exact: true })).toHaveAttribute('readonly', '');
@@ -274,7 +274,7 @@ test('el administrador crea usuarios reales sin añadir cuentas locales y conser
   await page.getByRole('button', { name: 'Crear usuario', exact: true }).click();
   await expect(page.getByRole('status')).toContainText('Cuenta creada para persona@example.invalid');
   expect(calls).toHaveLength(2); expect(calls[0].id).toBe(calls[1].id);
-  expect(calls[1].body).toMatchObject({ can_create_inspections: true, can_receive_inspections: true, role: 'inspector' });
+  expect(calls[1].body).toMatchObject({ area: '', job_title: '', can_create_inspections: true, can_receive_inspections: true, role: 'inspector' });
   await expect(page.locator('.account-row')).toHaveCount(0);
   await page.getByRole('button', { name: 'Administrar usuarios', exact: true }).click();
   await expect(page.getByRole('button', { name: 'Crear usuario', exact: true })).toHaveCount(0);
@@ -501,18 +501,63 @@ for (const width of [1366, 390]) test(`Administrar usuarios busca por nombre, ca
 for (const width of [1366,390]) test(`perfil autenticado conserva gerencia y área sin cambiar permisos (${width}px)`, async({page,context})=>{
  await page.setViewportSize({width,height:900});await mockOrganizationCatalog(page);
  const profile={...initialProfile(),full_name:'Persona de prueba',area:'Área anterior',job_title:'Supervisora',management:'',must_change_password:false};
- const state=await mock(context,profile);await login(page);
+ const state=await mock(context,profile);await login(page);await page.goto('./?acceso=cuenta&seccion=perfil');
  await selectValue(page.getByRole('combobox',{name:'Gerencia',exact:true}),'Gerencia de prueba A');
  await selectValue(page.getByRole('combobox',{name:'Área',exact:true}),'Área de prueba A2');
+ await selectValue(page.getByRole('combobox',{name:'Puesto',exact:true}),'Puesto de prueba A2');
  state.saveFails=true;await page.getByRole('button',{name:'Guardar perfil',exact:true}).click();
  await expect(page.getByRole('combobox',{name:'Área',exact:true})).toHaveText('Área de prueba A2');
  await expect(page.getByRole('alert')).toContainText('No se guardó el perfil');
  state.saveFails=false;await page.getByRole('button',{name:'Guardar perfil',exact:true}).click();
  await expect(page.getByText('Perfil guardado en tu cuenta.',{exact:true})).toBeVisible();
  expect(state.profile.management).toBe('Gerencia de prueba A');expect(state.profile.area).toBe('Área de prueba A2');
+ expect(state.profile.job_title).toBe('Puesto de prueba A2');
  expect(state.profile.role).toBe('admin');expect(state.profile.enabled).toBe(true);
  expect(Object.keys(state.updates.at(-1)!).sort()).toEqual(['area','full_name','job_title','management']);
  await page.reload();await expect(page.getByRole('combobox',{name:'Gerencia',exact:true})).toHaveText('Gerencia de prueba A');
  await expect(page.getByRole('combobox',{name:'Área',exact:true})).toHaveText('Área de prueba A2');
  expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
+});
+
+for (const width of [1366,390]) test(`una cuenta eliminada requiere elegir identidad; un fallo conserva la elección y reintenta sin duplicar el alta (${width}px)`,async({page,context})=>{
+ await page.setViewportSize({width,height:900});await mock(context,{...initialProfile(),full_name:'Administradora',area:'Seguridad',job_title:'Supervisora',must_change_password:false});
+ await page.route('**/rest/v1/rpc/berry_schema_status',route=>route.fulfill({json:{schema_version:'202611070001',sync_ready:false,stage:'reports',account_identity_version:'202611150015'}}));
+ const previous={id:'30000000-0000-4000-8000-000000000008',person_id:'30000000-0000-4000-8000-000000000008',email:'persona@example.invalid',full_name:'Persona de Prueba',management:'Gerencia anterior',area:'Área anterior',job_title:'Puesto anterior',deleted_at:'2026-11-01T12:00:00Z',enabled:false,access_revision:4,same_email:true,owns_email:true,can_restore:true,can_rehire:true,restore_until:'2099-12-01T12:00:00Z'};
+ let normalCreates=0,fail=true;const attempts:{id:string;body:any}[]=[];
+ await page.route('**/api/accounts',route=>{if(route.request().method()==='POST')normalCreates++;return route.fulfill({json:{ok:true,accounts:[]}});});
+ await page.route('**/api/accounts/matches',route=>route.fulfill({json:{ok:true,matches:[previous]}}));
+ await page.route('**/api/accounts/resolve',route=>{attempts.push({id:route.request().headers()['idempotency-key'],body:route.request().postDataJSON()});return route.fulfill({status:fail?503:200,json:fail?{ok:false,message:'No pudimos confirmar la operación. Reintenta conservando los datos.'}:{ok:true,account:{...initialProfile(),id:'30000000-0000-4000-8000-000000000009',person_id:previous.person_id,email:previous.email,full_name:previous.full_name,must_change_password:true}}});});
+ await page.goto('./?acceso=cuenta&seccion=usuarios');await page.getByLabel(/^Correo electrónico/).fill(email);await page.getByLabel(/^Contraseña/).fill('Fictitious!47');await page.getByRole('button',{name:'Iniciar sesión',exact:true}).click();
+ await page.getByLabel('Nombres y apellidos').fill(previous.full_name);await page.getByLabel('Correo del usuario').fill(previous.email);await page.getByRole('button',{name:'Crear usuario',exact:true}).click();
+ const dialog=page.getByRole('dialog',{name:'Encontramos una cuenta con datos coincidentes',exact:true});await expect(dialog).toBeVisible();await expect(dialog.getByRole('button',{name:'Crear acceso',exact:true})).toBeDisabled();expect(normalCreates).toBe(0);
+ await dialog.getByRole('radio',{name:/Es la misma persona que regresa/}).check();await dialog.getByRole('button',{name:'Crear acceso',exact:true}).click();await expect(dialog.getByRole('alert')).toContainText('No pudimos confirmar');await expect(dialog.getByRole('radio',{name:/Es la misma persona que regresa/})).toBeChecked();
+ fail=false;await dialog.getByRole('button',{name:'Crear acceso',exact:true}).click();await expect(dialog).toHaveCount(0);await expect(page.getByRole('status')).toContainText('Acceso creado para persona@example.invalid');expect(attempts).toHaveLength(2);expect(attempts[0].id).toBe(attempts[1].id);expect(attempts[1].body).toMatchObject({previousId:previous.id,expectedRevision:4,mode:'rehire'});expect(normalCreates).toBe(0);
+ expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
+});
+
+test('correo de una cuenta vigente bloquea otro alta; una restauración vencida no se ofrece como válida',async({page,context})=>{
+ await mock(context,{...initialProfile(),full_name:'Administradora',area:'Seguridad',job_title:'Supervisora',must_change_password:false});await page.route('**/rest/v1/rpc/berry_schema_status',route=>route.fulfill({json:{schema_version:'202611070001',sync_ready:false,stage:'reports',account_identity_version:'202611150015'}}));
+ let active=true,mutations=0;
+ const candidate=()=>({id:'30000000-0000-4000-8000-000000000008',person_id:'30000000-0000-4000-8000-000000000008',email:'persona@example.invalid',full_name:'Persona de Prueba',management:'',area:'',job_title:'',deleted_at:active?null:'2025-01-01T12:00:00Z',enabled:active,access_revision:4,same_email:true,owns_email:true,can_restore:false,can_rehire:!active,restore_until:active?null:'2025-04-01T12:00:00Z'});
+ await page.route('**/api/accounts',route=>route.fulfill({json:{ok:true,accounts:[]}}));await page.route('**/api/accounts/matches',route=>route.fulfill({json:{ok:true,matches:[candidate()]}}));await page.route('**/api/accounts/resolve',route=>{mutations++;return route.fulfill({json:{ok:false}});});
+ await page.goto('./?acceso=cuenta&seccion=usuarios');await page.getByLabel(/^Correo electrónico/).fill(email);await page.getByLabel(/^Contraseña/).fill('Fictitious!47');await page.getByRole('button',{name:'Iniciar sesión',exact:true}).click();await page.getByLabel('Nombres y apellidos').fill('Persona de Prueba');await page.getByLabel('Correo del usuario').fill('persona@example.invalid');await page.getByRole('button',{name:'Crear usuario',exact:true}).click();
+ for(const radio of await page.getByRole('dialog').getByRole('radio').all()) await expect(radio).toBeDisabled();await expect(page.getByRole('dialog')).toContainText('pertenece a una cuenta vigente');await page.getByRole('dialog').getByRole('button',{name:'Cancelar',exact:true}).click();
+ active=false;await page.getByRole('button',{name:'Crear usuario',exact:true}).click();await expect(page.getByRole('dialog').getByRole('radio',{name:/Restablecer una eliminación/})).toBeDisabled();await expect(page.getByRole('dialog').getByRole('radio',{name:/Es otra persona/})).toBeEnabled();expect(mutations).toBe(0);
+});
+
+test('restablecer por error usa la cuenta anterior y explica la recuperación limitada a pendientes',async({page,context})=>{
+ await mock(context,{...initialProfile(),full_name:'Administradora',area:'Seguridad',job_title:'Supervisora',must_change_password:false});await page.route('**/rest/v1/rpc/berry_schema_status',route=>route.fulfill({json:{schema_version:'202611070001',sync_ready:false,stage:'reports',account_identity_version:'202611150015'}}));
+ const old='30000000-0000-4000-8000-000000000008',candidate={id:old,person_id:old,email:'persona@example.invalid',full_name:'Persona de Prueba',management:'',area:'',job_title:'',deleted_at:'2026-11-01T12:00:00Z',enabled:false,access_revision:4,same_email:true,owns_email:true,can_restore:true,can_rehire:true,restore_until:'2099-12-01T12:00:00Z'};let normal=0;
+ await page.route('**/api/accounts',route=>{if(route.request().method()==='POST')normal++;return route.fulfill({json:{ok:true,accounts:[]}});});await page.route('**/api/accounts/matches',route=>route.fulfill({json:{ok:true,matches:[candidate]}}));await page.route('**/api/accounts/resolve',route=>{expect(route.request().postDataJSON()).toMatchObject({previousId:old,mode:'restore'});return route.fulfill({json:{ok:true,account:{...initialProfile(),id:old,email:candidate.email,full_name:candidate.full_name,must_change_password:true}}});});
+ await page.goto('./?acceso=cuenta&seccion=usuarios');await page.getByLabel(/^Correo electrónico/).fill(email);await page.getByLabel(/^Contraseña/).fill('Fictitious!47');await page.getByRole('button',{name:'Iniciar sesión',exact:true}).click();await page.getByLabel('Nombres y apellidos').fill(candidate.full_name);await page.getByLabel('Correo del usuario').fill(candidate.email);await page.getByRole('button',{name:'Crear usuario',exact:true}).click();
+ const dialog=page.getByRole('dialog');await expect(dialog).toContainText('inspecciones que estaban pendientes al eliminarla');await dialog.getByRole('radio',{name:/Restablecer una eliminación/}).check();await dialog.getByRole('button',{name:'Restablecer cuenta',exact:true}).click();await expect(dialog).toHaveCount(0);await expect(page.getByRole('status')).toContainText('Cuenta restablecida');expect(normal).toBe(0);
+});
+
+test('un alta interrumpida se retoma con su opción y datos originales aunque el navegador haya perdido el intento local',async({page,context})=>{
+ await mock(context,{...initialProfile(),full_name:'Administradora',area:'Seguridad',job_title:'Supervisora',must_change_password:false});await page.route('**/rest/v1/rpc/berry_schema_status',route=>route.fulfill({json:{schema_version:'202611070001',sync_ready:false,stage:'reports',account_identity_version:'202611150015'}}));
+ const old='30000000-0000-4000-8000-000000000008',values={email:'persona@example.invalid',full_name:'Nombre de la solicitud original',area:'',job_title:'',role:'inspector',supervisor_emails:[],can_create_inspections:false,can_receive_inspections:false};
+ const candidate={id:old,person_id:old,email:values.email,full_name:'Persona anterior',management:'',area:'',job_title:'',deleted_at:'2026-11-01T12:00:00Z',enabled:false,access_revision:5,same_email:true,owns_email:false,can_restore:false,can_rehire:false,restore_until:null,pending:{mode:'rehire',input:values}};
+ await page.route('**/api/accounts',route=>route.fulfill({json:{ok:true,accounts:[]}}));await page.route('**/api/accounts/matches',route=>route.fulfill({json:{ok:true,matches:[candidate,{...candidate,id:'30000000-0000-4000-8000-000000000009',deleted_at:null,enabled:true,owns_email:true,pending:null}]}}));await page.route('**/api/accounts/resolve',route=>{expect(route.request().postDataJSON()).toMatchObject({mode:'rehire',previousId:old,account:values});return route.fulfill({json:{ok:true,account:{...initialProfile(),id:'30000000-0000-4000-8000-000000000009',email:values.email,full_name:values.full_name,must_change_password:true}}});});
+ await page.goto('./?acceso=cuenta&seccion=usuarios');await page.getByLabel(/^Correo electrónico/).fill(email);await page.getByLabel(/^Contraseña/).fill('Fictitious!47');await page.getByRole('button',{name:'Iniciar sesión',exact:true}).click();await page.getByLabel('Nombres y apellidos').fill('Nombre editado después');await page.getByLabel('Correo del usuario').fill(values.email);await page.getByRole('button',{name:'Crear usuario',exact:true}).click();
+ const dialog=page.getByRole('dialog');await expect(dialog).toContainText('Nombre de la solicitud original');await expect(dialog.getByRole('radio',{name:/Es la misma persona que regresa/})).toBeChecked();await expect(dialog.getByRole('radio',{name:/Es otra persona/})).toBeDisabled();await dialog.getByRole('button',{name:'Retomar operación',exact:true}).click();await expect(dialog).toHaveCount(0);await expect(page.getByRole('status')).toContainText('Acceso creado');
 });

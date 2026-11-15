@@ -5,3 +5,9 @@
 .dashboard-filter-grid select{height:42px;padding:10px 12px;border:1px solid #dce5d6;border-radius:7px;background:#fff;color:#345849;font-family:inherit;line-height:1.4}.dashboard-filter-grid select:focus-visible{outline:2px solid #b6d4a2;outline-offset:2px;border-color:#83a76e}
 
 .dashboard-delete{margin:0;min-height:32px;padding:8px 12px;font-size:11px;white-space:nowrap}
+.dashboard-charts{grid-template-columns:repeat(3,minmax(0,1fr))}
+.dashboard-table-scroll{overflow:auto;overscroll-behavior-y:contain;scrollbar-gutter:stable}
+.dashboard-table-scroll th{position:sticky;top:0;z-index:1;box-shadow:0 1px 0 #e7ece2}
+.dashboard-table-scroll:focus-visible{outline:2px solid #83a76e;outline-offset:2px}
+@media(max-width:1100px){.dashboard-charts{grid-template-columns:repeat(2,minmax(0,1fr))}.dashboard-chart:first-child{grid-column:1/-1}}
+@media(max-width:700px){.dashboard-charts{grid-template-columns:1fr}}

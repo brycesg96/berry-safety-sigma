@@ -883,6 +883,232 @@ test('organization upgrade preserves records and profile permissions; canonical 
  assert.equal((await db.query('select management from public.berry_profiles where id=$1',[users.author])).rows[0].management,'Gerencia de prueba');
 });
 
+const catalogMigration = await readFile(new URL('../migrations/202611150014_organization_catalog.sql', import.meta.url), 'utf8');
+const catalogUser = '99900000-0000-4000-8000-000000000001';
+const catalogManagement = '99900000-0000-4000-8000-000000000002';
+const catalogArea = '99900000-0000-4000-8000-000000000003';
+const catalogPosition = '99900000-0000-4000-8000-000000000004';
+const freshCatalogClaims = { iat: 99999999999 };
+const manageCatalog = (id, kind, parent, name, enabled = true, expected = null, actor = users.author) => as('authenticated', actor, 'select public.berry_manage_organization($1,$2,$3,$4,$5,$6) as value', [id, kind, parent, name, enabled, expected], freshCatalogClaims);
+const readCatalog = () => as('authenticated', catalogUser, 'select public.berry_organization_catalog() as value');
+test('organization catalog imports only reviewed employee jobs and preserves every existing profile and report', async()=>{
+ const profilesBefore=(await db.query('select * from public.berry_profiles order by id')).rows;
+ const reportsBefore=(await db.query('select * from public.berry_inspections order by id')).rows;
+ await db.exec(catalogMigration);
+ assert.deepEqual((await db.query('select * from public.berry_profiles order by id')).rows,profilesBefore);
+ assert.deepEqual((await db.query('select * from public.berry_inspections order by id')).rows,reportsBefore);
+ assert.deepEqual((await db.query('select kind,count(*)::int as count from public.berry_organization group by kind order by kind')).rows,[{kind:'area',count:60},{kind:'management',count:18},{kind:'position',count:300}]);
+ const imported=(await db.query('select kind,name from public.berry_organization')).rows;
+ assert.ok(!imported.some(row=>row.kind==='position' && /\b(OBRERO|OPERARIO|PEON|PRACTICANTE)\b/.test(row.name)));
+ for(const name of ['OPERADOR CCTV','OPERADOR DE MAQUINARIA','GERENCIA GENERAL','GERENCIA CORPORATIVA DE OPERACIONES','GERENCIA DE EXPORTACIONES']) assert.ok(!imported.some(row=>row.name===name));
+ await db.query('insert into auth.users(id,email,email_confirmed_at) values($1,$2,now())',[catalogUser,'catalog-reader@example.invalid']);
+ await db.query('update public.berry_profiles set enabled=true,must_change_password=false where id=$1',[catalogUser]);
+ const catalog=(await readCatalog()).rows[0].value;
+ assert.equal(catalog.length,18);assert.equal(catalog.reduce((sum,entry)=>sum+entry.areas.length,0),60);
+ assert.equal(catalog.reduce((sum,entry)=>sum+Object.values(entry.positions).reduce((n,jobs)=>n+jobs.length,0),0),300);
+});
+test('catalog readers cannot manage lists, disabled accounts and anonymous users cannot read them, and raw table writes remain closed', async()=>{
+ await denied(()=>as('anon',null,'select public.berry_organization_catalog()'));
+ await denied(()=>as('authenticated',catalogUser,'select * from public.berry_organization'));
+ await denied(()=>as('authenticated',users.author,"insert into public.berry_organization(kind,name)values('management','Falsa')",[],freshCatalogClaims));
+ await denied(()=>as('authenticated',catalogUser,'select public.berry_admin_organization()'));
+ await denied(()=>manageCatalog(catalogManagement,'management',null,'No permitido',true,null,catalogUser));
+ await db.query('update public.berry_profiles set enabled=false where id=$1',[catalogUser]);await denied(()=>readCatalog());
+ await db.query('update public.berry_profiles set enabled=true where id=$1',[catalogUser]);
+});
+test('administrators create a complete hierarchy with idempotent retries and reject duplicates and invalid parents', async()=>{
+ const first=(await manageCatalog(catalogManagement,'management',null,'Gerencia añadida')).rows[0].value;
+ assert.equal(first.revision,1);
+ assert.deepEqual((await manageCatalog(catalogManagement,'management',null,'Gerencia añadida')).rows[0].value,first);
+ await manageCatalog(catalogArea,'area',catalogManagement,'Área añadida');
+ await manageCatalog(catalogPosition,'position',catalogArea,'Puesto añadido');
+ assert.ok((await readCatalog()).rows[0].value.some(entry=>entry.management==='Gerencia añadida' && entry.positions['Área añadida'].includes('Puesto añadido')));
+ await assert.rejects(()=>manageCatalog('99900000-0000-4000-8000-000000000005','management',null,'gerencia añadida'),error=>error.code==='23505');
+ await assert.rejects(()=>manageCatalog('99900000-0000-4000-8000-000000000005','position',catalogManagement,'Parentezco incorrecto'),error=>error.code==='22023');
+ await assert.rejects(()=>manageCatalog(catalogArea,'area',catalogPosition,'Ciclo incorrecto',true,1),error=>error.code==='22023');
+});
+test('profile changes require an active management-area-position chain and preserve unrelated permissions', async()=>{
+ await as('authenticated',catalogUser,'update public.berry_profiles set management=$1,area=$2,job_title=$3 where id=$4',['Gerencia añadida','Área añadida','Puesto añadido',catalogUser]);
+ await assert.rejects(()=>as('authenticated',catalogUser,"update public.berry_profiles set job_title='Otro puesto' where id=$1",[catalogUser]),error=>error.code==='22023');
+ await assert.rejects(()=>as('authenticated',catalogUser,"update public.berry_profiles set management='' where id=$1",[catalogUser]),error=>error.code==='22023');
+ assert.equal((await as('authenticated',catalogUser,"update public.berry_profiles set management='Otra' where id=$1 returning id",[users.author])).rows.length,0);
+ assert.deepEqual((await db.query('select role,enabled,management,area,job_title from public.berry_profiles where id=$1',[catalogUser])).rows[0],{role:'inspector',enabled:true,management:'Gerencia añadida',area:'Área añadida',job_title:'Puesto añadido'});
+});
+test('renames propagate to the shared catalog, stale changes are rejected, and old profile text remains intact', async()=>{
+ const updated=(await manageCatalog(catalogManagement,'management',null,'Gerencia actualizada',true,1)).rows[0].value;
+ assert.equal(updated.revision,2);assert.equal((await manageCatalog(catalogManagement,'management',null,'Gerencia actualizada',true,1)).rows[0].value.revision,2);
+ await assert.rejects(()=>manageCatalog(catalogManagement,'management',null,'Sobrescritura obsoleta',true,1),error=>error.code==='40001');
+ assert.ok((await readCatalog()).rows[0].value.some(entry=>entry.management==='Gerencia actualizada'));
+ assert.equal((await db.query('select management from public.berry_profiles where id=$1',[catalogUser])).rows[0].management,'Gerencia añadida');
+ await as('authenticated',catalogUser,"update public.berry_profiles set full_name='Nombre corregido' where id=$1",[catalogUser]);
+ const history=(await db.query("select before_data,after_data from public.berry_audit where entity_type='berry_organization' and entity_id=$1 order by occurred_at,id",[catalogManagement])).rows;
+ assert.ok(history.some(row=>row.before_data?.name==='Gerencia añadida' && row.after_data?.name==='Gerencia actualizada'));
+});
+test('retiring a branch hides its descendants without changing reports or reactivating positions previously removed', async()=>{
+ const before=(await db.query('select id,data,revision from public.berry_inspections order by id')).rows;
+ await manageCatalog(catalogPosition,'position',catalogArea,'Puesto añadido',false,1);
+ await manageCatalog(catalogManagement,'management',null,'Gerencia actualizada',false,2);
+ assert.ok(!(await readCatalog()).rows[0].value.some(entry=>entry.management==='Gerencia actualizada'));
+ await assert.rejects(()=>manageCatalog(catalogPosition,'position',catalogArea,'Puesto añadido',true,2),error=>error.code==='22023');
+ await manageCatalog(catalogManagement,'management',null,'Gerencia actualizada',true,3);
+ assert.equal((await db.query('select enabled from public.berry_organization where id=$1',[catalogPosition])).rows[0].enabled,false);
+ assert.ok(!(await readCatalog()).rows[0].value.some(entry=>entry.management==='Gerencia actualizada'));
+ await manageCatalog(catalogPosition,'position',catalogArea,'Puesto añadido',true,2);
+ assert.ok((await readCatalog()).rows[0].value.some(entry=>entry.management==='Gerencia actualizada'));
+ assert.deepEqual((await db.query('select id,data,revision from public.berry_inspections order by id')).rows,before);
+ assert.equal((await db.query('select management from public.berry_profiles where id=$1',[catalogUser])).rows[0].management,'Gerencia añadida');
+});
+test('reapplying the catalog migration preserves all administrator changes and never reimports retired entries', async()=>{
+ await manageCatalog(catalogPosition,'position',catalogArea,'Puesto actualizado',true,3);
+ const before=(await db.query('select * from public.berry_organization order by id')).rows;
+ await db.exec(catalogMigration);
+ assert.deepEqual((await db.query('select * from public.berry_organization order by id')).rows,before);
+ assert.equal((await db.query("select count(*)::int as n from berry_private.organization_seed_versions where version='iperc-2026-20261115'")).rows[0].n,1);
+});
+
+const identityMigration = await readFile(new URL('../migrations/202611150015_account_identity.sql', import.meta.url), 'utf8');
+const oldIdentity='99800000-0000-4000-8000-000000000001', rehireIdentity='99800000-0000-4000-8000-000000000002', otherIdentity='99800000-0000-4000-8000-000000000003';
+const rehireOperation='99800000-0000-4000-8000-000000000004', otherOperation='99800000-0000-4000-8000-000000000005';
+const identityOwnReport='99800000-0000-4000-8000-000000000006',identityReceivedReport='99800000-0000-4000-8000-000000000007';
+let originalPerson,rehirePerson;
+const identityInput={email:'historia@example.invalid',full_name:'Persona Coincidente',area:'',job_title:'',role:'inspector',supervisor_emails:[],can_create_inspections:true,can_receive_inspections:true};
+const identityRpc=(name,values)=>as('authenticated',users.author,`select public.${name}(${values.map((_,i)=>`$${i+1}`).join(',')}) as value`,values,freshCatalogClaims);
+async function identityReport(author,id,recipient) {
+ await as('authenticated',author,'select public.berry_ensure_draft($1)',[id],freshCatalogClaims);
+ const data={...cloudData(),id,ownerId:author,responsibles:[{id:'recipient',personId:recipient}]};
+ const row=(await as('authenticated',author,'select public.berry_save_draft($1,1,$2) as value',[id,data],freshCatalogClaims)).rows[0].value;
+ const lease=(await as('authenticated',author,'select public.berry_prepare_report($1,$2,$3) as value',[id,row.revision,sourceHash],freshCatalogClaims)).rows[0].value.lease;
+ const doc={filename:'REG_INS_TALLER_05.11.2026.xlsx',sha256:documentHash,byte_size:2000,storage_path:`2026/11-NOVIEMBRE/${id}/${documentHash}/REG_INS_TALLER_05.11.2026.xlsx`};
+ await db.query('insert into storage.objects(bucket_id,name)values($1,$2)',['berry-documents',doc.storage_path]);
+ await as('service_role',null,'select public.berry_commit_report($1,$2,$3,$4)',[lease.operation_id,author,freshCatalogClaims.iat,doc]);
+}
+test('identity upgrade preserves reports, assigns stable person IDs, and the account matcher is admin-only',async()=>{
+ const before=(await db.query('select id,data,revision from public.berry_inspections order by id')).rows;
+ await db.exec(identityMigration);
+ for(const lease of (await db.query('select operation_id,actor_id from berry_private.report_leases')).rows) await as('service_role',null,'select public.berry_cancel_report($1,$2)',[lease.operation_id,lease.actor_id]);
+ assert.deepEqual((await db.query('select id,data,revision from public.berry_inspections order by id')).rows,before);
+ assert.ok((await db.query('select id,person_id,contact_email,email from public.berry_profiles')).rows.every(p=>p.id===p.person_id && p.email===p.contact_email));
+ await denied(()=>as('authenticated',catalogUser,'select public.berry_account_matches($1,$2)',[identityInput.email,identityInput.full_name]));
+ await db.query('insert into auth.users(id,email,email_confirmed_at,raw_user_meta_data)values($1,$2,now(),$3)',[oldIdentity,identityInput.email,{full_name:identityInput.full_name}]);
+ await db.query('update public.berry_profiles set enabled=true,must_change_password=false,can_create_inspections=true,can_receive_inspections=true where id in($1,$2)',[oldIdentity,catalogUser]);
+ originalPerson=(await db.query('select person_id from public.berry_profiles where id=$1',[oldIdentity])).rows[0].person_id;
+ await identityReport(oldIdentity,identityOwnReport,catalogUser);await identityReport(catalogUser,identityReceivedReport,oldIdentity);
+ assert.equal((await as('authenticated',oldIdentity,'select id from public.berry_inspections where id in($1,$2)',[identityOwnReport,identityReceivedReport],freshCatalogClaims)).rows.length,2);
+ const revision=(await db.query('select access_revision from public.berry_profiles where id=$1',[oldIdentity])).rows[0].access_revision;
+ await identityRpc('berry_manage_account',[oldIdentity,revision,'delete',{}]);
+ const profile=(await db.query('select * from public.berry_profiles where id=$1',[oldIdentity])).rows[0];assert.equal(profile.deleted_access.can_create_inspections,true);assert.equal(profile.deleted_access.can_receive_inspections,true);
+ const matches=(await identityRpc('berry_account_matches',[identityInput.email,' PERSONA   COINCIDENTE '])).rows[0].value;
+ assert.equal(matches.length,1);assert.equal(matches[0].can_restore,true);assert.equal(matches[0].can_rehire,true);
+});
+async function resolveIdentity(operation,previous,user,mode) {
+ const revision=(await db.query('select access_revision from public.berry_profiles where id=$1',[previous])).rows[0].access_revision;
+ const reserved=(await identityRpc('berry_begin_account_resolution',[operation,previous,revision,mode,identityInput])).rows[0].value;
+ if(reserved.needs_archive){
+  await assert.rejects(()=>identityRpc('berry_release_resolution_email',[reserved.operation_id]),error=>error.code==='42501');
+  await db.query("update auth.users set email=$1,raw_app_meta_data=raw_app_meta_data||jsonb_build_object('berry_retired_operation',$2::text) where id=$3",[reserved.archive_email,reserved.operation_id,previous]);
+  await identityRpc('berry_release_resolution_email',[reserved.operation_id]);
+ }
+ const prepared=(await identityRpc('berry_prepare_account',[reserved.operation_id,identityInput])).rows[0].value;
+ await db.query('insert into auth.users(id,email,email_confirmed_at,raw_user_meta_data,raw_app_meta_data)values($1,$2,now(),$3,$4)',[user,identityInput.email,{full_name:identityInput.full_name},{berry_request_id:prepared.request_id}]);
+ await identityRpc('berry_finish_account',[prepared.request_id,user]);
+ await identityRpc('berry_finish_account_resolution',[reserved.operation_id,user]);
+ await db.query('update public.berry_profiles set must_change_password=false where id=$1',[user]);
+ return reserved;
+}
+test('same-person return uses a fresh Auth account, one historical identity, and no access to authored reports, assignments or files from before',async()=>{
+ const reportsBefore=(await db.query('select id,data,revision from public.berry_inspections where id in($1,$2) order by id',[identityOwnReport,identityReceivedReport])).rows;
+ const operation=await resolveIdentity(rehireOperation,oldIdentity,rehireIdentity,'rehire');
+ rehirePerson=(await db.query('select person_id from public.berry_profiles where id=$1',[rehireIdentity])).rows[0].person_id;assert.equal(rehirePerson,originalPerson);
+ assert.equal((await as('authenticated',rehireIdentity,'select id from public.berry_inspections where id in($1,$2)',[identityOwnReport,identityReceivedReport],freshCatalogClaims)).rows.length,0);
+ assert.equal((await as('authenticated',rehireIdentity,'select name from storage.objects',[],freshCatalogClaims)).rows.length,0);
+ await denied(()=>as('authenticated',rehireIdentity,'select public.berry_admin_inspection($1)',[identityOwnReport],freshCatalogClaims));
+ await denied(()=>as('authenticated',rehireIdentity,'select public.berry_prepare_report($1,1,$2)',[identityOwnReport,sourceHash],freshCatalogClaims));
+ assert.deepEqual((await db.query('select id,data,revision from public.berry_inspections where id in($1,$2) order by id',[identityOwnReport,identityReceivedReport])).rows,reportsBefore);
+ const links=(await identityRpc('berry_admin_dashboard',[])).rows[0].value.find(row=>row.id===identityOwnReport).identityLinks;
+ assert.equal(links[oldIdentity].personId,rehirePerson);assert.equal(links[oldIdentity].current,true);assert.equal(links[oldIdentity].email,identityInput.email);
+ const resumed=(await identityRpc('berry_begin_account_resolution',[rehireOperation,oldIdentity,1,'rehire',identityInput])).rows[0].value;
+ assert.equal(resumed.new_user_id,rehireIdentity);assert.equal((await identityRpc('berry_finish_account_resolution',[operation.operation_id,rehireIdentity])).rows[0].value.id,rehireIdentity);
+ const ownNew='99800000-0000-4000-8000-000000000008';await as('authenticated',rehireIdentity,'select public.berry_ensure_draft($1)',[ownNew],freshCatalogClaims);
+ assert.equal((await as('authenticated',rehireIdentity,'select id from public.berry_inspections',[],freshCatalogClaims)).rows.length,1);
+});
+test('a distinct person reusing exactly the same name and email gets another identity and never inherits prior work',async()=>{
+ const revision=(await db.query('select access_revision from public.berry_profiles where id=$1',[rehireIdentity])).rows[0].access_revision;
+ await identityRpc('berry_manage_account',[rehireIdentity,revision,'delete',{}]);
+ await resolveIdentity(otherOperation,rehireIdentity,otherIdentity,'new_person');
+ const other=(await db.query('select person_id from public.berry_profiles where id=$1',[otherIdentity])).rows[0];assert.notEqual(other.person_id,originalPerson);
+ assert.equal((await as('authenticated',otherIdentity,'select id from public.berry_inspections',[],freshCatalogClaims)).rows.length,0);
+ assert.equal((await as('authenticated',otherIdentity,'select name from storage.objects',[],freshCatalogClaims)).rows.length,0);
+ await as('authenticated',otherIdentity,'select public.berry_ensure_draft($1)',['99800000-0000-4000-8000-000000000009'],freshCatalogClaims);
+ assert.equal((await as('authenticated',otherIdentity,'select id from public.berry_inspections',[],freshCatalogClaims)).rows.length,1);
+ const match=(await identityRpc('berry_account_matches',[identityInput.email,identityInput.full_name])).rows[0].value;
+ assert.equal(match.filter(p=>p.deleted_at===null).length,1);assert.ok(match.filter(p=>p.deleted_at!==null).every(p=>p.can_restore===false));
+});
+test('identity operations validate admin rights, reject active-email takeovers and preserve person links on replay',async()=>{
+ await denied(()=>as('authenticated',otherIdentity,'select public.berry_begin_account_resolution($1,$2,1,$3,$4)',['99800000-0000-4000-8000-000000000010',oldIdentity,'new_person',identityInput],freshCatalogClaims));
+ const revision=(await db.query('select access_revision from public.berry_profiles where id=$1',[oldIdentity])).rows[0].access_revision;
+ await assert.rejects(()=>identityRpc('berry_begin_account_resolution',['99800000-0000-4000-8000-000000000010',oldIdentity,revision,'rehire',identityInput]),error=>error.code==='23505');
+ const before=(await db.query('select id,person_id,email,contact_email,deleted_at from public.berry_profiles order by id')).rows;
+ await db.exec(identityMigration);assert.deepEqual((await db.query('select id,person_id,email,contact_email,deleted_at from public.berry_profiles order by id')).rows,before);
+});
+
+const restoreIdentity='99700000-0000-4000-8000-000000000001',restoreOperation='99700000-0000-4000-8000-000000000002';
+const restorePending='99700000-0000-4000-8000-000000000003',restoreClosed='99700000-0000-4000-8000-000000000004';
+const expiredIdentity='99700000-0000-4000-8000-000000000005',expiredOperation='99700000-0000-4000-8000-000000000006';
+test('an accidental deletion within three calendar months restores only pending personal reports and rejects old closed reports and direct workflow bypasses',async()=>{
+ await db.query('insert into auth.users(id,email,email_confirmed_at,raw_user_meta_data)values($1,$2,now(),$3)',[restoreIdentity,'restaurar@example.invalid',{full_name:'Cuenta por restablecer'}]);
+ await db.query('update public.berry_profiles set enabled=true,must_change_password=false,can_create_inspections=true,can_receive_inspections=true where id=$1',[restoreIdentity]);
+ await identityReport(restoreIdentity,restorePending,catalogUser);await identityReport(catalogUser,restoreClosed,restoreIdentity);
+ let row=(await db.query('select * from public.berry_inspections where id=$1',[restoreClosed])).rows[0];
+ row=(await as('authenticated',restoreIdentity,'select public.berry_change_correction($1,$2,$3,$4,$5) as value',[restoreClosed,cloudObservation,row.revision,'submit',{responsibleName:'Cuenta por restablecer',action:'Acción realizada',date:'2026-11-15',photos:[],state:'Pendiente'}],freshCatalogClaims)).rows[0].value;
+ row=(await as('authenticated',catalogUser,'select public.berry_change_correction($1,$2,$3,$4,$5) as value',[restoreClosed,cloudObservation,row.revision,'approve',{note:'Aprobado'}],freshCatalogClaims)).rows[0].value;assert.equal(row.workflow,'closed');
+ const previous=(await db.query('select access_revision,person_id from public.berry_profiles where id=$1',[restoreIdentity])).rows[0];
+ const deleted=(await identityRpc('berry_manage_account',[restoreIdentity,previous.access_revision,'delete',{}])).rows[0].value;
+ const input={...identityInput,email:'restaurar@example.invalid',full_name:'Cuenta por restablecer'};
+ await identityRpc('berry_begin_account_restore',[restoreOperation,restoreIdentity,deleted.access_revision,input]);
+ await denied(()=>identityRpc('berry_finish_account_restore',[restoreOperation]));
+ await db.query("update auth.users set raw_app_meta_data=raw_app_meta_data||jsonb_build_object('berry_restore_operation',$1::text) where id=$2",[restoreOperation,restoreIdentity]);
+ const restored=(await identityRpc('berry_finish_account_restore',[restoreOperation])).rows[0].value;
+ assert.equal(restored.id,restoreIdentity);assert.equal(restored.person_id,previous.person_id);assert.equal(restored.must_change_password,true);assert.equal(restored.can_create_inspections,true);assert.equal(restored.can_receive_inspections,true);
+ assert.equal((await as('authenticated',restoreIdentity,'select id from public.berry_inspections',[],freshCatalogClaims)).rows.length,0);
+ await db.query('update public.berry_profiles set must_change_password=false where id=$1',[restoreIdentity]);
+ assert.deepEqual((await as('authenticated',restoreIdentity,'select id from public.berry_inspections order by id',[],freshCatalogClaims)).rows,[{id:restorePending}]);
+ await denied(()=>as('authenticated',restoreIdentity,'select public.berry_prepare_report($1,$2,null)',[restoreClosed,row.revision],freshCatalogClaims));
+ await denied(()=>as('authenticated',restoreIdentity,'select public.berry_change_correction($1,$2,$3,$4,$5)',[restoreClosed,cloudObservation,row.revision,'state',{state:'Pendiente'}],freshCatalogClaims));
+ const files=(await as('authenticated',restoreIdentity,'select name from storage.objects',[],freshCatalogClaims)).rows;assert.ok(files.some(file=>file.name.includes(restorePending)));assert.ok(!files.some(file=>file.name.includes(restoreClosed)));
+ const future='99700000-0000-4000-8000-000000000007';await as('authenticated',restoreIdentity,'select public.berry_ensure_draft($1)',[future],freshCatalogClaims);
+ assert.deepEqual((await as('authenticated',restoreIdentity,'select id from public.berry_inspections order by id',[],freshCatalogClaims)).rows,[{id:restorePending},{id:future}]);
+ const replay=(await identityRpc('berry_finish_account_restore',[restoreOperation])).rows[0].value;assert.equal(replay.must_change_password,false);assert.equal(replay.id,restoreIdentity);
+});
+test('the three-month restore deadline is enforced by PostgreSQL and an expired request cannot enable an account',async()=>{
+ const boundary=(await db.query("select berry_private.account_restore_until('2026-01-31T04:30:00Z') as value")).rows[0].value;assert.equal(new Date(boundary).toISOString(),'2026-05-01T04:30:00.000Z');
+ await db.query('insert into auth.users(id,email,email_confirmed_at,raw_user_meta_data)values($1,$2,now(),$3)',[expiredIdentity,'vencida@example.invalid',{full_name:'Cuenta vencida'}]);
+ await db.query('update public.berry_profiles set enabled=true,must_change_password=false where id=$1',[expiredIdentity]);
+ const revision=(await db.query('select access_revision from public.berry_profiles where id=$1',[expiredIdentity])).rows[0].access_revision;
+ const deleted=(await identityRpc('berry_manage_account',[expiredIdentity,revision,'delete',{}])).rows[0].value;
+ await db.query("update public.berry_profiles set deleted_at=now()-interval '4 months' where id=$1",[expiredIdentity]);
+ const input={...identityInput,email:'vencida@example.invalid',full_name:'Cuenta vencida'};
+ await assert.rejects(()=>identityRpc('berry_begin_account_restore',[expiredOperation,expiredIdentity,deleted.access_revision,input]),error=>error.code==='22023' && error.message==='RESTORE_EXPIRED');
+ const matches=(await identityRpc('berry_account_matches',[input.email,input.full_name])).rows[0].value;assert.equal(matches[0].can_restore,false);assert.equal(matches[0].can_rehire,true);
+ assert.equal((await db.query('select enabled from public.berry_profiles where id=$1',[expiredIdentity])).rows[0].enabled,false);
+});
+
+test('a pending identity operation is visible and resumes under a fresh request without duplicating reservations',async()=>{
+ const target='99600000-0000-4000-8000-000000000001',operation='99600000-0000-4000-8000-000000000002',retry='99600000-0000-4000-8000-000000000003',secondAdmin='99600000-0000-4000-8000-000000000004';
+ const input={...identityInput,email:'pendiente@example.invalid',full_name:'Solicitud pendiente'};
+ await db.query('insert into auth.users(id,email,email_confirmed_at,raw_user_meta_data)values($1,$2,now(),$3)',[target,input.email,{full_name:input.full_name}]);
+ await db.query('update public.berry_profiles set enabled=true,must_change_password=false where id=$1',[target]);
+ const before=(await db.query('select access_revision from public.berry_profiles where id=$1',[target])).rows[0].access_revision;
+ const removed=(await identityRpc('berry_manage_account',[target,before,'delete',{}])).rows[0].value;
+ await identityRpc('berry_begin_account_resolution',[operation,target,removed.access_revision,'rehire',input]);
+ const match=(await identityRpc('berry_account_matches',[input.email,input.full_name])).rows[0].value[0];assert.equal(match.pending.mode,'rehire');assert.deepEqual(match.pending.input,input);
+ const resumed=(await identityRpc('berry_begin_account_resolution',[retry,target,removed.access_revision,'rehire',input])).rows[0].value;assert.equal(resumed.operation_id,operation);
+ assert.equal((await db.query('select count(*)::int as n from berry_private.account_resolutions where input->>\'email\'=$1',[input.email])).rows[0].n,1);
+ await db.query('insert into auth.users(id,email,email_confirmed_at)values($1,$2,now())',[secondAdmin,'segunda-admin@example.invalid']);
+ await db.query("update public.berry_profiles set enabled=true,must_change_password=false,role='admin',can_create_inspections=true,can_receive_inspections=true where id=$1",[secondAdmin]);
+ const transferred=(await as('authenticated',secondAdmin,'select public.berry_begin_account_resolution($1,$2,$3,$4,$5) as value',[retry,target,removed.access_revision,'rehire',input],freshCatalogClaims)).rows[0].value;assert.equal(transferred.operation_id,operation);assert.equal(transferred.actor_id,secondAdmin);
+ assert.equal((await db.query("select count(*)::int as n from public.berry_audit where entity_type='account_resolutions' and entity_id=$1 and action='resume'",[operation])).rows[0].n,1);
+});
+
 let failed;
 try {
   await setup();
