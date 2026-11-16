@@ -17,8 +17,8 @@ for (const width of [1366, 390]) test(`buscador de recibidas combina estado, reg
     return JSON.stringify(await loadInspections());
   });
   await page.reload(); const menu = page.getByRole('button', { name: 'Abrir menú', exact: true }); if (await menu.isVisible()) await menu.click();
-  await page.locator('.sidebar-nav').getByRole('button', { name: 'Observaciones a mi cargo', exact: true }).click();
-  const search = page.getByRole('textbox', { name: 'Buscar en Observaciones a mi cargo', exact: true }), rows = page.locator('.inspection-list-row');
+  await page.locator('.sidebar-nav').getByRole('button', { name: 'Buzón de Inspecciones', exact: true }).click();
+  const search = page.getByRole('textbox', { name: 'Buscar en Buzón de Inspecciones', exact: true }), rows = page.locator('.inspection-list-row');
   await expect(rows).toHaveCount(2); await expect(rows.filter({ hasText: 'Taller ajeno' })).toHaveCount(0);
   for (const [query, title] of [['052', 'Almacén de Producción'], ['PRODUCCION', 'Almacén de Producción'], ['JOSE', 'Taller de maquinaria'], ['norte', 'Taller de maquinaria']] as const) {
     await search.fill(query); await expect(rows).toHaveCount(1); await expect(rows).toContainText(title);

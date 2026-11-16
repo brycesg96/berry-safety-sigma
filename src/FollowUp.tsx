@@ -1,7 +1,7 @@
 import { Select } from './Select';
 import { hasPendingChanges, unsavedMessage, usePendingChanges } from './manual-save';
 import { useEffect, useRef, useState } from 'react';
-import { ArrowLeft, Camera, Check, Download, ImagePlus, LoaderCircle, Pencil, RefreshCw, Send, X } from 'lucide-react';
+import { ArrowLeft, BadgeCheck, Camera, Check, Clock3, Download, ImagePlus, LoaderCircle, MessageSquareText, Pencil, RefreshCw, RotateCcw, Send, X } from 'lucide-react';
 import { Badge, Field, Modal } from './components';
 import type { Inspection } from './model';
 import { formatDate, preparePhoto } from './model';
@@ -92,9 +92,20 @@ function CorrectionForm({ inspection, observationId, actor, owner, recipient, on
     } catch (e) { setError(e instanceof Error ? e.message : 'No se pudo guardar.'); } finally { actionPending.current = false; setBusy(false); }
   }
   return <div className="correction-form"><h3>Levantamiento de resultados de la inspección</h3>
-    {saved?.decision === 'review' && <p className="notice">Levantamiento enviado. Pendiente de revisión del autor.</p>}
-    {saved?.decision === 'approved' && <p className="notice">Levantamiento aprobado · Ejecutado.</p>}
-    {saved?.note && <p className="notice"><strong>Observación del revisor:</strong> {saved.note}</p>}
+    {saved && saved.decision !== 'draft' && <section className="correction-state-summary" aria-label="Estado del levantamiento">
+      <span className="correction-section-label">Estado del levantamiento</span>
+      <p className={`correction-state-badge correction-state-${saved.decision}`}>
+        {saved.decision === 'approved' ? <BadgeCheck size={18} aria-hidden="true"/> : saved.decision === 'changes' ? <RotateCcw size={17} aria-hidden="true"/> : <Clock3 size={17} aria-hidden="true"/>}
+        <span>{saved.decision === 'approved' ? 'Levantamiento aprobado · Ejecutado.' : saved.decision === 'changes' ? 'Ajustes solicitados · Pendiente.' : 'Levantamiento enviado. Pendiente de revisión del autor.'}</span>
+      </p>
+    </section>}
+    {saved?.note && <section className="correction-conversation" aria-label="Comentarios de revisión">
+      <h4><MessageSquareText size={16} aria-hidden="true"/>Comentarios de revisión</h4>
+      <div className="correction-review-message">
+        <div className="correction-message-author"><strong>{inspection.inspector}</strong><span>Responsable de la inspección</span></div>
+        <p>{saved.note}</p>
+      </div>
+    </section>}
     <div className="correction-layout"><div className="correction-texts"><Field label="Apellidos y nombres del responsable del levantamiento" required>{props => <input {...props} value={closed ? value.responsibleName : blankCorrection(inspection, observationId).responsibleName} readOnly aria-readonly="true" title="Nombre registrado al asignar la inspección."/>}</Field>
     <Field label="Acción realizada" required>{props => <textarea {...props} rows={3} maxLength={5000} value={value.action} readOnly={locked || busy} onChange={e => update('action', e.target.value)} placeholder="Detalla cómo se corrigió el hallazgo."/>}</Field>
     </div><div className="correction-details"><div className="correction-metadata"><Field label="Fecha de Cierre" required>{props => <input {...props} type="date" value={value.date} readOnly={locked || busy} onChange={e => update('date', e.target.value)}/>}</Field><Field label="Estado">{props => <Select {...props} value={value.state} disabled={closed || busy || !recipient} onChange={state => update('state', state as Correction['state'])} options={[{value:'Pendiente',label:'Pendiente'},{value:'Ejecutado',label:'Ejecutado'}]}/>}</Field></div>
