@@ -17,7 +17,7 @@ const timestamp = (value?: string | null) => value && Number.isFinite(Date.parse
 const dateText = (value?: string) => { const date = dateValue(value); return date instanceof Date ? new Intl.DateTimeFormat('es-PE', { timeZone: 'UTC', day: '2-digit', month: '2-digit', year: 'numeric' }).format(date) : String(date); };
 const emailList = (emails: (string | undefined)[]) => [...new Map(emails.filter(Boolean).map(email => [email!.trim().toLowerCase(), email!.trim()])).values()].join('\n');
 const riskLabel = { baja: 'Bajo', media: 'Medio', alta: 'Alto' };
-const decisionLabel = { approved: 'Aprobado', changes: 'Ajustes solicitados', review: 'Por validar / aprobar', draft: 'Borrador' };
+const decisionLabel = { approved: 'Aprobado', changes: 'Correcciones solicitadas', review: 'Por validar / aprobar', draft: 'Borrador' };
 const emailState = { pending: 'Pendiente', accepted: 'Aceptada por el servicio', rejected: 'Rechazada por el servicio', unconfirmed: 'Sin confirmación del servicio' };
 type Column = { label: string; width: number; group: string; format?: string };
 const col = (label: string, width: number, group: string, format?: string): Column => ({ label, width, group, format });
@@ -68,8 +68,8 @@ function table(book: Workbook, name: string, description: string, columns: Colum
       if (column.format) cell.numFmt = column.format;
       const content = cell.text;
       lines = Math.max(lines, ...content.split('\n').map(line => Math.ceil(line.length / Math.max(8, column.width - 3))));
-      if (['Bajo', 'Ejecutado', 'Aprobado', 'Cerrada'].includes(content) || ['Medio', 'Por validar / aprobar', 'En revisión'].includes(content) || ['Alto', 'Vencida', 'Ajustes solicitados'].includes(content)) {
-        const warning = ['Medio', 'Por validar / aprobar', 'En revisión'].includes(content), danger = ['Alto', 'Vencida', 'Ajustes solicitados'].includes(content);
+      if (['Bajo', 'Ejecutado', 'Aprobado', 'Cerrada'].includes(content) || ['Medio', 'Por validar / aprobar', 'En revisión'].includes(content) || ['Alto', 'Vencida', 'Correcciones solicitadas'].includes(content)) {
+        const warning = ['Medio', 'Por validar / aprobar', 'En revisión'].includes(content), danger = ['Alto', 'Vencida', 'Correcciones solicitadas'].includes(content);
         cell.fill = fill(danger ? palette.redBg : warning ? palette.amberBg : palette.light);
         cell.font = { name: font, size: 10, bold: true, color: { argb: danger ? palette.red : warning ? palette.amber : palette.green } };
       }

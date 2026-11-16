@@ -234,7 +234,22 @@ test('private drafts resume on another device and full approval replaces the ini
   expect(await receiver.evaluate(()=>localStorage.getItem('berry-last-submitted-texts'))).toBeNull();
   await receiver.waitForFunction(()=>document.querySelector('.sidebar')!.getBoundingClientRect().right<=0);
   await receiver.screenshot({path:'/tmp/berry-cloud-mobile.png',fullPage:true,animations:'disabled'});
-  await receiver.getByLabel('Acción realizada').fill('Protección instalada.');await receiver.getByRole('button',{name:'Guardar avance',exact:true}).click();await receiver.getByRole('button',{name:'Enviar a revisión',exact:true}).click();await expect(receiver.getByText('Levantamiento enviado a revisión.',{exact:true})).toBeVisible();
+  const submissions:any[]=[];let failSubmission=true;
+  await receiver.route(`${project}/rest/v1/rpc/berry_change_correction`,async route=>{
+    const input=route.request().postDataJSON();submissions.push(input);
+    if(failSubmission){failSubmission=false;return route.fulfill({status:503,json:{message:'Service unavailable'}});}
+    return route.fallback();
+  });
+  await receiver.getByLabel('Acción realizada').fill('Protección instalada.');
+  await receiver.getByRole('button',{name:'Enviar levantamiento',exact:true}).click();
+  await expect(receiver.getByRole('alert')).toBeVisible();
+  await expect(receiver.getByText('Avance guardado y levantamiento enviado a revisión.',{exact:true})).toHaveCount(0);
+  await expect(receiver.getByLabel('Acción realizada')).toHaveValue('Protección instalada.');
+  expect(row.data.delivery.corrections[row.data.observations[0].id]).toBeUndefined();
+  await receiver.getByRole('button',{name:'Enviar levantamiento',exact:true}).click();
+  await expect(receiver.getByText('Avance guardado y levantamiento enviado a revisión.',{exact:true})).toBeVisible();
+  expect(submissions.map(input=>input.p_action)).toEqual(['submit','submit']);
+  expect(row.data.delivery.corrections[row.data.observations[0].id]).toMatchObject({action:'Protección instalada.',decision:'review'});
   await other.getByRole('button',{name:'Volver',exact:true}).click();await other.getByRole('button',{name:'Revisar informe',exact:true}).click();
   await expect(other.getByLabel('Apellidos y nombres del responsable del levantamiento')).toHaveValue('Bruno Responsable');
   await other.getByLabel('Comentario de revisión').fill('Comentario interno del revisor.');

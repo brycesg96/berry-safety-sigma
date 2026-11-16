@@ -92,7 +92,7 @@ for (const width of [1366, 390]) test(`salir de una inspección permite cancelar
     await page.locator('.sidebar-nav').getByRole('button', { name, exact: true }).click();
   }
   await field.fill('Nueva sin guardar'); await navigate('Mis inspecciones');
-  await expect(dialog).toBeVisible(); await expect(dialog).not.toContainText('Guardar avance'); expect(await storedCount(page)).toBe(0);
+  await expect(dialog).toBeVisible(); await expect(dialog).not.toContainText('Guardar Avance'); expect(await storedCount(page)).toBe(0);
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   await dialog.screenshot({ path: test.info().outputPath(`cambios-pendientes-${width}.png`) });
   await dialog.getByRole('button', { name: 'Seguir editando', exact: true }).click(); await expect(field).toHaveValue('Nueva sin guardar');
