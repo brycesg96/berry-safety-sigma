@@ -1477,6 +1477,63 @@ test('Fundo import replay preserves administrator names, retirements, manual ord
  assert.equal((await identityRpc('berry_location_catalog',[])).rows[0].value.installationsReady,false);
 });
 
+const manualInstallationsMigration=await readFile(new URL('../migrations/202611160022_manual_installations.sql',import.meta.url),'utf8');
+const manualPoint='99000000-0000-4000-8000-000000000001',secondManualPoint='99000000-0000-4000-8000-000000000002';
+test('manual installation upgrade leaves catalogs, imported Fundo points, scopes, profiles and inspection history unchanged',async()=>{
+ const locations=(await db.query('select * from public.berry_locations order by id')).rows,scopes=(await db.query('select * from berry_private.location_installation_scopes order by node_id')).rows;
+ const profiles=(await db.query('select * from public.berry_profiles order by id')).rows,reports=(await db.query('select * from public.berry_inspections order by id')).rows;
+ await db.exec(manualInstallationsMigration);
+ assert.deepEqual((await db.query('select * from public.berry_locations order by id')).rows,locations);
+ assert.deepEqual((await db.query('select * from berry_private.location_installation_scopes order by node_id')).rows,scopes);
+ assert.deepEqual((await db.query('select * from public.berry_profiles order by id')).rows,profiles);
+ assert.deepEqual((await db.query('select * from public.berry_inspections order by id')).rows,reports);
+ assert.equal((await db.query("select relrowsecurity from pg_class where oid='berry_private.location_installation_scopes'::regclass")).rows[0].relrowsecurity,true);
+});
+test('administrator can manually add the first installation outside Fundo and activate only that site and zone',async()=>{
+ const before=(await identityRpc('berry_location_catalog',[])).rows[0].value;
+ assert.ok(!before.installationSiteIds.includes(locationSite));assert.ok(!before.installationZoneIds.includes(locationZone));
+ await denied(()=>locationRpc([manualPoint,'installation',locationZone,'Taller añadido manualmente',true,null],catalogUser));
+ const added=(await locationRpc([manualPoint,'installation',locationZone,'Taller añadido manualmente',true,null])).rows[0].value;
+ assert.equal(added.parent_id,locationZone);
+ const next=(await identityRpc('berry_location_catalog',[])).rows[0].value;
+ assert.equal(next.installationsReady,false);assert.deepEqual(new Set(next.installationSiteIds),new Set([...before.installationSiteIds,locationSite]));
+ assert.deepEqual(new Set(next.installationZoneIds),new Set([...before.installationZoneIds,locationZone]));
+ const point={source:'catalog',siteId:locationSite,zoneId:locationZone,site:'Nombre del cliente',zone:'Nombre del cliente',installationId:manualPoint,detail:'Nombre del cliente',installationPending:true};
+ const location=(await db.query('select berry_private.canonical_location($1,$2) value',['99000000-0000-4000-8000-000000000003',point])).rows[0].value;
+ assert.equal(location.detail,'Taller añadido manualmente');assert.equal(location.installationPending,false);
+ await db.query('select berry_private.require_location($1)',[{id:'99000000-0000-4000-8000-000000000003',areaLocation:location}]);
+});
+test('manual installation changes validate parents, duplicates and revisions and allow move, reorder, retirement and restoration',async()=>{
+ await assert.rejects(()=>locationRpc(['99000000-0000-4000-8000-000000000004','installation',locationSite,'Sin zona válida',true,null]),e=>e.code==='22023');
+ await assert.rejects(()=>locationRpc(['99000000-0000-4000-8000-000000000005','installation',locationZone,'Taller añadido manualmente',true,null]),e=>e.code==='23505');
+ const renamed=(await locationRpc([manualPoint,'installation',locationZone,'Taller actualizado',true,1])).rows[0].value;
+ await assert.rejects(()=>locationRpc([manualPoint,'installation',locationZone,'Edición obsoleta',true,1]),e=>e.code==='40001');
+ const zone='99000000-0000-4000-8000-000000000006',site='99000000-0000-4000-8000-000000000007';
+ await locationRpc([site,'site',null,'Sede sin lista importada',true,null]);await locationRpc([zone,'zone',site,'Zona sin lista importada',true,null]);
+ const moved=(await locationRpc([manualPoint,'installation',zone,renamed.name,true,renamed.revision])).rows[0].value;
+ const catalog=(await identityRpc('berry_location_catalog',[])).rows[0].value;assert.ok(catalog.installationSiteIds.includes(site));assert.ok(catalog.installationZoneIds.includes(zone));
+ await locationRpc([secondManualPoint,'installation',zone,'Segunda instalación manual',true,null]);
+ const reordered=(await orderRpc('locations',[...(await siblings('berry_locations',manualPoint))].reverse())).rows[0].value;
+ assert.equal(reordered[0].id,secondManualPoint);
+ const current=reordered.find(n=>n.id===manualPoint);
+ const retired=(await locationRpc([manualPoint,'installation',zone,current.name,false,current.revision])).rows[0].value;
+ const restored=(await locationRpc([manualPoint,'installation',zone,current.name,true,retired.revision])).rows[0].value;assert.equal(restored.id,moved.id);
+ await locationRpc([site,'site',null,'Sede sin lista importada',false,1]);
+ await assert.rejects(()=>locationRpc(['99000000-0000-4000-8000-000000000008','installation',zone,'En sede retirada',true,null]),e=>e.code==='22023');
+});
+test('a disabled manual installation does not activate an empty zone, and upgrade replays preserve all changes',async()=>{
+ const site='99000000-0000-4000-8000-000000000009',zone='99000000-0000-4000-8000-000000000010',point='99000000-0000-4000-8000-000000000011';
+ await locationRpc([site,'site',null,'Otra sede pendiente',true,null]);await locationRpc([zone,'zone',site,'Otra zona pendiente',true,null]);
+ await locationRpc([point,'installation',zone,'Instalación retirada',false,null]);
+ const before=(await identityRpc('berry_location_catalog',[])).rows[0].value;assert.ok(!before.installationSiteIds.includes(site));assert.ok(!before.installationZoneIds.includes(zone));
+ await locationRpc([point,'installation',zone,'Instalación retirada',true,1]);
+ const locations=(await db.query('select * from public.berry_locations order by id')).rows,scopes=(await db.query('select * from berry_private.location_installation_scopes order by node_id')).rows;
+ await db.exec(manualInstallationsMigration);
+ assert.deepEqual((await db.query('select * from public.berry_locations order by id')).rows,locations);
+ assert.deepEqual((await db.query('select * from berry_private.location_installation_scopes order by node_id')).rows,scopes);
+ await denied(()=>as('authenticated',users.author,'select * from berry_private.location_installation_scopes',[],freshCatalogClaims));
+});
+
 let failed;
 try {
   await setup();

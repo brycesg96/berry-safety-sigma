@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { ArrowDownUp, Building2, Check, LoaderCircle, Pencil, Plus, RefreshCw, RotateCcw, Search, Trash2 } from 'lucide-react';
 import { Field, Modal } from './components';
 import { Select } from './Select';
-import { installationsReadyForSite, reorderLocationNodes, loadLocationNodes, refreshLocationCatalog, saveLocationNode, locationNodeActive, useLocationCatalog } from './location-catalog';
+import { reorderLocationNodes, loadLocationNodes, refreshLocationCatalog, saveLocationNode, locationNodeActive } from './location-catalog';
 import type { LocationKind, LocationNode } from './location-catalog';
 import { locationLabel } from './location-label';
 import { compareCatalogNodes, hasCatalogOrder, moveCatalogNode } from './catalog-order';
@@ -13,7 +13,7 @@ import './organization-admin.css';
 const normalized = (value: string) => value.normalize('NFD').replace(/\p{Diacritic}/gu, '').toLocaleLowerCase('es').trim();
 const singular = { site: 'sede', zone: 'zona', installation: 'instalación' };
 const plural = { site: 'Sedes', zone: 'Zonas', installation: 'Instalaciones' };
-type Editor = { node: LocationNode; creating: boolean; displayName: string };
+type Editor = { node: LocationNode; creating: boolean; displayName: string; siteId?: string };
 
 export function CloudLocations({ isCurrent, onBusyChange }: { isCurrent: () => boolean; onBusyChange: (busy: boolean) => void }) {
   const [nodes, setNodes] = useState<LocationNode[]>([]);
@@ -44,8 +44,6 @@ export function CloudLocations({ isCurrent, onBusyChange }: { isCurrent: () => b
     return () => { active = false; window.removeEventListener('focus', refresh); };
   }, [retry]);
 
-  const catalog = useLocationCatalog();
-  const installationReady = installationsReadyForSite(catalog, site);
   const byId = new Map(nodes.map(node => [node.id, node]));
   const active = (node: LocationNode) => locationNodeActive(node, nodes);
   const visible = nodes.filter(node => showRemoved || active(node)).sort(compareCatalogNodes);
@@ -59,7 +57,10 @@ export function CloudLocations({ isCurrent, onBusyChange }: { isCurrent: () => b
   };
   const add = (kind: LocationKind) => {
     setError(''); setMessage('');
-    setEditor({ creating: true, displayName: '', node: { id: crypto.randomUUID(), kind, parent_id: kind === 'site' ? null : kind === 'zone' ? site : zone, name: '', enabled: true, revision: 1 } });
+    const selectedSite = byId.get(site), selectedZone = byId.get(zone);
+    const siteId = selectedSite && active(selectedSite) ? site : '';
+    const zoneId = selectedZone && active(selectedZone) ? zone : '';
+    setEditor({ creating: true, displayName: '', ...(kind === 'installation' ? { siteId } : {}), node: { id: crypto.randomUUID(), kind, parent_id: kind === 'site' ? null : kind === 'zone' ? site : zoneId, name: '', enabled: true, revision: 1 } });
   };
   const commit = async (node: LocationNode, creating = false) => {
     if (busy) return;
@@ -70,6 +71,7 @@ export function CloudLocations({ isCurrent, onBusyChange }: { isCurrent: () => b
       setNodes(previous => [...previous.filter(item => item.id !== saved.id), saved]);
       if (saved.kind === 'site') { setSite(saved.id); setZone(''); }
       if (saved.kind === 'zone') { setSite(saved.parent_id!); setZone(saved.id); }
+      if (saved.kind === 'installation') { setSite(byId.get(saved.parent_id!)?.parent_id || ''); setZone(saved.parent_id!); setQuery(''); }
       setEditor(null); setRemoving(null);
       const label = saved.kind === 'site' ? 'Sede' : saved.kind === 'zone' ? 'Zona' : 'Instalación';
       const ending = 'a';
@@ -99,7 +101,9 @@ export function CloudLocations({ isCurrent, onBusyChange }: { isCurrent: () => b
     catch (problem) { if (live.current && current.current()) setError(problem instanceof Error ? problem.message : 'No pudimos actualizar las listas.'); }
   };
   const editParentKind = editor?.node.kind === 'zone' ? 'site' : 'zone';
-  const parentOptions = nodes.filter(node => node.kind === editParentKind && (active(node) || node.id === editor?.node.parent_id) && (editor?.node.kind !== 'installation' || installationsReadyForSite(catalog, node.parent_id) || node.id === editor.node.parent_id)).sort(compareCatalogNodes).map(node => ({ value: node.id, label: locationLabel(node.name), description: node.kind === 'zone' ? locationLabel(byId.get(node.parent_id!)?.name) : !active(node) ? 'Retirada' : undefined }));
+  const installationSiteId = editor?.siteId ?? byId.get(editor?.node.parent_id || '')?.parent_id ?? '';
+  const siteOptions = nodes.filter(node => node.kind === 'site' && (active(node) || node.id === installationSiteId)).sort(compareCatalogNodes).map(node => ({ value: node.id, label: locationLabel(node.name) }));
+  const parentOptions = nodes.filter(node => node.kind === editParentKind && (active(node) || node.id === editor?.node.parent_id) && (editor?.node.kind !== 'installation' || node.parent_id === installationSiteId)).sort(compareCatalogNodes).map(node => ({ value: node.id, label: locationLabel(node.name), description: node.kind === 'zone' ? locationLabel(byId.get(node.parent_id!)?.name) : !active(node) ? 'Retirada' : undefined }));
   return <section className="organization-catalog" aria-label="Catálogo de instalaciones">
     <div className="organization-heading"><div><h2>Sedes, Zonas E Instalaciones</h2><p>Administra las sedes, zonas y instalaciones disponibles en las inspecciones.</p></div><button type="button" className="button button-outline" disabled={loading || locked.current} onClick={() => void refreshAll()}>{loading ? <LoaderCircle size={16} className="spin"/> : <RefreshCw size={16}/>}Actualizar listas</button></div>
     {error && !editor && !removing && <p role="alert" className="notice notice-error">{error}</p>}{message && <p role="status" className="account-success cloud-message">{message}</p>}
@@ -108,19 +112,22 @@ export function CloudLocations({ isCurrent, onBusyChange }: { isCurrent: () => b
     <div className="catalog-order-toolbar"><button type="button" className="button button-outline" aria-pressed={ordering} disabled={busy || loading || !!editor || !!removing || !hasCatalogOrder(nodes) || !!query.trim()} onClick={() => { setOrdering(value => !value); setError(''); }}><ArrowDownUp size={16}/>{ordering ? 'Terminar de ordenar' : 'Ordenar listas'}</button><p aria-live="polite">{ordering && busy ? 'Guardando orden…' : ordering ? 'Usa las flechas para subir, bajar o mover un elemento al principio o al final. Cada cambio se guarda automáticamente.' : query.trim() ? 'Borra la búsqueda para ordenar toda la lista.' : hasCatalogOrder(nodes) ? 'El orden que elijas también se usará en los desplegables de la plataforma.' : 'La opción de ordenar está pendiente de activación.'}</p></div>
     {loading && !ready ? <p role="status" className="cloud-loading"><LoaderCircle size={18} className="spin"/>Consultando las listas…</p> : <div className="organization-columns">{(['site', 'zone', 'installation'] as const).map(kind => {
       const parent = kind === 'zone' ? byId.get(site) : kind === 'installation' ? byId.get(zone) : undefined;
-      const enabled = ready && !busy && !ordering && (kind !== 'installation' || installationReady) && (kind === 'site' || !!parent && active(parent));
+      const enabled = ready && !busy && !ordering && (kind === 'installation' || kind === 'site' || !!parent && active(parent));
       return <section className="organization-column" key={kind} aria-label={plural[kind]}><div className="organization-column-heading"><h2>{kind === 'site' && <Building2 size={18}/>} {plural[kind]} <span>{lists[kind].length}</span></h2><button type="button" className="text-button" disabled={!enabled} aria-label={`Añadir ${singular[kind]}`} onClick={() => add(kind)}><Plus size={15}/>Añadir</button></div>
         {kind !== 'site' && <p className="organization-parent-name">{locationLabel(parent?.name) || `Selecciona ${kind === 'zone' ? 'una sede' : 'una zona'} para ver sus ${kind === 'zone' ? 'zonas' : 'instalaciones'}.`}</p>}
         <ul className="organization-node-list">{lists[kind].map((node, index) => {
           const selected = kind === 'site' ? site === node.id : kind === 'zone' ? zone === node.id : false;
           const available = active(node), canRestore = node.parent_id === null || !!byId.get(node.parent_id) && active(byId.get(node.parent_id)!);
-          return <li key={node.id} className={selected ? 'organization-node-selected' : ''}><div className="organization-node-name">{kind === 'installation' ? <span>{locationLabel(node.name)}</span> : <button type="button" aria-pressed={selected} onClick={() => { if (kind === 'site') { setSite(node.id); setZone(''); } else setZone(node.id); }}>{locationLabel(node.name)}</button>}{!available && <small>{node.enabled ? 'Su sede o zona está retirada' : 'Retirado'}</small>}</div><div className="organization-node-actions">{ordering ? <CatalogOrderControls label={locationLabel(node.name)} index={index} count={lists[kind].length} disabled={busy || !ready || kind === 'installation' && !installationReady} onMove={direction => void move(node, direction, lists[kind])}/> : <><button type="button" className="icon-button" aria-label={`Editar ${singular[kind]} ${locationLabel(node.name)}`} disabled={busy} onClick={() => { setError(''); setEditor({ node: { ...node }, creating: false, displayName: locationLabel(node.name) }); }}><Pencil size={15}/></button>{node.enabled ? <button type="button" className="icon-button delete-button" disabled={busy} aria-label={`Retirar ${singular[kind]} ${locationLabel(node.name)}`} onClick={() => { setError(''); setRemoving(node); }}><Trash2 size={15}/></button> : <button type="button" className="icon-button" disabled={busy || !canRestore} title={!canRestore ? 'Restaura primero su sede o zona.' : undefined} aria-label={`Restaurar ${singular[kind]} ${locationLabel(node.name)}`} onClick={() => void commit({ ...node, enabled: true })}><RotateCcw size={15}/></button>}</>}</div></li>;
-        })}</ul>{!lists[kind].length && <p className="organization-empty">{kind === 'installation' && !installationReady ? 'Lista de instalaciones pendiente. Esta opción permanecerá bloqueada hasta que se cargue la lista.' : terms.length ? 'No hay coincidencias en esta lista.' : kind === 'site' || parent ? 'Todavía no hay elementos en esta lista.' : `Elige ${kind === 'zone' ? 'una sede' : 'una zona'} de la lista anterior.`}</p>}
+          return <li key={node.id} className={selected ? 'organization-node-selected' : ''}><div className="organization-node-name">{kind === 'installation' ? <span>{locationLabel(node.name)}</span> : <button type="button" aria-pressed={selected} onClick={() => { if (kind === 'site') { setSite(node.id); setZone(''); } else setZone(node.id); }}>{locationLabel(node.name)}</button>}{!available && <small>{node.enabled ? 'Su sede o zona está retirada' : 'Retirado'}</small>}</div><div className="organization-node-actions">{ordering ? <CatalogOrderControls label={locationLabel(node.name)} index={index} count={lists[kind].length} disabled={busy || !ready} onMove={direction => void move(node, direction, lists[kind])}/> : <><button type="button" className="icon-button" aria-label={`Editar ${singular[kind]} ${locationLabel(node.name)}`} disabled={busy} onClick={() => { setError(''); setEditor({ node: { ...node }, creating: false, displayName: locationLabel(node.name) }); }}><Pencil size={15}/></button>{node.enabled ? <button type="button" className="icon-button delete-button" disabled={busy} aria-label={`Retirar ${singular[kind]} ${locationLabel(node.name)}`} onClick={() => { setError(''); setRemoving(node); }}><Trash2 size={15}/></button> : <button type="button" className="icon-button" disabled={busy || !canRestore} title={!canRestore ? 'Restaura primero su sede o zona.' : undefined} aria-label={`Restaurar ${singular[kind]} ${locationLabel(node.name)}`} onClick={() => void commit({ ...node, enabled: true })}><RotateCcw size={15}/></button>}</>}</div></li>;
+        })}</ul>{!lists[kind].length && <p className="organization-empty">{terms.length ? 'No hay coincidencias en esta lista.' : kind === 'installation' ? parent ? 'Todavía no hay instalaciones en esta zona. Puedes añadir la primera.' : 'Pulsa Añadir para crear una instalación y elegir su sede y zona.' : kind === 'site' || parent ? 'Todavía no hay elementos en esta lista.' : `Elige ${kind === 'zone' ? 'una sede' : 'una zona'} de la lista anterior.`}</p>}
       </section>;
     })}</div>}
     {editor && <Modal title={`${editor.creating ? 'Añadir' : 'Editar'} ${singular[editor.node.kind]}`} onClose={() => !busy && setEditor(null)}><form onSubmit={event => { event.preventDefault(); void commit(editor.node, editor.creating); }}>
-      {editor.node.kind !== 'site' && <Field label={editor.node.kind === 'zone' ? 'Sede' : 'Zona'} required>{props => <Select {...props} searchable searchLabel={editor.node.kind === 'zone' ? 'Buscar sedes' : 'Buscar zonas'} value={editor.node.parent_id || ''} disabled={busy} placeholder={editor.node.kind === 'zone' ? 'Selecciona una sede' : 'Selecciona una zona'} options={parentOptions} onChange={value => setEditor(previous => previous && { ...previous, node: { ...previous.node, parent_id: value } })}/>}</Field>}
-      <Field label={`Nombre ${editor.node.kind === 'zone' ? 'de la zona' : editor.node.kind === 'site' ? 'de la sede' : 'de la instalación'}`} required>{props => <input {...props} autoFocus required maxLength={250} disabled={busy} value={editor.displayName} onChange={event => setEditor(previous => previous && { ...previous, displayName: event.target.value, node: { ...previous.node, name: event.target.value } })}/>}</Field>
+      {editor.node.kind === 'installation' && <Field label="Sede" required>{props => <Select {...props} searchable searchLabel="Buscar sedes" disabled={busy} value={installationSiteId} placeholder="Selecciona una sede" options={siteOptions} onChange={value => setEditor(previous => previous && { ...previous, siteId: value, node: { ...previous.node, parent_id: byId.get(previous.node.parent_id || '')?.parent_id === value ? previous.node.parent_id : '' } })}/>}</Field>}
+      {editor.node.kind === 'installation' && !nodes.some(node => node.kind === 'zone' && active(node) && (!installationSiteId || node.parent_id === installationSiteId)) && <p className="field-hint">{installationSiteId ? 'Esta sede no tiene zonas activas. Añade una zona en el catálogo para continuar.' : 'Añade primero una sede y una zona activas en las listas del catálogo.'}</p>}
+
+      {editor.node.kind !== 'site' && <Field label={editor.node.kind === 'zone' ? 'Sede' : 'Zona'} required>{props => <Select {...props} searchable searchLabel={editor.node.kind === 'zone' ? 'Buscar sedes' : 'Buscar zonas'} value={editor.node.parent_id || ''} disabled={busy || editor.node.kind === 'installation' && !installationSiteId} placeholder={editor.node.kind === 'zone' ? 'Selecciona una sede' : 'Selecciona una zona'} options={parentOptions} onChange={value => setEditor(previous => previous && { ...previous, node: { ...previous.node, parent_id: value } })}/>}</Field>}
+      <Field label={`Nombre ${editor.node.kind === 'zone' ? 'de la zona' : editor.node.kind === 'site' ? 'de la sede' : 'de la instalación'}`} required>{props => <input {...props} autoFocus={editor.node.kind !== 'installation' || !!editor.node.parent_id} required maxLength={250} disabled={busy} value={editor.displayName} onChange={event => setEditor(previous => previous && { ...previous, displayName: event.target.value, node: { ...previous.node, name: event.target.value } })}/>}</Field>
       {error && <p role="alert" className="error-message cloud-message">{error}</p>}<div className="modal-actions"><button type="button" className="button button-outline" disabled={busy} onClick={() => setEditor(null)}>Cancelar</button><button type="submit" className="button button-primary" disabled={busy || !editor.node.name.trim() || editor.node.kind !== 'site' && !editor.node.parent_id}>{busy ? <LoaderCircle size={16} className="spin"/> : <Check size={16}/>}Guardar</button></div>
     </form></Modal>}
     {removing && <Modal title={`Retirar ${singular[removing.kind]}`} onClose={() => !busy && setRemoving(null)}><p className="modal-description">Se quitará <strong>{locationLabel(removing.name)}</strong> de las listas de selección.{removing.kind !== 'installation' && ' Sus zonas e instalaciones asociadas tampoco estarán disponibles mientras esté retirado.'} Las inspecciones existentes conservarán su información.</p>{error && <p role="alert" className="error-message cloud-message">{error}</p>}<div className="modal-actions"><button type="button" className="button button-outline" disabled={busy} onClick={() => setRemoving(null)}>Cancelar</button><button type="button" className="button button-danger" disabled={busy} onClick={() => void commit({ ...removing, enabled: false })}>{busy ? <LoaderCircle size={16} className="spin"/> : <Trash2 size={16}/>}Retirar</button></div></Modal>}

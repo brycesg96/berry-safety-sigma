@@ -39,8 +39,10 @@ async function mock(context: BrowserContext, state: ReturnType<typeof stateOf>) 
       if (state.fail) return route.fulfill({ status: 503, json: { message: 'offline' } });
       const old = state.nodes.find(node => node.id === body.p_id);
       if (old && body.p_expected !== old.revision) return route.fulfill({ status: 409, json: { code: '40001' } });
-      const node: LocationNode = { id: body.p_id, kind: body.p_kind, parent_id: body.p_parent_id, name: body.p_name, enabled: body.p_enabled, revision: old ? old.revision + 1 : 1, ...(old?.sort_order !== undefined ? { sort_order: old.sort_order } : {}) };
-      state.nodes = [...state.nodes.filter(value => value.id !== node.id), node]; return route.fulfill({ json: node });
+      const node: LocationNode = { id: body.p_id, kind: body.p_kind, parent_id: body.p_parent_id, name: body.p_name, enabled: body.p_enabled, revision: old ? old.revision + 1 : 1, sort_order: old?.sort_order ?? Math.max(0, ...state.nodes.filter(n => n.kind === body.p_kind && n.parent_id === body.p_parent_id).map(n => n.sort_order || 0)) + 1 };
+      state.nodes = [...state.nodes.filter(value => value.id !== node.id), node];
+      if (node.kind === 'installation' && node.enabled) { const siteId = state.nodes.find(n => n.id === node.parent_id)!.parent_id!; state.sites = [...new Set([...state.sites, siteId])]; state.zones = [...new Set([...state.zones, node.parent_id!])]; }
+      return route.fulfill({ json: node });
     }
     if (path === '/rest/v1/rpc/berry_cloud_session') return route.fulfill({ json: admin });
     if (path === '/rest/v1/rpc/berry_cloud_tombstones' || path === '/rest/v1/berry_inspections') return route.fulfill({ json: [] });
@@ -76,11 +78,11 @@ for (const width of [1366, 768, 390]) test(`Fundo permite elegir una instalació
   await summary.screenshot({ path: test.info().outputPath(`ubicacion-etiqueta-${width}.png`) }); expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
 });
 
-for (const width of [1366, 390]) test(`dos apartados administran áreas y lugares; sedes y zonas se editan, las instalaciones siguen pendientes (${width}px)`, async ({ page, context }) => {
+for (const width of [1366, 390]) test(`dos apartados administran áreas y lugares; sedes y zonas se editan, se pueden añadir instalaciones manuales (${width}px)`, async ({ page, context }) => {
   await page.setViewportSize({ width, height: 900 }); const state = stateOf(); await mock(context, state); await login(page);
   await expect(page.getByRole('heading', { name: 'Gestión De Áreas E Instalaciones', exact: true })).toBeVisible();
   await page.getByRole('button', { name: 'Instalaciones', exact: true }).click(); await page.getByRole('button', { name: 'Fundo', exact: true }).click(); await page.getByRole('button', { name: 'Armonía I', exact: true }).click();
-  await expect(page.getByRole('button', { name: 'Añadir instalación', exact: true })).toBeDisabled();
+  await expect(page.getByRole('button', { name: 'Añadir instalación', exact: true })).toBeEnabled();
   await page.getByRole('button', { name: 'Editar zona Armonía I', exact: true }).click();
   const dialog = page.getByRole('dialog'); await expect(page.getByRole('button', { name: 'Áreas', exact: true })).toBeDisabled();
   await dialog.getByLabel('Nombre de la zona').fill('Zona Corregida'); state.fail = true; await dialog.getByRole('button', { name: 'Guardar', exact: true }).click(); await expect(dialog.getByRole('alert')).toContainText('No pudimos confirmar');
@@ -201,6 +203,56 @@ for (const width of [1366, 390]) test(`Fundo permite editar, retirar, restaurar 
   await expect(page.getByText(name, { exact: true })).toBeVisible();
   await page.locator('.organization-columns').screenshot({ path: test.info().outputPath(`instalaciones-fundo-${width}.png`) });
   await page.getByRole('button', { name: 'Packing Chao', exact: true }).click();
-  await expect(page.getByRole('button', { name: 'Añadir instalación', exact: true })).toBeDisabled();
+  await expect(page.getByRole('button', { name: 'Añadir instalación', exact: true })).toBeEnabled();
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+});
+
+for (const width of [1366, 768, 390]) test(`Añadir instalación abre sede y zona sin selección previa y permite completar una sede sin catálogo importado (${width}px)`, async ({ page, context }) => {
+  await page.setViewportSize({ width, height: 900 }); const state = stateOf(); await mock(context, state); await login(page);
+  await page.getByRole('button', { name: 'Instalaciones', exact: true }).click();
+  const add = page.getByRole('button', { name: 'Añadir instalación', exact: true }); await expect(add).toBeEnabled(); await add.click();
+  const dialog = page.getByRole('dialog', { name: 'Añadir instalación', exact: true });
+  await expect(dialog.getByRole('combobox', { name: 'Sede', exact: true })).toBeEnabled();
+  await expect(dialog.getByRole('combobox', { name: 'Zona', exact: true })).toBeDisabled();
+  await expect(dialog.getByRole('button', { name: 'Guardar', exact: true })).toBeDisabled();
+  const site = INITIAL_LOCATION_NODES.find(n => n.kind === 'site' && n.name === 'Packing Chao')!, zone = INITIAL_LOCATION_NODES.find(n => n.parent_id === site.id && n.kind === 'zone')!;
+  await selectValue(dialog.getByRole('combobox', { name: 'Sede', exact: true }), site.id);
+  await selectValue(dialog.getByRole('combobox', { name: 'Zona', exact: true }), zone.id);
+  await dialog.getByRole('textbox', { name: 'Nombre de la instalación', exact: true }).fill('Taller de Mantenimiento');
+  await dialog.screenshot({ path: test.info().outputPath(`alta-manual-instalacion-${width}.png`) });
+  state.fail = true; await dialog.getByRole('button', { name: 'Guardar', exact: true }).click();
+  await expect(dialog.getByRole('alert')).toContainText('No pudimos confirmar');
+  await expect(dialog.getByRole('textbox', { name: 'Nombre de la instalación', exact: true })).toHaveValue('Taller de Mantenimiento');
+  state.fail = false; await dialog.getByRole('button', { name: 'Guardar', exact: true }).click(); await expect(dialog).toHaveCount(0);
+  expect(state.writes[0].p_id).toBe(state.writes[1].p_id); expect(state.writes.at(-1)).toMatchObject({ p_kind: 'installation', p_parent_id: zone.id });
+  await expect(page.getByRole('region', { name: 'Instalaciones', exact: true })).toContainText('Taller de Mantenimiento');
+  await expect(page.getByRole('region', { name: 'Sedes', exact: true }).getByRole('button', { name: site.name, exact: true })).toHaveAttribute('aria-pressed', 'true');
+  await page.reload(); await page.getByRole('button', { name: 'Instalaciones', exact: true }).click();
+  await page.getByRole('button', { name: site.name, exact: true }).click(); await page.getByRole('region', { name: 'Zonas', exact: true }).getByRole('button', { name: zone.name, exact: true }).click();
+  await expect(page.getByRole('region', { name: 'Instalaciones', exact: true })).toContainText('Taller de Mantenimiento');
+  await page.goto('./?acceso=cuenta'); await expect(page.getByRole('heading', { name: 'Mis inspecciones', exact: true })).toBeVisible();
+  await page.locator('main').getByRole('button', { name: 'Nueva inspección', exact: true }).click();
+  await selectValue(page.getByRole('combobox', { name: 'Sede', exact: true }), site.id); await selectValue(page.getByRole('combobox', { name: 'Zona de inspección', exact: true }), zone.id);
+  await expect(page.getByRole('combobox', { name: 'Instalación', exact: true })).toBeEnabled();
+  await selectValue(page.getByRole('combobox', { name: 'Instalación', exact: true }), state.writes.at(-1)!.p_id as string);
+  await expect(page.locator('.inspection-location-summary')).toContainText('Taller de Mantenimiento');
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+});
+
+test('Añadir precarga la zona seleccionada y cambiar sede obliga a elegir una zona de esa sede', async ({ page, context }) => {
+  const state = officialState(); await mock(context, state); await login(page);
+  await page.getByRole('button', { name: 'Instalaciones', exact: true }).click(); await page.getByRole('button', { name: 'Fundo', exact: true }).click();
+  await page.getByRole('button', { name: 'Ilusión II', exact: true }).click();
+  await page.getByRole('button', { name: 'Añadir instalación', exact: true }).click(); const dialog = page.getByRole('dialog');
+  const zone = INITIAL_LOCATION_NODES.find(n => n.parent_id === fundo.siteId && n.name === 'Ilusión II')!;
+  await expect(dialog.getByRole('combobox', { name: 'Sede', exact: true })).toHaveAttribute('data-value', fundo.siteId);
+  await expect(dialog.getByRole('combobox', { name: 'Zona', exact: true })).toHaveAttribute('data-value', zone.id);
+  await dialog.getByRole('textbox', { name: 'Nombre de la instalación', exact: true }).fill('Almacén manual');
+  const other = INITIAL_LOCATION_NODES.find(n => n.kind === 'site' && n.name === 'Exteriores')!;
+  await selectValue(dialog.getByRole('combobox', { name: 'Sede', exact: true }), other.id);
+  await expect(dialog.getByRole('combobox', { name: 'Zona', exact: true })).toHaveAttribute('data-value', '');
+  await expect(dialog.getByRole('button', { name: 'Guardar', exact: true })).toBeDisabled();
+  await dialog.getByRole('combobox', { name: 'Zona', exact: true }).click();
+  await expect(page.getByRole('option', { name: 'Ilusión II', exact: true })).toHaveCount(0);
+  await page.keyboard.press('Escape'); await dialog.getByRole('button', { name: 'Cancelar', exact: true }).click(); expect(state.writes).toHaveLength(0);
 });

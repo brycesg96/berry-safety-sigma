@@ -68,6 +68,6 @@ export async function reorderLocationNodes(nodes: readonly LocationNode[]) {
 }
 export async function saveLocationNode(node: LocationNode, creating = false) {
   const { data, error } = await supabaseClient().rpc('berry_manage_location', { p_id: node.id, p_kind: node.kind, p_parent_id: node.parent_id, p_name: node.name.trim().replace(/\s+/g, ' '), p_enabled: node.enabled, p_expected: creating ? null : node.revision }).abortSignal(AbortSignal.timeout(20000));
-  if (error) throw new Error(error.code === '23505' ? 'Ya existe un elemento con ese nombre en esta lista. Puedes editarlo o restaurarlo.' : error.code === '40001' ? 'La lista cambió en otra sesión. Actualízala antes de volver a guardar.' : error.code === '22023' ? 'Revisa el nombre y selecciona una sede o zona activa. La lista de instalaciones puede estar pendiente de carga.' : error.code === '42501' || error.code === 'PGRST202' ? failure(error.code) : 'No pudimos confirmar el cambio. Conserva los datos y vuelve a intentarlo.');
+  if (error) throw new Error(error.code === '23505' ? 'Ya existe un elemento con ese nombre en esta lista. Puedes editarlo o restaurarlo.' : error.code === '40001' ? 'La lista cambió en otra sesión. Actualízala antes de volver a guardar.' : error.code === '22023' ? 'Revisa el nombre y selecciona una sede y una zona activas.' : error.code === '42501' || error.code === 'PGRST202' ? failure(error.code) : 'No pudimos confirmar el cambio. Conserva los datos y vuelve a intentarlo.');
   return nodeResponse(data);
 }

@@ -187,3 +187,7 @@ Si el proyecto ya está en el paso 19, ejecuta únicamente el archivo del paso 2
 ## Paso 21: instalaciones de Fundo
 
 El [programa de Fundo](INSTALACIONES_FUNDO.md) incorpora 178 puntos únicos de las tres hojas del Excel proporcionado por el usuario, relacionados con las 15 ubicaciones de la columna G. Excluye Actividades Fundo y activa únicamente las instalaciones de las zonas documentadas de esa sede. El [script de activación 20–21](../supabase/operations/activate-fundo-installations-20261115.sql) permite instalarlo sobre el paso 19 o 20 sin reescribir perfiles ni inspecciones, conservar el orden manual y mantener pendientes las demás sedes. No requiere desplegar Render.
+
+## Paso 22: añadir instalaciones manualmente
+
+El [paso 22](../supabase/migrations/202611160022_manual_installations.sql) permite a los administradores añadir instalaciones en cualquier sede y zona activas, sin depender de la importación de un catálogo. Se conserva la validación de padres, nombres duplicados, revisiones y permisos. La primera instalación activa habilita su sede y zona en el catálogo de selección; las demás zonas pendientes permanecen como estaban. El script exige el paso 21, habilita RLS en la tabla privada de configuración y no importa datos ni modifica perfiles o inspecciones existentes. Repetirlo conserva los datos y el orden manual. No requiere desplegar Render.
