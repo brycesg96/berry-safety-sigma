@@ -33,7 +33,13 @@ jobs:
         run: npm run test:api
       - name: Verificar la conservación de archivos para pestañas abiertas
         run: node --test scripts/retain-pages-assets.test.mjs
-      - name: Verificar la referencia de numeración transaccional
+      - name: Preparar Python para verificar los catálogos Excel
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Instalar el lector de catálogos Excel
+        run: python3 -m pip install --disable-pip-version-check -r scripts/requirements-import.txt
+      - name: Verificar las referencias de numeración y catálogos
         run: python3 -m unittest discover -s reference -p 'test_*.py' -v
       - name: Verificar estructura y permisos de Supabase
         run: npm run test:supabase

@@ -99,7 +99,7 @@ test('sede y zona dependientes conservan la ubicación compuesta al guardar y re
  await expect(zone).toBeDisabled();await site.click();expect(await page.getByRole('listbox').getByRole('option').allTextContents()).not.toContain('Puerto Morín');
  await selectLocation(page,'Sede','Fundo');await selectLocation(page,'Zona de inspección','Armonía II');
  const summary=page.getByRole('region',{name:'Área e instalación inspeccionada',exact:true});await expect(summary.locator('input,textarea')).toHaveCount(0);
- await expect(summary.locator('.inspection-area-prefix')).toHaveText('Fundo – Armonía II – Control de Gestión');
+ await expect(summary.locator('.inspection-area-prefix')).toHaveText('Fundo – Armonía II – Control de Gestión – Lavadero de Camiones');
  await selectLocation(page,'Sede','Exteriores');await expect(zone).toHaveText('Selecciona una zona');await zone.click();expect(await page.getByRole('listbox').getByRole('option').allTextContents()).toEqual(['Chao','Otros','Semillero']);await selectLocation(page,'Zona de inspección','Chao');
  await page.getByRole('button',{name:'Guardar',exact:true}).first().click();await expect(page.getByText('Guardado en este navegador',{exact:true})).toBeVisible();await page.reload();await expect(site).toHaveText('Exteriores');await expect(zone).toHaveText('Chao');
  await expect(summary.locator('.inspection-area-prefix')).toHaveText('Exteriores – Chao – Control de Gestión');

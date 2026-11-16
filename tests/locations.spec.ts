@@ -1,7 +1,8 @@
 import { test, expect } from '@playwright/test';
 import type { BrowserContext, Page } from '@playwright/test';
 import ExcelJS from 'exceljs';
-import { INITIAL_LOCATION_NODES, locationNodeActive } from '../src/location-catalog';
+import { INITIAL_LOCATION_NODES, PREVIEW_LOCATION_NODES, locationNodeActive } from '../src/location-catalog';
+import fundo from '../src/fundo-installations.json' with { type: 'json' };
 import type { LocationNode } from '../src/location-catalog';
 import { catalogFromNodes, INITIAL_ORGANIZATION_NODES } from '../src/organization-catalog';
 import { selectValue } from './select-fixture';
@@ -12,7 +13,7 @@ const project = 'https://rwacygoxhkxxxkvushmb.supabase.co', admin = '99200000-00
 const site = INITIAL_LOCATION_NODES.find(node => node.kind === 'site' && node.name === 'Fundo')!;
 const zone = INITIAL_LOCATION_NODES.find(node => node.parent_id === site.id && node.name === 'Armonía I')!;
 const installation = '99200000-0000-4000-8000-000000000002';
-const stateOf = (ready = false) => ({ nodes: structuredClone(INITIAL_LOCATION_NODES), ready, writes: [] as Record<string, unknown>[], fail: false });
+const stateOf = (ready = false) => ({ nodes: structuredClone(INITIAL_LOCATION_NODES), ready, sites: [] as string[], zones: [] as string[], writes: [] as Record<string, unknown>[], fail: false });
 test('los informes anteriores conservan su ubicación aunque el catálogo retire o cambie sus áreas y lugares', () => {
   const snapshot = { source: 'catalog' as const, site: 'Sede anterior', zone: 'Zona anterior', detail: '', installationPending: true, management: 'Gerencia anterior', department: 'Área anterior' };
   expect(locationErrors(snapshot, true)).toEqual({});
@@ -31,14 +32,14 @@ async function mock(context: BrowserContext, state: ReturnType<typeof stateOf>) 
     if (path === '/rest/v1/rpc/berry_schema_status') return route.fulfill({ json: { schema_version: '202611070001', sync_ready: true, stage: 'reports', organization_catalog_version: '202611150014', location_catalog_version: '202611150019' } });
     if (path === '/rest/v1/rpc/berry_organization_catalog') return route.fulfill({ json: catalogFromNodes(INITIAL_ORGANIZATION_NODES) });
     if (path === '/rest/v1/rpc/berry_admin_organization') return route.fulfill({ json: INITIAL_ORGANIZATION_NODES });
-    if (path === '/rest/v1/rpc/berry_location_catalog') return route.fulfill({ json: { installationsReady: state.ready, nodes: state.nodes.filter(node => locationNodeActive(node, state.nodes)) } });
+    if (path === '/rest/v1/rpc/berry_location_catalog') return route.fulfill({ json: { installationsReady: state.ready, installationSiteIds: state.sites, installationZoneIds: state.zones, nodes: state.nodes.filter(node => locationNodeActive(node, state.nodes)) } });
     if (path === '/rest/v1/rpc/berry_admin_locations') return route.fulfill({ json: state.nodes });
     if (path === '/rest/v1/rpc/berry_manage_location') {
       const body = req.postDataJSON(); state.writes.push(body);
       if (state.fail) return route.fulfill({ status: 503, json: { message: 'offline' } });
       const old = state.nodes.find(node => node.id === body.p_id);
       if (old && body.p_expected !== old.revision) return route.fulfill({ status: 409, json: { code: '40001' } });
-      const node: LocationNode = { id: body.p_id, kind: body.p_kind, parent_id: body.p_parent_id, name: body.p_name, enabled: body.p_enabled, revision: old ? old.revision + 1 : 1 };
+      const node: LocationNode = { id: body.p_id, kind: body.p_kind, parent_id: body.p_parent_id, name: body.p_name, enabled: body.p_enabled, revision: old ? old.revision + 1 : 1, ...(old?.sort_order !== undefined ? { sort_order: old.sort_order } : {}) };
       state.nodes = [...state.nodes.filter(value => value.id !== node.id), node]; return route.fulfill({ json: node });
     }
     if (path === '/rest/v1/rpc/berry_cloud_session') return route.fulfill({ json: admin });
@@ -53,23 +54,25 @@ async function login(page: Page, section = 'areas') {
   await page.getByLabel(/^Contraseña/).fill('Fictitious!47'); await page.getByRole('button', { name: 'Iniciar sesión', exact: true }).click();
 }
 
-for (const width of [1366, 768, 390]) test(`instalación queda bloqueada y la ubicación se muestra únicamente en una etiqueta que coincide con el Excel (${width}px)`, async ({ page }) => {
+for (const width of [1366, 768, 390]) test(`Fundo permite elegir una instalación y la etiqueta coincide con el Excel (${width}px)`, async ({ page }) => {
   await page.setViewportSize({ width, height: 850 }); await page.goto('./');
   await selectValue(page.getByRole('combobox', { name: 'Sede', exact: true }), site.id);
   await selectValue(page.getByRole('combobox', { name: 'Zona de inspección', exact: true }), zone.id);
   await selectValue(page.getByRole('combobox', { name: 'Gerencia', exact: true }), 'GERENCIA DE RECURSOS HUMANOS');
   await selectValue(page.getByRole('combobox', { name: 'Área', exact: true }), 'SEGURIDAD INDUSTRIAL Y GESTION MEDIO AMBIENTAL');
-  await expect(page.getByRole('combobox', { name: 'Instalación', exact: true })).toBeDisabled();
-  await expect(page.getByText('Lista de instalaciones pendiente. Esta opción permanecerá bloqueada hasta que se cargue la lista.', { exact: true })).toBeVisible();
+  await expect(page.getByRole('combobox', { name: 'Instalación', exact: true })).toBeEnabled();
+  const point = fundo.zones.find(z => z.id === zone.id)!.installations[0];
+  await selectValue(page.getByRole('combobox', { name: 'Instalación', exact: true }), point.id);
   const summary = page.getByRole('region', { name: 'Área e instalación inspeccionada', exact: true });
-  await expect(summary.locator('input,textarea')).toHaveCount(0); await expect(summary.locator('.inspection-area-prefix')).toHaveText('Fundo – Armonía I – SIGMA');
+  await expect(summary.locator('input,textarea')).toHaveCount(0); await expect(summary.locator('.inspection-area-prefix')).toHaveText('Fundo – Armonía I – SIGMA – ' + point.name);
   const encoded = await page.evaluate(async () => {
-    const { buildExcel } = await import('/src/export.ts'); const { newInspection } = await import('/src/model.ts'); const { INITIAL_LOCATION_NODES } = await import('/src/location-catalog.ts');
+    const { buildExcel } = await import('/src/export.ts'); const { newInspection } = await import('/src/model.ts'); const { PREVIEW_LOCATION_NODES: INITIAL_LOCATION_NODES } = await import('/src/location-catalog.ts');
     const site = INITIAL_LOCATION_NODES.find(node => node.name === 'Fundo')!, zone = INITIAL_LOCATION_NODES.find(node => node.parent_id === site.id && node.name === 'Armonía I')!;
-    const draft = { ...newInspection({ name: 'Inspectora', email: 'inspectora@example.invalid' }), type: 'Planeada' as const, inspectionTime: '09:30', inspectionPeriod: 'AM' as const, objective: 'Verificar condiciones.', area: 'Fundo – Armonía I – SIGMA', areaLocation: { source: 'catalog' as const, siteId: site.id, zoneId: zone.id, site: site.name, zone: zone.name, detail: '', installationPending: true, management: 'GERENCIA DE RECURSOS HUMANOS', department: 'SEGURIDAD INDUSTRIAL Y GESTION MEDIO AMBIENTAL', departmentDisplay: 'SIGMA' }, responsibles: [{ id: '1', personId: '1', name: 'Jefa', email: 'jefa@example.invalid' }, { id: '2', personId: '2', name: 'Responsable', email: 'persona@example.invalid' }] };
+    const installation = INITIAL_LOCATION_NODES.find(node => node.parent_id === zone.id && node.kind === 'installation')!;
+    const draft = { ...newInspection({ name: 'Inspectora', email: 'inspectora@example.invalid' }), type: 'Planeada' as const, inspectionTime: '09:30', inspectionPeriod: 'AM' as const, objective: 'Verificar condiciones.', area: 'Fundo – Armonía I – SIGMA – ' + installation.name, areaLocation: { source: 'catalog' as const, siteId: site.id, zoneId: zone.id, site: site.name, zone: zone.name, installationId: installation.id, detail: installation.name, installationPending: false, management: 'GERENCIA DE RECURSOS HUMANOS', department: 'SEGURIDAD INDUSTRIAL Y GESTION MEDIO AMBIENTAL', departmentDisplay: 'SIGMA' }, responsibles: [{ id: '1', personId: '1', name: 'Jefa', email: 'jefa@example.invalid' }, { id: '2', personId: '2', name: 'Responsable', email: 'persona@example.invalid' }] };
     const file = await buildExcel(draft); let binary = ''; for (let i = 0; i < file.bytes.length; i += 32768) binary += String.fromCharCode(...file.bytes.subarray(i, i + 32768)); return btoa(binary);
   });
-  const book = new ExcelJS.Workbook(); await book.xlsx.load(Buffer.from(encoded, 'base64') as any); expect(book.getWorksheet('V.01')!.getCell('A11').text).toBe('Fundo – Armonía I – SIGMA');
+  const book = new ExcelJS.Workbook(); await book.xlsx.load(Buffer.from(encoded, 'base64') as any); expect(book.getWorksheet('V.01')!.getCell('A11').text).toBe('Fundo – Armonía I – SIGMA – ' + point.name);
   await summary.screenshot({ path: test.info().outputPath(`ubicacion-etiqueta-${width}.png`) }); expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
 });
 
@@ -139,4 +142,65 @@ for (const width of [1366, 768, 390]) test(`ordenar sedes, zonas e instalaciones
   await page.getByRole('listbox').getByRole('option', { name: 'Armonía I', exact: true }).click();
   await page.getByRole('combobox', { name: 'Instalación', exact: true }).click();
   await expect(page.getByRole('listbox').locator('[role="option"]:not([data-value=""])').first()).toHaveText('Taller de Prueba');
+});
+
+function officialState() {
+  const state = stateOf(false); state.nodes = withCatalogOrder(structuredClone(PREVIEW_LOCATION_NODES));
+  state.sites = [fundo.siteId]; state.zones = fundo.zones.map(z => z.id); return state;
+}
+for (const width of [1366, 768, 390]) test(`el catálogo de Fundo respeta Ubicación, habilita solo sus zonas documentadas y deja las demás sedes pendientes (${width}px)`, async ({ page, context }) => {
+  await page.setViewportSize({ width, height: 900 }); const state = officialState(); await mock(context, state); await login(page, '');
+  await expect(page.getByRole('heading', { name: 'Mis inspecciones', exact: true })).toBeVisible();
+  await page.locator('main').getByRole('button', { name: 'Nueva inspección', exact: true }).click();
+  await selectValue(page.getByRole('combobox', { name: 'Sede', exact: true }), fundo.siteId);
+  const ilusion = fundo.zones.find(z => z.name === 'Ilusión I')!;
+  await selectValue(page.getByRole('combobox', { name: 'Zona de inspección', exact: true }), ilusion.id);
+  await expect(page.getByRole('combobox', { name: 'Instalación', exact: true })).toBeEnabled();
+  const point = ilusion.installations.find(n => n.name === 'Tratamiento de Agua (Ilusión II)')!;
+  await selectValue(page.getByRole('combobox', { name: 'Instalación', exact: true }), point.id);
+  await expect(page.getByRole('combobox', { name: 'Zona de inspección', exact: true })).toHaveText('Ilusión I');
+  await expect(page.locator('.inspection-location-summary')).toContainText('Fundo – Ilusión I – Tratamiento de Agua (Ilusión II)');
+  await page.getByRole('combobox', { name: 'Instalación', exact: true }).click();
+  await expect(page.getByRole('option', { name: 'Reservorio 100 000 m³', exact: true })).toHaveCount(1);
+  await page.keyboard.press('Escape');
+  const pending = INITIAL_LOCATION_NODES.find(n => n.parent_id === fundo.siteId && n.name === 'Ilusión II')!;
+  await selectValue(page.getByRole('combobox', { name: 'Zona de inspección', exact: true }), pending.id);
+  await expect(page.getByRole('combobox', { name: 'Instalación', exact: true })).toBeDisabled();
+  await expect(page.getByRole('combobox', { name: 'Instalación', exact: true })).toHaveAttribute('data-value', '');
+  const exterior = INITIAL_LOCATION_NODES.find(n => n.kind === 'site' && n.name === 'Exteriores')!;
+  await selectValue(page.getByRole('combobox', { name: 'Sede', exact: true }), exterior.id);
+  const chao = INITIAL_LOCATION_NODES.find(n => n.parent_id === exterior.id && n.name === 'Chao')!;
+  await selectValue(page.getByRole('combobox', { name: 'Zona de inspección', exact: true }), chao.id);
+  await expect(page.getByRole('combobox', { name: 'Instalación', exact: true })).toBeDisabled();
+  await selectValue(page.getByRole('combobox', { name: 'Sede', exact: true }), fundo.siteId);
+  const fundoChao = fundo.zones.find(z => z.name === 'Chao')!;
+  await selectValue(page.getByRole('combobox', { name: 'Zona de inspección', exact: true }), fundoChao.id);
+  await selectValue(page.getByRole('combobox', { name: 'Instalación', exact: true }), fundoChao.installations.find(n => n.name === 'Semillero')!.id);
+  await expect(page.locator('.inspection-location-summary')).toContainText('Fundo – Chao – Semillero');
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+});
+
+for (const width of [1366, 390]) test(`Fundo permite editar, retirar, restaurar y ordenar sus instalaciones conservando letras de módulos y m³ (${width}px)`, async ({ page, context }) => {
+  await page.setViewportSize({ width, height: 900 }); const state = officialState(); await mock(context, state); await mockCatalogOrder(context, state); await login(page);
+  await page.getByRole('button', { name: 'Instalaciones', exact: true }).click(); await page.getByRole('button', { name: 'Fundo', exact: true }).click();
+  await page.getByRole('button', { name: 'Esperanza II', exact: true }).click();
+  const name = 'Filtrado Módulo C, D, E, F, Q';
+  await expect(page.getByRole('button', { name: 'Añadir instalación', exact: true })).toBeEnabled();
+  await expect(page.getByText(name, { exact: true })).toBeVisible();
+  await page.getByRole('button', { name: 'Editar instalación ' + name, exact: true }).click();
+  const dialog = page.getByRole('dialog'); await expect(dialog.getByRole('textbox', { name: 'Nombre de la instalación', exact: true })).toHaveValue(name);
+  await dialog.getByRole('button', { name: 'Cancelar', exact: true }).click();
+  await page.getByRole('button', { name: 'Ordenar listas', exact: true }).click();
+  await page.getByRole('button', { name: 'Mover al principio: ' + name, exact: true }).click();
+  await expect(page.getByRole('region', { name: 'Instalaciones', exact: true }).locator('.organization-node-name').first()).toHaveText(name);
+  await page.getByRole('button', { name: 'Terminar de ordenar', exact: true }).click();
+  await page.getByRole('button', { name: 'Retirar instalación ' + name, exact: true }).click();
+  await page.getByRole('dialog').getByRole('button', { name: 'Retirar', exact: true }).click();
+  await page.getByRole('checkbox', { name: 'Mostrar elementos retirados', exact: true }).check();
+  await page.getByRole('button', { name: 'Restaurar instalación ' + name, exact: true }).click();
+  await expect(page.getByText(name, { exact: true })).toBeVisible();
+  await page.locator('.organization-columns').screenshot({ path: test.info().outputPath(`instalaciones-fundo-${width}.png`) });
+  await page.getByRole('button', { name: 'Packing Chao', exact: true }).click();
+  await expect(page.getByRole('button', { name: 'Añadir instalación', exact: true })).toBeDisabled();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
 });

@@ -46,13 +46,13 @@ for (const width of [1366, 390]) test(`gerencia y área dependientes, perfiles i
     const { loadInspections } = await import('/src/model.ts'); const { readAccounts } = await import('/src/accounts.ts'); const { buildExcel } = await import('/src/export.ts');
     const account = readAccounts().find(item => item.id === 'demo-admin')!; if (account.management !== 'Gerencia de prueba A' || account.area !== 'Área de prueba A1') throw new Error('Perfil no conservado.');
     const draft = (await loadInspections()).find(item => item.ownerId === 'demo-admin')!;
-    if (draft.area !== 'Fundo – Armonía II – Área de Prueba B1') throw new Error('Ubicación no conservada.');
+    if (draft.area !== 'Fundo – Armonía II – Área de Prueba B1 – Lavadero de Camiones') throw new Error('Ubicación no conservada.');
     const report = { ...draft, area: 'Texto anterior sin componer', type: 'Planeada' as const, inspectionTime: '09:30', inspectionPeriod: 'AM' as const, objective: 'Verificar condiciones.', responsibles: [{ id: 'head', personId: 'head', name: 'Jefa de prueba', email: 'jefa@example.invalid' }, { id: 'worker', personId: 'worker', name: 'Responsable de prueba', email: 'persona@example.invalid' }] };
     const built = await buildExcel(report); let binary = ''; for (let i = 0; i < built.bytes.length; i += 32768) binary += String.fromCharCode(...built.bytes.subarray(i, i + 32768)); return { base64: btoa(binary), name: built.name };
   });
   const book = new ExcelJS.Workbook(); await book.xlsx.load(Buffer.from(file.base64, 'base64') as any);
   expect(book.getWorksheet('V.01')!.getCell('A10').text).toBe('ÁREA E INSTALACIÓN INSPECCIONADA');
-  expect(book.getWorksheet('V.01')!.getCell('A11').text).toBe('Fundo – Armonía II – Área de Prueba B1');
+  expect(book.getWorksheet('V.01')!.getCell('A11').text).toBe('Fundo – Armonía II – Área de Prueba B1 – Lavadero de Camiones');
   expect(file.name).toContain('ÁREA DE PRUEBA B1');
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   await page.locator('.organization-fields').screenshot({ path: test.info().outputPath(`gerencia-area-${width}.png`), animations: 'disabled' });

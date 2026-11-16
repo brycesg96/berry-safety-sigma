@@ -64,6 +64,6 @@ for (const [width, height] of [[1366, 600], [1024, 768], [768, 1024], [390, 640]
     let binary = ''; for (let i = 0; i < file.bytes.length; i += 32768) binary += String.fromCharCode(...file.bytes.subarray(i, i + 32768)); return btoa(binary);
   });
   const book = new ExcelJS.Workbook(); await book.xlsx.load(Buffer.from(encoded, 'base64') as any);
-  expect(book.getWorksheet('V.01')!.getCell('A11').text).toBe('Fundo – Armonía II – SIGMA');
+  expect(book.getWorksheet('V.01')!.getCell('A11').text).toBe('Fundo – Armonía II – SIGMA – Lavadero de Camiones');
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
 });

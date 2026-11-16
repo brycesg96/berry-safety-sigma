@@ -20,4 +20,4 @@ Los nombres y ubicaciones históricos proceden del registro, sin reconstruirlos 
 
 ## Logo en la plataforma
 
-El logo vectorial de Hortifrut se obtuvo de su [sitio oficial](https://www.hortifrut.com/wp-content/themes/hortifrut/img/logo-hortifrut.svg) y se conserva sin modificaciones en `public/brand/hortifrut.svg`. Se muestra como imagen sin enlace en la barra superior. La cabecera verde utiliza una tarjeta blanca. El acceso al perfil se conserva en el recuadro lateral del usuario.
+La versión compacta del logo de Hortifrut, suministrada por el usuario, está preparada como PNG transparente en `public/brand/hortifrut-compact.png`. Se muestra como imagen sin enlace en la barra superior. La cabecera verde utiliza una tarjeta blanca. El acceso al perfil se conserva en el recuadro lateral del usuario.

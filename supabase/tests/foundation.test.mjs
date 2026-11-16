@@ -1399,6 +1399,84 @@ test('ordering cannot enable the pending installation catalog and reinstallation
  assert.equal((await identityRpc('berry_location_catalog',[])).rows[0].value.installationsReady,false);
 });
 
+const fundoImportMigration=await readFile(new URL('../migrations/202611150021_fundo_installations.sql',import.meta.url),'utf8');
+const fundoSource=JSON.parse(await readFile(new URL('../../src/fundo-installations.json',import.meta.url),'utf8'));
+const fundoSite=fundoSource.siteId,fundoZone=fundoSource.zones.find(z=>z.name==='Armonía II'),fundoPoint=fundoZone.installations[0];
+const priorFundoReport='99100000-0000-4000-8000-000000000001',priorJabas='99100000-0000-4000-8000-000000000002';
+let originalFundoLocation;
+test('Fundo import uses 178 reviewed points and 15 source zones without rewriting profiles, reports or other sites',async()=>{
+ originalFundoLocation={source:'catalog',siteId:fundoSite,zoneId:fundoZone.id,site:'Fundo',zone:fundoZone.name,detail:'',installationPending:true,textOrder:'site-zone-area'};
+ await identityReport(users.author,priorFundoReport,users.author,{areaLocation:originalFundoLocation});
+ const armoniaIII=fundoSource.zones.find(z=>z.name==='Armonía III');
+ await db.query("insert into public.berry_locations(id,parent_id,kind,name,enabled)values($1,$2,'installation','ALMACEN DE JABAS',false)",[priorJabas,armoniaIII.id]);
+ await db.query('update public.berry_locations set sort_order=77 where id=$1',[priorJabas]);
+ const profiles=(await db.query('select * from public.berry_profiles order by id')).rows,reports=(await db.query('select * from public.berry_inspections order by id')).rows;
+ const outside=(await db.query('select * from public.berry_locations where kind=\'site\' or parent_id is distinct from $1 and kind=\'zone\' order by id',[fundoSite])).rows;
+ await db.exec(fundoImportMigration);
+ assert.deepEqual((await db.query('select * from public.berry_profiles order by id')).rows,profiles);
+ assert.deepEqual((await db.query('select * from public.berry_inspections order by id')).rows,reports);
+ assert.deepEqual((await db.query('select * from public.berry_locations where kind=\'site\' or parent_id is distinct from $1 and kind=\'zone\' order by id',[fundoSite])).rows,outside);
+ assert.equal((await db.query("select count(*)::int n from public.berry_locations i join public.berry_locations z on z.id=i.parent_id where i.kind='installation' and z.parent_id=$1",[fundoSite])).rows[0].n,178);
+ const reused=(await db.query('select * from public.berry_locations where id=$1',[priorJabas])).rows[0];assert.equal(reused.name,'Almacén de Jabas');assert.equal(reused.enabled,false);assert.equal(reused.sort_order,77);
+ const catalog=(await identityRpc('berry_location_catalog',[])).rows[0].value;
+ assert.equal(catalog.installationsReady,false);assert.deepEqual(catalog.installationSiteIds,[fundoSite]);assert.equal(catalog.installationZoneIds.length,15);
+ assert.equal((await db.query('select public.berry_schema_status() value')).rows[0].value.fundo_installations_version,'202611150021');
+ assert.equal((await db.query("select berry_private.location_import_key('RESERVORIO 100 000 M3')=berry_private.location_import_key('Reservorio 100 000 m³') as same")).rows[0].same,true);
+ assert.equal((await db.query("select berry_private.location_import_key('FILTRADO MODULO C,D,E,F,Q')=berry_private.location_import_key('Filtrado Módulo C, D, E, F, Q') as same")).rows[0].same,true);
+});
+test('Fundo locations follow Ubicación even when the inspection point mentions a different zone or an existing exterior locality',async()=>{
+ const ilusion=fundoSource.zones.find(z=>z.name==='Ilusión I');
+ const namedElsewhere=ilusion.installations.find(i=>i.name==='Tratamiento de Agua (Ilusión II)');
+ assert.equal((await db.query('select parent_id from public.berry_locations where id=$1',[namedElsewhere.id])).rows[0].parent_id,ilusion.id);
+ const chao=fundoSource.zones.find(z=>z.name==='Chao');
+ assert.equal((await db.query('select parent_id from public.berry_locations where id=$1',[chao.id])).rows[0].parent_id,fundoSite);
+ assert.equal((await db.query("select count(*)::int n from public.berry_locations where kind='zone' and name='Chao'")).rows[0].n,2);
+ assert.equal((await db.query("select count(*)::int n from public.berry_locations where kind='installation' and name in('Cosecha','Poda','Labores','Reporte de Peligro')")).rows[0].n,0);
+ const pending=(await db.query("select id from public.berry_locations where parent_id=$1 and name='Ilusión II'",[fundoSite])).rows[0].id;
+ const catalog=(await identityRpc('berry_location_catalog',[])).rows[0].value;assert.ok(!catalog.installationZoneIds.includes(pending));
+});
+test('new Fundo reports require a valid installation for the selected zone and cannot forge a pending flag or physical names',async()=>{
+ const id='99100000-0000-4000-8000-000000000003';await identityRpc('berry_ensure_draft',[id]);
+ const forged={...originalFundoLocation,site:'Forjado',zone:'Forjada',detail:'Inventada',installationId:fundoPoint.id,installationPending:true};
+ const saved=(await identityRpc('berry_save_draft',[id,1,{...cloudData(),id,areaLocation:forged,responsibles:[{id:'self',personId:users.author}]}])).rows[0].value;
+ assert.equal(saved.data.areaLocation.site,'Fundo');assert.equal(saved.data.areaLocation.zone,fundoZone.name);assert.equal(saved.data.areaLocation.detail,fundoPoint.name);assert.equal(saved.data.areaLocation.installationPending,false);
+ await db.query('select berry_private.require_location($1)',[saved.data]);
+ await identityReport(users.author,'99100000-0000-4000-8000-000000000009',users.author,{areaLocation:saved.data.areaLocation});
+ const empty=(await db.query('select berry_private.canonical_location($1,$2) value',[id,{...originalFundoLocation,installationPending:true}])).rows[0].value;
+ assert.equal(empty.installationPending,false);
+ await assert.rejects(()=>db.query('select berry_private.require_location($1)',[{...saved.data,areaLocation:empty}]),e=>e.code==='22023');
+ const another=fundoSource.zones.find(z=>z.name==='Esperanza I').installations[0];
+ await assert.rejects(()=>db.query('select berry_private.canonical_location($1,$2)',[id,{...forged,installationId:another.id}]),e=>e.code==='22023');
+ const prior=(await db.query('select data from public.berry_inspections where id=$1',[priorFundoReport])).rows[0].data;
+ await db.query('select berry_private.require_location($1)',[prior]);
+ assert.deepEqual((await db.query('select berry_private.canonical_location($1,$2) value',[priorFundoReport,prior.areaLocation])).rows[0].value,prior.areaLocation);
+});
+test('unprovided sites stay pending and only administrators can add an installation to activate a new Fundo zone',async()=>{
+ await assert.rejects(()=>locationRpc(['99100000-0000-4000-8000-000000000004','installation',locationZone,'No autorizado fuera de Fundo',true,null]),e=>e.code==='22023');
+ const draft=(await db.query('select berry_private.canonical_location($1,$2) value',['99100000-0000-4000-8000-000000000005',{...physicalLocation,siteId:locationSite,zoneId:locationZone,detail:'',installationPending:false}])).rows[0].value;
+ assert.equal(draft.installationPending,true);await db.query('select berry_private.require_location($1)',[{id:'99100000-0000-4000-8000-000000000005',areaLocation:draft}]);
+ const zone='99100000-0000-4000-8000-000000000006',installation='99100000-0000-4000-8000-000000000007';
+ await locationRpc([zone,'zone',fundoSite,'Zona añadida por administrador',true,null]);
+ assert.ok(!(await identityRpc('berry_location_catalog',[])).rows[0].value.installationZoneIds.includes(zone));
+ await denied(()=>locationRpc([installation,'installation',zone,'Instalación autorizada',true,null],catalogUser));
+ await locationRpc([installation,'installation',zone,'Instalación autorizada',true,null]);
+ assert.ok((await identityRpc('berry_location_catalog',[])).rows[0].value.installationZoneIds.includes(zone));
+ await denied(()=>as('authenticated',users.author,'select * from berry_private.location_installation_scopes',[],freshCatalogClaims));
+});
+test('Fundo import replay preserves administrator names, retirements, manual ordering, scope settings and recorded inspections',async()=>{
+ const zone=fundoSource.zones.find(z=>z.name==='Armonía I'),node=(await db.query('select * from public.berry_locations where id=$1',[zone.installations[0].id])).rows[0];
+ await locationRpc([node.id,'installation',node.parent_id,'Nombre actualizado por administración',false,node.revision]);
+ await orderRpc('locations',[...(await siblings('berry_locations',node.id))].reverse());
+ const nodes=(await db.query('select * from public.berry_locations order by id')).rows,scopes=(await db.query('select * from berry_private.location_installation_scopes order by node_id')).rows;
+ const reports=(await db.query('select * from public.berry_inspections order by id')).rows;
+ await db.exec(fundoImportMigration);
+ await db.exec(await readFile(new URL('../operations/activate-fundo-installations-20261115.sql',import.meta.url),'utf8'));
+ assert.deepEqual((await db.query('select * from public.berry_locations order by id')).rows,nodes);
+ assert.deepEqual((await db.query('select * from berry_private.location_installation_scopes order by node_id')).rows,scopes);
+ assert.deepEqual((await db.query('select * from public.berry_inspections order by id')).rows,reports);
+ assert.equal((await identityRpc('berry_location_catalog',[])).rows[0].value.installationsReady,false);
+});
+
 let failed;
 try {
   await setup();

@@ -1,20 +1,29 @@
 import { useSyncExternalStore } from 'react';
 import { supabaseClient } from './supabase';
 import seed from './location-seed.json' with { type: 'json' };
+import fundo from './fundo-installations.json' with { type: 'json' };
 import { saveCatalogOrder } from './catalog-order';
 
 export type LocationKind = 'site' | 'zone' | 'installation';
 export type LocationNode = { id: string; parent_id: string | null; kind: LocationKind; name: string; enabled: boolean; revision: number; sort_order?: number };
 export const INITIAL_LOCATION_NODES = seed as LocationNode[];
-type Catalog = { nodes: readonly LocationNode[]; installationsReady: boolean; mode: 'preview' | 'legacy' | 'cloud'; loading: boolean; error: string };
-let state: Catalog = { nodes: INITIAL_LOCATION_NODES, installationsReady: false, mode: 'preview', loading: false, error: '' }, generation = 0;
+export const PREVIEW_LOCATION_NODES: LocationNode[] = [...INITIAL_LOCATION_NODES, ...fundo.zones.flatMap(zone => [
+  ...(!INITIAL_LOCATION_NODES.some(node => node.id === zone.id) ? [{ id: zone.id, parent_id: fundo.siteId, kind: 'zone' as const, name: zone.name, enabled: true, revision: 1 }] : []),
+  ...zone.installations.map((node, index) => ({ ...node, parent_id: zone.id, kind: 'installation' as const, enabled: true, revision: 1, sort_order: index + 1 })),
+])];
+export type LocationCatalog = { nodes: readonly LocationNode[]; installationsReady: boolean; installationSiteIds: readonly string[]; installationZoneIds: readonly string[]; mode: 'preview' | 'legacy' | 'cloud'; loading: boolean; error: string };
+const preview = { nodes: PREVIEW_LOCATION_NODES, installationsReady: false, installationSiteIds: [fundo.siteId], installationZoneIds: fundo.zones.map(zone => zone.id) };
+const empty = { nodes: [], installationsReady: false, installationSiteIds: [], installationZoneIds: [] };
+let state: LocationCatalog = { ...preview, mode: 'preview', loading: false, error: '' }, generation = 0;
 const listeners = new Set<() => void>();
 export const locationCatalogState = () => state;
 const subscribe = (listener: () => void) => { listeners.add(listener); return () => { listeners.delete(listener); }; };
 export const useLocationCatalog = () => useSyncExternalStore(subscribe, locationCatalogState);
-function publish(next: Catalog) { state = next; listeners.forEach(listener => listener()); }
+function publish(next: LocationCatalog) { state = next; listeners.forEach(listener => listener()); }
+export const installationsReadyForSite = (catalog: Pick<LocationCatalog, 'installationsReady' | 'installationSiteIds'>, id?: string | null) => catalog.installationsReady || !!id && catalog.installationSiteIds.includes(id);
+export const installationsReadyForZone = (catalog: Pick<LocationCatalog, 'installationsReady' | 'installationZoneIds'>, id?: string | null) => catalog.installationsReady || !!id && catalog.installationZoneIds.includes(id);
 export function resetLocationCatalog(mode: 'preview' | 'legacy' = 'legacy') {
-  generation++; publish({ nodes: mode === 'preview' ? INITIAL_LOCATION_NODES : [], installationsReady: false, mode, loading: false, error: '' });
+  generation++; publish({ ...(mode === 'preview' ? preview : empty), mode, loading: false, error: '' });
 }
 export function locationNodeActive(node: LocationNode, nodes: readonly LocationNode[]): boolean {
   if (!node.enabled) return false;
@@ -36,11 +45,17 @@ export async function refreshLocationCatalog(isCurrent: () => boolean = () => tr
     if (error) throw new Error(failure(error.code));
     if (!data || !Array.isArray(data.nodes) || typeof data.installationsReady !== 'boolean') throw new Error(failure());
     const nodes = data.nodes.map(nodeResponse);
-    if (request === generation && isCurrent()) publish({ nodes, installationsReady: data.installationsReady, mode: 'cloud', loading: false, error: '' });
+    const scopes = (value: unknown, kind: LocationKind): string[] => {
+      if (value === undefined) return [];
+      if (!Array.isArray(value) || value.some(id => typeof id !== 'string' || !nodes.some((node: LocationNode) => node.id === id && node.kind === kind))) throw new Error(failure());
+      return [...new Set(value)];
+    };
+    const installationSiteIds = scopes(data.installationSiteIds, 'site'), installationZoneIds = scopes(data.installationZoneIds, 'zone');
+    if (request === generation && isCurrent()) publish({ nodes, installationsReady: data.installationsReady, installationSiteIds, installationZoneIds, mode: 'cloud', loading: false, error: '' });
   } catch (problem) {
     if (request !== generation || !isCurrent()) return;
     const message = problem instanceof Error ? problem.message : failure();
-    publish({ nodes: [], installationsReady: false, mode: 'cloud', loading: false, error: message }); throw new Error(message);
+    publish({ ...empty, mode: 'cloud', loading: false, error: message }); throw new Error(message);
   }
 }
 export async function loadLocationNodes() {

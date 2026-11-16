@@ -1,4 +1,4 @@
-import { locationCatalogState, locationNodeActive } from './location-catalog';
+import { installationsReadyForZone, locationCatalogState, locationNodeActive } from './location-catalog';
 import { organizationErrors } from './organization';
 export { INSPECTION_LOCATIONS } from './location-seed';
 import { INSPECTION_LOCATIONS } from './location-seed';
@@ -18,7 +18,7 @@ export function locationErrors(value: InspectionLocation, historical = false): R
       if (catalog.error || catalog.loading || catalog.mode === 'legacy') errors.site = 'El catálogo de sedes y zonas no está disponible. Actualízalo antes de continuar.';
       if (!site) errors.site = 'Selecciona una sede.';
       if (!zone) errors.zone = 'Selecciona una zona de inspección.';
-      if (catalog.installationsReady && !nodes.some(node => node.id === value.installationId && node.kind === 'installation' && node.parent_id === zone?.id && locationNodeActive(node, nodes))) errors.installation = 'Selecciona una instalación de la zona elegida.';
+      if (installationsReadyForZone(catalog, zone?.id) && !nodes.some(node => node.id === value.installationId && node.kind === 'installation' && node.parent_id === zone?.id && locationNodeActive(node, nodes))) errors.installation = 'Selecciona una instalación de la zona elegida.';
     } else if (!value.site.trim() || !value.zone.trim() || !value.installationPending && !value.detail.trim()) errors.area = 'La ubicación inspeccionada está incompleta.';
   } else {
     if (!Object.hasOwn(INSPECTION_LOCATIONS, value.site)) errors.site = 'Selecciona una sede.';

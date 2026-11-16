@@ -44,7 +44,7 @@ async function createReport(page: Page) {
   await page.getByText('Compartir solo en este navegador', { exact: true }).click();
   await expect(page.getByText('No se ha enviado ningún correo.')).toBeVisible();
   await page.getByRole('button', { name: 'Enviar a destinatarios de prueba' }).click();
-  await expect(page.getByRole('heading', { name: 'Fundo – Armonía II – Control de Gestión', exact: true })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Fundo – Armonía II – Control de Gestión – Lavadero de Camiones', exact: true })).toBeVisible();
 }
 async function openReceived(page: Page) {
   await page.getByRole('button', { name: 'Observaciones a mi cargo', exact: true }).click();

@@ -183,3 +183,7 @@ El [paso 20](../supabase/migrations/202611150020_catalog_order.sql) guarda el or
 La actualización valida la lista completa y sus revisiones en una transacción: una modificación concurrente exige actualizar las listas y un reintento del mismo orden es seguro. Se mantienen nombres, identificadores, dependencias, abreviaturas, perfiles, informes y registros históricos. Repetir la instalación conserva el orden elegido.
 
 Si el proyecto ya está en el paso 19, ejecuta únicamente el archivo del paso 20 completo. Si todavía está en el paso 17 o 18, el [script de activación 18–20](../supabase/operations/activate-catalog-order-20261115.sql) incluye los requisitos pendientes. Al terminar, vuelve a entrar en Berry Safety. No requiere desplegar Render. La lista de instalaciones sigue bloqueada mientras no se cargue su catálogo oficial.
+
+## Paso 21: instalaciones de Fundo
+
+El [programa de Fundo](INSTALACIONES_FUNDO.md) incorpora 178 puntos únicos de las tres hojas del Excel proporcionado por el usuario, relacionados con las 15 ubicaciones de la columna G. Excluye Actividades Fundo y activa únicamente las instalaciones de las zonas documentadas de esa sede. El [script de activación 20–21](../supabase/operations/activate-fundo-installations-20261115.sql) permite instalarlo sobre el paso 19 o 20 sin reescribir perfiles ni inspecciones, conservar el orden manual y mantener pendientes las demás sedes. No requiere desplegar Render.

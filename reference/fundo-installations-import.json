@@ -1,0 +1,2935 @@
+{
+  "source": "Programa Anual de Inspecciones Fundo 2026.xlsx",
+  "sha256": "dbc6ad10dfff9464df3b23c8f21b5a96a83568169d426fddaeff16656bca2636",
+  "sheets": [
+    "Zona 1",
+    "Zona 2",
+    "Zona 3 "
+  ],
+  "columns": {
+    "installation": "F: Puntos a inspeccionar",
+    "zone": "G: Ubicación",
+    "exclusion": "E: Instalación = Actividades Fundo"
+  },
+  "counts": {
+    "zones": 15,
+    "installations": 178,
+    "candidates": 186,
+    "excluded": 18,
+    "duplicates": 8
+  },
+  "installations": [
+    {
+      "id": "b7c6ba49-984b-564e-9bd8-a3886794a904",
+      "name": "Oficina y Sala de Inducciones SIGMA",
+      "zone": "Armonía I",
+      "zoneId": "49b49753-a8d6-571e-a064-c9f0c961d1d9",
+      "sources": [
+        {
+          "sheet": "Zona 1",
+          "row": 10,
+          "category": "OFICINA",
+          "point": "OFICINA Y SALA DE INDUCCIONES SIGMA",
+          "zone": "ARMONIA I"
+        }
+      ]
+    },
+    {
+      "id": "26fef0d4-03fe-59dd-a2e5-cbdd990c00be",
+      "name": "Tópico",
+      "zone": "Armonía I",
+      "zoneId": "49b49753-a8d6-571e-a064-c9f0c961d1d9",
+      "sources": [
+        {
+          "sheet": "Zona 1",
+          "row": 12,
+          "category": "TÓPICO",
+          "point": "TÓPICO",
+          "zone": "ARMONIA I"
+        }
+      ]
+    },
+    {
+      "id": "bfe15d8f-2081-5ab3-9145-8a193b5f283d",
+      "name": "Oficina de Balanza",
+      "zone": "Armonía I",
+      "zoneId": "49b49753-a8d6-571e-a064-c9f0c961d1d9",
+      "sources": [
+        {
+          "sheet": "Zona 1",
+          "row": 14,
+          "category": "OFICINA",
+          "point": "OFICINA DE BALANZA",
+          "zone": "ARMONIA I"
+        }
+      ]
+    },
+    {
+      "id": "6da6f56f-837f-5907-8755-43ac5147988e",
+      "name": "Agrytracer y Almacén",
+      "zone": "Armonía I",
+      "zoneId": "49b49753-a8d6-571e-a064-c9f0c961d1d9",
+      "sources": [
+        {
+          "sheet": "Zona 1",
+          "row": 16,
+          "category": "OFICINA",
+          "point": "AGRYTRACER Y ALMACEN",
+          "zone": "ARMONIA I"
+        }
+      ]
+    },
+    {
+      "id": "c39cb5e9-5b44-50c0-9994-5131dc40f45e",
+      "name": "Oficina de Atención al Trabajador Fundo y Almacén de Indumentaria",
+      "zone": "Armonía I",
+      "zoneId": "49b49753-a8d6-571e-a064-c9f0c961d1d9",
+      "sources": [
+        {
+          "sheet": "Zona 1",
+          "row": 18,
+          "category": "OFICINA",
+          "point": "OFICINA DE ATENCIÓN AL TRABAJADOR FUNDO Y ALMACÉN DE INDUMENTARIA",
+          "zone": "ARMONIA I"
+        }
+      ]
+    },
+    {
+      "id": "fc6d4196-7e47-5ed1-a8b5-c6d63299ef5a",
+      "name": "Oficina de Archivo",
+      "zone": "Armonía I",
+      "zoneId": "49b49753-a8d6-571e-a064-c9f0c961d1d9",
+      "sources": [
+        {
+          "sheet": "Zona 1",
+          "row": 20,
+          "category": "OFICINA",
+          "point": "OFICINA DE ARCHIVO",
+          "zone": "ARMONIA I"
+        }
+      ]
+    },
+    {
+      "id": "2a9fbeb3-17c3-5ad4-9469-00258526f564",
+      "name": "Oficina de Seguridad Patrimonial",
+      "zone": "Armonía I",
+      "zoneId": "49b49753-a8d6-571e-a064-c9f0c961d1d9",
+      "sources": [
+        {
+          "sheet": "Zona 1",
+          "row": 22,
+          "category": "OFICINA",
+          "point": "OFICINA DE SEGURIDAD PATRIMONIAL",
+          "zone": "ARMONIA I"
+        }
+      ]
+    },
+    {
+      "id": "4e86f16c-9943-5559-b16c-aac3bb22c766",
+      "name": "Sala de Capacitaciones",
+      "zone": "Armonía I",
+      "zoneId": "49b49753-a8d6-571e-a064-c9f0c961d1d9",
+      "sources": [
+        {
+          "sheet": "Zona 1",
+          "row": 24,
+          "category": "SALA DE CAPACITACIÓN",
+          "point": "SALA DE CAPACITACIONES",
+          "zone": "ARMONIA I"
+        }
+      ]
+    },
+    {
+      "id": "c90b33e0-5dea-5525-bfe2-de578d2fda11",
+      "name": "Comedor de Empleados",
+      "zone": "Armonía I",
+      "zoneId": "49b49753-a8d6-571e-a064-c9f0c961d1d9",
+      "sources": [
+        {
+          "sheet": "Zona 1",
+          "row": 26,
+          "category": "COMEDOR",
+          "point": "COMEDOR DE EMPLEADOS",
+          "zone": "ARMONIA I"
+        }
+      ]
+    },
+    {
+      "id": "fab8d6c4-a912-5ab8-9dcc-46379a024faa",
+      "name": "Oficina y Club de Campeones",
+      "zone": "Armonía I",
+      "zoneId": "49b49753-a8d6-571e-a064-c9f0c961d1d9",
+      "sources": [
+        {
+          "sheet": "Zona 1",
+          "row": 28,
+          "category": "OFICINA DE REPARTO",
+          "point": "OFICINA Y CLUB DE CAMPEONES",
+          "zone": "ARMONIA I"
+        }
+      ]
+    },
+    {
+      "id": "76679ce9-2f6c-538f-a697-af9e057f1c7c",
+      "name": "Filtrado Módulo HIJK",
+      "zone": "Armonía I",
+      "zoneId": "49b49753-a8d6-571e-a064-c9f0c961d1d9",
+      "sources": [
+        {
+          "sheet": "Zona 1",
+          "row": 30,
+          "category": "FILTRADO",
+          "point": "FILTRADO MÓDULO HIJK",
+          "zone": "ARMONIA I"
+        }
+      ]
+    },
+    {
+      "id": "b403a0f9-5c84-5630-a8fa-197267f96894",
+      "name": "Almacén de Producción Costado HIJK",
+      "zone": "Armonía I",
+      "zoneId": "49b49753-a8d6-571e-a064-c9f0c961d1d9",
+      "sources": [
+        {
+          "sheet": "Zona 1",
+          "row": 32,
+          "category": "ALMACÉN",
+          "point": "ALMACÉN DE PRODUCCIÓN COSTADO HIJK",
+          "zone": "ARMONIA I"
+        }
+      ]
+    },
+    {
+      "id": "692dc1c8-5940-52bd-9554-8b5e7c9e0e80",
+      "name": "Garita Principal de Seguridad Patrimonial",
+      "zone": "Armonía I",
+      "zoneId": "49b49753-a8d6-571e-a064-c9f0c961d1d9",
+      "sources": [
+        {
+          "sheet": "Zona 1",
+          "row": 34,
+          "category": "GARITA",
+          "point": "GARITA PRINCIPAL DE SEGURIDAD PATRIMONIAL",
+          "zone": "ARMONIA I"
+        }
+      ]
+    },
+    {
+      "id": "6a979e06-d1bd-54a0-8e7e-5f3c7c48b459",
+      "name": "Almacén Central de Residuos Sólidos",
+      "zone": "Armonía I",
+      "zoneId": "49b49753-a8d6-571e-a064-c9f0c961d1d9",
+      "sources": [
+        {
+          "sheet": "Zona 1",
+          "row": 36,
+          "category": "ALMACÉN",
+          "point": "ALMACÉN CENTRAL DE RESIDUOS SÓLIDOS",
+          "zone": "ARMONIA I"
+        }
+      ]
+    },
+    {
+      "id": "8982584a-accf-5f86-9e83-a78cdd1e8836",
+      "name": "Lavadero de Camiones",
+      "zone": "Armonía II",
+      "zoneId": "80885ecf-79d9-545d-861d-0b0dc2e9d88b",
+      "sources": [
+        {
+          "sheet": "Zona 1",
+          "row": 38,
+          "category": "LAVADERO",
+          "point": "LAVADERO DE CAMIONES",
+          "zone": "ARMONIA II"
+        }
+      ]
+    },
+    {
+      "id": "1858c946-1f0c-5081-8a47-dec2d3aaa07d",
+      "name": "Lavadero y Almacén de Jabas",
+      "zone": "Armonía II",
+      "zoneId": "80885ecf-79d9-545d-861d-0b0dc2e9d88b",
+      "sources": [
+        {
+          "sheet": "Zona 1",
+          "row": 40,
+          "category": "ALMACÉN",
+          "point": "LAVADERO Y ALMACÉN DE JABAS",
+          "zone": "ARMONIA II"
+        }
+      ]
+    },
+    {
+      "id": "586d33f9-36f0-523f-9056-dcc84dbad2c0",
+      "name": "Filtrado Módulo G y Oficina de Producción",
+      "zone": "Armonía II",
+      "zoneId": "80885ecf-79d9-545d-861d-0b0dc2e9d88b",
+      "sources": [
+        {
+          "sheet": "Zona 1",
+          "row": 42,
+          "category": "FILTRADO",
+          "point": "FILTRADO MÓDULO G Y OFICINA DE PRODUCCIÓN",
+          "zone": "ARMONIA II"
+        }
+      ]
+    },
+    {
+      "id": "90a3c49e-62a9-5a3e-a219-6dc0849bd86b",
+      "name": "Almacén de Producción (Módulo G)",
+      "zone": "Armonía II",
+      "zoneId": "80885ecf-79d9-545d-861d-0b0dc2e9d88b",
+      "sources": [
+        {
+          "sheet": "Zona 1",
+          "row": 44,
+          "category": "ALMACÉN",
+          "point": "ALMACÉN DE PRODUCCIÓN (MÓDULO G)",
+          "zone": "ARMONIA II"
+        }
+      ]
+    },
+    {
+      "id": "bde77c32-3553-5d02-99ca-1e22e3029a52",
+      "name": "Centro de Acopio y Enfriamiento",
+      "zone": "Armonía II",
+      "zoneId": "80885ecf-79d9-545d-861d-0b0dc2e9d88b",
+      "sources": [
+        {
+          "sheet": "Zona 1",
+          "row": 46,
+          "category": "CAE",
+          "point": "CENTRO DE ACOPIO Y ENFRIAMIENTO",
+          "zone": "ARMONIA II"
+        }
+      ]
+    },
+    {
+      "id": "2703cab2-de58-54f8-b15b-56331c41029c",
+      "name": "Laboratorio de Sanidad",
+      "zone": "Armonía II",
+      "zoneId": "80885ecf-79d9-545d-861d-0b0dc2e9d88b",
+      "sources": [
+        {
+          "sheet": "Zona 1",
+          "row": 48,
+          "category": "LABORATORIO",
+          "point": "LABORATORIO DE SANIDAD",
+          "zone": "ARMONIA II"
+        }
+      ]
+    },
+    {
+      "id": "0d7149ee-cab8-598a-93fe-612d7a783efe",
+      "name": "Lavadero de Jabas de Reparto de Almuerzos",
+      "zone": "Armonía II",
+      "zoneId": "80885ecf-79d9-545d-861d-0b0dc2e9d88b",
+      "sources": [
+        {
+          "sheet": "Zona 1",
+          "row": 50,
+          "category": "LAVADERO",
+          "point": "LAVADERO DE JABAS DE REPARTO DE ALMUERZOS",
+          "zone": "ARMONIA II"
+        }
+      ]
+    },
+    {
+      "id": "4d32c6ff-4af7-5710-b638-00fba91d3507",
+      "name": "Oficina de Relaciones Laborales",
+      "zone": "Armonía II",
+      "zoneId": "80885ecf-79d9-545d-861d-0b0dc2e9d88b",
+      "sources": [
+        {
+          "sheet": "Zona 1",
+          "row": 52,
+          "category": "OFICINA",
+          "point": "OFICINA DE RELACIONES LABORALES",
+          "zone": "ARMONIA II"
+        }
+      ]
+    },
+    {
+      "id": "d50c732f-f522-5e9f-8b4d-5849ae4efefd",
+      "name": "Almacén Equipos de Riego",
+      "zone": "Armonía II",
+      "zoneId": "80885ecf-79d9-545d-861d-0b0dc2e9d88b",
+      "sources": [
+        {
+          "sheet": "Zona 1",
+          "row": 54,
+          "category": "ALMACÉN",
+          "point": "ALMACÉN EQUIPOS DE RIEGO",
+          "zone": "ARMONIA II"
+        }
+      ]
+    },
+    {
+      "id": "fceb2216-0784-5ead-b3b8-691de01c660d",
+      "name": "Reservorio 8 K",
+      "zone": "Armonía II",
+      "zoneId": "80885ecf-79d9-545d-861d-0b0dc2e9d88b",
+      "sources": [
+        {
+          "sheet": "Zona 1",
+          "row": 56,
+          "category": "RESERVORIO",
+          "point": "RESERVORIO 8 K",
+          "zone": "ARMONIA II"
+        }
+      ]
+    },
+    {
+      "id": "81c4995b-9d0b-5fa7-ae12-348aa9ad2c84",
+      "name": "Taller de Automatización y Riego",
+      "zone": "Armonía II",
+      "zoneId": "80885ecf-79d9-545d-861d-0b0dc2e9d88b",
+      "sources": [
+        {
+          "sheet": "Zona 1",
+          "row": 58,
+          "category": "TALLER DE AUTOMATIZACIÓN",
+          "point": "TALLER DE AUTOMATIZACIÓN Y RIEGO",
+          "zone": "ARMONIA II"
+        }
+      ]
+    },
+    {
+      "id": "eb762f3d-7bca-5ccd-ac37-623f47174559",
+      "name": "Almacén Productivo Armonía II",
+      "zone": "Armonía II",
+      "zoneId": "80885ecf-79d9-545d-861d-0b0dc2e9d88b",
+      "sources": [
+        {
+          "sheet": "Zona 1",
+          "row": 60,
+          "category": "ALMACÉN",
+          "point": "ALMACÉN PRODUCTIVO ARMONÍA II",
+          "zone": "ARMONIA II"
+        }
+      ]
+    },
+    {
+      "id": "5283d768-9eec-58ba-af0c-8fe752f51698",
+      "name": "Oficina de Servicios Generales",
+      "zone": "Armonía II",
+      "zoneId": "80885ecf-79d9-545d-861d-0b0dc2e9d88b",
+      "sources": [
+        {
+          "sheet": "Zona 1",
+          "row": 62,
+          "category": "ALMACÉN",
+          "point": "OFICINA DE SERVICIOS GENERALES",
+          "zone": "ARMONIA II"
+        }
+      ]
+    },
+    {
+      "id": "2b098e6e-67c1-505b-9a09-a2b522e72306",
+      "name": "Taller de Carpintería",
+      "zone": "Armonía II",
+      "zoneId": "80885ecf-79d9-545d-861d-0b0dc2e9d88b",
+      "sources": [
+        {
+          "sheet": "Zona 1",
+          "row": 64,
+          "category": "TALLER CARPINTERÍA",
+          "point": "TALLER DE CARPINTERÍA",
+          "zone": "ARMONIA II"
+        }
+      ]
+    },
+    {
+      "id": "c27d5f69-5d16-5ffd-bf8a-51ca1693e343",
+      "name": "Oficina de Reparto de Almuerzos",
+      "zone": "Armonía II",
+      "zoneId": "80885ecf-79d9-545d-861d-0b0dc2e9d88b",
+      "sources": [
+        {
+          "sheet": "Zona 1",
+          "row": 66,
+          "category": "OFICINA",
+          "point": "OFICINA DE REPARTO DE ALMUERZOS",
+          "zone": "ARMONIA II"
+        }
+      ]
+    },
+    {
+      "id": "1ff9baf6-35c3-5658-a2fc-be5edf85a4c1",
+      "name": "Oficina de Sanidad",
+      "zone": "Armonía II",
+      "zoneId": "80885ecf-79d9-545d-861d-0b0dc2e9d88b",
+      "sources": [
+        {
+          "sheet": "Zona 1",
+          "row": 68,
+          "category": "OFICINA",
+          "point": "OFICINA DE SANIDAD",
+          "zone": "ARMONIA II"
+        }
+      ]
+    },
+    {
+      "id": "4ee7bbf2-2661-5bca-87d5-b523f2116ab1",
+      "name": "Laboratorio de Fertirriego",
+      "zone": "Armonía II",
+      "zoneId": "80885ecf-79d9-545d-861d-0b0dc2e9d88b",
+      "sources": [
+        {
+          "sheet": "Zona 1",
+          "row": 70,
+          "category": "LABORATORIO",
+          "point": "LABORATORIO DE FERTIRRIEGO",
+          "zone": "ARMONIA II"
+        },
+        {
+          "sheet": "Zona 1",
+          "row": 74,
+          "category": "LABORATORIO",
+          "point": "LABORATORIO DE FERTIRRIEGO",
+          "zone": "ARMONIA II"
+        }
+      ]
+    },
+    {
+      "id": "63f8da06-7d7c-56ea-ba43-232e53866eac",
+      "name": "Oficina de Cosecha",
+      "zone": "Armonía II",
+      "zoneId": "80885ecf-79d9-545d-861d-0b0dc2e9d88b",
+      "sources": [
+        {
+          "sheet": "Zona 1",
+          "row": 72,
+          "category": "OFICINA",
+          "point": "OFICINA DE COSECHA",
+          "zone": "ARMONIA II"
+        }
+      ]
+    },
+    {
+      "id": "4d28cc41-3dde-5f29-a187-94796b833e9d",
+      "name": "Oficina de Riego",
+      "zone": "Armonía II",
+      "zoneId": "80885ecf-79d9-545d-861d-0b0dc2e9d88b",
+      "sources": [
+        {
+          "sheet": "Zona 1",
+          "row": 76,
+          "category": "OFICINA",
+          "point": "OFICINA DE RIEGO",
+          "zone": "ARMONIA II"
+        }
+      ]
+    },
+    {
+      "id": "594e0e96-65c7-5c0a-9e69-1dad29c37fe2",
+      "name": "Tópico y Lactario",
+      "zone": "Armonía II",
+      "zoneId": "80885ecf-79d9-545d-861d-0b0dc2e9d88b",
+      "sources": [
+        {
+          "sheet": "Zona 1",
+          "row": 78,
+          "category": "TÓPICO",
+          "point": "TÓPICO Y LACTARIO",
+          "zone": "ARMONIA II"
+        }
+      ]
+    },
+    {
+      "id": "3e6bfe64-67d4-5fbf-bddd-2ce80caa0b90",
+      "name": "Oficina de Atención al Trabajador Fundo, Planillas y Compensaciones, Cultura Organizacional y Capacitaciones",
+      "zone": "Armonía II",
+      "zoneId": "80885ecf-79d9-545d-861d-0b0dc2e9d88b",
+      "sources": [
+        {
+          "sheet": "Zona 1",
+          "row": 80,
+          "category": "OFICINA",
+          "point": "OFICINA DE ATENCIÓN AL TRABAJADOR FUNDO, PLANILLAS Y COMPENSACIONES, CULTURA ORGANIZACIONAL Y CAPACITACIONES",
+          "zone": "ARMONIA II"
+        }
+      ]
+    },
+    {
+      "id": "4806ddfc-fee3-5c45-b96f-efddfb6ae404",
+      "name": "Almacén Productivo, Central y Mantenimiento",
+      "zone": "Armonía II",
+      "zoneId": "80885ecf-79d9-545d-861d-0b0dc2e9d88b",
+      "sources": [
+        {
+          "sheet": "Zona 1",
+          "row": 82,
+          "category": "ALMACÉN",
+          "point": "ALMACÉN PRODUCTIVO, CENTRAL Y MANTENIMIENTO.",
+          "zone": "ARMONIA II"
+        }
+      ]
+    },
+    {
+      "id": "5c48900f-a8fb-5a78-87b0-663a97bf2260",
+      "name": "Filtrado Módulo EF",
+      "zone": "Armonía II",
+      "zoneId": "80885ecf-79d9-545d-861d-0b0dc2e9d88b",
+      "sources": [
+        {
+          "sheet": "Zona 1",
+          "row": 84,
+          "category": "FILTRADO",
+          "point": "FILTRADO MÓDULO EF",
+          "zone": "ARMONIA II"
+        }
+      ]
+    },
+    {
+      "id": "1f7fcdf5-f239-5f49-a3f1-7305535acc91",
+      "name": "Planta de Tratamiento de Agua Potable",
+      "zone": "Armonía II",
+      "zoneId": "80885ecf-79d9-545d-861d-0b0dc2e9d88b",
+      "sources": [
+        {
+          "sheet": "Zona 1",
+          "row": 86,
+          "category": "PTAP",
+          "point": "PLANTA DE TRATAMIENTO DE AGUA POTABLE",
+          "zone": "ARMONIA II"
+        }
+      ]
+    },
+    {
+      "id": "8212579b-e592-566c-81a0-a32aa5dee965",
+      "name": "Vestuarios, Duchas, Lavandería, Premezcla y Phytobac",
+      "zone": "Armonía II",
+      "zoneId": "80885ecf-79d9-545d-861d-0b0dc2e9d88b",
+      "sources": [
+        {
+          "sheet": "Zona 1",
+          "row": 88,
+          "category": "SANIDAD",
+          "point": "VESTUARIOS, DUCHAS,LAVANDERIA, PREMEZCLA Y PHYTOBAC",
+          "zone": "ARMONIA II"
+        }
+      ]
+    },
+    {
+      "id": "aaf66914-6388-5213-a807-8f0ca2a8024d",
+      "name": "Almacén Agrícola, Grifo y Químicos",
+      "zone": "Armonía II",
+      "zoneId": "80885ecf-79d9-545d-861d-0b0dc2e9d88b",
+      "sources": [
+        {
+          "sheet": "Zona 1",
+          "row": 90,
+          "category": "ALMACÉN",
+          "point": "ALMACÉN AGRÍCOLA, GRIFO Y QUÍMICOS.",
+          "zone": "ARMONIA II"
+        }
+      ]
+    },
+    {
+      "id": "f198b785-dd40-5636-b8de-c8122cbda9b7",
+      "name": "Almacén Productivo Construcción",
+      "zone": "Armonía II",
+      "zoneId": "80885ecf-79d9-545d-861d-0b0dc2e9d88b",
+      "sources": [
+        {
+          "sheet": "Zona 1",
+          "row": 92,
+          "category": "ALMACÉN",
+          "point": "ALMACÉN PRODUCTIVO CONSTRUCCIÓN",
+          "zone": "ARMONIA II"
+        }
+      ]
+    },
+    {
+      "id": "235505f2-b567-5847-ab0c-3030e8553cae",
+      "name": "Oficina de Construcción y Almacén de 2.º Uso",
+      "zone": "Armonía II",
+      "zoneId": "80885ecf-79d9-545d-861d-0b0dc2e9d88b",
+      "sources": [
+        {
+          "sheet": "Zona 1",
+          "row": 94,
+          "category": "ALMACÉN",
+          "point": "OFICINA DE CONSTRUCCIÓN Y ALMACÉN DE 2DO USO",
+          "zone": "ARMONIA II"
+        }
+      ]
+    },
+    {
+      "id": "0c4fa076-bc0d-5e06-a0a8-83fd837028e0",
+      "name": "Oficina de Inocuidad Alimentaria",
+      "zone": "Armonía II",
+      "zoneId": "80885ecf-79d9-545d-861d-0b0dc2e9d88b",
+      "sources": [
+        {
+          "sheet": "Zona 1",
+          "row": 96,
+          "category": "OFICINA",
+          "point": "OFICINA DE INOCUIDAD ALIMENTARIA",
+          "zone": "ARMONIA II"
+        }
+      ]
+    },
+    {
+      "id": "7d6d75ad-9165-56e1-94c5-9ee31c0df427",
+      "name": "Oficina de TI",
+      "zone": "Armonía II",
+      "zoneId": "80885ecf-79d9-545d-861d-0b0dc2e9d88b",
+      "sources": [
+        {
+          "sheet": "Zona 1",
+          "row": 98,
+          "category": "OFICINA",
+          "point": "OFICINA DE TI",
+          "zone": "ARMONIA II"
+        }
+      ]
+    },
+    {
+      "id": "751e0727-d7f5-5d93-9478-22bdac0a95fe",
+      "name": "Oficina de Operaciones (Transportes-Mtto, Maquinaria y SS.GG)",
+      "zone": "Armonía II",
+      "zoneId": "80885ecf-79d9-545d-861d-0b0dc2e9d88b",
+      "sources": [
+        {
+          "sheet": "Zona 1",
+          "row": 100,
+          "category": "OFICINA",
+          "point": "OFICINA DE OPERACIONES (Transportes-Mtto, maquinaria Y SS.GG)",
+          "zone": "ARMONIA II"
+        }
+      ]
+    },
+    {
+      "id": "4b4f4772-912a-537c-8c89-ae0f6760d8d2",
+      "name": "Taller de Mantenimiento Eléctrico",
+      "zone": "Armonía II",
+      "zoneId": "80885ecf-79d9-545d-861d-0b0dc2e9d88b",
+      "sources": [
+        {
+          "sheet": "Zona 1",
+          "row": 102,
+          "category": "TALLER MECÁNICO",
+          "point": "TALLER DE MANTENIMIENTO ELÉCTRICO",
+          "zone": "ARMONIA II"
+        }
+      ]
+    },
+    {
+      "id": "85422c7b-93cb-5f3a-9653-42fa2b1276e6",
+      "name": "Taller de Mantenimiento Mecánico",
+      "zone": "Armonía II",
+      "zoneId": "80885ecf-79d9-545d-861d-0b0dc2e9d88b",
+      "sources": [
+        {
+          "sheet": "Zona 1",
+          "row": 104,
+          "category": "TALLER MECÁNICO",
+          "point": "TALLER DE MANTENIMIENTO MECÁNICO",
+          "zone": "ARMONIA II"
+        }
+      ]
+    },
+    {
+      "id": "5fdbb1ee-eabd-5d22-83b0-abcf04a47fc8",
+      "name": "Oficinas de Operaciones Agrícolas y Sala de Reunión (2.º Piso)",
+      "zone": "Armonía II",
+      "zoneId": "80885ecf-79d9-545d-861d-0b0dc2e9d88b",
+      "sources": [
+        {
+          "sheet": "Zona 1",
+          "row": 106,
+          "category": "OFICINA",
+          "point": "OFICINAS DE OPERACIONES AGRÍCOLAS Y SALA DE REUNIÓN (2do Piso)",
+          "zone": "ARMONIA II"
+        }
+      ]
+    },
+    {
+      "id": "8638292d-fe48-5fc9-9df5-6e45d64c21c6",
+      "name": "Comedor de Empleados",
+      "zone": "Armonía II",
+      "zoneId": "80885ecf-79d9-545d-861d-0b0dc2e9d88b",
+      "sources": [
+        {
+          "sheet": "Zona 1",
+          "row": 108,
+          "category": "COMEDOR",
+          "point": "COMEDOR DE EMPLEADOS",
+          "zone": "ARMONIA II"
+        }
+      ]
+    },
+    {
+      "id": "659d3bfe-9921-5fbb-b523-c223fc03706a",
+      "name": "Almacén de Atriles",
+      "zone": "Armonía II",
+      "zoneId": "80885ecf-79d9-545d-861d-0b0dc2e9d88b",
+      "sources": [
+        {
+          "sheet": "Zona 1",
+          "row": 110,
+          "category": "ALMACÉN",
+          "point": "ALMACÉN DE ATRILES",
+          "zone": "ARMONIA II"
+        }
+      ]
+    },
+    {
+      "id": "db85b0ab-c95b-5b3f-ba43-651777591bb0",
+      "name": "Almacén de Bioseguridad",
+      "zone": "Armonía II",
+      "zoneId": "80885ecf-79d9-545d-861d-0b0dc2e9d88b",
+      "sources": [
+        {
+          "sheet": "Zona 1",
+          "row": 112,
+          "category": "SANIDAD",
+          "point": "ALMACÉN DE BIOSEGURIDAD",
+          "zone": "ARMONIA II"
+        }
+      ]
+    },
+    {
+      "id": "999c0f22-8d5a-542f-8245-a0284dbf698f",
+      "name": "Garita de Seguridad Patrimonial CAE Armonía II",
+      "zone": "Armonía II",
+      "zoneId": "80885ecf-79d9-545d-861d-0b0dc2e9d88b",
+      "sources": [
+        {
+          "sheet": "Zona 1",
+          "row": 114,
+          "category": "GARITA",
+          "point": "GARITA DE SEGURIDAD PATRIMONIAL CAE ARMONIA II",
+          "zone": "ARMONIA II"
+        }
+      ]
+    },
+    {
+      "id": "6df9246a-078b-53d9-b2d1-70e5ec47cfa0",
+      "name": "Garita de Seguridad Taller Mantenimiento",
+      "zone": "Armonía II",
+      "zoneId": "80885ecf-79d9-545d-861d-0b0dc2e9d88b",
+      "sources": [
+        {
+          "sheet": "Zona 1",
+          "row": 116,
+          "category": "GARITA",
+          "point": "GARITA DE SEGURIDAD TALLER MANTENIMIENTO",
+          "zone": "ARMONIA II"
+        }
+      ]
+    },
+    {
+      "id": "cbb286ae-8910-58ff-a271-29909010ae54",
+      "name": "Compostera",
+      "zone": "Armonía II",
+      "zoneId": "80885ecf-79d9-545d-861d-0b0dc2e9d88b",
+      "sources": [
+        {
+          "sheet": "Zona 1",
+          "row": 118,
+          "category": "COMPOSTERA",
+          "point": "COMPOSTERA",
+          "zone": "ARMONIA II"
+        }
+      ]
+    },
+    {
+      "id": "f9334900-9c7a-5de7-9932-27c997ac3a58",
+      "name": "Proyecciones Agrícolas",
+      "zone": "Armonía II",
+      "zoneId": "80885ecf-79d9-545d-861d-0b0dc2e9d88b",
+      "sources": [
+        {
+          "sheet": "Zona 1",
+          "row": 120,
+          "category": "OFICINA",
+          "point": "PROYECCIONES AGRÍCOLAS",
+          "zone": "ARMONIA II"
+        }
+      ]
+    },
+    {
+      "id": "9c7c2ff1-7b44-5375-9ecc-6f13288c8d6d",
+      "name": "Almacén de Equipos de Riego Costado CAE",
+      "zone": "Armonía II",
+      "zoneId": "80885ecf-79d9-545d-861d-0b0dc2e9d88b",
+      "sources": [
+        {
+          "sheet": "Zona 1",
+          "row": 122,
+          "category": "ALMACÉN",
+          "point": "ALMACEN DE EQUIPOS DE RIEGO COSTADO CAE",
+          "zone": "ARMONIA II"
+        }
+      ]
+    },
+    {
+      "id": "115d2523-8810-5b5d-8cd2-6c0ba661f38f",
+      "name": "Filtrado Módulo A y B",
+      "zone": "Armonía III",
+      "zoneId": "3ed904eb-6fcc-533e-8b50-3170aca109ff",
+      "sources": [
+        {
+          "sheet": "Zona 1",
+          "row": 124,
+          "category": "FILTRADO",
+          "point": "FILTRADO MÓDULO A y B",
+          "zone": "ARMONÍA III"
+        }
+      ]
+    },
+    {
+      "id": "cf0cd705-391f-5b9f-9295-90d9cdc9d271",
+      "name": "Almacén de Producción Filtrado A y B",
+      "zone": "Armonía III",
+      "zoneId": "3ed904eb-6fcc-533e-8b50-3170aca109ff",
+      "sources": [
+        {
+          "sheet": "Zona 1",
+          "row": 126,
+          "category": "ALMACÉN",
+          "point": "ALMACÉN DE PRODUCCIÓN FILTRADO A Y B",
+          "zone": "ARMONÍA III"
+        }
+      ]
+    },
+    {
+      "id": "536982de-b8d2-5af1-a22f-9d912dc7f203",
+      "name": "Filtrado Módulo C",
+      "zone": "Armonía III",
+      "zoneId": "3ed904eb-6fcc-533e-8b50-3170aca109ff",
+      "sources": [
+        {
+          "sheet": "Zona 1",
+          "row": 128,
+          "category": "FILTRADO",
+          "point": "FILTRADO MÓDULO C",
+          "zone": "ARMONÍA III"
+        }
+      ]
+    },
+    {
+      "id": "e30cc607-8f39-59c4-b6c6-1c8eb60509da",
+      "name": "Filtrado Módulo D",
+      "zone": "Armonía III",
+      "zoneId": "3ed904eb-6fcc-533e-8b50-3170aca109ff",
+      "sources": [
+        {
+          "sheet": "Zona 1",
+          "row": 130,
+          "category": "FILTRADO",
+          "point": "FILTRADO MÓDULO D",
+          "zone": "ARMONÍA III"
+        }
+      ]
+    },
+    {
+      "id": "8a42683c-3bb6-55fb-942c-421c3eb8ba6a",
+      "name": "Reservorio 40 K",
+      "zone": "Armonía III",
+      "zoneId": "3ed904eb-6fcc-533e-8b50-3170aca109ff",
+      "sources": [
+        {
+          "sheet": "Zona 1",
+          "row": 132,
+          "category": "RESERVORIO",
+          "point": "RESERVORIO 40 K",
+          "zone": "ARMONÍA III"
+        }
+      ]
+    },
+    {
+      "id": "c41c00a5-dee4-5aec-ad23-4e5b1a11cb59",
+      "name": "Reservorio 50 K",
+      "zone": "Armonía III",
+      "zoneId": "3ed904eb-6fcc-533e-8b50-3170aca109ff",
+      "sources": [
+        {
+          "sheet": "Zona 1",
+          "row": 134,
+          "category": "RESERVORIO",
+          "point": "RESERVORIO 50 K",
+          "zone": "ARMONÍA III"
+        }
+      ]
+    },
+    {
+      "id": "dce519a1-14b4-52ff-ab0b-fd170fcb8161",
+      "name": "Tratamiento de Agua",
+      "zone": "Armonía III",
+      "zoneId": "3ed904eb-6fcc-533e-8b50-3170aca109ff",
+      "sources": [
+        {
+          "sheet": "Zona 1",
+          "row": 136,
+          "category": "PTA",
+          "point": "TRATAMIENTO DE AGUA",
+          "zone": "ARMONÍA III"
+        }
+      ]
+    },
+    {
+      "id": "a3f11dd9-ddb4-5ca3-9303-344c1c684035",
+      "name": "Garita de Seguridad Chavimochic I",
+      "zone": "Armonía III",
+      "zoneId": "3ed904eb-6fcc-533e-8b50-3170aca109ff",
+      "sources": [
+        {
+          "sheet": "Zona 1",
+          "row": 138,
+          "category": "GARITA",
+          "point": "GARITA DE SEGURIDAD CHAVIMOCHIC I",
+          "zone": "ARMONÍA III"
+        }
+      ]
+    },
+    {
+      "id": "731cb58c-c918-57c9-8490-e2e336cddc42",
+      "name": "Almacén de Jabas",
+      "zone": "Armonía III",
+      "zoneId": "3ed904eb-6fcc-533e-8b50-3170aca109ff",
+      "sources": [
+        {
+          "sheet": "Zona 1",
+          "row": 140,
+          "category": "ALMACÉN",
+          "point": "ALMACÉN DE JABAS",
+          "zone": "ARMONÍA III"
+        }
+      ]
+    },
+    {
+      "id": "44e9f22b-5fb2-5e32-8b86-2f9702f48f21",
+      "name": "Filtrado Vivero Armonía 3",
+      "zone": "Armonía III",
+      "zoneId": "3ed904eb-6fcc-533e-8b50-3170aca109ff",
+      "sources": [
+        {
+          "sheet": "Zona 1",
+          "row": 142,
+          "category": "FILTRADO",
+          "point": "FILTRADO VIVERO ARMONIA 3",
+          "zone": "ARMONÍA III"
+        }
+      ]
+    },
+    {
+      "id": "9e782376-7aa1-5fec-ad39-fd47a9967eaf",
+      "name": "Almacén Vivero Armonía",
+      "zone": "Armonía III",
+      "zoneId": "3ed904eb-6fcc-533e-8b50-3170aca109ff",
+      "sources": [
+        {
+          "sheet": "Zona 1",
+          "row": 144,
+          "category": "ALMACÉN",
+          "point": "ALMACEN VIVERO ARMONIA",
+          "zone": "ARMONÍA III"
+        }
+      ]
+    },
+    {
+      "id": "dc3db6d6-8470-5ae0-853a-cfe9357868f8",
+      "name": "Filtrado Módulo LM",
+      "zone": "Armonía IV",
+      "zoneId": "050155bd-bee5-55da-9a79-ef3779df1c03",
+      "sources": [
+        {
+          "sheet": "Zona 1",
+          "row": 146,
+          "category": "FILTRADO",
+          "point": "FILTRADO MODULO LM",
+          "zone": "ARMONÍA IV"
+        }
+      ]
+    },
+    {
+      "id": "f441c8b0-1846-5384-9d53-fa007359dde0",
+      "name": "Almacén Producción",
+      "zone": "Armonía IV",
+      "zoneId": "050155bd-bee5-55da-9a79-ef3779df1c03",
+      "sources": [
+        {
+          "sheet": "Zona 1",
+          "row": 148,
+          "category": "ALMACÉN",
+          "point": "ALMACÉN PRODUCCION",
+          "zone": "ARMONÍA IV"
+        }
+      ]
+    },
+    {
+      "id": "51d7bc32-d042-5ee4-94fa-9ad26154ee95",
+      "name": "Tratamiento de Agua",
+      "zone": "Armonía IV",
+      "zoneId": "050155bd-bee5-55da-9a79-ef3779df1c03",
+      "sources": [
+        {
+          "sheet": "Zona 1",
+          "row": 150,
+          "category": "PTA",
+          "point": "TRATAMIENTO DE AGUA",
+          "zone": "ARMONÍA IV"
+        }
+      ]
+    },
+    {
+      "id": "1c5a9b77-8270-5c61-96f0-86941e4ea9ab",
+      "name": "Reservorio 95 K",
+      "zone": "Armonía IV",
+      "zoneId": "050155bd-bee5-55da-9a79-ef3779df1c03",
+      "sources": [
+        {
+          "sheet": "Zona 1",
+          "row": 152,
+          "category": "RESERVORIO",
+          "point": "RESERVORIO 95 K",
+          "zone": "ARMONÍA IV"
+        }
+      ]
+    },
+    {
+      "id": "6c70b629-5d35-53ca-a703-dfd5709c2809",
+      "name": "Almacén de Jabas",
+      "zone": "Armonía IV",
+      "zoneId": "050155bd-bee5-55da-9a79-ef3779df1c03",
+      "sources": [
+        {
+          "sheet": "Zona 1",
+          "row": 154,
+          "category": "ALMACÉN",
+          "point": "ALMACEN DE JABAS",
+          "zone": "ARMONÍA IV"
+        }
+      ]
+    },
+    {
+      "id": "f830ab92-aeb0-54c2-89e6-16e72685abb9",
+      "name": "Extintores Fundo",
+      "zone": "Fundo",
+      "zoneId": "628cc172-82b1-578b-8ae0-0d0b1b9d2319",
+      "sources": [
+        {
+          "sheet": "Zona 1",
+          "row": 168,
+          "category": "EQUIPO DE EMERGENCIA",
+          "point": "EXTINTORES FUNDO",
+          "zone": "FUNDO"
+        },
+        {
+          "sheet": "Zona 2",
+          "row": 120,
+          "category": "EQUIPO DE EMERGENCIA",
+          "point": "EXTINTORES FUNDO",
+          "zone": "FUNDO"
+        },
+        {
+          "sheet": "Zona 3 ",
+          "row": 128,
+          "category": "EQUIPO DE EMERGENCIA",
+          "point": "EXTINTORES FUNDO",
+          "zone": "FUNDO"
+        }
+      ]
+    },
+    {
+      "id": "227c3b65-b759-5fef-8405-c963a5d97a85",
+      "name": "Extintor (Maquinaria, Camiones, Camionetas, Exteriores y Semillero)",
+      "zone": "Exterior e Interior Fundo",
+      "zoneId": "103c8975-c9c5-5beb-88bc-ee485589b116",
+      "sources": [
+        {
+          "sheet": "Zona 1",
+          "row": 170,
+          "category": "EQUIPO DE EMERGENCIA",
+          "point": "EXTINTOR (MAQUINARIA, CAMIONES,CAMIONETAS, EXTERIORES Y SEMILLERO)",
+          "zone": "EXTERIOR E INTERIOR FUNDO"
+        },
+        {
+          "sheet": "Zona 3 ",
+          "row": 130,
+          "category": "EQUIPO DE EMERGENCIA",
+          "point": "EXTINTOR (MAQUINARIA, CAMIONES,CAMIONETAS, EXTERIORES Y SEMILLERO)",
+          "zone": "EXTERIOR E INTERIOR FUNDO"
+        }
+      ]
+    },
+    {
+      "id": "8b994882-3ca4-576e-a6d0-e58404430b9a",
+      "name": "Luces de Emergencia",
+      "zone": "Fundo",
+      "zoneId": "628cc172-82b1-578b-8ae0-0d0b1b9d2319",
+      "sources": [
+        {
+          "sheet": "Zona 1",
+          "row": 172,
+          "category": "EQUIPO DE EMERGENCIA",
+          "point": "LUCES DE EMERGENCIA",
+          "zone": "FUNDO"
+        },
+        {
+          "sheet": "Zona 2",
+          "row": 122,
+          "category": "EQUIPO DE EMERGENCIA",
+          "point": "LUCES DE EMERGENCIA",
+          "zone": "FUNDO"
+        },
+        {
+          "sheet": "Zona 3 ",
+          "row": 132,
+          "category": "EQUIPO DE EMERGENCIA",
+          "point": "LUCES DE EMERGENCIA",
+          "zone": "FUNDO"
+        }
+      ]
+    },
+    {
+      "id": "a0c02aeb-fb7a-5d0d-a22d-f4ccca23e14e",
+      "name": "Lavaojos y Ducha de Emergencia",
+      "zone": "Fundo",
+      "zoneId": "628cc172-82b1-578b-8ae0-0d0b1b9d2319",
+      "sources": [
+        {
+          "sheet": "Zona 1",
+          "row": 174,
+          "category": "EQUIPO DE EMERGENCIA",
+          "point": "LAVAOJOS Y DUCHA DE EMERGENCIA",
+          "zone": "FUNDO"
+        },
+        {
+          "sheet": "Zona 2",
+          "row": 124,
+          "category": "EQUIPO DE EMERGENCIA",
+          "point": "LAVAOJOS Y DUCHA DE EMERGENCIA",
+          "zone": "FUNDO"
+        },
+        {
+          "sheet": "Zona 3 ",
+          "row": 134,
+          "category": "EQUIPO DE EMERGENCIA",
+          "point": "LAVAOJOS Y DUCHA DE EMERGENCIA",
+          "zone": "FUNDO"
+        }
+      ]
+    },
+    {
+      "id": "a6e6d563-7648-5572-85ef-bcc72722fed2",
+      "name": "Centro de Acopio de Almuerzo (Chao, Nuevo Chao y Valle de Dios)",
+      "zone": "Chao",
+      "zoneId": "2c22177d-5f73-5249-92a6-906020f194c1",
+      "sources": [
+        {
+          "sheet": "Zona 2",
+          "row": 10,
+          "category": "ACOPIO",
+          "point": "CENTRO DE ACOPIO DE ALMUERZO (CHAO, NUEVO CHAO Y VALLE DE DIOS)",
+          "zone": "CHAO"
+        }
+      ]
+    },
+    {
+      "id": "1ce89969-86e9-555c-8fee-ac26e1d30c99",
+      "name": "Campamento Laredo 1",
+      "zone": "Chao",
+      "zoneId": "2c22177d-5f73-5249-92a6-906020f194c1",
+      "sources": [
+        {
+          "sheet": "Zona 2",
+          "row": 12,
+          "category": "CAMPAMENTO",
+          "point": "CAMPAMENTO LAREDO 1",
+          "zone": "CHAO"
+        }
+      ]
+    },
+    {
+      "id": "7f14a224-4c1f-5be5-9c20-73f29b0a0438",
+      "name": "Semillero",
+      "zone": "Chao",
+      "zoneId": "2c22177d-5f73-5249-92a6-906020f194c1",
+      "sources": [
+        {
+          "sheet": "Zona 2",
+          "row": 14,
+          "category": "SEMILLERO",
+          "point": "SEMILLERO",
+          "zone": "CHAO"
+        }
+      ]
+    },
+    {
+      "id": "7aee733c-cc2a-5c36-a18a-407934143093",
+      "name": "Almacén de Producción (Costado de Cerrito)",
+      "zone": "Ilusión I",
+      "zoneId": "257fb8ad-5b90-59d1-b5e9-c156f133ec97",
+      "sources": [
+        {
+          "sheet": "Zona 2",
+          "row": 16,
+          "category": "ALMACÉN",
+          "point": "ALMACÉN DE PRODUCCIÓN (Costado de cerrito)",
+          "zone": "ILUSIÓN I"
+        }
+      ]
+    },
+    {
+      "id": "d8eac9fa-2b9c-563b-8f37-13338d199f2c",
+      "name": "Almacén de Jabas",
+      "zone": "Ilusión I",
+      "zoneId": "257fb8ad-5b90-59d1-b5e9-c156f133ec97",
+      "sources": [
+        {
+          "sheet": "Zona 2",
+          "row": 18,
+          "category": "ALMACÉN",
+          "point": "ALMACÉN DE JABAS",
+          "zone": "ILUSIÓN I"
+        }
+      ]
+    },
+    {
+      "id": "9f02cda1-2715-5622-8d62-b8eb14aa43e6",
+      "name": "Garita de Seguridad Patrimonial (Vivero)",
+      "zone": "Ilusión I",
+      "zoneId": "257fb8ad-5b90-59d1-b5e9-c156f133ec97",
+      "sources": [
+        {
+          "sheet": "Zona 2",
+          "row": 20,
+          "category": "GARITA",
+          "point": "GARITA DE SEGURIDAD PATRIMONIAL (Vivero)",
+          "zone": "ILUSIÓN I"
+        }
+      ]
+    },
+    {
+      "id": "18b84e8b-4aaf-5ff4-bad7-aae6383960c2",
+      "name": "Vestuario y Oficina de Vivero",
+      "zone": "Ilusión I",
+      "zoneId": "257fb8ad-5b90-59d1-b5e9-c156f133ec97",
+      "sources": [
+        {
+          "sheet": "Zona 2",
+          "row": 22,
+          "category": "OFICINA",
+          "point": "VESTUARIO Y OFICINA DE VIVERO",
+          "zone": "ILUSIÓN I"
+        }
+      ]
+    },
+    {
+      "id": "b92fda46-2257-5aee-8350-eacda3035098",
+      "name": "Almacén de Vivero",
+      "zone": "Ilusión I",
+      "zoneId": "257fb8ad-5b90-59d1-b5e9-c156f133ec97",
+      "sources": [
+        {
+          "sheet": "Zona 2",
+          "row": 24,
+          "category": "ALMACÉN",
+          "point": "ALMACÉN DE VIVERO",
+          "zone": "ILUSIÓN I"
+        }
+      ]
+    },
+    {
+      "id": "baf9b06a-65ef-5c66-9552-9e1fade983e5",
+      "name": "Filtrado Vivero",
+      "zone": "Ilusión I",
+      "zoneId": "257fb8ad-5b90-59d1-b5e9-c156f133ec97",
+      "sources": [
+        {
+          "sheet": "Zona 2",
+          "row": 26,
+          "category": "FILTRADO",
+          "point": "FILTRADO VIVERO",
+          "zone": "ILUSIÓN I"
+        }
+      ]
+    },
+    {
+      "id": "97cf7a51-e9ac-51ff-ad4c-a7117bd3e387",
+      "name": "Reservorio 100 000 m³",
+      "zone": "Ilusión I",
+      "zoneId": "257fb8ad-5b90-59d1-b5e9-c156f133ec97",
+      "sources": [
+        {
+          "sheet": "Zona 2",
+          "row": 28,
+          "category": "RESERVORIO",
+          "point": "RESERVORIO 100 000 m3",
+          "zone": "ILUSIÓN I"
+        }
+      ]
+    },
+    {
+      "id": "aec31560-4513-58f2-b3b3-78f28e9920bd",
+      "name": "Caseta de Impulsión de Bombeo (Esperanza III)",
+      "zone": "Ilusión I",
+      "zoneId": "257fb8ad-5b90-59d1-b5e9-c156f133ec97",
+      "sources": [
+        {
+          "sheet": "Zona 2",
+          "row": 30,
+          "category": "CASETA DE IMPULSIÓN",
+          "point": "CASETA DE IMPULSIÓN DE BOMBEO (Esperanza III)",
+          "zone": "ILUSIÓN I"
+        }
+      ]
+    },
+    {
+      "id": "781233aa-8fac-5674-bcb8-4500a3edc0b3",
+      "name": "Tratamiento de Agua (Esperanza III)",
+      "zone": "Ilusión I",
+      "zoneId": "257fb8ad-5b90-59d1-b5e9-c156f133ec97",
+      "sources": [
+        {
+          "sheet": "Zona 2",
+          "row": 32,
+          "category": "PTA",
+          "point": "TRATAMIENTO DE AGUA (Esperanza III)",
+          "zone": "ILUSIÓN I"
+        }
+      ]
+    },
+    {
+      "id": "dca06be4-40c2-524f-a867-adf2e4f2ea35",
+      "name": "Tratamiento de Agua (Ilusión II)",
+      "zone": "Ilusión I",
+      "zoneId": "257fb8ad-5b90-59d1-b5e9-c156f133ec97",
+      "sources": [
+        {
+          "sheet": "Zona 2",
+          "row": 34,
+          "category": "PTA",
+          "point": "TRATAMIENTO DE AGUA (Ilusión II)",
+          "zone": "ILUSIÓN I"
+        }
+      ]
+    },
+    {
+      "id": "dab739b5-7246-56a1-8845-184b7934dbf3",
+      "name": "Reservorio 80 000 m³ (Ilusión II)",
+      "zone": "Ilusión I",
+      "zoneId": "257fb8ad-5b90-59d1-b5e9-c156f133ec97",
+      "sources": [
+        {
+          "sheet": "Zona 2",
+          "row": 36,
+          "category": "RESERVORIO",
+          "point": "RESERVORIO 80 000 m3 (Ilusión II)",
+          "zone": "ILUSIÓN I"
+        }
+      ]
+    },
+    {
+      "id": "bb71ca2e-7486-57b6-a096-c287cff8c20b",
+      "name": "Caseta de Impulsión Bombeo (Parte Baja) / Esperanza II",
+      "zone": "Ilusión I",
+      "zoneId": "257fb8ad-5b90-59d1-b5e9-c156f133ec97",
+      "sources": [
+        {
+          "sheet": "Zona 2",
+          "row": 38,
+          "category": "CASETA DE IMPULSIÓN",
+          "point": "CASETA DE IMPULSIÓN BOMBEO (Parte Baja)/ Esperanza II",
+          "zone": "ILUSIÓN I"
+        }
+      ]
+    },
+    {
+      "id": "a6bda2a2-457d-5875-a692-81c35bd000f3",
+      "name": "Reservorio 111 000 m³",
+      "zone": "Ilusión I",
+      "zoneId": "257fb8ad-5b90-59d1-b5e9-c156f133ec97",
+      "sources": [
+        {
+          "sheet": "Zona 2",
+          "row": 40,
+          "category": "RESERVORIO",
+          "point": "RESERVORIO 111 000 m3",
+          "zone": "ILUSIÓN I"
+        }
+      ]
+    },
+    {
+      "id": "f710a81d-8b10-5e0f-b7d4-94c6365a9aed",
+      "name": "Reservorio 193 000 m³",
+      "zone": "Ilusión I",
+      "zoneId": "257fb8ad-5b90-59d1-b5e9-c156f133ec97",
+      "sources": [
+        {
+          "sheet": "Zona 2",
+          "row": 42,
+          "category": "RESERVORIO",
+          "point": "RESERVORIO 193 000 m3",
+          "zone": "ILUSIÓN I"
+        }
+      ]
+    },
+    {
+      "id": "5a6ebf1e-eb4d-5c7f-aab8-d2a525b21ea9",
+      "name": "Sedimentador de 20 000 m³",
+      "zone": "Ilusión I",
+      "zoneId": "257fb8ad-5b90-59d1-b5e9-c156f133ec97",
+      "sources": [
+        {
+          "sheet": "Zona 2",
+          "row": 44,
+          "category": "RESERVORIO",
+          "point": "SEDIMENTADOR DE 20 000 m3",
+          "zone": "ILUSIÓN I"
+        }
+      ]
+    },
+    {
+      "id": "c2557027-e9ee-5887-be3d-e62672db21f9",
+      "name": "Presedimentador de 10 000 m³",
+      "zone": "Ilusión I",
+      "zoneId": "257fb8ad-5b90-59d1-b5e9-c156f133ec97",
+      "sources": [
+        {
+          "sheet": "Zona 2",
+          "row": 46,
+          "category": "RESERVORIO",
+          "point": "PRESEDIMENTADOR DE 10 000 m3",
+          "zone": "ILUSIÓN I"
+        }
+      ]
+    },
+    {
+      "id": "26bafea6-ffd8-5b10-a197-b460d6a8842a",
+      "name": "Reservorio 240 000 m³",
+      "zone": "Ilusión I",
+      "zoneId": "257fb8ad-5b90-59d1-b5e9-c156f133ec97",
+      "sources": [
+        {
+          "sheet": "Zona 2",
+          "row": 48,
+          "category": "RESERVORIO",
+          "point": "RESERVORIO 240 000 m3",
+          "zone": "ILUSIÓN I"
+        }
+      ]
+    },
+    {
+      "id": "05e156a9-99fc-58aa-9979-884973c39d16",
+      "name": "Tratamiento de Agua (Esperanza I)",
+      "zone": "Ilusión I",
+      "zoneId": "257fb8ad-5b90-59d1-b5e9-c156f133ec97",
+      "sources": [
+        {
+          "sheet": "Zona 2",
+          "row": 50,
+          "category": "PTA",
+          "point": "TRATAMIENTO DE AGUA (Esperanza I)",
+          "zone": "ILUSIÓN I"
+        }
+      ]
+    },
+    {
+      "id": "da291fdc-976b-557a-bf1d-1ef2b8fd6e2f",
+      "name": "Caseta de Impulsión de Bombeo (Esperanza I)",
+      "zone": "Ilusión I",
+      "zoneId": "257fb8ad-5b90-59d1-b5e9-c156f133ec97",
+      "sources": [
+        {
+          "sheet": "Zona 2",
+          "row": 52,
+          "category": "CASETA DE IMPULSIÓN",
+          "point": "CASETA DE IMPULSIÓN DE BOMBEO (Esperanza I)",
+          "zone": "ILUSIÓN I"
+        }
+      ]
+    },
+    {
+      "id": "27a89e46-f871-56b8-b52e-92d7d188135b",
+      "name": "Filtrado de Ilusión I y II",
+      "zone": "Ilusión I",
+      "zoneId": "257fb8ad-5b90-59d1-b5e9-c156f133ec97",
+      "sources": [
+        {
+          "sheet": "Zona 2",
+          "row": 54,
+          "category": "FILTRADO",
+          "point": "FILTRADO DE ILUSIÓN I Y II",
+          "zone": "ILUSIÓN I"
+        }
+      ]
+    },
+    {
+      "id": "54b5333f-2691-5b61-a79f-71c813160f76",
+      "name": "Filtrado Módulo PQ",
+      "zone": "Remanso I",
+      "zoneId": "f556fba6-7226-550e-9408-f56f78031bdb",
+      "sources": [
+        {
+          "sheet": "Zona 2",
+          "row": 56,
+          "category": "FILTRADO",
+          "point": "FILTRADO MÓDULO PQ",
+          "zone": "REMANSO I"
+        }
+      ]
+    },
+    {
+      "id": "1299db27-b72a-50a2-9ea1-da3d12fbf3a3",
+      "name": "Planta de Tratamiento de Agua Potable",
+      "zone": "Remanso I",
+      "zoneId": "f556fba6-7226-550e-9408-f56f78031bdb",
+      "sources": [
+        {
+          "sheet": "Zona 2",
+          "row": 58,
+          "category": "PTAP",
+          "point": "PLANTA DE TRATAMIENTO DE AGUA POTABLE",
+          "zone": "REMANSO I"
+        }
+      ]
+    },
+    {
+      "id": "fc53de8f-af43-5c4b-8d95-ea6d263c25cb",
+      "name": "Lavadero de Camiones",
+      "zone": "Remanso I",
+      "zoneId": "f556fba6-7226-550e-9408-f56f78031bdb",
+      "sources": [
+        {
+          "sheet": "Zona 2",
+          "row": 60,
+          "category": "LAVADERO",
+          "point": "LAVADERO DE CAMIONES",
+          "zone": "REMANSO I"
+        }
+      ]
+    },
+    {
+      "id": "5f2f8edd-dbcc-5d24-b836-952f83f66ec3",
+      "name": "Centro de Acopio y Enfriamiento",
+      "zone": "Remanso I",
+      "zoneId": "f556fba6-7226-550e-9408-f56f78031bdb",
+      "sources": [
+        {
+          "sheet": "Zona 2",
+          "row": 62,
+          "category": "CAE",
+          "point": "CENTRO DE ACOPIO Y ENFRIAMIENTO",
+          "zone": "REMANSO I"
+        }
+      ]
+    },
+    {
+      "id": "cd4977e7-096e-5f01-bb07-b7c29a29b805",
+      "name": "Lavadero y Almacén de Jabas",
+      "zone": "Remanso I",
+      "zoneId": "f556fba6-7226-550e-9408-f56f78031bdb",
+      "sources": [
+        {
+          "sheet": "Zona 2",
+          "row": 64,
+          "category": "ALMACÉN",
+          "point": "LAVADERO Y ALMACEN DE JABAS",
+          "zone": "REMANSO I"
+        }
+      ]
+    },
+    {
+      "id": "e2aef629-dc56-5f86-b954-3c62954fcfff",
+      "name": "Garita de Seguridad CAE Remanso",
+      "zone": "Remanso I",
+      "zoneId": "f556fba6-7226-550e-9408-f56f78031bdb",
+      "sources": [
+        {
+          "sheet": "Zona 2",
+          "row": 66,
+          "category": "GARITA",
+          "point": "GARITA DE SEGURIDAD CAE REMANSO",
+          "zone": "REMANSO I"
+        }
+      ]
+    },
+    {
+      "id": "e77325f1-edf2-50e6-80de-46d9c00d65ee",
+      "name": "Filtrado Módulo R S",
+      "zone": "Remanso I",
+      "zoneId": "f556fba6-7226-550e-9408-f56f78031bdb",
+      "sources": [
+        {
+          "sheet": "Zona 2",
+          "row": 68,
+          "category": "FILTRADO",
+          "point": "FILTRADO MÓDULO R S",
+          "zone": "REMANSO I"
+        }
+      ]
+    },
+    {
+      "id": "e2a28dd0-ab99-51ef-af6b-6ea8045a9c68",
+      "name": "Filtrado Módulo R1 R2",
+      "zone": "Remanso I",
+      "zoneId": "f556fba6-7226-550e-9408-f56f78031bdb",
+      "sources": [
+        {
+          "sheet": "Zona 2",
+          "row": 70,
+          "category": "FILTRADO",
+          "point": "FILTRADO MÓDULO R1 R2",
+          "zone": "REMANSO I"
+        }
+      ]
+    },
+    {
+      "id": "adc7a5f6-5274-50a0-8e22-11b1dad92c31",
+      "name": "Filtrado Módulo S2 S3",
+      "zone": "Remanso I",
+      "zoneId": "f556fba6-7226-550e-9408-f56f78031bdb",
+      "sources": [
+        {
+          "sheet": "Zona 2",
+          "row": 72,
+          "category": "FILTRADO",
+          "point": "FILTRADO MÓDULO S2 S3",
+          "zone": "REMANSO I"
+        }
+      ]
+    },
+    {
+      "id": "ecedb6fe-5527-59ac-ae98-0f9f7d3c776a",
+      "name": "Oficina de Producción Remanso",
+      "zone": "Remanso I",
+      "zoneId": "f556fba6-7226-550e-9408-f56f78031bdb",
+      "sources": [
+        {
+          "sheet": "Zona 2",
+          "row": 74,
+          "category": "OFICINA",
+          "point": "OFICINA DE PRODUCCIÓN REMANSO",
+          "zone": "REMANSO I"
+        }
+      ]
+    },
+    {
+      "id": "b1bf1cef-724b-5c86-a3d9-e604aee5ff68",
+      "name": "Almacén Productivo Remanso I",
+      "zone": "Remanso I",
+      "zoneId": "f556fba6-7226-550e-9408-f56f78031bdb",
+      "sources": [
+        {
+          "sheet": "Zona 2",
+          "row": 76,
+          "category": "ALMACÉN",
+          "point": "ALMACÉN PRODUCTIVO REMANSO I",
+          "zone": "REMANSO I"
+        }
+      ]
+    },
+    {
+      "id": "9e69aee7-bcc6-52ad-9407-fcb4e5e9c0d3",
+      "name": "Oficina de Servicios Generales",
+      "zone": "Remanso I",
+      "zoneId": "f556fba6-7226-550e-9408-f56f78031bdb",
+      "sources": [
+        {
+          "sheet": "Zona 2",
+          "row": 78,
+          "category": "OFICINA",
+          "point": "OFICINA DE SERVICIOS GENERALES",
+          "zone": "REMANSO I"
+        }
+      ]
+    },
+    {
+      "id": "325cc09a-7baf-57b3-b2bc-18fd4400f770",
+      "name": "Almacén Remanso",
+      "zone": "Remanso I",
+      "zoneId": "f556fba6-7226-550e-9408-f56f78031bdb",
+      "sources": [
+        {
+          "sheet": "Zona 2",
+          "row": 80,
+          "category": "ALMACÉN",
+          "point": "ALMACEN REMANSO",
+          "zone": "REMANSO I"
+        }
+      ]
+    },
+    {
+      "id": "32dddbe3-d107-5674-b2f7-f62c421e5e97",
+      "name": "Almacén Producción (Filtrado RS)",
+      "zone": "Remanso I",
+      "zoneId": "f556fba6-7226-550e-9408-f56f78031bdb",
+      "sources": [
+        {
+          "sheet": "Zona 2",
+          "row": 82,
+          "category": "ALMACÉN",
+          "point": "ALMACÉN PRODUCCION (Filtrado RS)",
+          "zone": "REMANSO I"
+        }
+      ]
+    },
+    {
+      "id": "a1938d85-dd9f-5969-97d1-0b3e5a8a3d29",
+      "name": "Vestuarios, Duchas, Lavandería, Premezcla y Phytobac, Oficina",
+      "zone": "Remanso I",
+      "zoneId": "f556fba6-7226-550e-9408-f56f78031bdb",
+      "sources": [
+        {
+          "sheet": "Zona 2",
+          "row": 84,
+          "category": "SANIDAD",
+          "point": "VESTUARIOS, DUCHAS,LAVANDERIA, PREMEZCLA Y PHYTOBAC, OFICINA",
+          "zone": "REMANSO I"
+        }
+      ]
+    },
+    {
+      "id": "f46a73a9-8f9d-544d-abcc-9d552634c86c",
+      "name": "Almacén de Bioseguridad",
+      "zone": "Remanso I",
+      "zoneId": "f556fba6-7226-550e-9408-f56f78031bdb",
+      "sources": [
+        {
+          "sheet": "Zona 2",
+          "row": 86,
+          "category": "SANIDAD",
+          "point": "ALMACÉN DE BIOSEGURIDAD",
+          "zone": "REMANSO I"
+        }
+      ]
+    },
+    {
+      "id": "52b61455-f964-5e8a-8a37-f6e17afbf4e0",
+      "name": "Almacén de Producción Módulo P - Comedor 28",
+      "zone": "Remanso I",
+      "zoneId": "f556fba6-7226-550e-9408-f56f78031bdb",
+      "sources": [
+        {
+          "sheet": "Zona 2",
+          "row": 88,
+          "category": "ALMACÉN",
+          "point": "ALMACÉN DE PRODUCCIÓN MÓDULO P - COMEDOR 28",
+          "zone": "REMANSO I"
+        }
+      ]
+    },
+    {
+      "id": "f5ad3dbc-7dcb-5cf4-afed-766acd7d3d81",
+      "name": "Filtrado Módulo TUVW",
+      "zone": "Remanso II",
+      "zoneId": "91e0ad54-37b1-5283-955c-43f862defbcc",
+      "sources": [
+        {
+          "sheet": "Zona 2",
+          "row": 90,
+          "category": "FILTRADO",
+          "point": "FILTRADO MÓDULO TUVW",
+          "zone": "REMANSO II"
+        }
+      ]
+    },
+    {
+      "id": "a7eeb488-483f-5b6f-9164-db1edc8251ea",
+      "name": "Filtrado Módulo X",
+      "zone": "Remanso II",
+      "zoneId": "91e0ad54-37b1-5283-955c-43f862defbcc",
+      "sources": [
+        {
+          "sheet": "Zona 2",
+          "row": 92,
+          "category": "FILTRADO",
+          "point": "FILTRADO MÓDULO X",
+          "zone": "REMANSO II"
+        }
+      ]
+    },
+    {
+      "id": "27a46219-1138-5e68-a9b6-ae98a0566a87",
+      "name": "Almacén de Atriles",
+      "zone": "Remanso II",
+      "zoneId": "91e0ad54-37b1-5283-955c-43f862defbcc",
+      "sources": [
+        {
+          "sheet": "Zona 2",
+          "row": 94,
+          "category": "ALMACÉN",
+          "point": "ALMACÉN DE ATRILES",
+          "zone": "REMANSO II"
+        }
+      ]
+    },
+    {
+      "id": "35e9decb-5eeb-5e4f-9191-588a4d64cd60",
+      "name": "Reservorio 180 K",
+      "zone": "Remanso II",
+      "zoneId": "91e0ad54-37b1-5283-955c-43f862defbcc",
+      "sources": [
+        {
+          "sheet": "Zona 2",
+          "row": 96,
+          "category": "RESERVORIO",
+          "point": "RESERVORIO 180 K",
+          "zone": "REMANSO II"
+        }
+      ]
+    },
+    {
+      "id": "c34640cc-e7a8-537e-be2c-bb09010886af",
+      "name": "Reservorio 100 K",
+      "zone": "Remanso II",
+      "zoneId": "91e0ad54-37b1-5283-955c-43f862defbcc",
+      "sources": [
+        {
+          "sheet": "Zona 2",
+          "row": 98,
+          "category": "RESERVORIO",
+          "point": "RESERVORIO 100 K",
+          "zone": "REMANSO II"
+        }
+      ]
+    },
+    {
+      "id": "651774aa-97e7-5e02-aa42-d70681fd1cac",
+      "name": "Garita de Seguridad Chavimochic II",
+      "zone": "Remanso II",
+      "zoneId": "91e0ad54-37b1-5283-955c-43f862defbcc",
+      "sources": [
+        {
+          "sheet": "Zona 2",
+          "row": 100,
+          "category": "GARITA",
+          "point": "GARITA DE SEGURIDAD CHAVIMOCHIC II",
+          "zone": "REMANSO II"
+        }
+      ]
+    },
+    {
+      "id": "cdab74b5-8c2c-54ca-9737-8f70b95a7ce4",
+      "name": "Garita de Seguridad Canal Santa Isabel",
+      "zone": "Remanso II",
+      "zoneId": "91e0ad54-37b1-5283-955c-43f862defbcc",
+      "sources": [
+        {
+          "sheet": "Zona 2",
+          "row": 102,
+          "category": "GARITA",
+          "point": "GARITA DE SEGURIDAD CANAL SANTA ISABEL",
+          "zone": "REMANSO II"
+        }
+      ]
+    },
+    {
+      "id": "78eb514a-dd99-57a1-a9cb-625a985afbfd",
+      "name": "Compostera",
+      "zone": "Remanso II",
+      "zoneId": "91e0ad54-37b1-5283-955c-43f862defbcc",
+      "sources": [
+        {
+          "sheet": "Zona 2",
+          "row": 104,
+          "category": "COMPOSTERA",
+          "point": "COMPOSTERA",
+          "zone": "REMANSO II"
+        }
+      ]
+    },
+    {
+      "id": "87c53565-3827-5ed6-854d-e7f3c4d350b5",
+      "name": "Oficina de CAT Container",
+      "zone": "Remanso II",
+      "zoneId": "91e0ad54-37b1-5283-955c-43f862defbcc",
+      "sources": [
+        {
+          "sheet": "Zona 2",
+          "row": 106,
+          "category": "OFICINA",
+          "point": "OFICINA DE CAT CONTAINER",
+          "zone": "REMANSO II"
+        }
+      ]
+    },
+    {
+      "id": "b9b77964-e3a2-5f69-9b14-f79d682fb43a",
+      "name": "Filtrado Módulo A-1",
+      "zone": "Esperanza I",
+      "zoneId": "76f40822-a453-5a23-a74a-3e4912e7a807",
+      "sources": [
+        {
+          "sheet": "Zona 3 ",
+          "row": 10,
+          "category": "FILTRADO",
+          "point": "FILTRADO MÓDULO A-1",
+          "zone": "ESPERANZA I"
+        }
+      ]
+    },
+    {
+      "id": "1406fb7e-5cdc-51b6-9a57-6f51b7f5f77e",
+      "name": "Reservorio 900 m³",
+      "zone": "Esperanza I",
+      "zoneId": "76f40822-a453-5a23-a74a-3e4912e7a807",
+      "sources": [
+        {
+          "sheet": "Zona 3 ",
+          "row": 12,
+          "category": "RESERVORIO",
+          "point": "RESERVORIO 900 m3",
+          "zone": "ESPERANZA I"
+        }
+      ]
+    },
+    {
+      "id": "9bde7ced-a67d-513f-8f96-5e4374b2d98e",
+      "name": "Oficina de Calidad y SIGMA",
+      "zone": "Esperanza I",
+      "zoneId": "76f40822-a453-5a23-a74a-3e4912e7a807",
+      "sources": [
+        {
+          "sheet": "Zona 3 ",
+          "row": 14,
+          "category": "OFICINA",
+          "point": "OFICINA DE CALIDAD Y SIGMA",
+          "zone": "ESPERANZA I"
+        }
+      ]
+    },
+    {
+      "id": "2a1afb57-9e19-5d04-a6a9-98554d911696",
+      "name": "Tópico y Lactario",
+      "zone": "Esperanza I",
+      "zoneId": "76f40822-a453-5a23-a74a-3e4912e7a807",
+      "sources": [
+        {
+          "sheet": "Zona 3 ",
+          "row": 16,
+          "category": "TOPICO",
+          "point": "TÓPICO Y LACTARIO",
+          "zone": "ESPERANZA I"
+        }
+      ]
+    },
+    {
+      "id": "bebd6d77-d0bc-5314-a5b8-5b71605fbde0",
+      "name": "Oficina de Atención al Trabajador Fundo, Relaciones Laborales, Planillas y Compensaciones",
+      "zone": "Esperanza I",
+      "zoneId": "76f40822-a453-5a23-a74a-3e4912e7a807",
+      "sources": [
+        {
+          "sheet": "Zona 3 ",
+          "row": 18,
+          "category": "OFICINA",
+          "point": "OFICINA DE ATENCIÓN AL TRABAJADOR FUNDO, RELACIONES LABORALES, PLANILLAS Y COMPENSACIONES",
+          "zone": "ESPERANZA I"
+        }
+      ]
+    },
+    {
+      "id": "093be3e4-03de-5330-891a-ee405cb81fe4",
+      "name": "Vestuarios, Duchas, Lavandería, Premezcla y Phytobac",
+      "zone": "Esperanza I",
+      "zoneId": "76f40822-a453-5a23-a74a-3e4912e7a807",
+      "sources": [
+        {
+          "sheet": "Zona 3 ",
+          "row": 20,
+          "category": "SANIDAD",
+          "point": "VESTUARIOS, DUCHAS,LAVANDERIA, PREMEZCLA Y PHYTOBAC",
+          "zone": "ESPERANZA I"
+        }
+      ]
+    },
+    {
+      "id": "681e6706-b45d-5597-9ac4-0309048da20f",
+      "name": "Oficina de Producción",
+      "zone": "Esperanza I",
+      "zoneId": "76f40822-a453-5a23-a74a-3e4912e7a807",
+      "sources": [
+        {
+          "sheet": "Zona 3 ",
+          "row": 22,
+          "category": "OFICINA",
+          "point": "OFICINA DE PRODUCCIÓN",
+          "zone": "ESPERANZA I"
+        }
+      ]
+    },
+    {
+      "id": "bddcb525-11ea-5102-9db6-6ac304863754",
+      "name": "Oficina y Almacén Temporal de Taller y Maquinaria",
+      "zone": "Esperanza I",
+      "zoneId": "76f40822-a453-5a23-a74a-3e4912e7a807",
+      "sources": [
+        {
+          "sheet": "Zona 3 ",
+          "row": 24,
+          "category": "ALMACÉN",
+          "point": "OFICINA Y ALMACÉN TEMPORAL DE TALLER Y MAQUINARIA",
+          "zone": "ESPERANZA I"
+        }
+      ]
+    },
+    {
+      "id": "b6c97ed8-ad5b-5ad6-b2de-80bbcdb211a1",
+      "name": "Garita de Seguridad Patrimonial",
+      "zone": "Esperanza I",
+      "zoneId": "76f40822-a453-5a23-a74a-3e4912e7a807",
+      "sources": [
+        {
+          "sheet": "Zona 3 ",
+          "row": 26,
+          "category": "GARITA",
+          "point": "GARITA DE SEGURIDAD PATRIMONIAL",
+          "zone": "ESPERANZA I"
+        }
+      ]
+    },
+    {
+      "id": "da9f169d-aa7f-50c6-816b-900311415662",
+      "name": "Almacén de Bioseguridad (Cerrito)",
+      "zone": "Esperanza I",
+      "zoneId": "76f40822-a453-5a23-a74a-3e4912e7a807",
+      "sources": [
+        {
+          "sheet": "Zona 3 ",
+          "row": 28,
+          "category": "SANIDAD",
+          "point": "ALMACEN DE BIOSEGURIDAD (Cerrito)",
+          "zone": "ESPERANZA I"
+        }
+      ]
+    },
+    {
+      "id": "1afe5c03-1fe4-5a86-8a82-6a1cce0d5ac0",
+      "name": "Almacén de Producción (Cerrito)",
+      "zone": "Esperanza I",
+      "zoneId": "76f40822-a453-5a23-a74a-3e4912e7a807",
+      "sources": [
+        {
+          "sheet": "Zona 3 ",
+          "row": 30,
+          "category": "ALMACÉN",
+          "point": "ALMACÉN DE PRODUCCIÓN (CERRITO)",
+          "zone": "ESPERANZA I"
+        }
+      ]
+    },
+    {
+      "id": "574d60bc-8840-546f-8cfa-c32a63ed24d5",
+      "name": "Almacén de Riego (Cerrito)",
+      "zone": "Esperanza I",
+      "zoneId": "76f40822-a453-5a23-a74a-3e4912e7a807",
+      "sources": [
+        {
+          "sheet": "Zona 3 ",
+          "row": 32,
+          "category": "ALMACÉN",
+          "point": "ALMACÉN DE RIEGO (CERRITO)",
+          "zone": "ESPERANZA I"
+        }
+      ]
+    },
+    {
+      "id": "70df6d11-59b5-5e00-96ef-ce769bcfcacf",
+      "name": "Almacén Agrícola y Grifo",
+      "zone": "Esperanza I",
+      "zoneId": "76f40822-a453-5a23-a74a-3e4912e7a807",
+      "sources": [
+        {
+          "sheet": "Zona 3 ",
+          "row": 34,
+          "category": "ALMACÉN",
+          "point": "ALMACÉN AGRÍCOLA Y GRIFO",
+          "zone": "ESPERANZA I"
+        }
+      ]
+    },
+    {
+      "id": "ad65b5f2-f745-58b0-90c1-cd9d96f0e15e",
+      "name": "Planta de Tratamiento de Agua Potable",
+      "zone": "Esperanza I",
+      "zoneId": "76f40822-a453-5a23-a74a-3e4912e7a807",
+      "sources": [
+        {
+          "sheet": "Zona 3 ",
+          "row": 36,
+          "category": "PTAP",
+          "point": "PLANTA DE TRATAMIENTO DE AGUA POTABLE",
+          "zone": "ESPERANZA I"
+        }
+      ]
+    },
+    {
+      "id": "b482df7f-56d2-5fdf-ab5d-03a125f9279c",
+      "name": "Almacén de Jabas",
+      "zone": "Esperanza I",
+      "zoneId": "76f40822-a453-5a23-a74a-3e4912e7a807",
+      "sources": [
+        {
+          "sheet": "Zona 3 ",
+          "row": 38,
+          "category": "ALMACÉN",
+          "point": "ALMACÉN DE JABAS",
+          "zone": "ESPERANZA I"
+        }
+      ]
+    },
+    {
+      "id": "b0f6f208-752f-53b1-b9da-4cc6809a0ce3",
+      "name": "Centro de Acopio y Enfriamiento",
+      "zone": "Esperanza I",
+      "zoneId": "76f40822-a453-5a23-a74a-3e4912e7a807",
+      "sources": [
+        {
+          "sheet": "Zona 3 ",
+          "row": 40,
+          "category": "CAE",
+          "point": "CENTRO DE ACOPIO Y ENFRIAMIENTO",
+          "zone": "ESPERANZA I"
+        }
+      ]
+    },
+    {
+      "id": "bfb208a4-2738-5119-9a6a-345e9efe007f",
+      "name": "Filtrado Módulo B",
+      "zone": "Esperanza II",
+      "zoneId": "c0994cc7-ce8c-5096-868d-15b6566a8b52",
+      "sources": [
+        {
+          "sheet": "Zona 3 ",
+          "row": 42,
+          "category": "FILTRADO",
+          "point": "FILTRADO MÓDULO B",
+          "zone": "ESPERANZA II"
+        }
+      ]
+    },
+    {
+      "id": "1377954e-2f9c-564a-b0f5-aa62f88a6b8a",
+      "name": "Caseta de Impulsión de Rebombeo (Parte Alta)",
+      "zone": "Esperanza II",
+      "zoneId": "c0994cc7-ce8c-5096-868d-15b6566a8b52",
+      "sources": [
+        {
+          "sheet": "Zona 3 ",
+          "row": 44,
+          "category": "CASETA DE IMPULSIÓN",
+          "point": "CASETA DE IMPULSIÓN DE REBOMBEO (Parte Alta)",
+          "zone": "ESPERANZA II"
+        }
+      ]
+    },
+    {
+      "id": "53d22f0c-b6fc-54aa-b32f-4cf72be40cc4",
+      "name": "Reservorio 40 000 m³",
+      "zone": "Esperanza II",
+      "zoneId": "c0994cc7-ce8c-5096-868d-15b6566a8b52",
+      "sources": [
+        {
+          "sheet": "Zona 3 ",
+          "row": 46,
+          "category": "RESERVORIO",
+          "point": "RESERVORIO 40 000 m3",
+          "zone": "ESPERANZA II"
+        }
+      ]
+    },
+    {
+      "id": "5701ee42-9c59-50e7-ac4b-299ebc63c657",
+      "name": "Reservorio 80 000 m³",
+      "zone": "Esperanza II",
+      "zoneId": "c0994cc7-ce8c-5096-868d-15b6566a8b52",
+      "sources": [
+        {
+          "sheet": "Zona 3 ",
+          "row": 48,
+          "category": "RESERVORIO",
+          "point": "RESERVORIO 80 000 m3",
+          "zone": "ESPERANZA II"
+        }
+      ]
+    },
+    {
+      "id": "8164e9ff-c0f0-540e-9f3b-8d74900c38f5",
+      "name": "Almacén de Genética",
+      "zone": "Esperanza II",
+      "zoneId": "c0994cc7-ce8c-5096-868d-15b6566a8b52",
+      "sources": [
+        {
+          "sheet": "Zona 3 ",
+          "row": 50,
+          "category": "ALMACÉN",
+          "point": "ALMACÉN DE GENÉTICA",
+          "zone": "ESPERANZA II"
+        }
+      ]
+    },
+    {
+      "id": "33b80213-6cf1-542c-96d4-a9e06b481974",
+      "name": "Filtrado de Genética",
+      "zone": "Esperanza II",
+      "zoneId": "c0994cc7-ce8c-5096-868d-15b6566a8b52",
+      "sources": [
+        {
+          "sheet": "Zona 3 ",
+          "row": 52,
+          "category": "FILTRADO",
+          "point": "FILTRADO DE GENÉTICA",
+          "zone": "ESPERANZA II"
+        }
+      ]
+    },
+    {
+      "id": "adc30624-a59d-5544-8ff7-afea312d65cc",
+      "name": "Oficina de Genética (Container)",
+      "zone": "Esperanza II",
+      "zoneId": "c0994cc7-ce8c-5096-868d-15b6566a8b52",
+      "sources": [
+        {
+          "sheet": "Zona 3 ",
+          "row": 54,
+          "category": "OFICINA",
+          "point": "OFICINA DE GENÉTICA (Container)",
+          "zone": "ESPERANZA II"
+        }
+      ]
+    },
+    {
+      "id": "e68df2f9-f677-57c9-a47e-db4f97a12090",
+      "name": "Almacén Productivo Esperanza II (Módulo C)",
+      "zone": "Esperanza II",
+      "zoneId": "c0994cc7-ce8c-5096-868d-15b6566a8b52",
+      "sources": [
+        {
+          "sheet": "Zona 3 ",
+          "row": 56,
+          "category": "ALMACÉN",
+          "point": "ALMACÉN PRODUCTIVO ESPERANZA II (Módulo C)",
+          "zone": "ESPERANZA II"
+        }
+      ]
+    },
+    {
+      "id": "5db1a971-7c79-5167-a2f6-78edc4ea4a98",
+      "name": "Oficina de Servicios Generales (Módulo C)",
+      "zone": "Esperanza II",
+      "zoneId": "c0994cc7-ce8c-5096-868d-15b6566a8b52",
+      "sources": [
+        {
+          "sheet": "Zona 3 ",
+          "row": 58,
+          "category": "OFICINA",
+          "point": "OFICINA DE SERVICIOS GENERALES (Módulo C)",
+          "zone": "ESPERANZA II"
+        }
+      ]
+    },
+    {
+      "id": "7a332741-29a4-544c-ab29-e9a49b1f948d",
+      "name": "Filtrado Módulo C, D, E, F, Q",
+      "zone": "Esperanza II",
+      "zoneId": "c0994cc7-ce8c-5096-868d-15b6566a8b52",
+      "sources": [
+        {
+          "sheet": "Zona 3 ",
+          "row": 60,
+          "category": "FILTRADO",
+          "point": "FILTRADO MÓDULO C,D,E,F,Q",
+          "zone": "ESPERANZA II"
+        }
+      ]
+    },
+    {
+      "id": "0439c8e3-9562-57b4-99a9-5a758a779f84",
+      "name": "Oficina Central de Riego",
+      "zone": "Esperanza II",
+      "zoneId": "c0994cc7-ce8c-5096-868d-15b6566a8b52",
+      "sources": [
+        {
+          "sheet": "Zona 3 ",
+          "row": 62,
+          "category": "OFICINA",
+          "point": "OFICINA CENTRAL DE RIEGO",
+          "zone": "ESPERANZA II"
+        }
+      ]
+    },
+    {
+      "id": "b566da1d-dbdb-5125-8546-b5cbe6b67424",
+      "name": "Laboratorio HUB",
+      "zone": "Esperanza II",
+      "zoneId": "c0994cc7-ce8c-5096-868d-15b6566a8b52",
+      "sources": [
+        {
+          "sheet": "Zona 3 ",
+          "row": 64,
+          "category": "LABORATORIO",
+          "point": "LABORATORIO HUB",
+          "zone": "ESPERANZA II"
+        }
+      ]
+    },
+    {
+      "id": "72e9b98c-ce56-55d4-999d-8466a62afee0",
+      "name": "Almacén de Jabas",
+      "zone": "Esperanza II",
+      "zoneId": "c0994cc7-ce8c-5096-868d-15b6566a8b52",
+      "sources": [
+        {
+          "sheet": "Zona 3 ",
+          "row": 66,
+          "category": "ALMACÉN",
+          "point": "ALMACÉN DE JABAS",
+          "zone": "ESPERANZA II"
+        }
+      ]
+    },
+    {
+      "id": "d8518a08-c426-5412-a686-07cbdf3a52d0",
+      "name": "Almacén de Producción (Comedor 10)",
+      "zone": "Esperanza II",
+      "zoneId": "c0994cc7-ce8c-5096-868d-15b6566a8b52",
+      "sources": [
+        {
+          "sheet": "Zona 3 ",
+          "row": 68,
+          "category": "ALMACÉN",
+          "point": "ALMACÉN DE PRODUCCIÓN (comedor 10)",
+          "zone": "ESPERANZA II"
+        }
+      ]
+    },
+    {
+      "id": "f74cefeb-2e03-532c-9f5f-fe8ec4807ac7",
+      "name": "Almacén de Producción (Comedor 14)",
+      "zone": "Esperanza II",
+      "zoneId": "c0994cc7-ce8c-5096-868d-15b6566a8b52",
+      "sources": [
+        {
+          "sheet": "Zona 3 ",
+          "row": 70,
+          "category": "ALMACÉN",
+          "point": "ALMACÉN DE PRODUCCIÓN (comedor 14)",
+          "zone": "ESPERANZA II"
+        }
+      ]
+    },
+    {
+      "id": "e5bde931-cc9b-5a87-b499-0627fd8db4d1",
+      "name": "Almacén de Producción (Módulo G-Esperanza 2)",
+      "zone": "Esperanza II",
+      "zoneId": "c0994cc7-ce8c-5096-868d-15b6566a8b52",
+      "sources": [
+        {
+          "sheet": "Zona 3 ",
+          "row": 72,
+          "category": "ALMACÉN",
+          "point": "ALMACÉN DE PRODUCCIÓN (módulo G-Esperanza 2)",
+          "zone": "ESPERANZA II"
+        }
+      ]
+    },
+    {
+      "id": "220bb3a1-188c-58a6-87b0-9d317ee6603f",
+      "name": "Almacén Productivo Esperanza II (Módulo G)",
+      "zone": "Esperanza II",
+      "zoneId": "c0994cc7-ce8c-5096-868d-15b6566a8b52",
+      "sources": [
+        {
+          "sheet": "Zona 3 ",
+          "row": 74,
+          "category": "ALMACÉN",
+          "point": "ALMACÉN PRODUCTIVO ESPERANZA II (Módulo G)",
+          "zone": "ESPERANZA II"
+        }
+      ]
+    },
+    {
+      "id": "b49a59fe-22e0-5642-a337-fd8a5ee1ea7b",
+      "name": "Oficina de Servicios Generales (Módulo G)",
+      "zone": "Esperanza II",
+      "zoneId": "c0994cc7-ce8c-5096-868d-15b6566a8b52",
+      "sources": [
+        {
+          "sheet": "Zona 3 ",
+          "row": 76,
+          "category": "OFICINA",
+          "point": "OFICINA DE SERVICIOS GENERALES (Módulo G)",
+          "zone": "ESPERANZA II"
+        }
+      ]
+    },
+    {
+      "id": "02320f36-c653-5d8f-b9fa-af396ec5a57b",
+      "name": "Reservorio 15 000 m³",
+      "zone": "Esperanza III",
+      "zoneId": "b2e644a6-e0b4-5490-b6ff-2e83a723670e",
+      "sources": [
+        {
+          "sheet": "Zona 3 ",
+          "row": 78,
+          "category": "RESERVORIO",
+          "point": "RESERVORIO 15 000 m3",
+          "zone": "ESPERANZA III"
+        }
+      ]
+    },
+    {
+      "id": "7b7d3bed-65fa-5d0e-9b7f-d787b22bcf8e",
+      "name": "Filtrado Módulo J, K, L, A-2",
+      "zone": "Esperanza III",
+      "zoneId": "b2e644a6-e0b4-5490-b6ff-2e83a723670e",
+      "sources": [
+        {
+          "sheet": "Zona 3 ",
+          "row": 80,
+          "category": "FILTRADO",
+          "point": "FILTRADO MÓDULO J,K,L, A-2",
+          "zone": "ESPERANZA III"
+        }
+      ]
+    },
+    {
+      "id": "750e7a7a-8f64-5454-8324-c3937b607906",
+      "name": "Almacén de Producción",
+      "zone": "Esperanza III",
+      "zoneId": "b2e644a6-e0b4-5490-b6ff-2e83a723670e",
+      "sources": [
+        {
+          "sheet": "Zona 3 ",
+          "row": 82,
+          "category": "ALMACÉN",
+          "point": "ALMACÉN DE PRODUCCIÓN",
+          "zone": "ESPERANZA III"
+        }
+      ]
+    },
+    {
+      "id": "22822c44-98a0-54c0-9b0d-f26cb303491f",
+      "name": "Garita de Seguridad Patrimonial",
+      "zone": "Esperanza III",
+      "zoneId": "b2e644a6-e0b4-5490-b6ff-2e83a723670e",
+      "sources": [
+        {
+          "sheet": "Zona 3 ",
+          "row": 84,
+          "category": "GARITA",
+          "point": "GARITA DE SEGURIDAD PATRIMONIAL",
+          "zone": "ESPERANZA III"
+        }
+      ]
+    },
+    {
+      "id": "597904e8-157b-55f0-91d3-d2085375c7bc",
+      "name": "Almacén de Atril",
+      "zone": "Esperanza III",
+      "zoneId": "b2e644a6-e0b4-5490-b6ff-2e83a723670e",
+      "sources": [
+        {
+          "sheet": "Zona 3 ",
+          "row": 86,
+          "category": "ALMACÉN",
+          "point": "ALMACÉN DE ATRIL",
+          "zone": "ESPERANZA III"
+        }
+      ]
+    },
+    {
+      "id": "44513a4e-bbac-5c0d-a9f2-47b77a8d8c97",
+      "name": "Almacén de Producción (Costado de Filtrado San Luis)",
+      "zone": "San Luis",
+      "zoneId": "91fa1643-f270-5a82-be2d-0d19b111dd21",
+      "sources": [
+        {
+          "sheet": "Zona 3 ",
+          "row": 88,
+          "category": "ALMACÉN",
+          "point": "ALMACÉN DE PRODUCCIÓN (Costado de filtrado San Luis)",
+          "zone": "SAN LUIS"
+        }
+      ]
+    },
+    {
+      "id": "07faccc8-8cea-5208-a6f0-255eb2fe627e",
+      "name": "Filtrado Módulo H, I y M y Oficina Central de Riego",
+      "zone": "San Luis",
+      "zoneId": "91fa1643-f270-5a82-be2d-0d19b111dd21",
+      "sources": [
+        {
+          "sheet": "Zona 3 ",
+          "row": 90,
+          "category": "FILTRADO",
+          "point": "FILTRADO MÓDULO H, I y M Y OFICINA CENTRAL DE RIEGO",
+          "zone": "SAN LUIS"
+        }
+      ]
+    },
+    {
+      "id": "82db5f68-150d-5690-a733-35a2b2fde328",
+      "name": "Reservorio 28 000 m³",
+      "zone": "San Luis",
+      "zoneId": "91fa1643-f270-5a82-be2d-0d19b111dd21",
+      "sources": [
+        {
+          "sheet": "Zona 3 ",
+          "row": 92,
+          "category": "RESERVORIO",
+          "point": "RESERVORIO 28 000 m3",
+          "zone": "SAN LUIS"
+        }
+      ]
+    },
+    {
+      "id": "86d57910-a70f-5ac5-89d2-9889672eafe3",
+      "name": "Almacén de Jabas",
+      "zone": "Tumi",
+      "zoneId": "8941278e-4b3e-579a-bd99-d2b5043a2869",
+      "sources": [
+        {
+          "sheet": "Zona 3 ",
+          "row": 94,
+          "category": "ALMACÉN",
+          "point": "ALMACÉN DE JABAS",
+          "zone": "TUMI"
+        }
+      ]
+    },
+    {
+      "id": "9f00add9-cc56-597e-8504-4a5b2d101cf4",
+      "name": "Vestuarios, Duchas, Lavandería, Premezcla y Phytobac",
+      "zone": "Tumi",
+      "zoneId": "8941278e-4b3e-579a-bd99-d2b5043a2869",
+      "sources": [
+        {
+          "sheet": "Zona 3 ",
+          "row": 96,
+          "category": "SANIDAD",
+          "point": "VESTUARIOS, DUCHAS,LAVANDERIA, PREMEZCLA Y PHYTOBAC",
+          "zone": "TUMI"
+        }
+      ]
+    },
+    {
+      "id": "93edbc17-6f33-57f5-9447-d60ef619450a",
+      "name": "Compostera",
+      "zone": "Tumi",
+      "zoneId": "8941278e-4b3e-579a-bd99-d2b5043a2869",
+      "sources": [
+        {
+          "sheet": "Zona 3 ",
+          "row": 98,
+          "category": "COMPOSTERA",
+          "point": "COMPOSTERA",
+          "zone": "TUMI"
+        }
+      ]
+    },
+    {
+      "id": "ceac5b51-9b3b-5aeb-9419-18cd80b35bce",
+      "name": "Caseta de Impulsión",
+      "zone": "Tumi",
+      "zoneId": "8941278e-4b3e-579a-bd99-d2b5043a2869",
+      "sources": [
+        {
+          "sheet": "Zona 3 ",
+          "row": 100,
+          "category": "CASETA DE IMPULSIÓN",
+          "point": "CASETA DE IMPULSIÓN",
+          "zone": "TUMI"
+        }
+      ]
+    },
+    {
+      "id": "4aebe6f2-2a52-5f6d-af7c-179de3abe077",
+      "name": "Filtrado Módulo N, O, P, G",
+      "zone": "Tumi",
+      "zoneId": "8941278e-4b3e-579a-bd99-d2b5043a2869",
+      "sources": [
+        {
+          "sheet": "Zona 3 ",
+          "row": 102,
+          "category": "FILTRADO",
+          "point": "FILTRADO MÓDULO N,O,P, G",
+          "zone": "TUMI"
+        }
+      ]
+    },
+    {
+      "id": "2011f33d-c798-5963-be0c-c2c357feede8",
+      "name": "Oficina de Atención al Trabajador Fundo",
+      "zone": "Tumi",
+      "zoneId": "8941278e-4b3e-579a-bd99-d2b5043a2869",
+      "sources": [
+        {
+          "sheet": "Zona 3 ",
+          "row": 104,
+          "category": "OFICINA",
+          "point": "OFICINA DE ATENCIÓN AL TRABAJADOR FUNDO",
+          "zone": "TUMI"
+        }
+      ]
+    },
+    {
+      "id": "1e15507c-9b18-5d77-bfc0-6027547b961b",
+      "name": "Reservorio 90 000 m³",
+      "zone": "Tumi",
+      "zoneId": "8941278e-4b3e-579a-bd99-d2b5043a2869",
+      "sources": [
+        {
+          "sheet": "Zona 3 ",
+          "row": 106,
+          "category": "RESERVORIO",
+          "point": "RESERVORIO 90 000 m3",
+          "zone": "TUMI"
+        }
+      ]
+    },
+    {
+      "id": "44e9c728-011b-5bfe-b03b-a74fbc2595a9",
+      "name": "Reservorio 770 000 m³",
+      "zone": "Tumi",
+      "zoneId": "8941278e-4b3e-579a-bd99-d2b5043a2869",
+      "sources": [
+        {
+          "sheet": "Zona 3 ",
+          "row": 108,
+          "category": "RESERVORIO",
+          "point": "RESERVORIO 770 000 m3",
+          "zone": "TUMI"
+        }
+      ]
+    },
+    {
+      "id": "f4d50b84-be6b-5c5e-9667-b9d70ea640fc",
+      "name": "Almacén de Atril",
+      "zone": "Tumi",
+      "zoneId": "8941278e-4b3e-579a-bd99-d2b5043a2869",
+      "sources": [
+        {
+          "sheet": "Zona 3 ",
+          "row": 110,
+          "category": "ALMACÉN",
+          "point": "ALMACÉN DE ATRIL",
+          "zone": "TUMI"
+        }
+      ]
+    },
+    {
+      "id": "b52745d1-d3b8-5753-b175-bb0e2565c98b",
+      "name": "Almacén de Producción (Interior de Almacén de Atril)",
+      "zone": "Tumi",
+      "zoneId": "8941278e-4b3e-579a-bd99-d2b5043a2869",
+      "sources": [
+        {
+          "sheet": "Zona 3 ",
+          "row": 112,
+          "category": "ALMACÉN",
+          "point": "ALMACÉN DE PRODUCCIÓN (INTERIOR DE ALMACEN DE ATRIL)",
+          "zone": "TUMI"
+        }
+      ]
+    },
+    {
+      "id": "f8394845-9216-5b46-a496-0f19bf5d4b08",
+      "name": "Almacén de Producción (Comedor 20) y Almacén Temporal de Materiales",
+      "zone": "Tumi",
+      "zoneId": "8941278e-4b3e-579a-bd99-d2b5043a2869",
+      "sources": [
+        {
+          "sheet": "Zona 3 ",
+          "row": 114,
+          "category": "ALMACÉN",
+          "point": "ALMACÉN DE PRODUCCIÓN (Comedor 20) Y ALMACÉN TEMPORAL DE MATERIALES",
+          "zone": "TUMI"
+        }
+      ]
+    }
+  ],
+  "excluded": [
+    {
+      "sheet": "Zona 1",
+      "row": 156,
+      "category": "ACTIVIDADES FUNDO",
+      "point": "COSECHA",
+      "zone": "FUNDO"
+    },
+    {
+      "sheet": "Zona 1",
+      "row": 158,
+      "category": "ACTIVIDADES FUNDO",
+      "point": "PODA",
+      "zone": "FUNDO"
+    },
+    {
+      "sheet": "Zona 1",
+      "row": 160,
+      "category": "ACTIVIDADES FUNDO",
+      "point": "APLICACIÓN DE PRODUCTOS QUÍMICOS",
+      "zone": "FUNDO"
+    },
+    {
+      "sheet": "Zona 1",
+      "row": 162,
+      "category": "ACTIVIDADES FUNDO",
+      "point": "LABORES",
+      "zone": "FUNDO"
+    },
+    {
+      "sheet": "Zona 1",
+      "row": 164,
+      "category": "ACTIVIDADES FUNDO",
+      "point": "ACTIVIDADES DE ALTO RIESGO",
+      "zone": "FUNDO"
+    },
+    {
+      "sheet": "Zona 1",
+      "row": 166,
+      "category": "ACTIVIDADES FUNDO",
+      "point": "REPORTE DE PELIGRO",
+      "zone": "FUNDO"
+    },
+    {
+      "sheet": "Zona 2",
+      "row": 108,
+      "category": "ACTIVIDADES FUNDO",
+      "point": "COSECHA",
+      "zone": "FUNDO"
+    },
+    {
+      "sheet": "Zona 2",
+      "row": 110,
+      "category": "ACTIVIDADES FUNDO",
+      "point": "PODA",
+      "zone": "FUNDO"
+    },
+    {
+      "sheet": "Zona 2",
+      "row": 112,
+      "category": "ACTIVIDADES FUNDO",
+      "point": "APLICACIÓN DE PRODUCTOS QUÍMICOS",
+      "zone": "FUNDO"
+    },
+    {
+      "sheet": "Zona 2",
+      "row": 114,
+      "category": "ACTIVIDADES FUNDO",
+      "point": "LABORES",
+      "zone": "FUNDO"
+    },
+    {
+      "sheet": "Zona 2",
+      "row": 116,
+      "category": "ACTIVIDADES FUNDO",
+      "point": "ACTIVIDADES DE ALTO RIESGO",
+      "zone": "FUNDO"
+    },
+    {
+      "sheet": "Zona 2",
+      "row": 118,
+      "category": "ACTIVIDADES FUNDO",
+      "point": "REPORTE DE PELIGRO",
+      "zone": "FUNDO"
+    },
+    {
+      "sheet": "Zona 3 ",
+      "row": 116,
+      "category": "ACTIVIDADES FUNDO",
+      "point": "COSECHA",
+      "zone": "FUNDO"
+    },
+    {
+      "sheet": "Zona 3 ",
+      "row": 118,
+      "category": "ACTIVIDADES FUNDO",
+      "point": "PODA",
+      "zone": "FUNDO"
+    },
+    {
+      "sheet": "Zona 3 ",
+      "row": 120,
+      "category": "ACTIVIDADES FUNDO",
+      "point": "APLICACIÓN DE PRODUCTOS QUÍMICOS",
+      "zone": "FUNDO"
+    },
+    {
+      "sheet": "Zona 3 ",
+      "row": 122,
+      "category": "ACTIVIDADES FUNDO",
+      "point": "LABORES",
+      "zone": "FUNDO"
+    },
+    {
+      "sheet": "Zona 3 ",
+      "row": 124,
+      "category": "ACTIVIDADES FUNDO",
+      "point": "ACTIVIDADES DE ALTO RIESGO",
+      "zone": "FUNDO"
+    },
+    {
+      "sheet": "Zona 3 ",
+      "row": 126,
+      "category": "ACTIVIDADES FUNDO",
+      "point": "REPORTE DE PELIGRO",
+      "zone": "FUNDO"
+    }
+  ],
+  "duplicates": [
+    {
+      "sheet": "Zona 1",
+      "row": 74,
+      "category": "LABORATORIO",
+      "point": "LABORATORIO DE FERTIRRIEGO",
+      "zone": "ARMONIA II"
+    },
+    {
+      "sheet": "Zona 2",
+      "row": 120,
+      "category": "EQUIPO DE EMERGENCIA",
+      "point": "EXTINTORES FUNDO",
+      "zone": "FUNDO"
+    },
+    {
+      "sheet": "Zona 2",
+      "row": 122,
+      "category": "EQUIPO DE EMERGENCIA",
+      "point": "LUCES DE EMERGENCIA",
+      "zone": "FUNDO"
+    },
+    {
+      "sheet": "Zona 2",
+      "row": 124,
+      "category": "EQUIPO DE EMERGENCIA",
+      "point": "LAVAOJOS Y DUCHA DE EMERGENCIA",
+      "zone": "FUNDO"
+    },
+    {
+      "sheet": "Zona 3 ",
+      "row": 128,
+      "category": "EQUIPO DE EMERGENCIA",
+      "point": "EXTINTORES FUNDO",
+      "zone": "FUNDO"
+    },
+    {
+      "sheet": "Zona 3 ",
+      "row": 130,
+      "category": "EQUIPO DE EMERGENCIA",
+      "point": "EXTINTOR (MAQUINARIA, CAMIONES,CAMIONETAS, EXTERIORES Y SEMILLERO)",
+      "zone": "EXTERIOR E INTERIOR FUNDO"
+    },
+    {
+      "sheet": "Zona 3 ",
+      "row": 132,
+      "category": "EQUIPO DE EMERGENCIA",
+      "point": "LUCES DE EMERGENCIA",
+      "zone": "FUNDO"
+    },
+    {
+      "sheet": "Zona 3 ",
+      "row": 134,
+      "category": "EQUIPO DE EMERGENCIA",
+      "point": "LAVAOJOS Y DUCHA DE EMERGENCIA",
+      "zone": "FUNDO"
+    }
+  ]
+}
