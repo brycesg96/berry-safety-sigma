@@ -276,8 +276,43 @@ test('private drafts resume on another device and full approval replaces the ini
   }
   expect(state.files.get(storageKey)).toEqual(legacyBytes);expect(state.finalizes).toBe(1);expect(state.sends).toBe(1);
   expect(row.data.delivery.corrections[row.data.observations[0].id]).toMatchObject({action:'Protección instalada.',note:'Comentario interno del revisor.'});
-  await expect(other.getByLabel('Acción realizada')).toHaveValue('Protección instalada.');await expect(other.getByRole('region',{name:'Comentarios de revisión'})).toContainText('Comentario interno del revisor.');
+  await expect(other.getByLabel('Acción realizada')).toHaveValue('Protección instalada.');await expect(other.getByRole('region',{name:'Conversación y seguimiento'})).toContainText('Comentario interno del revisor.');
   await device.close();await recipientDevice.close();
+});
+
+test('listas consultan metadatos por bloques y descargan evidencias solo al abrir el informe',async({page,context})=>{
+ const state=stateOf();await mock(context,state,author);await login(page,author);
+ const draft=await page.evaluate(async(author)=>{const {newInspection,newObservation}=await import('/src/model.ts');const d=newInspection({name:'Ana Inspectora',email:'ana@example.com',accountId:author,storage:'cloud'}),o=newObservation('2026-11-20');o.description='Evidencia diferida';o.photos=[{id:crypto.randomUUID(),name:'evidencia.png',data:'',dataRef:`${d.id}/foto.png`} as any];return {...d,area:'Informe con evidencia diferida',step:1,observations:[o]};},author);
+ state.rows.set(draft.id,{id:draft.id,author_id:author,data:draft,revision:1,updated_at:new Date().toISOString(),workflow:'draft'});
+ state.files.set('berry-evidence/'+(draft.observations[0].photos[0] as any).dataRef,png.buffer);
+ await page.reload();await expect(page.locator('.inspection-list-row')).toContainText('Informe con evidencia diferida');
+ expect(state.paths.some(path=>path.startsWith('/storage/v1/object/berry-evidence/'))).toBe(false);
+ await openEditor(page);await expect(page.locator('.photo-thumb img')).toBeVisible();expect(state.paths.some(path=>path.startsWith('/storage/v1/object/berry-evidence/'))).toBe(true);
+});
+
+test('Guardar sin conexión conserva el borrador por usuario y sincroniza al recuperar internet',async({page,context})=>{
+ const state=stateOf();await mock(context,state,author);await enter(page,author);
+ await context.setOffline(true);await page.getByRole('textbox',{name:'Objetivo de la inspección interna',exact:true}).fill('Trabajo guardado desde el campo sin internet.');
+ await page.getByRole('button',{name:'Guardar',exact:true}).first().click();await expect(page.getByText('Guardado en este dispositivo',{exact:true})).toBeVisible();
+ expect(state.rows.size).toBe(0);expect(await page.evaluate(async(actor)=>{const {offlineJobs}=await import('/src/offline-store.ts');return(await offlineJobs(actor)).length;},author)).toBe(1);
+ await context.setOffline(false);await expect.poll(()=>[...state.rows.values()].find(r=>!r.data.partial)?.data.objective).toBe('Trabajo guardado desde el campo sin internet.');
+ await expect.poll(()=>page.evaluate(async(actor)=>{const {offlineJobs}=await import('/src/offline-store.ts');return(await offlineJobs(actor)).length;},author)).toBe(0);
+ expect(state.saves).toBe(1);
+});
+
+test('seguimiento activo distingue aceptación de entrega y conserva comentarios nuevos por observación',async({page,context})=>{
+ const state=stateOf();await mock(context,state,author);await login(page,author);
+ const report=await page.evaluate(async(author)=>{const {newInspection,newObservation}=await import('/src/model.ts');const d=newInspection({name:'Ana Inspectora',email:'ana@example.com',accountId:author,storage:'cloud'});d.area='Seguimiento de entrega y conversación';d.observations=[newObservation('2026-11-20')];d.delivery={sentAt:new Date().toISOString(),recipientIds:[],revision:1,corrections:{}};return d;},author);
+ state.rows.set(report.id,{id:report.id,author_id:author,data:report,revision:1,updated_at:new Date().toISOString(),workflow:'sent',code:'IH-2026-055'});
+ const events:any[]=[];let mailState='submitted';
+ await page.route(`${project}/rest/v1/berry_followup_events*`,route=>route.fulfill({json:events}));
+ await page.route(`${project}/rest/v1/berry_mail_recipients*`,route=>route.fulfill({json:[{request_id:report.id,email:'recipient@example.invalid',state:mailState,provider_id:'provider-id',detail:'',occurred_at:new Date().toISOString()}]}));
+ await page.route(`${project}/rest/v1/rpc/berry_add_followup_comment`,route=>{const input=route.request().postDataJSON();expect(input.p_id).toBe(report.id);events.unshift({id:input.p_operation,inspection_id:report.id,observation_id:input.p_observation,actor_id:author,actor_name:'Ana Inspectora',action:'comment',body:input.p_body,created_at:new Date().toISOString()});return route.fulfill({json:events[0]});});
+ await page.reload();await expect(page.locator('.inspection-list-row')).toContainText(report.area);
+ await page.evaluate(()=>{const value=JSON.parse(localStorage.getItem('berry-offline-schema-v1')||'{}');localStorage.setItem('berry-offline-schema-v1',JSON.stringify({...value,productivity_version:'202611170023'}));});
+ await page.getByRole('button',{name:'Revisar informe',exact:true}).click();await page.getByText('Seguimiento de correos',{exact:true}).click();await expect(page.locator('.mail-state')).toHaveText('Aceptado por Outlook');
+ const conversation=page.getByRole('region',{name:'Conversación y seguimiento'});await conversation.getByLabel('Escribir comentario').fill('Confirmar el avance de esta observación.');await conversation.getByRole('button',{name:'Enviar comentario',exact:true}).click();await expect(conversation.getByText('Confirmar el avance de esta observación.',{exact:true})).toBeVisible();expect(events).toHaveLength(1);
+ mailState='delivered';await page.getByRole('button',{name:'Actualizar estado',exact:true}).click();await expect(page.locator('.mail-state')).toHaveText('Entrega confirmada');
 });
 
 test('offline edits stay recoverable and an obsolete device cannot overwrite a newer draft',async({browser,page,context})=>{

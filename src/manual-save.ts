@@ -17,7 +17,7 @@ export function usePendingChanges(dirty: boolean) {
 
 // Navigation, transport metadata and display defaults are not form edits.
 export function inspectionEditKey(draft: Inspection) {
-  const { pendingManualSave, updatedAt, cloudRevision, storage, step, status, initialReportTexts, finalExcelStored, archiveEditOperation, ...fields } = draft;
+  const { pendingManualSave, pendingSync, evidenceDeferred, updatedAt, cloudRevision, storage, step, status, initialReportTexts, finalExcelStored, archiveEditOperation, ...fields } = draft;
   return JSON.stringify({ ...fields, registrationDetails: Object.fromEntries(Object.entries(draft.registrationDetails || {}).map(([id, record]) => {
     const { initialJobTitle, ...content } = record;
     return [id, content];

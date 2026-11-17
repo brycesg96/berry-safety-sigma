@@ -165,6 +165,7 @@ export function createCloudReportHandler({ env = process.env, fetchImpl = fetch,
           const file = await upstream(`/storage/v1/object/authenticated/berry-documents/${encodePath(registered.document.storage_path)}`, { method: 'GET', binary: true });
           if (!file.ok || digest(file.data) !== registered.document.sha256) throw new Error('ARCHIVE_CHANGED');
           const payload = payloadFor(registered.inspection, file.data);
+          if (env.MAIL_TRACKING_ENABLED === 'true') await rpc('berry_initialize_mail', { p_id: id, p_request: payload.request_id, p_emails: [...payload.destinatarios.para, ...payload.destinatarios.cc] });
           const response = await fetchImpl(mail.webhook, { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Berry-Mode': 'inspection' }, body: JSON.stringify(payload), redirect: 'error', signal: AbortSignal.timeout(timeoutMs) });
           await response.body?.cancel();
           result = { state: response.ok ? 'accepted' : 'rejected', upstreamStatus: response.status, message: response.ok ? 'Informe guardado y envío aceptado por el servicio de correo.' : 'Informe guardado. El servicio de correo rechazó el envío.' };

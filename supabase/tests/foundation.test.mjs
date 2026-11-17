@@ -1534,6 +1534,99 @@ test('a disabled manual installation does not activate an empty zone, and upgrad
  await denied(()=>as('authenticated',users.author,'select * from berry_private.location_installation_scopes',[],freshCatalogClaims));
 });
 
+const productivityUsers={author:'ab000000-0000-4000-8000-000000000001',recipient:'ab000000-0000-4000-8000-000000000002',outsider:'ab000000-0000-4000-8000-000000000003'};
+const productivityReport='ac000000-0000-4000-8000-000000000001',productivityObservation='ad000000-0000-4000-8000-000000000001',offlineOperation='ae000000-0000-4000-8000-000000000001';
+const productivityRpc=(actor,query,values=[])=>as('authenticated',actor,query,values,freshCatalogClaims);
+test('productivity upgrade is repeatable and does not manufacture historical messages or alter reports',async()=>{
+ const before=(await db.query('select id,revision,data from public.berry_inspections order by id')).rows;
+ const sql=await readFile(new URL('../migrations/202611170023_productivity.sql',import.meta.url),'utf8');await db.exec(sql);await db.exec(sql);
+ assert.deepEqual((await db.query('select id,revision,data from public.berry_inspections order by id')).rows,before);
+ assert.equal((await db.query('select count(*)::integer n from public.berry_followup_events')).rows[0].n,0);
+ assert.equal((await db.query('select enabled from berry_private.reminder_settings')).rows[0].enabled,false);
+ assert.equal((await as('anon',null,'select public.berry_schema_status() value')).rows[0].value.productivity_version,'202611170023');
+ for(const [name,id]of Object.entries(productivityUsers)){
+  await db.query('insert into auth.users(id,email,raw_user_meta_data)values($1,$2,$3)',[id,`${name}-productivity@example.invalid`,{full_name:name}]);
+  const organization=(await db.query("select m.name management,a.name area,p.name position from public.berry_organization m join public.berry_organization a on a.parent_id=m.id join public.berry_organization p on p.parent_id=a.id where m.enabled and a.enabled and p.enabled limit 1")).rows[0];
+  await db.query("update public.berry_profiles set enabled=true,must_change_password=false,can_create_inspections=true,can_receive_inspections=true,full_name=$2,role=$3,management=$4,area=$5,job_title=$6 where id=$1",[id,name,name==='author'?'admin':'inspector',organization.management,organization.area,organization.position]);
+ }
+ const date=(await db.query("select to_char((now() at time zone 'America/Lima')::date-2,'YYYY-MM-DD') value")).rows[0].value;
+ const data={id:productivityReport,date,area:'Taller',inspector:'author',inspectorEmail:'author-productivity@example.invalid',responsibles:[{personId:productivityUsers.recipient,name:'recipient',email:'recipient-productivity@example.invalid'}],observations:[{id:productivityObservation,dueDate:date,description:'Hallazgo',photos:[]}],delivery:{recipientIds:[productivityUsers.recipient],corrections:{},revision:1}};
+ await db.query("insert into public.berry_inspections(id,author_id,code,workflow,data,sent_at)values($1,$2,'IH-2031-901','sent',$3,now()-interval '2 days')",[productivityReport,productivityUsers.author,data]);
+ await db.query('insert into public.berry_recipients(inspection_id,user_id,assigned_by)values($1,$2,$3)',[productivityReport,productivityUsers.recipient,productivityUsers.author]);
+});
+test('conversation retains both participants, rejects outsiders and deduplicates an uncertain retry',async()=>{
+ const id='af000000-0000-4000-8000-000000000001',query='select public.berry_add_followup_comment($1,$2,$3,$4) value',args=[productivityReport,productivityObservation,id,'Consulta del responsable'];
+ const first=(await productivityRpc(productivityUsers.recipient,query,args)).rows[0].value;
+ const again=(await productivityRpc(productivityUsers.recipient,query,args)).rows[0].value;assert.equal(first.id,again.id);
+ await productivityRpc(productivityUsers.author,query,[productivityReport,productivityObservation,'af000000-0000-4000-8000-000000000002','Respuesta del inspector']);
+ assert.equal((await productivityRpc(productivityUsers.recipient,'select body from public.berry_followup_events where inspection_id=$1',[productivityReport])).rows.length,2);
+ assert.equal((await productivityRpc(productivityUsers.outsider,'select * from public.berry_followup_events where inspection_id=$1',[productivityReport])).rows.length,0);
+ await denied(()=>productivityRpc(productivityUsers.outsider,query,[productivityReport,productivityObservation,'af000000-0000-4000-8000-000000000003','No autorizado']));
+ await assert.rejects(()=>productivityRpc(productivityUsers.recipient,query,[...args.slice(0,3),'Otro contenido']),e=>e.code==='40001');
+ await denied(()=>productivityRpc(productivityUsers.recipient,'delete from public.berry_followup_events'));
+});
+test('offline synchronization commits once and rejects stale or foreign edits without losing conversation history',async()=>{
+ const revision=(await db.query('select revision from public.berry_inspections where id=$1',[productivityReport])).rows[0].revision;
+ const value={responsibleName:'recipient',state:'Pendiente',action:'Acción guardada sin conexión',date:'2026-11-16',photos:[]};
+ const query='select public.berry_apply_offline_correction($1,$2,$3,$4,$5,$6) value',args=[offlineOperation,productivityReport,productivityObservation,revision,'submit',value];
+ const first=(await productivityRpc(productivityUsers.recipient,query,args)).rows[0].value;
+ const again=(await productivityRpc(productivityUsers.recipient,query,args)).rows[0].value;assert.equal(first.revision,again.revision);
+ assert.equal(first.data.delivery.corrections[productivityObservation].decision,'review');
+ const events=(await productivityRpc(productivityUsers.recipient,'select action from public.berry_followup_events where inspection_id=$1',[productivityReport])).rows;
+ assert.equal(events.filter(e=>e.action==='submit').length,1);assert.equal(events.filter(e=>e.action==='comment').length,2);
+ await denied(()=>productivityRpc(productivityUsers.outsider,query,args));
+ await assert.rejects(()=>productivityRpc(productivityUsers.recipient,query,['ae000000-0000-4000-8000-000000000002',...args.slice(1,4),'save',value]),e=>e.code==='40001');
+});
+test('mail tracking requires server events, isolates recipients and cannot regress from delivered to submitted',async()=>{
+ const request='b0000000-0000-4000-8000-000000000001';
+ await db.query('select public.berry_initialize_mail($1,$2,$3)',[productivityReport,request,['recipient-productivity@example.invalid','copy@example.invalid']]);
+ await denied(()=>productivityRpc(productivityUsers.recipient,"select public.berry_record_mail_event('forged',$1,$2,'delivered',null,'',now())",[request,'recipient-productivity@example.invalid']));
+ const time=(await db.query('select now() value')).rows[0].value;
+ const query='select public.berry_record_mail_event($1,$2,$3,$4,$5,$6,$7) value',args=['delivery-1',request,'recipient-productivity@example.invalid','delivered','provider-id','',time];
+ assert.equal((await db.query(query,args)).rows[0].value.duplicate,false);assert.equal((await db.query(query,args)).rows[0].value.duplicate,true);
+ await db.query(query,['submitted-late',request,'recipient-productivity@example.invalid','submitted',null,'',time]);
+ const own=(await productivityRpc(productivityUsers.recipient,'select email,state from public.berry_mail_recipients where inspection_id=$1',[productivityReport])).rows;
+ assert.deepEqual(own,[{email:'recipient-productivity@example.invalid',state:'delivered'}]);
+ assert.equal((await productivityRpc(productivityUsers.author,'select * from public.berry_mail_recipients where inspection_id=$1',[productivityReport])).rows.length,2);
+ assert.equal((await productivityRpc(productivityUsers.outsider,'select * from public.berry_mail_recipients where inspection_id=$1',[productivityReport])).rows.length,0);
+ await assert.rejects(()=>db.query(query,['delivery-1',request,'recipient-productivity@example.invalid','bounced',null,'',time]),e=>e.code==='40001');
+});
+test('reminders default off, are admin-configurable, target the correct role and claim each period once',async()=>{
+ await db.query("insert into public.berry_documents(inspection_id,kind,revision,filename,storage_path,mime_type,byte_size,sha256,created_by)values($1,'excel',1,'Informe.xlsx','record/informe.xlsx','application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',100,$2,$3)",[productivityReport,'a'.repeat(64),productivityUsers.author]);
+ assert.deepEqual((await db.query('select public.berry_claim_reminders(50) value')).rows[0].value,[]);
+ await denied(()=>productivityRpc(productivityUsers.recipient,'select public.berry_reminder_settings($1)',[{enabled:true,lead_days:3,cadence_days:3}]));
+ await productivityRpc(productivityUsers.author,'select public.berry_reminder_settings($1)',[{enabled:true,lead_days:3,cadence_days:3}]);
+ const jobs=(await db.query('select public.berry_claim_reminders(50) value')).rows[0].value;
+ const own=jobs.filter(j=>j.id===productivityReport);assert.equal(own.length,1);assert.equal(own[0].actor_id,productivityUsers.author);assert.equal(own[0].reason,'review');
+ assert.equal((await db.query('select public.berry_claim_reminders(50) value')).rows[0].value.filter(j=>j.id===productivityReport).length,0);
+ await db.query("select public.berry_finish_reminder($1,'unconfirmed','{}')",[own[0].request_id]);
+ assert.equal((await db.query('select public.berry_claim_reminders(50) value')).rows[0].value.filter(j=>j.id===productivityReport).length,0);
+ await denied(()=>productivityRpc(productivityUsers.recipient,'select public.berry_claim_reminders(50)'));
+});
+
+test('administrative pages preserve identity links and stable cursor boundaries without exposing photos or regular-user access',async()=>{
+ const query='select public.berry_admin_dashboard_page($1,$2,$3) value';
+ await denied(()=>productivityRpc(productivityUsers.recipient,query,[null,null,2]));
+ const first=(await productivityRpc(productivityUsers.author,query,[null,null,2])).rows[0].value;assert.equal(first.length,2);assert.ok(first[0].identityLinks);
+ const last=first[first.length-1],next=(await productivityRpc(productivityUsers.author,query,[last.data.date||'',last.id,2])).rows[0].value;
+ assert.ok(!next.some(row=>first.some(previous=>previous.id===row.id)));assert.ok(first.every(row=>(row.data.observations||[]).every(o=>!o.photos||o.photos.length===0)));
+});
+test('reminders respect rehire history boundaries and only restored pending access permits notifying the former report',async()=>{
+ const revision=(await db.query('select revision from public.berry_inspections where id=$1',[productivityReport])).rows[0].revision;
+ await productivityRpc(productivityUsers.author,"select public.berry_change_correction($1,$2,$3,'changes',$4)",[productivityReport,productivityObservation,revision,{note:'Completar la corrección'}]);
+ await db.query('delete from berry_private.reminder_jobs where inspection_id=$1',[productivityReport]);
+ await db.query("update public.berry_profiles set history_access_from=now()+interval '1 day' where id=$1",[productivityUsers.recipient]);
+ let jobs=(await db.query('select public.berry_claim_reminders(50) value')).rows[0].value;assert.equal(jobs.filter(j=>j.id===productivityReport).length,0);
+ await db.query('insert into berry_private.restored_pending_access(user_id,inspection_id)values($1,$2)',[productivityUsers.recipient,productivityReport]);
+ jobs=(await db.query('select public.berry_claim_reminders(50) value')).rows[0].value;assert.equal(jobs.filter(j=>j.id===productivityReport).length,1);assert.equal(jobs.find(j=>j.id===productivityReport).actor_id,productivityUsers.recipient);
+});
+
+test('rehire boundaries also deny historical conversation writes and replayed offline receipts',async()=>{
+ await db.query('delete from berry_private.restored_pending_access where user_id=$1 and inspection_id=$2',[productivityUsers.recipient,productivityReport]);
+ await denied(()=>productivityRpc(productivityUsers.recipient,'select public.berry_add_followup_comment($1,$2,$3,$4)',[productivityReport,productivityObservation,'af000000-0000-4000-8000-000000000009','Comentario sin acceso histórico']));
+ await denied(()=>productivityRpc(productivityUsers.recipient,'select public.berry_apply_offline_correction($1,$2,$3,$4,$5,$6)',[offlineOperation,productivityReport,productivityObservation,1,'submit',{responsibleName:'recipient',state:'Pendiente',action:'Acción guardada sin conexión',date:'2026-11-16',photos:[]}]));
+});
+
 let failed;
 try {
   await setup();

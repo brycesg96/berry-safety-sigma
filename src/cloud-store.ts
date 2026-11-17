@@ -1,3 +1,6 @@
+import { productivityReady } from './productivity';
+import { enqueueOffline, getOfflineCache, putOfflineCache, offlineJobs } from './offline-store';
+import type { OfflineJob } from './offline-store';
 import { supabaseClient } from './supabase';
 import type { Evidence, Inspection } from './model';
 import type { Correction } from './follow-up';
@@ -11,8 +14,14 @@ function forActor(actor: string): Runtime {
   return runtime;
 }
 export function clearCloudRuntime() { runtime = undefined; }
-export async function cloudRpc<T>(name: string, params: Record<string, unknown>): Promise<T> {
-  const { data, error } = await supabaseClient().rpc(name, params).retry(false);
+export async function cloudRpc<T>(name: string, params: Record<string, unknown>, expectedActor?: string): Promise<T> {
+  const operation = supabaseClient().rpc(name, params).retry(false);
+  if (expectedActor) {
+    const { data: { session } } = await supabaseClient().auth.getSession();
+    if (session?.user.id !== expectedActor) throw new Error('La sesión cambió. Vuelve a iniciar sesión antes de sincronizar.');
+    operation.setHeader('Authorization', `Bearer ${session.access_token}`);
+  }
+  const { data, error } = await operation;
   if (error) {
     if (error.code === '40001') throw new Error('La inspección cambió en otro dispositivo. Vuelve a abrirla antes de guardar; tu edición se conserva en este navegador.');
     if (error.code === '42501') throw new Error('Tu sesión no tiene acceso a esta operación. Revisa tu cuenta y vuelve a iniciar sesión.');
@@ -75,22 +84,36 @@ async function mapImages(draft: Inspection, transform: (photo: StoredEvidence) =
     ...(draft.delivery ? { delivery: { ...draft.delivery, corrections: Object.fromEntries(await Promise.all(Object.entries(draft.delivery.corrections || {}).map(async ([key, correction]) => [key, { ...correction, photos: await Promise.all(correction.photos.map(transform)) }]))) } } : {}),
   };
 }
-export async function hydrateCloudInspection(row: CloudInspectionRow, actor: string): Promise<Inspection> {
+export async function hydrateCloudInspection(row: CloudInspectionRow, actor: string, options: { images?: boolean } = {}): Promise<Inspection> {
   await actorIs(actor);
   const state = forActor(actor);
   const snapshot = { ...row.data, id: row.id, ownerId: row.author_id, storage: 'cloud' as const, cloudRevision: Number(row.revision), finalExcelStored: row.final_excel_stored, archiveEditOperation: row.active_edit_operation || undefined, updatedAt: row.updated_at };
-  return mapImages(snapshot, async photo => ({ ...photo, data: photo.dataRef ? await storedImage(photo.dataRef, state) : photo.data, ...(photo.originalRef ? { originalData: await storedImage(photo.originalRef, state) } : {}) }));
+  if (options.images === false) return { ...snapshot, evidenceDeferred: true };
+  const hydrated = await mapImages(snapshot, async photo => ({ ...photo, data: photo.dataRef ? await storedImage(photo.dataRef, state) : photo.data, ...(photo.originalRef ? { originalData: await storedImage(photo.originalRef, state) } : {}) }));
+  delete hydrated.evidenceDeferred;
+  await putOfflineCache(actor, `inspection:${row.id}`, hydrated).catch(() => {});
+  return hydrated;
 }
 export async function loadCloudInspections(actor: string, options: { includePending?: boolean } = {}) {
+  if (!navigator.onLine) {
+    const cached = await getOfflineCache<Inspection[]>(actor, 'inspections');
+    if (!cached) throw new Error('Abre tus inspecciones con conexión al menos una vez para guardarlas en este dispositivo.');
+    const pending = await offlineJobs(actor);
+    return cached.map(item => pending.filter(j => j.inspection.id === item.id).at(-1)?.inspection || item).concat(pending.filter(j=>j.kind==='draft'&&!cached.some(i=>i.id===j.inspection.id)).map(j=>j.inspection));
+  }
   await actorIs(actor);
   const ready = await cloudRpc<string>('berry_cloud_session', {});
   if (ready !== actor) throw new Error('La sesión cambió. Vuelve a iniciar sesión para continuar.');
-  const { data, error } = await supabaseClient().from('berry_inspections').select('*').is('deleted_at', null).or(`author_id.eq.${actor},data->delivery->recipientIds.cs.${JSON.stringify([actor])}`).order('updated_at', { ascending: false }).retry(false).abortSignal(AbortSignal.timeout(12000));
-  if (error) throw new Error('No pudimos consultar tus inspecciones. Revisa tu conexión.');
-  const rows = (data || []) as CloudInspectionRow[];
+  const rows: CloudInspectionRow[] = [];
+  for (let offset = 0; ; offset += 100) {
+    const { data, error } = await supabaseClient().from('berry_inspections').select('*').is('deleted_at', null).or(`author_id.eq.${actor},data->delivery->recipientIds.cs.${JSON.stringify([actor])}`).order('updated_at', { ascending: false }).order('id').range(offset, offset + 99).retry(false).abortSignal(AbortSignal.timeout(12000));
+    if (error) throw new Error('No pudimos consultar tus inspecciones. Revisa tu conexión.');
+    rows.push(...(data || []) as CloudInspectionRow[]);
+    if (!data || data.length < 100) break;
+  }
   // The administration panel has wider read permissions. The personal workspace
   // loads only authored or assigned reports and their images.
-  const remote = await Promise.all(rows.filter(row => !row.data.partial && (row.author_id === actor || row.workflow !== 'draft' && row.data.delivery?.recipientIds.includes(actor))).map(row => hydrateCloudInspection(row, actor)));
+  const remote = await Promise.all(rows.filter(row => !row.data.partial && (row.author_id === actor || row.workflow !== 'draft' && row.data.delivery?.recipientIds.includes(actor))).map(row => hydrateCloudInspection(row, actor, { images: false })));
   const pending = options.includePending === false ? [] : await pendingDrafts(actor).catch(() => []);
   const retired = new Set<string>();
   if (pending.length) {
@@ -107,7 +130,9 @@ export async function loadCloudInspections(actor: string, options: { includePend
     const index = remote.findIndex(item => item.id === draft.id);
     if (index >= 0) remote[index] = { ...draft, pendingManualSave: true }; else remote.push({ ...draft, pendingManualSave: true });
   }
-  return remote.sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
+  const sorted = remote.sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
+  await putOfflineCache(actor, 'inspections', sorted).catch(() => {});
+  return sorted;
 }
 async function uploadImage(data: string, inspectionId: string, photoId: string, state: Runtime): Promise<string> {
   const match = data.match(/^data:(image\/(jpeg|png|webp|gif));base64,([A-Za-z0-9+/=]+)$/);
@@ -134,6 +159,12 @@ export async function encodeCloudImagesForActor(draft: Inspection, actor: string
   await actorIs(actor); return encodeImages(draft, forActor(actor));
 }
 export async function persistCloudInspection(draft: Inspection): Promise<Inspection> {
+  if (!navigator.onLine) {
+    const pending = { ...draft, pendingSync: true };
+    await enqueueOffline({ actor: draft.ownerId, kind: 'draft', inspection: pending });
+    await cachePut(pending, draft.id);
+    return pending;
+  }
   const state = forActor(draft.ownerId);
   const previous = state.queues.get(draft.id) || Promise.resolve();
   const work = previous.catch(() => {}).then(async () => {
@@ -148,6 +179,8 @@ export async function persistCloudInspection(draft: Inspection): Promise<Inspect
     const encoded = await encodeImages(draft, state);
     delete encoded.finalExcelStored;
     delete encoded.pendingManualSave;
+    delete encoded.pendingSync;
+    delete encoded.evidenceDeferred; delete encoded.pendingSync; delete encoded.evidenceDeferred;
     await actorIs(draft.ownerId);
     const saved = await cloudRpc<CloudInspectionRow>('berry_save_draft', { p_id: draft.id, p_expected: version.saved, p_data: encoded });
     version.saved = Number(saved.revision);
@@ -179,13 +212,19 @@ export async function removeCloudInspection(id: string, actor: string, revision:
   return work;
 }
 export async function changeCloudCorrection(draft: Inspection, observationId: string, actor: string, action: string, value: Partial<Correction>) {
+  if (!navigator.onLine) {
+    const pending = { ...draft, pendingSync: true, delivery: { ...draft.delivery!, corrections: { ...draft.delivery!.corrections, [observationId]: { ...draft.delivery!.corrections[observationId], ...value, decision: action === 'submit' ? 'review' : action === 'state' ? draft.delivery?.corrections[observationId]?.decision === 'approved' && draft.delivery?.corrections[observationId]?.state !== value.state ? 'review' : draft.delivery?.corrections[observationId]?.decision || 'draft' : 'draft' } as Correction } } };
+    await enqueueOffline({ actor, kind: 'correction', inspection: pending, observationId, action, value });
+    await putOfflineCache(actor, `inspection:${draft.id}`, pending);
+    return pending;
+  }
   await actorIs(actor);
   let encoded = value;
   if (value.photos) {
     const state = forActor(actor);
     encoded = { ...value, photos: await Promise.all(value.photos.map(async photo => ({ ...photo, dataRef: await uploadImage(photo.data, draft.id, photo.id, state), originalRef: photo.originalData ? await uploadImage(photo.originalData, draft.id, photo.id, state) : undefined, data: undefined, originalData: undefined } as unknown as Evidence))) };
   }
-  const row = await cloudRpc<CloudInspectionRow>('berry_change_correction', { p_id: draft.id, p_observation: observationId, p_expected: draft.cloudRevision, p_action: action, p_value: encoded });
+  const row = await cloudRpc<CloudInspectionRow>('berry_change_correction', { p_id: draft.id, p_observation: observationId, p_expected: draft.cloudRevision, p_action: action, p_value: encoded }, actor);
   window.dispatchEvent(new Event('berry-cloud-inspections-changed'));
   return hydrateCloudInspection(row, actor);
 }
@@ -198,4 +237,26 @@ export async function cloudStoredExcel(draft: Inspection) {
   const hash = Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256', bytes.buffer)), byte => byte.toString(16).padStart(2, '0')).join('');
   if (hash !== data.sha256) throw new Error('El archivo no coincide con la versión registrada.');
   return { bytes, name: data.filename as string };
+}
+
+export async function loadCloudInspection(inspection: Inspection, actor: string): Promise<Inspection> {
+  if (!navigator.onLine) { const cached = await getOfflineCache<Inspection>(actor, `inspection:${inspection.id}`); if (cached) return cached; throw new Error('Abre este informe con conexión una vez para disponer de sus evidencias sin internet.'); }
+  if (!navigator.onLine) {
+    const cached = await getOfflineCache<Inspection>(actor, `inspection:${inspection.id}`);
+    if (!cached && inspection.evidenceDeferred) throw new Error('Abre este informe con conexión para disponer de sus evidencias sin internet.');
+    return cached || inspection;
+  }
+  if (!inspection.evidenceDeferred) return inspection;
+  const { data, error } = await supabaseClient().from('berry_inspections').select('*').eq('id', inspection.id).single();
+  if (error || !data) throw new Error('No pudimos abrir el informe. Revisa tu conexión.');
+  return hydrateCloudInspection(data as CloudInspectionRow, actor);
+}
+export async function applyOfflineCorrection(job: OfflineJob) {
+  if (!productivityReady()) throw new Error('Falta activar la actualización de sincronización. Tu avance permanece guardado en este dispositivo.');
+  await actorIs(job.actor);
+  let value = job.value!;
+  const state = forActor(job.actor);
+  if (value.photos) value = { ...value, photos: await Promise.all(value.photos.map(async photo => ({ ...photo, dataRef: await uploadImage(photo.data, job.inspection.id, photo.id, state), originalRef: photo.originalData ? await uploadImage(photo.originalData, job.inspection.id, photo.id, state) : undefined, data: undefined, originalData: undefined } as unknown as Evidence))) };
+  const row = await cloudRpc<CloudInspectionRow>('berry_apply_offline_correction', { p_operation: job.id, p_id: job.inspection.id, p_observation: job.observationId, p_expected: job.inspection.cloudRevision, p_action: job.action, p_value: value }, job.actor);
+  return hydrateCloudInspection(row, job.actor);
 }

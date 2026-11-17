@@ -19,6 +19,7 @@ export function CloudReportSendForm({ inspection, actorId, onChange, onBusyChang
     if (lock.current) return;
     lock.current = true; setBusy(true); onBusyChange?.(true); setError('');
     try {
+      if (!navigator.onLine) throw new Error('Necesitas conexión para registrar el informe y enviar el correo. Puedes guardar el borrador en este dispositivo.');
       let input: { inspectionId: string; expectedRevision?: number; contentBase64?: string } = { inspectionId: inspection.id };
       if (!inspection.delivery) {
         const completed = completeInspectionCause(inspection);

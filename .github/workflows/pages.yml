@@ -32,7 +32,7 @@ jobs:
       - name: Verificar la API de prueba de Make
         run: npm run test:api
       - name: Verificar la conservación de archivos para pestañas abiertas
-        run: node --test scripts/retain-pages-assets.test.mjs
+        run: node --test scripts/retain-pages-assets.test.mjs scripts/build-offline-worker.test.mjs scripts/run-reminders.test.mjs scripts/run-reminders.test.mjs
       - name: Preparar Python para verificar los catálogos Excel
         uses: actions/setup-python@v5
         with:

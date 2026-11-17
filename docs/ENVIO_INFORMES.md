@@ -1,5 +1,7 @@
 # Envío de informes por Make y Outlook
 
+La versión autenticada actual envía por `POST /api/reports/send`. El seguimiento por destinatario, los eventos firmados y los recordatorios del paso 23 están descritos en [Productividad](PRODUCTIVIDAD.md). Los apartados sobre el prototipo local conservan la configuración histórica; no describen la autorización de la plataforma actual.
+
 ## Qué está conectado
 
 En cada envío real, **Para** incluye a los responsables seleccionados y al autor de la inspección, una sola vez por correo. Si el autor ya está asignado como responsable o figura entre las partes interesadas, se conserva una única entrada en Para y se excluye de CC. Los inspectores adicionales se mantienen en el informe; esta regla añade como constancia únicamente al autor principal.

@@ -30,8 +30,14 @@ export function supabaseClient() {
 }
 
 export async function supabaseFoundationStatus() {
+  if (!navigator.onLine) {
+    const cached = localStorage.getItem('berry-offline-schema-v1');
+    if (cached) return JSON.parse(cached) as { schema_version: string; stage: string; sync_ready: boolean; organization_catalog_version?: string; account_identity_version?: string; location_catalog_version?: string };
+    throw new Error('Se necesita conexión para preparar este dispositivo.');
+  }
   const { data, error } = await supabaseClient().rpc('berry_schema_status').abortSignal(AbortSignal.timeout(8000));
   if (error) throw new Error('Falta ejecutar o verificar el script inicial de Supabase.');
   if (data?.schema_version !== '202611070001') throw new Error('La estructura de Supabase no coincide con la versión de la app.');
+  try { localStorage.setItem('berry-offline-schema-v1', JSON.stringify(data)); } catch { /* Optional offline cache. */ }
   return data as { schema_version: string; stage: string; sync_ready: boolean; organization_catalog_version?: string; account_identity_version?: string; location_catalog_version?: string };
 }

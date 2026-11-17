@@ -1,0 +1,24 @@
+name: Recordatorios de inspecciones
+on:
+  schedule:
+    - cron: '20 13 * * *'
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: berry-reminders
+  cancel-in-progress: false
+jobs:
+  reminders:
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Procesar recordatorios configurados
+        run: node scripts/run-reminders.mjs
+        env:
+          BERRY_REMINDERS_ENDPOINT: ${{ secrets.BERRY_REMINDERS_ENDPOINT }}
+          BERRY_REMINDERS_CRON_SECRET: ${{ secrets.BERRY_REMINDERS_CRON_SECRET }}

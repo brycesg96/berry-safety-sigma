@@ -1,3 +1,4 @@
+import { productivityReady } from './productivity';
 import { inspectionClosed } from './follow-up';
 import type { Inspection } from './model';
 import type { CloudInspectionRow } from './cloud-store';
@@ -69,6 +70,14 @@ export function dashboardMetrics(rows: DashboardRow[], today: string) {
     managements: [...managements].map(([key, value]) => ({ key, ...value })).sort((a, b) => b.count - a.count || a.name.localeCompare(b.name, 'es')) };
 }
 export async function loadDashboard(): Promise<DashboardRow[]> {
+  if (productivityReady()) {
+    const rows: DashboardRow[] = []; let before: string | null = null, beforeId: string | null = null;
+    for (;;) {
+      const page: DashboardRow[] = await cloudRpc('berry_admin_dashboard_page', { p_before: before, p_before_id: beforeId, p_limit: 100 });
+      rows.push(...page); if (page.length < 100) return rows;
+      const last = page[page.length - 1]; before = last.data.date || ''; beforeId = last.id;
+    }
+  }
   const { data, error } = await supabaseClient().rpc('berry_admin_dashboard');
   if (error?.code === 'PGRST202') throw new Error('La Gestión de Inspecciones está pendiente de activación.');
   if (error || !Array.isArray(data)) throw new Error('No pudimos consultar el panel. Comprueba tu conexión y tus permisos.');

@@ -1,7 +1,12 @@
+import { supabaseClient } from './supabase';
+import { hydrateCloudInspection } from './cloud-store';
+import type { CloudInspectionRow } from './cloud-store';
+import { FollowUpConversation } from './FollowUpConversation';
+import { MailTracking } from './MailTracking';
 import { Select } from './Select';
 import { hasPendingChanges, unsavedMessage, usePendingChanges } from './manual-save';
 import { useEffect, useRef, useState } from 'react';
-import { ArrowLeft, BadgeCheck, Camera, Check, Clock3, Download, ImagePlus, LoaderCircle, MessageSquareText, Pencil, RefreshCw, RotateCcw, Send, X } from 'lucide-react';
+import { ArrowLeft, BadgeCheck, Camera, Check, Clock3, Download, ImagePlus, LoaderCircle, Pencil, RefreshCw, RotateCcw, Send, X } from 'lucide-react';
 import { Badge, Field, Modal } from './components';
 import type { Inspection } from './model';
 import { formatDate, preparePhoto } from './model';
@@ -25,6 +30,21 @@ export function FollowUp({ inspection, actor, onChange, onBack, readOnly = false
   const recipient = isRecipient(inspection, actor.id) && actor.canReceiveInspections !== false;
   const reviewer = owner && actor.canCreateInspections !== false && !readOnly;
   const closed = inspectionClosed(inspection);
+  useEffect(() => {
+    if (inspection.storage !== 'cloud') return;
+    let active = true, running = false;
+    const refresh = async () => {
+      if (running || !navigator.onLine || document.visibilityState === 'hidden' || hasPendingChanges()) return;
+      running = true;
+      try { const { data, error } = await supabaseClient().from('berry_inspections').select('*').eq('id', inspection.id).single(); if (!error && data && Number(data.revision) > Number(inspection.cloudRevision || 0)) { const next = await hydrateCloudInspection(data as CloudInspectionRow, actor.id); if (active && !hasPendingChanges()) currentChange.current(next); } }
+      catch { /* Preserve the displayed record if background refresh fails. */ }
+      finally { running = false; }
+    };
+    const timer = setInterval(() => void refresh().catch(() => {}), 20000);
+    window.addEventListener('focus', refresh);
+    return () => { active = false; clearInterval(timer); window.removeEventListener('focus', refresh); };
+  }, [inspection.id, inspection.cloudRevision, actor.id]);
+
   const finalize = async () => {
     setFinalizing(true); setError('');
     try { currentChange.current(await storeFinalExcel(inspection)); }
@@ -45,6 +65,7 @@ export function FollowUp({ inspection, actor, onChange, onBack, readOnly = false
     <div className="page-heading followup-heading"><div><div className="eyebrow">SEGUIMIENTO DE HALLAZGOS</div><h1>{inspection.area}</h1><p>{workflowLabel(inspection)} · {confirmedInspectionCode(inspection) || 'Número de registro definitivo pendiente'} · {formatDate(inspection.date)}</p></div><div className="followup-downloads">{onArchiveRetry && <button type="button" className="button button-primary" disabled={busy || externalBusy} onClick={onArchiveRetry}><RefreshCw size={16}/>Completar actualización del Excel</button>}{onEdit && !closed && !inspection.archiveEditOperation && <button type="button" className="button button-primary" disabled={busy || externalBusy} onClick={() => { if (hasPendingChanges()) setError(unsavedMessage); else onEdit?.(); }}><Pencil size={16}/>Editar inspección</button>}<button className="button button-outline" disabled={busy || externalBusy} onClick={() => void download('excel')}><Download size={16}/>Descargar Excel</button>{closed && <button className="button button-outline" disabled={busy || externalBusy} onClick={() => void download('pdf')}><Download size={16}/>Descargar PDF</button>}</div></div>
     <div className="notice"><p><strong>{readOnly ? 'Consulta del informe' : closed ? 'Inspección cerrada: todos los estados están en Ejecutado.' : 'Levantamiento de resultados de la inspección'}</strong><br/>{readOnly ? 'Revisa los datos y las evidencias del informe.' : closed ? 'Puedes descargar el registro final en Excel o PDF.' : owner ? 'Revisa las evidencias y aprueba cada levantamiento o solicita ajustes.' : 'Registra la acción realizada y sus evidencias. El autor revisará el levantamiento.'}</p></div>
     {reviewer && inspection.storage === 'cloud' && inspection.emailDelivery?.state !== 'accepted' && <button type="button" className="button button-outline" onClick={() => setMailOpen(true)}>Comprobar envío por correo</button>}
+    {inspection.storage === 'cloud' && <MailTracking inspection={inspection} actorId={actor.id}/>}
     <div className="followup-context"><p><strong>Objetivo</strong> {inspection.objective}</p><div><strong>RESPONSABLE DE LA INSPECCIÓN</strong>{[{ id: inspection.ownerId, name: inspection.inspector, email: inspection.inspectorEmail }, ...(inspection.additionalInspectors || [])].map(p => <p key={p.id}>{p.name} · {p.email}</p>)}</div><p><strong>Descripción de la causa</strong> {inspection.unfavorableCause || 'Sin indicar'}</p><p><strong>Conclusiones y recomendaciones</strong> {closingRemarksOf(inspection)}</p></div>
     {finalizing && <p className="inline-note" role="status"><LoaderCircle size={16} className="spin"/>Guardando Excel final…</p>}
     {error && <p className="notice notice-error" role="alert">{error}</p>}
@@ -52,7 +73,7 @@ export function FollowUp({ inspection, actor, onChange, onBack, readOnly = false
     {inspection.observations.map((o, i) => <section className="followup-card" key={o.id}>
       <div className="observation-heading"><span className="observation-index">{i + 1}</span><h2>Observación {i + 1}</h2><Badge severity={o.severity}/><span className="list-status">{inspection.delivery?.corrections[o.id]?.state || 'Pendiente'}</span></div>
       <div className="followup-original-layout"><div className="followup-original"><p><strong>Descripción</strong>{o.description}</p><p><strong>Acción a tomar</strong>{o.correctiveAction}</p></div><div className="followup-original-side"><p className="followup-planned-date"><strong>Fecha de Cierre prevista</strong>{formatDate(o.dueDate)}</p>
-      {o.photos.length > 0 && <div className="followup-evidence" aria-label="Registro fotográfico original">{o.photos.map(p => <button key={p.id} onClick={() => setPreview(p)} aria-label={`Ver evidencia original ${p.name}`}><img src={p.data} alt={p.name}/></button>)}</div>}
+      {o.photos.length > 0 && <div className="followup-evidence" aria-label="Registro fotográfico original">{o.photos.map(p => <button key={p.id} onClick={() => setPreview(p)} aria-label={`Ver evidencia original ${p.name}`}><img src={p.data} alt={p.name} loading="lazy"/></button>)}</div>}
       </div></div>
       <CorrectionForm key={o.id} inspection={inspection} observationId={o.id} actor={actor} owner={reviewer} recipient={recipient && !readOnly} onChange={onChange} onPreview={setPreview}/>
     </section>)}
@@ -87,7 +108,7 @@ function CorrectionForm({ inspection, observationId, actor, owner, recipient, on
       let next = await action();
       const stored = next.delivery?.corrections[observationId];
       if (stored) { baseline.current = JSON.stringify(stored); setValue(stored); observed.current = JSON.stringify(stored); }
-      setNote(''); onChange(next); setMessage(success);
+      setNote(''); onChange(next); setMessage(next.pendingSync ? 'Avance guardado en este dispositivo. Se sincronizará al recuperar la conexión.' : success);
       if (next.storage === 'cloud' && inspectionClosed(next) && next.finalExcelStored === false) { next = await storeFinalExcel(next); onChange(next); }
     } catch (e) { setError(e instanceof Error ? e.message : 'No se pudo guardar.'); } finally { actionPending.current = false; setBusy(false); }
   }
@@ -96,26 +117,20 @@ function CorrectionForm({ inspection, observationId, actor, owner, recipient, on
       <span className="correction-section-label">Estado del levantamiento</span>
       <p className={`correction-state-badge correction-state-${saved.decision}`}>
         {saved.decision === 'approved' ? <BadgeCheck size={18} aria-hidden="true"/> : saved.decision === 'changes' ? <RotateCcw size={17} aria-hidden="true"/> : <Clock3 size={17} aria-hidden="true"/>}
-        <span>{saved.decision === 'approved' ? 'Levantamiento aprobado · Ejecutado.' : saved.decision === 'changes' ? 'Correcciones solicitadas · Pendiente.' : 'Levantamiento enviado. Pendiente de revisión del autor.'}</span>
+        <span>{saved.decision === 'approved' ? 'Levantamiento aprobado · Ejecutado.' : saved.decision === 'changes' ? 'Correcciones solicitadas · Pendiente.' : inspection.pendingSync ? 'Levantamiento guardado sin conexión · Envío pendiente.' : 'Levantamiento enviado. Pendiente de revisión del autor.'}</span>
       </p>
-    </section>}
-    {saved?.note && <section className="correction-conversation" aria-label="Comentarios de revisión">
-      <h4><MessageSquareText size={16} aria-hidden="true"/>Comentarios de revisión</h4>
-      <div className="correction-review-message">
-        <div className="correction-message-author"><strong>{inspection.inspector}</strong><span>Responsable de la inspección</span></div>
-        <p>{saved.note}</p>
-      </div>
     </section>}
     <div className="correction-layout"><div className="correction-texts"><Field label="Apellidos y nombres del responsable del levantamiento" required>{props => <input {...props} value={closed ? value.responsibleName : blankCorrection(inspection, observationId).responsibleName} readOnly aria-readonly="true" title="Nombre registrado al asignar la inspección."/>}</Field>
     <Field label="Acción realizada" required>{props => <textarea {...props} rows={3} maxLength={5000} value={value.action} readOnly={locked || busy} onChange={e => update('action', e.target.value)} placeholder="Detalla cómo se corrigió el hallazgo."/>}</Field>
     </div><div className="correction-details"><div className="correction-metadata"><Field label="Fecha de Cierre" required>{props => <input {...props} type="date" value={value.date} readOnly={locked || busy} onChange={e => update('date', e.target.value)}/>}</Field><Field label="Estado">{props => <Select {...props} value={value.state} disabled={closed || busy || !recipient} onChange={state => update('state', state as Correction['state'])} options={[{value:'Pendiente',label:'Pendiente'},{value:'Ejecutado',label:'Ejecutado'}]}/>}</Field></div>
     <div className="evidence-label"><span>Registro fotográfico del levantamiento</span><span>{value.photos.length} / 8</span></div>
-    <div className="followup-evidence">{value.photos.map(p => <div key={p.id}><button aria-label={`Ver levantamiento ${p.name}`} onClick={() => onPreview(p)}><img src={p.data} alt={p.name}/></button>{!locked && <button className="photo-remove" aria-label={`Quitar evidencia ${p.name}`} disabled={busy} onClick={() => update('photos', value.photos.filter(x => x.id !== p.id))}><X size={13}/></button>}</div>)}</div>
+    <div className="followup-evidence">{value.photos.map(p => <div key={p.id}><button aria-label={`Ver levantamiento ${p.name}`} onClick={() => onPreview(p)}><img src={p.data} alt={p.name} loading="lazy"/></button>{!locked && <button className="photo-remove" aria-label={`Quitar evidencia ${p.name}`} disabled={busy} onClick={() => update('photos', value.photos.filter(x => x.id !== p.id))}><X size={13}/></button>}</div>)}</div>
     {!locked && <label className="button button-outline evidence-upload"><ImagePlus size={16}/>Añadir evidencias<input aria-label="Añadir evidencias del levantamiento" type="file" accept="image/jpeg,image/png,image/webp" multiple disabled={busy} onChange={async e => { const files = Array.from(e.target.files || []); e.target.value = ''; if (files.length + value.photos.length > 8) { setError('Máximo 8 evidencias por hallazgo.'); return; } setBusy(true); setError(''); try { const photos = await Promise.all(files.map(preparePhoto)); setValue(c => ({ ...c, photos: [...c.photos, ...photos] })); } catch (err) { setError(err instanceof Error ? err.message : 'No se pudo cargar la imagen.'); } finally { setBusy(false); } }}/></label>}</div></div>
     {valueDirty && <p role="status" className="inline-note">Cambios sin guardar. {locked ? 'Pulsa Guardar Avance.' : 'Guarda tu avance o envía el levantamiento.'}</p>}
     {!locked && <><p className="inline-note">Al enviar el levantamiento, tu avance se guarda automáticamente.</p><div className="followup-actions correction-submit-actions"><button className="button button-outline" disabled={busy} onClick={() => void act(() => saveCorrection(inspection, observationId, actor.id, value, false), 'Avance guardado.')}>Guardar Avance</button><button className="button button-primary" disabled={busy} onClick={() => void act(() => saveCorrection(inspection, observationId, actor.id, value, true), 'Avance guardado y levantamiento enviado a revisión.')}><Send size={16}/>Enviar levantamiento</button></div></>}
     {locked && !closed && recipient && <div className="followup-actions"><button className="button button-outline" disabled={busy} onClick={() => void act(() => saveCorrectionState(inspection, observationId, actor.id, value.state), 'Avance guardado.')}>Guardar Avance</button></div>}
     {owner && saved?.decision === 'review' && !closed && <div className="review-actions"><Field label="Comentario de revisión">{props => <textarea {...props} value={note} maxLength={5000} rows={2} readOnly={busy} onChange={e => setNote(e.target.value)} placeholder="Indica las correcciones necesarias, si corresponde."/>}</Field><div className="followup-actions"><button className="button button-outline" disabled={busy} onClick={() => void act(() => reviewCorrection(inspection, observationId, actor.id, false, note), 'Correcciones solicitadas. La observación volvió a Pendiente.')}>Solicitar Correcciones</button><button className="button button-primary" disabled={busy} onClick={() => void act(() => reviewCorrection(inspection, observationId, actor.id, true, note), 'Levantamiento aprobado.')}><Check size={16}/>Aprobar levantamiento</button></div></div>}
+    {inspection.delivery && <FollowUpConversation inspection={inspection} observationId={observationId} actor={actor} readOnly={!owner && !recipient} onChange={onChange}/>}
     {busy && <p className="inline-note"><LoaderCircle className="spin" size={16}/>Guardando…</p>}{error && <p className="error-message" role="alert">{error}</p>}{message && <p role="status">{message}</p>}
     {!saved && !recipient && <p className="inline-note"><Camera size={16}/>El destinatario aún no ha registrado su levantamiento.</p>}
   </div>;

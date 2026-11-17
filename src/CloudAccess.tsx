@@ -1,4 +1,5 @@
 import { HortifrutLogo } from './HortifrutLogo';
+import { clearOfflineCache } from './offline-store';
 import { ProfileOrganizationFields } from './OrganizationFields';
 import { organizationCatalogReady, profileOrganizationErrors } from './organization';
 import { organizationCatalogState, resetOrganizationCatalog } from './organization-catalog';
@@ -109,6 +110,8 @@ export function CloudAccess({ exit, onReturn, onSessionChange, initialSection = 
       authEvent = true;
       if (event === 'PASSWORD_RECOVERY') setPasswordRecovery(true);
       if (event === 'SIGNED_OUT') {
+        const previous = sessionRef.current?.user.id;
+        if (previous) void clearOfflineCache(previous).catch(() => {});
         setPasswordRecovery(false); setRecoveryRequest(false);
         const url = new URL(location.href); url.searchParams.delete('recuperar'); url.searchParams.delete('seccion'); url.hash = ''; history.replaceState(history.state, '', url);
       }

@@ -1,3 +1,4 @@
+import type { FollowUpEvent } from './FollowUpConversation';
 import { readAccounts, accountEmail, inspectionCopies } from './accounts';
 import type { Evidence, Inspection } from './model';
 import { database, validateStep } from './model';
@@ -14,7 +15,7 @@ export type Correction = {
   decision: 'draft' | 'review' | 'approved' | 'changes';
   note: string;
 };
-export type Delivery = { sentAt: string; recipientIds: string[]; revision: number; corrections: Record<string, Correction> };
+export type Delivery = { sentAt: string; recipientIds: string[]; revision: number; corrections: Record<string, Correction>; timeline?: FollowUpEvent[] };
 export const inspectionClosed = (d: Inspection) => Boolean(d.delivery && d.observations.length && d.observations.every(o => {
   const correction = d.delivery?.corrections[o.id];
   return correction?.decision === 'approved' && correction.state === 'Ejecutado';
@@ -29,7 +30,7 @@ export function blankCorrection(d: Inspection, observationId: string): Correctio
 }
 
 // Browser-only demo. The server must enforce these rules with authenticated identities later.
-async function changeStored(id: string, mutate: (current: Inspection) => Inspection): Promise<Inspection> {
+async function changeStored(id: string, mutate: (current: Inspection) => Inspection, actorId?: string): Promise<Inspection> {
   const db = await database();
   return new Promise((resolve, reject) => {
     const tx = db.transaction('inspections', 'readwrite'); const store = tx.objectStore('inspections');
@@ -39,6 +40,16 @@ async function changeStored(id: string, mutate: (current: Inspection) => Inspect
       try {
         if (!read.result) throw new Error('No se encontró la inspección.');
         next = mutate(read.result);
+        if (actorId && next.delivery) {
+          const events = [...(next.delivery.timeline || [])];
+          for (const [observationId, correction] of Object.entries(next.delivery.corrections)) {
+            const previous = read.result.delivery?.corrections[observationId];
+            if (JSON.stringify(previous) === JSON.stringify(correction)) continue;
+            const action = previous?.decision === correction.decision && previous?.state !== correction.state ? 'state' : ({approved:'approve',changes:'changes',review:'submit',draft:'save'} as const)[correction.decision];
+            events.push({ id: crypto.randomUUID(), inspection_id: id, observation_id: observationId, actor_id: actorId, actor_name: readAccounts().find(a=>a.id===actorId)?.name || '', action, state: correction.state, decision: correction.decision, body: ['approve','changes'].includes(action) ? correction.note : '', created_at: new Date().toISOString() });
+          }
+          next = { ...next, delivery: { ...next.delivery, timeline: events } };
+        }
         store.put(next);
       } catch (e) { failure = e; tx.abort(); }
     };
@@ -64,6 +75,8 @@ export async function deliverInspection(draft: Inspection, actorId: string): Pro
   });
 }
 export function saveCorrection(d: Inspection, observationId: string, actorId: string, correction: Correction, submit: boolean) {
+  if (submit && (!correction.action.trim() || !correction.date)) throw new Error('Completa la acción realizada y la Fecha de Cierre.');
+  if (submit && correction.state === 'Ejecutado' && !correction.photos.length) throw new Error('Adjunta al menos una evidencia del levantamiento para enviar en Ejecutado.');
   if (d.storage === 'cloud') return changeCloudCorrection(d, observationId, actorId, submit ? 'submit' : 'save', { ...correction, responsibleName: blankCorrection(d, observationId).responsibleName });
   return changeStored(d.id, current => {
     const delivery = current.delivery;
@@ -80,7 +93,7 @@ export function saveCorrection(d: Inspection, observationId: string, actorId: st
     if (submit && correction.state === 'Ejecutado' && !correction.photos.length) throw new Error('Adjunta al menos una evidencia del levantamiento para enviar en Ejecutado.');
     const saved: Correction = { ...correction, actorId, responsibleName, proposedState: correction.state, decision: submit ? 'review' : 'draft', note: previous?.note || '' };
     return { ...current, updatedAt: new Date().toISOString(), delivery: { ...delivery, revision: delivery.revision + 1, corrections: { ...delivery.corrections, [observationId]: saved } } };
-  });
+  }, actorId);
 }
 export function saveCorrectionState(d: Inspection, observationId: string, actorId: string, state: Correction['state']) {
   if (d.storage === 'cloud') return changeCloudCorrection(d, observationId, actorId, 'state', { state });
@@ -95,7 +108,7 @@ export function saveCorrectionState(d: Inspection, observationId: string, actorI
     // A changed approved finding needs another review; changing a status never grants approval.
     const saved: Correction = { ...previous, responsibleName: blankCorrection(current, observationId).responsibleName, state, proposedState: state, decision: previous.decision === 'approved' && previous.state !== state ? 'review' : previous.decision };
     return { ...current, updatedAt: new Date().toISOString(), delivery: { ...delivery, revision: delivery.revision + 1, corrections: { ...delivery.corrections, [observationId]: saved } } };
-  });
+  }, actorId);
 }
 export function reviewCorrection(d: Inspection, observationId: string, actorId: string, approve: boolean, note: string) {
   if (d.storage === 'cloud') return changeCloudCorrection(d, observationId, actorId, approve ? 'approve' : 'changes', { note });
@@ -110,7 +123,7 @@ export function reviewCorrection(d: Inspection, observationId: string, actorId: 
     const state = approve ? 'Ejecutado' : 'Pendiente';
     const reviewed: Correction = { ...correction, responsibleName: blankCorrection(current, observationId).responsibleName, state, proposedState: state, decision: approve ? 'approved' : 'changes', note: note.trim() };
     return { ...current, updatedAt: new Date().toISOString(), delivery: { ...delivery, revision: delivery.revision + 1, corrections: { ...delivery.corrections, [observationId]: reviewed } } };
-  });
+  }, actorId);
 }
 
 export function saveEmailReceipt(d: Inspection, actorId: string, receipt: NonNullable<Inspection['emailDelivery']>) {
@@ -118,5 +131,15 @@ export function saveEmailReceipt(d: Inspection, actorId: string, receipt: NonNul
     if (!current.delivery || current.ownerId !== actorId || receipt.requestId !== current.id) throw new Error('Solo el autor puede registrar el envío del informe.');
     if (current.emailDelivery?.state === 'accepted' && receipt.state !== 'accepted') return current;
     return { ...current, emailCc: current.emailDelivery ? current.emailCc ?? [] : inspectionCopies(current.responsibles), emailDelivery: receipt, updatedAt: new Date().toISOString() };
+  });
+}
+
+export function addLocalComment(inspection: Inspection, observationId: string, actorId: string, body: string, id: string) {
+  return changeStored(inspection.id, current => {
+    if (!current.delivery || !current.observations.some(o=>o.id===observationId) || current.ownerId !== actorId && !isRecipient(current,actorId)) throw new Error('No tienes acceso a esta conversación.');
+    if (!body.trim() || body.length > 5000) throw new Error('Escribe un comentario de hasta 5.000 caracteres.');
+    if (current.delivery.timeline?.some(e=>e.id===id)) return current;
+    const event: FollowUpEvent = { id, inspection_id: current.id, observation_id: observationId, actor_id: actorId, actor_name: readAccounts().find(a=>a.id===actorId)?.name || '', action:'comment', body:body.trim(), created_at:new Date().toISOString() };
+    return { ...current, delivery:{...current.delivery,timeline:[...(current.delivery.timeline||[]),event]}, updatedAt:new Date().toISOString() };
   });
 }

@@ -191,3 +191,10 @@ El [programa de Fundo](INSTALACIONES_FUNDO.md) incorpora 178 puntos únicos de l
 ## Paso 22: añadir instalaciones manualmente
 
 El [paso 22](../supabase/migrations/202611160022_manual_installations.sql) permite a los administradores añadir instalaciones en cualquier sede y zona activas, sin depender de la importación de un catálogo. Se conserva la validación de padres, nombres duplicados, revisiones y permisos. La primera instalación activa habilita su sede y zona en el catálogo de selección; las demás zonas pendientes permanecen como estaban. El script exige el paso 21, habilita RLS en la tabla privada de configuración y no importa datos ni modifica perfiles o inspecciones existentes. Repetirlo conserva los datos y el orden manual. No requiere desplegar Render.
+
+
+## Paso 23: productividad y seguimiento
+
+Después del paso 22, ejecutar [activate-productivity-20261117.sql](../supabase/operations/activate-productivity-20261117.sql). Añade conversaciones, historial de movimientos, operaciones de sincronización idempotentes, seguimiento individual de correo y recordatorios configurables. Conserva los informes y las cuentas.
+
+La activación del correo, del proceso diario y del modo sin conexión se detalla en [Productividad](PRODUCTIVIDAD.md). Publicar la web o ejecutar SQL no configura por sí solo los eventos de entrega ni las credenciales del proceso diario.

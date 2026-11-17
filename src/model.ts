@@ -23,6 +23,8 @@ export type Observation = {
 };
 export type Profile = { name: string; email: string; area?: string; management?: string; accountId?: string; storage?: 'cloud' };
 export type Inspection = {
+  pendingSync?: boolean;
+  evidenceDeferred?: boolean;
   pendingManualSave?: boolean;
   storage?: 'cloud';
   cloudRevision?: number;

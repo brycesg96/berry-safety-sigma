@@ -1,3 +1,4 @@
+import { clearOfflineCache, getOfflineCache, putOfflineCache } from './offline-store';
 import { supabaseClient } from './supabase';
 import { mailEndpoint } from './mail-api';
 
@@ -10,6 +11,8 @@ export type CloudProfile = {
   can_create_inspections?: boolean;
   can_receive_inspections?: boolean;
   access_revision?: number;
+  history_access_from?: string | null;
+  min_token_iat?: number;
   deleted_at?: string | null;
   /** UI onboarding only; never used to grant access or permissions. */
   profile_setup_required?: boolean;
@@ -51,6 +54,11 @@ function profileRow(value: unknown, userId: string): CloudProfile {
 }
 
 export async function loadCloudProfile(expectedUserId: string, isCurrent: () => boolean): Promise<CloudProfile> {
+  if (!navigator.onLine) {
+    const cached = await getOfflineCache<CloudProfile>(expectedUserId, 'profile');
+    if (!isCurrent() || !cached?.enabled || cached.deleted_at || cached.must_change_password || cached.profile_setup_required) throw new Error('Necesitas conexión para verificar esta cuenta por primera vez.');
+    return cached;
+  }
   const client = supabaseClient();
   // Validate the session with Auth. Neither the local test account selector nor
   // editable user metadata supplies identity, role or access to this profile.
@@ -64,7 +72,11 @@ export async function loadCloudProfile(expectedUserId: string, isCurrent: () => 
     throw new Error('El servicio de datos no pudo responder al consultar tu perfil. Tu sesión sigue iniciada. Espera un momento y pulsa Reintentar.');
   }
   const profile = profileRow(data, identity.user.id);
-  return { ...profile, profile_setup_required: requiresProfileSetup(profile, identity.user.user_metadata) };
+  const verified = { ...profile, profile_setup_required: requiresProfileSetup(profile, identity.user.user_metadata) };
+  const previous = await getOfflineCache<CloudProfile>(expectedUserId, 'profile').catch(() => null);
+  if (previous && [previous.access_revision !== verified.access_revision, previous.history_access_from !== verified.history_access_from, previous.person_id !== verified.person_id, previous.enabled !== verified.enabled].some(Boolean)) await clearOfflineCache(expectedUserId).catch(() => {});
+  await putOfflineCache(expectedUserId, 'profile', verified).catch(() => {});
+  return verified;
 }
 
 export async function saveCloudProfile(userId: string, values: { full_name: string; area: string; job_title: string; management?: string }, isCurrent: () => boolean): Promise<CloudProfile> {
