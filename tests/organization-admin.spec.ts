@@ -148,7 +148,7 @@ for (const width of [1366, 768, 390]) test(`ordenar gerencias, áreas y puestos 
     { ...seed[2], id: 'p-other', parent_id: 'a-other', name: 'Jefatura de otra gerencia' },
   ]);
   await mock(context, state); const order = await mockCatalogOrder(context, state); await login(page);
-  await page.getByRole('button', { name: 'Ordenar listas', exact: true }).click();
+  await page.getByRole('button', { name: 'Ordenar gerencias', exact: true }).click();
   const managementList = page.getByRole('region', { name: 'Gerencias', exact: true });
   order.fail = true; await managementList.getByRole('button', { name: 'Mover al principio: Gerencia Zeta', exact: true }).click();
   await expect(page.getByRole('alert')).toContainText('No pudimos confirmar');
@@ -157,9 +157,18 @@ for (const width of [1366, 768, 390]) test(`ordenar gerencias, áreas y puestos 
   await expect(managementList.locator('.organization-node-name').first()).toHaveText('Gerencia Zeta');
   await expect(managementList.getByRole('button', { name: 'Subir: Gerencia Zeta', exact: true })).toBeDisabled();
   await page.getByRole('button', { name: 'Gerencia de Prueba', exact: true }).click();
+  await expect(page.getByRole('button', { name: 'Editar área Área Zeta', exact: true })).toBeVisible();
+  await page.getByRole('button', { name: 'Ordenar áreas', exact: true }).click();
+  await expect(page.getByRole('button', { name: 'Ordenar gerencias', exact: true })).toHaveAttribute('aria-pressed', 'false');
+  await expect(managementList.getByRole('button', { name: 'Editar gerencia Gerencia Zeta', exact: true })).toBeVisible();
   await page.getByRole('button', { name: 'Mover al principio: Área Zeta', exact: true }).press('Enter');
   await expect(page.getByRole('region', { name: 'Áreas', exact: true }).locator('.organization-node-name').first()).toHaveText('Área Zeta');
   await page.getByRole('button', { name: 'Área de Prueba', exact: true }).click();
+  await expect(page.getByRole('button', { name: 'Editar puesto Supervisora Zeta', exact: true })).toBeVisible();
+  await page.getByRole('button', { name: 'Ordenar puestos', exact: true }).click();
+  await expect(page.getByRole('button', { name: 'Ordenar áreas', exact: true })).toHaveAttribute('aria-pressed', 'false');
+  await expect(page.getByRole('button', { name: 'Ordenar puestos', exact: true })).toHaveText('');
+  await expect(page.locator('.catalog-order-toolbar')).toHaveCount(0);
   await page.getByRole('button', { name: 'Subir: Supervisora Zeta', exact: true }).click();
   await expect(page.getByRole('region', { name: 'Puestos', exact: true }).locator('.organization-node-name').first()).toHaveText('Supervisora Zeta');
   await page.getByRole('button', { name: 'Mover al final: Supervisora Zeta', exact: true }).click();
@@ -168,7 +177,7 @@ for (const width of [1366, 768, 390]) test(`ordenar gerencias, áreas y puestos 
   await expect(page.getByRole('status')).toContainText('Orden guardado');
   await page.locator('.organization-columns').screenshot({ path: test.info().outputPath(`orden-areas-${width}.png`) });
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
-  await page.getByRole('button', { name: 'Terminar de ordenar', exact: true }).click(); await page.reload();
+  await page.getByRole('button', { name: 'Ordenar puestos', exact: true }).click(); await page.reload();
   await expect(page.getByRole('region', { name: 'Gerencias', exact: true }).locator('.organization-node-name').first()).toHaveText('Gerencia Zeta');
   const device = await browser.newContext();
   try {
@@ -188,15 +197,15 @@ test('ordenar una lista buscada se bloquea y los cambios de otra sesión exigen 
   const state = stateOf(); state.nodes = withCatalogOrder([...seed, { ...seed[0], id: 'another', name: 'Gerencia Zeta' }]);
   await mock(context, state); const order = await mockCatalogOrder(context, state); await login(page);
   await page.getByRole('searchbox', { name: 'Buscar gerencias, áreas o puestos', exact: true }).fill('Gerencia');
-  await expect(page.getByRole('button', { name: 'Ordenar listas', exact: true })).toBeDisabled();
+  await expect(page.getByRole('button', { name: 'Ordenar gerencias', exact: true })).toBeDisabled();
   await page.getByRole('searchbox', { name: 'Buscar gerencias, áreas o puestos', exact: true }).clear();
-  await page.getByRole('button', { name: 'Ordenar listas', exact: true }).click(); order.conflict = true;
+  await page.getByRole('button', { name: 'Ordenar gerencias', exact: true }).click(); order.conflict = true;
   await page.getByRole('button', { name: 'Mover al principio: Gerencia Zeta', exact: true }).click();
   await expect(page.getByRole('alert')).toContainText('otra sesión');
   await expect(page.getByRole('region', { name: 'Gerencias', exact: true }).locator('.organization-node-name').first()).toHaveText('Gerencia de Prueba');
-  await page.getByRole('button', { name: 'Terminar de ordenar', exact: true }).click();
+  await page.getByRole('button', { name: 'Ordenar gerencias', exact: true }).click();
   state.nodes = state.nodes.map(node => ({ ...node, revision: node.revision + 1 })); order.conflict = false;
-  await page.getByRole('button', { name: 'Actualizar listas', exact: true }).click(); await page.getByRole('button', { name: 'Ordenar listas', exact: true }).click();
+  await page.getByRole('button', { name: 'Actualizar listas', exact: true }).click(); await page.getByRole('button', { name: 'Ordenar gerencias', exact: true }).click();
   await page.getByRole('button', { name: 'Mover al principio: Gerencia Zeta', exact: true }).click();
   await expect(page.getByRole('region', { name: 'Gerencias', exact: true }).locator('.organization-node-name').first()).toHaveText('Gerencia Zeta');
 });

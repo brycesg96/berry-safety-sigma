@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { ArrowDownUp, Building2, Check, LoaderCircle, Pencil, Plus, RefreshCw, RotateCcw, Search, Trash2 } from 'lucide-react';
+import { Building2, Check, LoaderCircle, Pencil, Plus, RefreshCw, RotateCcw, Search, Trash2 } from 'lucide-react';
 import { Field, Modal } from './components';
 import { Select } from './Select';
 import { reorderLocationNodes, loadLocationNodes, refreshLocationCatalog, saveLocationNode, locationNodeActive } from './location-catalog';
@@ -7,7 +7,7 @@ import type { LocationKind, LocationNode } from './location-catalog';
 import { locationLabel } from './location-label';
 import { compareCatalogNodes, hasCatalogOrder, moveCatalogNode } from './catalog-order';
 import type { CatalogMove } from './catalog-order';
-import { CatalogOrderControls } from './CatalogOrderControls';
+import { CatalogOrderControls, CatalogOrderToggle } from './CatalogOrderControls';
 import './organization-admin.css';
 
 const normalized = (value: string) => value.normalize('NFD').replace(/\p{Diacritic}/gu, '').toLocaleLowerCase('es').trim();
@@ -18,13 +18,13 @@ type Editor = { node: LocationNode; creating: boolean; displayName: string; site
 export function CloudLocations({ isCurrent, onBusyChange }: { isCurrent: () => boolean; onBusyChange: (busy: boolean) => void }) {
   const [nodes, setNodes] = useState<LocationNode[]>([]);
   const [site, setSite] = useState(''), [zone, setZone] = useState('');
-  const [ordering, setOrdering] = useState(false);
+  const [ordering, setOrdering] = useState<LocationKind | null>(null);
   const [query, setQuery] = useState(''), [showRemoved, setShowRemoved] = useState(false);
   const [loading, setLoading] = useState(true), [ready, setReady] = useState(false), [retry, setRetry] = useState(0);
   const [editor, setEditor] = useState<Editor | null>(null), [removing, setRemoving] = useState<LocationNode | null>(null);
   const [busy, setBusy] = useState(false), [error, setError] = useState(''), [message, setMessage] = useState('');
   const current = useRef(isCurrent); current.current = isCurrent;
-  const live = useRef(true), locked = useRef(false); locked.current = busy || !!editor || !!removing || ordering;
+  const live = useRef(true), locked = useRef(false); locked.current = busy || !!editor || !!removing || ordering !== null;
   useEffect(() => { live.current = true; return () => { live.current = false; }; }, []);
   useEffect(() => { onBusyChange(busy || !!editor || !!removing); return () => onBusyChange(false); }, [busy, editor, removing, onBusyChange]);
   useEffect(() => {
@@ -56,7 +56,7 @@ export function CloudLocations({ isCurrent, onBusyChange }: { isCurrent: () => b
     installation: visible.filter(node => node.kind === 'installation' && node.parent_id === zone && matches(node)),
   };
   const add = (kind: LocationKind) => {
-    setError(''); setMessage('');
+    setOrdering(null); setError(''); setMessage('');
     const selectedSite = byId.get(site), selectedZone = byId.get(zone);
     const siteId = selectedSite && active(selectedSite) ? site : '';
     const zoneId = selectedZone && active(selectedZone) ? zone : '';
@@ -107,18 +107,17 @@ export function CloudLocations({ isCurrent, onBusyChange }: { isCurrent: () => b
   return <section className="organization-catalog" aria-label="Catálogo de instalaciones">
     <div className="organization-heading"><div><h2>Sedes, Zonas E Instalaciones</h2><p>Administra las sedes, zonas y instalaciones disponibles en las inspecciones.</p></div><button type="button" className="button button-outline" disabled={loading || locked.current} onClick={() => void refreshAll()}>{loading ? <LoaderCircle size={16} className="spin"/> : <RefreshCw size={16}/>}Actualizar listas</button></div>
     {error && !editor && !removing && <p role="alert" className="notice notice-error">{error}</p>}{message && <p role="status" className="account-success cloud-message">{message}</p>}
-    <div className="organization-toolbar"><div className="account-user-search"><Search size={18} aria-hidden="true"/><input type="search" aria-label="Buscar sedes, zonas o instalaciones" placeholder="Buscar sedes, zonas o instalaciones" disabled={ordering} value={query} onChange={event => setQuery(event.target.value)}/></div><label className="organization-removed-toggle"><input type="checkbox" disabled={ordering} checked={showRemoved} onChange={event => setShowRemoved(event.target.checked)}/>Mostrar elementos retirados</label></div>
+    <div className="organization-toolbar"><div className="account-user-search"><Search size={18} aria-hidden="true"/><input type="search" aria-label="Buscar sedes, zonas o instalaciones" placeholder="Buscar sedes, zonas o instalaciones" disabled={ordering !== null} value={query} onChange={event => setQuery(event.target.value)}/></div><label className="organization-removed-toggle"><input type="checkbox" disabled={ordering !== null} checked={showRemoved} onChange={event => setShowRemoved(event.target.checked)}/>Mostrar elementos retirados</label></div>
     <p className="organization-totals">{nodes.filter(node => node.kind === 'site' && active(node)).length} sedes · {nodes.filter(node => node.kind === 'zone' && active(node)).length} zonas · {nodes.filter(node => node.kind === 'installation' && active(node)).length} instalaciones</p>
-    <div className="catalog-order-toolbar"><button type="button" className="button button-outline" aria-pressed={ordering} disabled={busy || loading || !!editor || !!removing || !hasCatalogOrder(nodes) || !!query.trim()} onClick={() => { setOrdering(value => !value); setError(''); }}><ArrowDownUp size={16}/>{ordering ? 'Terminar de ordenar' : 'Ordenar listas'}</button><p aria-live="polite">{ordering && busy ? 'Guardando orden…' : ordering ? 'Usa las flechas para subir, bajar o mover un elemento al principio o al final. Cada cambio se guarda automáticamente.' : query.trim() ? 'Borra la búsqueda para ordenar toda la lista.' : hasCatalogOrder(nodes) ? 'El orden que elijas también se usará en los desplegables de la plataforma.' : 'La opción de ordenar está pendiente de activación.'}</p></div>
     {loading && !ready ? <p role="status" className="cloud-loading"><LoaderCircle size={18} className="spin"/>Consultando las listas…</p> : <div className="organization-columns">{(['site', 'zone', 'installation'] as const).map(kind => {
       const parent = kind === 'zone' ? byId.get(site) : kind === 'installation' ? byId.get(zone) : undefined;
-      const enabled = ready && !busy && !ordering && (kind === 'installation' || kind === 'site' || !!parent && active(parent));
-      return <section className="organization-column" key={kind} aria-label={plural[kind]}><div className="organization-column-heading"><h2>{kind === 'site' && <Building2 size={18}/>} {plural[kind]} <span>{lists[kind].length}</span></h2><button type="button" className="text-button" disabled={!enabled} aria-label={`Añadir ${singular[kind]}`} onClick={() => add(kind)}><Plus size={15}/>Añadir</button></div>
+      const enabled = ready && !busy && ordering !== kind && (kind === 'installation' || kind === 'site' || !!parent && active(parent));
+      return <section className="organization-column" key={kind} aria-label={plural[kind]}><div className="organization-column-heading"><h2>{kind === 'site' && <Building2 size={18}/>} {plural[kind]} <span>{lists[kind].length}</span></h2><div className="organization-column-actions"><CatalogOrderToggle label={plural[kind].toLocaleLowerCase('es')} active={ordering === kind} disabled={busy || loading || !!editor || !!removing || !ready || !hasCatalogOrder(nodes) || !!query.trim() || lists[kind].length < 2} onToggle={() => { setOrdering(value => value === kind ? null : kind); setError(''); }}/><button type="button" className="text-button" disabled={!enabled} aria-label={`Añadir ${singular[kind]}`} onClick={() => add(kind)}><Plus size={15}/>Añadir</button></div></div>
         {kind !== 'site' && <p className="organization-parent-name">{locationLabel(parent?.name) || `Selecciona ${kind === 'zone' ? 'una sede' : 'una zona'} para ver sus ${kind === 'zone' ? 'zonas' : 'instalaciones'}.`}</p>}
         <ul className="organization-node-list">{lists[kind].map((node, index) => {
           const selected = kind === 'site' ? site === node.id : kind === 'zone' ? zone === node.id : false;
           const available = active(node), canRestore = node.parent_id === null || !!byId.get(node.parent_id) && active(byId.get(node.parent_id)!);
-          return <li key={node.id} className={selected ? 'organization-node-selected' : ''}><div className="organization-node-name">{kind === 'installation' ? <span>{locationLabel(node.name)}</span> : <button type="button" aria-pressed={selected} onClick={() => { if (kind === 'site') { setSite(node.id); setZone(''); } else setZone(node.id); }}>{locationLabel(node.name)}</button>}{!available && <small>{node.enabled ? 'Su sede o zona está retirada' : 'Retirado'}</small>}</div><div className="organization-node-actions">{ordering ? <CatalogOrderControls label={locationLabel(node.name)} index={index} count={lists[kind].length} disabled={busy || !ready} onMove={direction => void move(node, direction, lists[kind])}/> : <><button type="button" className="icon-button" aria-label={`Editar ${singular[kind]} ${locationLabel(node.name)}`} disabled={busy} onClick={() => { setError(''); setEditor({ node: { ...node }, creating: false, displayName: locationLabel(node.name) }); }}><Pencil size={15}/></button>{node.enabled ? <button type="button" className="icon-button delete-button" disabled={busy} aria-label={`Retirar ${singular[kind]} ${locationLabel(node.name)}`} onClick={() => { setError(''); setRemoving(node); }}><Trash2 size={15}/></button> : <button type="button" className="icon-button" disabled={busy || !canRestore} title={!canRestore ? 'Restaura primero su sede o zona.' : undefined} aria-label={`Restaurar ${singular[kind]} ${locationLabel(node.name)}`} onClick={() => void commit({ ...node, enabled: true })}><RotateCcw size={15}/></button>}</>}</div></li>;
+          return <li key={node.id} className={selected ? 'organization-node-selected' : ''}><div className="organization-node-name">{kind === 'installation' ? <span>{locationLabel(node.name)}</span> : <button type="button" aria-pressed={selected} onClick={() => { if (kind === 'site') { if (ordering !== 'site') setOrdering(null); setSite(node.id); setZone(''); } else { if (ordering === 'installation') setOrdering(null); setZone(node.id); } }}>{locationLabel(node.name)}</button>}{!available && <small>{node.enabled ? 'Su sede o zona está retirada' : 'Retirado'}</small>}</div><div className="organization-node-actions">{ordering === kind ? <CatalogOrderControls label={locationLabel(node.name)} index={index} count={lists[kind].length} disabled={busy || !ready} onMove={direction => void move(node, direction, lists[kind])}/> : <><button type="button" className="icon-button" aria-label={`Editar ${singular[kind]} ${locationLabel(node.name)}`} disabled={busy} onClick={() => { setOrdering(null); setError(''); setEditor({ node: { ...node }, creating: false, displayName: locationLabel(node.name) }); }}><Pencil size={15}/></button>{node.enabled ? <button type="button" className="icon-button delete-button" disabled={busy} aria-label={`Retirar ${singular[kind]} ${locationLabel(node.name)}`} onClick={() => { setOrdering(null); setError(''); setRemoving(node); }}><Trash2 size={15}/></button> : <button type="button" className="icon-button" disabled={busy || !canRestore} title={!canRestore ? 'Restaura primero su sede o zona.' : undefined} aria-label={`Restaurar ${singular[kind]} ${locationLabel(node.name)}`} onClick={() => void commit({ ...node, enabled: true })}><RotateCcw size={15}/></button>}</>}</div></li>;
         })}</ul>{!lists[kind].length && <p className="organization-empty">{terms.length ? 'No hay coincidencias en esta lista.' : kind === 'installation' ? parent ? 'Todavía no hay instalaciones en esta zona. Puedes añadir la primera.' : 'Pulsa Añadir para crear una instalación y elegir su sede y zona.' : kind === 'site' || parent ? 'Todavía no hay elementos en esta lista.' : `Elige ${kind === 'zone' ? 'una sede' : 'una zona'} de la lista anterior.`}</p>}
       </section>;
     })}</div>}
