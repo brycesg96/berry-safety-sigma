@@ -1,0 +1,24 @@
+.liquid-glass-card{position:relative;isolation:isolate;box-shadow:inset 0 1px 0 #fff9,0 6px 22px #243e3505}
+.liquid-glass-surface{position:absolute;inset:0;z-index:-1;overflow:hidden;pointer-events:none;border-radius:inherit;--glass-x:25%;--glass-y:20%;--glass-water:#a7d0b4;--glass-sheen:#ffffffc4;background:linear-gradient(145deg,#fffffff5,#f2f8f2d9 55%,#e5f0e6bf)}
+.liquid-glass-sage{--glass-water:#83b394;background:linear-gradient(145deg,#f6faecf5,#eaf3e0e6 50%,#d3e6d5d9)}
+.liquid-glass-forest{--glass-water:#478c65;--glass-sheen:#d8efda26;background:linear-gradient(145deg,#284c3f,#1a3a2e 60%,#17372b)}
+.liquid-glass-surface::before{content:"";position:absolute;inset:0;z-index:2;border-radius:inherit;box-shadow:inset 0 1px 0 #ffffffb3,inset 1px 0 0 #ffffff66,inset -1px -1px 0 #557d5821}
+.liquid-glass-forest::before{box-shadow:inset 0 1px 0 #b8daba38,inset 1px 0 0 #d5e7db1c,inset -1px -1px 0 #081e1c47}
+.liquid-glass-reflection{position:absolute;inset:0;background:radial-gradient(ellipse at var(--glass-x) var(--glass-y),var(--glass-sheen),transparent 65%),linear-gradient(125deg,transparent 20%,#ffffff36 30%,transparent 45%);opacity:.6}
+.liquid-glass-forest .liquid-glass-reflection{opacity:.75;background:radial-gradient(ellipse at var(--glass-x) var(--glass-y),var(--glass-sheen),transparent 65%),linear-gradient(125deg,transparent 20%,#d3e8c70a 30%,transparent 45%)}
+.liquid-glass-wave{position:absolute;left:0;right:0;height:min(30%,70px);bottom:0;border-radius:50% 45% 0 0;background:linear-gradient(180deg,color-mix(in srgb,var(--glass-water) 28%,transparent),transparent 92%);border-top:1px solid #ffffffb3}
+.liquid-glass-water{display:none;position:absolute;inset:0;width:100%;height:100%;opacity:.7}
+.liquid-glass-surface[data-water=on] .liquid-glass-water{display:block}
+.liquid-glass-surface[data-water=on] .liquid-glass-wave{display:none}
+.inspection-stat.liquid-glass-card[aria-pressed=true]{box-shadow:0 0 0 1px #639175,inset 0 1px 0 #ffffffcc,0 6px 20px #386c4210}
+.inspection-stat[aria-pressed=true]>.liquid-glass-surface{background:linear-gradient(145deg,#f3faed,#dfeddf)}
+.liquid-glass-card:focus-visible{outline-offset:4px}
+@media(hover:hover) and (pointer:fine) and (prefers-reduced-motion:no-preference){
+  .liquid-glass-card{transition:border-color .2s ease,box-shadow .2s ease}
+  .liquid-glass-card:hover{box-shadow:inset 0 1px 0 #ffffffbf,0 8px 25px #243e350d}
+  .liquid-glass-wave{transition:border-radius .6s ease,translate .6s ease}
+  .liquid-glass-card:hover>.liquid-glass-surface .liquid-glass-wave{border-radius:45% 55% 0 0;translate:0 -3px}
+}
+@media(prefers-reduced-motion:reduce){.liquid-glass-reflection{background:linear-gradient(145deg,#ffffff45,transparent 65%)}.liquid-glass-wave{translate:none}}
+@media(forced-colors:active){.liquid-glass-surface{display:none}}
+@media print{.liquid-glass-surface{display:none}.liquid-glass-card{box-shadow:none}}

@@ -1,3 +1,4 @@
+import { LiquidGlassSurface } from './components/ui/liquid-glass';
 import { Select } from './Select';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { ArrowLeft, Camera, Check, ImagePlus, LoaderCircle, Plus, Save, Trash2, X } from 'lucide-react';
@@ -73,7 +74,7 @@ export function AdminInspectionEditor({ inspection, actor, isCurrent, onCancel, 
     <div className="admin-edit-tabs" role="tablist" aria-label="Secciones de edición">{['Información general', 'Observaciones', 'Cierre'].map((label, index) => <button type="button" role="tab" aria-selected={section === index} key={label} disabled={busy} onClick={() => setSection(index)}>{label}</button>)}</div>
     {error && <p role="alert" className="notice notice-error">{error}</p>}
     {!people ? <p className="cloud-loading" role="status"><LoaderCircle className="spin" size={18}/>Consultando personas…</p> : <AccountDirectory.Provider value={people}><fieldset className="admin-edit-fields" disabled={busy || !!photoBusy || !!prepared}>
-      <div className="form-card"><div className="form-card-heading"><h2>{['Información general', 'Observaciones', 'Cierre de la inspección'][section]}</h2></div>
+      <div className="form-card liquid-glass-card"><LiquidGlassSurface/><div className="form-card-heading"><h2>{['Información general', 'Observaciones', 'Cierre de la inspección'][section]}</h2></div>
       {section === 0 && <GeneralSection draft={draft} errors={errors} patch={patch}/>}
       {section === 1 && <div className="form-body observation-body">
         {draft.observations.map((item, index) => <section key={item.id} className="observation-card"><div className="observation-heading"><span className="observation-index">{index + 1}</span><h3>Observación {index + 1}</h3><Badge severity={item.severity}/><button type="button" className="icon-button delete-button" aria-label={`Eliminar observación ${index + 1}`} onClick={() => patch('observations', draft.observations.filter(o => o.id !== item.id))}><Trash2 size={17}/></button></div>
