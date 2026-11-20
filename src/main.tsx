@@ -5,7 +5,8 @@ import Application from './Application';
 import '@fontsource-variable/dm-sans';
 import '@fontsource-variable/manrope';
 import './styles.css';
+import { AppMotion } from './AppMotion';
 
-ReactDOM.createRoot(document.getElementById('root')!).render(<React.StrictMode><Application /></React.StrictMode>);
+ReactDOM.createRoot(document.getElementById('root')!).render(<React.StrictMode><Application /><AppMotion /></React.StrictMode>);
 
 registerOfflineSupport();

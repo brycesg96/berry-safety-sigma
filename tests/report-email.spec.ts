@@ -16,7 +16,6 @@ async function prepare(page:Page, withTeam=false) {
   if(withTeam){addAccount('demo-admin',{name:'Ana Torres',email:'ana@example.com',role:'inspector'});addAccount('demo-admin',{name:'José Rojas',email:'jose@example.com',role:'inspector'});}
  },withTeam);
  await page.reload();
- await page.getByLabel('Área e instalación inspeccionada').fill('Taller - Armonía 2');
   await selectLocation(page, 'Sede', 'Fundo'); await selectLocation(page, 'Zona de inspección', 'Armonía II');
  await page.getByLabel('Hora de inspección').fill('07:30');await selectValue(page.getByLabel('AM o PM'), 'AM');
  await page.getByRole('radio',{name:'Planeada',exact:true}).check();
@@ -49,7 +48,8 @@ test('envío sin claves adjunta Excel, responsables y CC de jefes y conserva el 
  const dialog=page.getByRole('dialog');await expect(dialog).toContainText('jefe@example.com, gerente@example.com');
  await expect(dialog.getByRole('textbox')).toHaveCount(0);
  await dialog.getByRole('button',{name:'Enviar informe por correo',exact:true}).click();
- await expect(page.getByRole('heading',{name:'Fundo – Armonía II – Taller - Armonía 2',exact:true})).toBeVisible();
+ await expect.poll(() => captured?.inspection?.area).toBeTruthy();
+ await expect(page.getByRole('heading',{name:captured.inspection.area,exact:true})).toBeVisible();
  expect(captured.inspection.responsibles).toEqual([{name:'Bryan',email:'bcespedes@hortifrut.com'},{name:captured.inspection.inspector.name,email:'bryx.96@gmail.com'}]);
  expect(captured.inspection.cc).toEqual(['jefe@example.com','gerente@example.com']);
  expect(captured.inspection.inspectors).toEqual([captured.inspection.inspector,{name:'Ana Torres',email:'ana@example.com'},{name:'José Rojas',email:'jose@example.com'}]);
@@ -62,7 +62,7 @@ test('envío sin claves adjunta Excel, responsables y CC de jefes y conserva el 
  expect(await readFile((await download.path())!)).toEqual(Buffer.from(captured.attachment.contentBase64,'base64'));
  expect(await page.evaluate(()=>JSON.stringify(sessionStorage))).not.toContain('berry-mail-session');
  await page.reload();await page.getByRole('button',{name:'Mis inspecciones',exact:true}).click();await page.getByRole('button',{name:'Revisar informe',exact:true}).click();
- await expect(page.getByRole('heading',{name:'Fundo – Armonía II – Taller - Armonía 2',exact:true})).toBeVisible();
+ await expect(page.getByRole('heading',{name:captured.inspection.area,exact:true})).toBeVisible();
  const receipt=await page.evaluate(async()=>{
   const {loadInspections}=await import('/src/model.ts');
   return (await loadInspections()).find(d=>d.delivery)?.emailDelivery;

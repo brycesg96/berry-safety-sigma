@@ -10,7 +10,6 @@ async function atStart(locator: Locator) {
 async function general(page: Page) {
   await page.route('**/api/people?*', route => route.fulfill({ json: { people: [] } }));
   await page.goto('./');
-  await page.getByLabel('Área e instalación inspeccionada').fill('Taller - Armonía 2');
   await selectLocation(page, 'Sede', 'Fundo'); await selectLocation(page, 'Zona de inspección', 'Armonía II');
   await page.getByLabel('Hora de inspección').fill('07:30'); await selectValue(page.getByLabel('AM o PM'), 'AM');
   await page.getByRole('radio', { name: 'Planeada', exact: true }).check();

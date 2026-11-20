@@ -503,7 +503,7 @@ function WorkspaceApp({ initialAccounts, exit, onCloudAccess, cloud }: { initial
           {draftDirty && <p className="inspection-unsaved-notice" role="status"><span><strong>Tienes cambios pendientes.</strong> Pulsa <strong>Guardar</strong> para conservarlos antes de salir.</span></p>}
           <Stepper step={draft.step} names={stepNames} onStep={goToStep} />
           <div className="content-layout"><div className="form-column">
-            <div className="form-card">
+            <div className="form-card" data-motion-key={draft.step}>
               <div className="form-card-heading"><div><span className="card-eyebrow">PASO {String(draft.step + 1).padStart(2, '0')} DE 05</span><div className="form-heading-title-row"><h2>{['INFORMACIÓN GENERAL', 'RESULTADO DE LA INSPECCIÓN', 'RESUMEN DE OBSERVACIONES', 'CIERRE DE LA INSPECCIÓN', 'REVISIÓN FINAL'][draft.step]}</h2>{draft.step === 0 && <InspectionCodeBadge draft={draft} preview={cloud ? registrationPreview : undefined}/>}</div><p>{stepDescriptions[draft.step][1]}</p></div>{draft.step !== 0 && <span className="heading-icon">{draft.step === 1 ? <Camera size={25} /> : draft.step === 4 ? <FileCheck2 size={25} /> : <FileText size={25} />}</span>}</div>
 
               {draft.step === 0 && <GeneralSection draft={draft} errors={errors} patch={patch} />}

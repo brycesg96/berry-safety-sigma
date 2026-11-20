@@ -11,7 +11,7 @@ async function openSignatureStep(page: Page) {
   await page.evaluate(async () => {
     const { newInspection, newObservation, persistInspection } = await import('/src/model.ts');
     const draft = newInspection({ name: 'Inspectora de prueba', email: 'bryx.96@gmail.com', accountId: 'demo-admin' });
-    await persistInspection({ ...draft, area: 'Firma de prueba', date: '2026-11-08', inspectionTime: '09:30', inspectionPeriod: 'AM', type: 'Planeada', objective: 'Verificar las condiciones.', responsibles: [{ id: 'recipient', personId: 'demo-inspector', name: 'Responsable', email: 'bcespedes@hortifrut.com' }], observations: [{ ...newObservation(), description: 'Hallazgo de prueba', correctiveAction: 'Aplicar la medida.', dueDate: '2026-11-10' }], closingRemarks: 'Verificar la corrección.', step: 3 });
+    await persistInspection({ ...draft, area: 'Firma de prueba', date: '2026-11-08', inspectionTime: '09:30', inspectionPeriod: 'AM', type: 'Planeada', objective: 'Verificar las condiciones.', responsibles: [{ id: 'recipient', personId: 'demo-inspector', name: 'Responsable', email: 'bcespedes@hortifrut.com' }, { id: 'second-recipient', personId: 'demo-admin', name: 'Inspectora de prueba', email: 'bryx.96@gmail.com' }], observations: [{ ...newObservation(), description: 'Hallazgo de prueba', correctiveAction: 'Aplicar la medida.', dueDate: '2026-11-10' }], closingRemarks: 'Verificar la corrección.', step: 3 });
   });
   await page.reload();
   await page.getByRole('button', { name: 'Firmar en pantalla', exact: true }).click();
