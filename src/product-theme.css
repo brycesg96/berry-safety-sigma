@@ -22,11 +22,13 @@ button,input,textarea{touch-action:manipulation}
 .sidebar .nav-caption{font-size:10px;letter-spacing:1.6px;color:#aec7ba}
 .sidebar .help-button{min-height:44px;font-size:12px;color:#c9ddd0}
 .app-shell .topbar{border-bottom:1px solid var(--berry-border)}
+.app-shell .topbar-left{min-width:0;flex:1}.app-shell .topbar-right{flex-shrink:0}
 .app-shell .breadcrumbs{font-size:12px;color:var(--berry-secondary)}
 .app-shell .save-status{font-size:12px;color:var(--berry-secondary)}
 .app-shell .main-content{padding-top:32px}
 .app-shell .page-heading h1,.cloud-account-page .organization-heading h1,.cloud-account-page .dashboard-heading h1{font-size:clamp(28px,2.5vw,36px);line-height:1.25;letter-spacing:-1.1px;color:var(--berry-text)}
 .app-shell .page-heading p,.cloud-account-page :is(.organization-heading,.dashboard-heading)>div>p{font-size:14px;line-height:1.75;color:var(--berry-secondary);max-width:740px}
+.app-shell .page-heading>div{min-width:0;max-width:100%}.app-shell .page-heading h1{overflow-wrap:anywhere}
 .app-shell .eyebrow{font-size:10px;letter-spacing:1.5px;color:#506d59}
 .app-shell .title-row{flex-wrap:wrap;row-gap:6px}
 .app-shell .draft-badge{font-size:11px;padding:4px 8px;color:#48633e;background:#eff4e9}
@@ -37,6 +39,9 @@ button,input,textarea{touch-action:manipulation}
 .app-shell .card-eyebrow{font-size:10px;letter-spacing:1.3px;color:#496c53}
 .app-shell .form-body{padding:28px}
 .app-shell .field-grid,.cloud-account-page .field-grid{column-gap:20px}
+.app-shell .field-grid.inspection-date-time-grid{align-items:end}
+.app-shell .inspection-period-select .location-select-trigger{height:50px;min-height:50px}
+.app-shell :is(.form-card,.list-card,.followup-card):has(.platform-select-menu),.cloud-account-page :is(.form-card,.dashboard-filters):has(.platform-select-menu){position:relative;z-index:46;overflow:visible}
 .app-shell .section-title h3{font-size:16px;line-height:1.5;color:var(--berry-text)}
 .app-shell .section-title p{font-size:13px;line-height:1.6;color:var(--berry-secondary)}
 :is(.app-shell,.cloud-account-page) .field>label,:is(.app-shell,.cloud-account-page) .field legend{font-size:13px;line-height:1.6;font-weight:600;color:#324d3c}
@@ -130,6 +135,9 @@ button,input,textarea{touch-action:manipulation}
  .app-shell .inspection-stat-label{font-size:12px}.app-shell .inspection-stat{padding:16px 12px}.app-shell .inspection-list-stats{gap:10px}
  .app-shell .inspection-list-row .button{font-size:13px}.app-shell .section-title h3{font-size:15px}.app-shell .section-title p{font-size:12px}.app-shell .responsible-heading{flex-wrap:wrap}
  .app-shell .responsible-row{padding:18px 14px 4px}.app-shell .responsible-row .delete-button{top:5px;right:5px}.app-shell .observation-heading{flex-wrap:wrap}.app-shell .observation-heading h3{flex:1}.app-shell .observation-card{padding:18px 14px}
+ .app-shell .general-inspectors .additional-inspector{padding-bottom:14px}
+ .app-shell .closing-text-unfavorableCause textarea{min-height:360px}.app-shell .closing-text-closingRemarks textarea{min-height:230px}
+ .app-shell .inspection-period-select .location-select-trigger{font-size:14px}
  .app-shell .observation-card .field>label{font-size:13px}.app-shell .correction-conversation{padding:14px}.app-shell .correction-message-author{flex-wrap:wrap}.app-shell .review-meta{font-size:12px}
  .app-shell .topbar .save-status>span{display:block;position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap}
  .app-shell .breadcrumb-current{display:block;max-width:100px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -138,6 +146,7 @@ button,input,textarea{touch-action:manipulation}
  .app-shell .modal,.cloud-account-page .modal{padding:22px 18px;border-radius:16px}.app-shell .modal h2,.cloud-account-page .modal h2{font-size:21px}.app-shell .modal-description{font-size:14px}
  .app-shell .followup-actions,.app-shell .followup-downloads{flex-wrap:wrap;gap:10px}.app-shell .followup-actions>.button{flex:1 1 auto}
 }
+@media(max-width:360px){.app-shell .closing-text-unfavorableCause textarea{min-height:440px}.app-shell .closing-text-closingRemarks textarea{min-height:280px}}
 @media print{.loading-panel,.validation-summary{display:none}}
 
 .safety-documents{min-width:0}.safety-private{display:inline-flex;align-items:center;gap:8px;white-space:nowrap;padding:9px 12px;border-radius:24px;font-size:12px;color:#355b43;background:#e9f2e6;border:1px solid #cbdcc6}
