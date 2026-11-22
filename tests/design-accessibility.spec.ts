@@ -10,7 +10,7 @@ for(const width of [1440,375])test(`formulario y acceso tienen contraste, etique
  await page.goto('./?acceso=cuenta');await expect(page.getByRole('heading',{name:'Inicia sesión',exact:true})).toBeVisible();expect((await new AxeBuilder({page}).withTags(['wcag2a','wcag2aa','wcag21aa']).analyze()).violations.map(v=>({id:v.id,nodes:v.nodes.map(n=>n.target)}))).toEqual([]);
 });
 test('documentos permite usar el formulario con teclado, contraste y zoom de texto',async({page,context})=>{
- await mockSafety(context);await page.setViewportSize({width:375,height:900});await page.emulateMedia({reducedMotion:'reduce'});await enterSafety(page);await expect(page.getByLabel('Tipo de documento')).toBeEnabled();
+ await mockSafety(context);await page.setViewportSize({width:375,height:900});await page.emulateMedia({reducedMotion:'reduce'});await enterSafety(page);await expect(page.getByRole('combobox',{name:'Área',exact:true})).toBeEnabled();
  expect((await new AxeBuilder({page}).withTags(['wcag2a','wcag2aa','wcag21aa']).analyze()).violations.map(v=>({id:v.id,nodes:v.nodes.map(n=>n.target)}))).toEqual([]);
  await page.evaluate(()=>document.documentElement.style.zoom='150%');expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
 });

@@ -76,4 +76,4 @@ Las inspecciones se conservan con Guardar y también al confirmar el envío; los
 
 Los desplegables comparten el diseño de Sede/Zona. [Búsqueda múltiple y áreas organizativas en el panel](docs/FILTROS_PANEL.md).
 
-El [sistema visual de Berry](design-system/berry-safety/MASTER.md) define contraste, tipografía y controles compartidos. El apartado [Documentos de seguridad](docs/DOCUMENTOS_SEGURIDAD.md) permite cargar ATS, PETAR y checklists privados y revisarlos desde Administración; requiere activar el paso 24 de Supabase.
+El [sistema visual de Berry](design-system/berry-safety/MASTER.md) define contraste, tipografía y controles compartidos. El apartado [Yo Seguro](docs/DOCUMENTOS_SEGURIDAD.md) recibe ATS, PETAR y checklists sin cuenta y permite consultarlos con cuenta por gerencia/área; requiere activar los pasos 24 y 25 de Supabase. Administración conserva la revisión y la vista general.

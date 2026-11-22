@@ -1,8 +1,10 @@
-import { useState } from 'react';
+import { lazy, Suspense, useState } from 'react';
+import { LoadingState } from './LoadingState';
 import App from './App';
 import { CloudAccess } from './CloudAccess';
 import { useExitConfirmation } from './useExitConfirmation';
 import { supabaseClient } from './supabase';
+const YoSeguroGuest = lazy(() => import('./YoSeguroGuest'));
 
 export default function Application() {
   const allowLegacy = new URL(location.href).searchParams.get('modo') === 'prueba' || import.meta.env.DEV && import.meta.env.VITE_LEGACY_DEMO_START === 'true';
@@ -15,9 +17,10 @@ export default function Application() {
     }
     return !allowLegacy || url.searchParams.get('acceso') === 'cuenta' || url.searchParams.get('recuperar') === '1';
   });
+  const [guestView, setGuestView] = useState(() => new URL(location.href).searchParams.get('acceso') === 'sin-cuenta' && !new URL(location.href).searchParams.has('recuperar'));
   const [authenticated, setAuthenticated] = useState(false);
   const [leaving, setLeaving] = useState(false), [exitError, setExitError] = useState('');
-  const guard = useExitConfirmation(!accountView || authenticated);
+  const guard = useExitConfirmation(!guestView && (!accountView || authenticated));
   const navigate = (cloud: boolean, section: 'profile' | 'admin' | 'workspace' = 'profile') => {
     const url = new URL(location.href);
     if (cloud) url.searchParams.set('acceso', 'cuenta'); else url.searchParams.delete('acceso');
@@ -26,6 +29,8 @@ export default function Application() {
     setAccountView(cloud); setAccountSection(section);
     window.scrollTo({ top: 0 });
   };
+  const showGuest = () => { const url = new URL(location.href); url.searchParams.set('acceso', 'sin-cuenta'); url.searchParams.delete('seccion'); url.searchParams.delete('recuperar'); url.hash = ''; history.replaceState(history.state, '', url); setGuestView(true); window.scrollTo({top:0}); };
+  const leaveGuest = () => {setGuestView(false);navigate(true, 'workspace');};
   const leave = async () => {
     if (leaving) return;
     setLeaving(true); setExitError('');
@@ -39,7 +44,8 @@ export default function Application() {
     finally { setLeaving(false); }
   };
   const exit = { ...guard, leave, leaving, error: exitError, request: () => { setExitError(''); guard.request(); } };
+  if (guestView) return <Suspense fallback={<LoadingState label="Preparando Yo Seguro…"/>}><YoSeguroGuest onBack={leaveGuest}/></Suspense>;
   return accountView
-    ? <CloudAccess exit={exit} onSessionChange={setAuthenticated} onReturn={allowLegacy ? () => navigate(false) : undefined} initialSection={accountSection}/>
+    ? <CloudAccess onGuestAccess={showGuest} exit={exit} onSessionChange={setAuthenticated} onReturn={allowLegacy ? () => navigate(false) : undefined} initialSection={accountSection}/>
     : <App exit={exit} onCloudAccess={section => navigate(true, section)}/>;
 }

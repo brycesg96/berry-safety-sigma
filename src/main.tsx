@@ -7,6 +7,7 @@ import '@fontsource-variable/manrope';
 import './styles.css';
 import { AppMotion } from './AppMotion';
 import './product-theme.css';
+import './yo-seguro.css';
 
 ReactDOM.createRoot(document.getElementById('root')!).render(<React.StrictMode><Application /><AppMotion /></React.StrictMode>);
 

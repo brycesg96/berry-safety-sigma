@@ -2,7 +2,7 @@ import { supabaseClient } from './supabase';
 
 export type SafetyKind = 'ATS' | 'PETAR' | 'CHECKLIST';
 export type SafetyStatus = 'pending' | 'approved' | 'corrections';
-export type SafetyDocument = { id: string; owner_id: string; owner_name: string; kind: SafetyKind; title: string; document_date: string; workplace: string; storage_path: string; file_name: string; mime_type: string; file_size: number; status: SafetyStatus; review_note: string; reviewed_at: string | null; created_at: string; revision: number };
+export type SafetyDocument = { id: string; owner_id: string | null; owner_name: string; kind: SafetyKind; title: string; document_date: string; workplace: string; storage_path: string; file_name: string; mime_type: string; file_size: number; status: SafetyStatus; review_note: string; reviewed_at: string | null; created_at: string; revision: number; management_id?: string | null; area_id?: string | null; management_name?: string; area_name?: string; submission_source?: 'account' | 'guest' };
 export const SAFETY_LABELS = { ATS: 'ATS', PETAR: 'PETAR', CHECKLIST: 'Checklist' };
 export const SAFETY_STATES = { pending: 'Por revisar', approved: 'Aprobado', corrections: 'Requiere correcciones' };
 const BUCKET = 'berry-safety-documents';
@@ -33,8 +33,10 @@ export async function safetyReady() {
   return data?.ready === true;
 }
 
-export async function listSafetyDocuments({ type = '', status = '', query = '', page = 0 }: { type?: string; status?: string; query?: string; page?: number }) {
-  let request = supabaseClient().from('berry_safety_documents').select('*', { count: 'exact' }).order('created_at', { ascending: false }).order('id').range(page * 20, page * 20 + 19);
+export async function listSafetyDocuments({ type = '', status = '', query = '', page = 0, management = '', area = '' }: { type?: string; status?: string; query?: string; page?: number; management?: string; area?: string }) {
+  let request = supabaseClient().from('berry_safety_documents').select('*', { count: 'exact' }).order('management_name').order('area_name').order('created_at', { ascending: false }).order('id').range(page * 20, page * 20 + 19);
+  if (management) request = request.eq('management_id', management);
+  if (area) request = request.eq('area_id', area);
   if (type) request = request.eq('kind', type);
   if (status) request = request.eq('status', status);
   if (query.trim()) request = request.ilike('title', `%${query.trim().replace(/[\\%_]/g, '\\$&')}%`);

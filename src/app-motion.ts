@@ -9,7 +9,7 @@ const surfaces = [
   '.followup-context', '.followup-card', '.observation-card', '.review-observation',
   '.closing-entry', '.final-section', '.compliance-panel', '.dashboard-heading',
   '.dashboard-metric', '.dashboard-filters', '.dashboard-chart', '.dashboard-results',
-  '.inspection-list-row', '.correction-review-message', '.safety-document-row', '.safety-upload-card', '.safety-library',
+  '.yo-intro', '.yo-library-hero', '.inspection-list-row', '.correction-review-message', '.safety-document-row', '.safety-upload-card', '.safety-library',
 ].join(',');
 type Entrance = { tween?: gsap.core.Tween; trigger?: ScrollTrigger };
 

@@ -203,3 +203,7 @@ La activación del correo, del proceso diario y del modo sin conexión se detall
 ## Paso 24: documentos privados de seguridad
 
 Ejecutar el script completo [202611220024_safety_documents.sql](../supabase/migrations/202611220024_safety_documents.sql) en una consulta nueva. El resultado final es `safety_documents_version: 202611220024`. La activación, permisos, formatos y pruebas se describen en [DOCUMENTOS_SEGURIDAD.md](DOCUMENTOS_SEGURIDAD.md).
+
+## Paso 25 — Yo Seguro sin cuenta y por gerencia
+
+El paso 24 queda ampliado por [202611220025_yo_seguro.sql](../supabase/migrations/202611220025_yo_seguro.sql). Habilita un catálogo público mínimo y permisos de recepción de un solo archivo; mantiene privados los registros y los archivos. Las cuentas habilitadas consultan los documentos de todas las áreas de su gerencia y Administración conserva la vista general. Véase [Yo Seguro](DOCUMENTOS_SEGURIDAD.md) para activación, uso, límites operativos y pruebas. No se habilita Auth anónimo ni se configuran claves de servidor nuevas.

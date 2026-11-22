@@ -34,7 +34,7 @@ function rememberEmail(email: string) { try { if (email) localStorage.setItem(re
 const blank = (): ProfileForm => ({ full_name: '', area: '', job_title: '', management: '' });
 const fieldsOf = (profile: CloudProfile): ProfileForm => ({ full_name: profile.full_name, area: profile.area, job_title: profile.job_title, management: profile.management || '' });
 
-export function CloudAccess({ exit, onReturn, onSessionChange, initialSection = 'workspace' }: { exit: ExitConfirmation; onReturn?: () => void; onSessionChange?: (authenticated: boolean) => void; initialSection?: 'profile' | 'admin' | 'dashboard' | 'organization' | 'workspace' }) {
+export function CloudAccess({ exit, onReturn, onGuestAccess, onSessionChange, initialSection = 'workspace' }: { exit: ExitConfirmation; onReturn?: () => void; onGuestAccess?: () => void; onSessionChange?: (authenticated: boolean) => void; initialSection?: 'profile' | 'admin' | 'dashboard' | 'organization' | 'workspace' }) {
   const catalogState = useOrganizationCatalog();
   const [ready, setReady] = useState(false);
   const [session, setSession] = useState<Session | null>(null);
@@ -280,6 +280,7 @@ export function CloudAccess({ exit, onReturn, onSessionChange, initialSection = 
             {loginNotice && <p role="status" className="cloud-saved">{loginNotice}</p>}
             <button type="submit" className="button button-primary full-width" disabled={!!busy}>{busy === 'login' ? <LoaderCircle className="spin" size={17}/> : <LockKeyhole size={17}/>} {busy === 'login' ? 'Iniciando sesión…' : 'Iniciar sesión'}</button>
           </form>
+          {onGuestAccess && <div className="yo-login-entry"><span>¿Vas a enviar un documento de seguridad?</span><button type="button" className="button button-outline full-width" disabled={!!busy} onClick={onGuestAccess}><ShieldCheck size={19}/>Ingresar sin cuenta</button><small>Yo Seguro · ATS, PETAR y checklists</small></div>}
           <p className="cloud-account-hint">Utiliza el correo y la contraseña de tu cuenta habilitada.</p>
           <button type="button" className="cloud-logout" disabled={!!busy} onClick={() => { setRecoveryRequest(true); setPassword(''); setLoginError(''); setRecoveryNotice(''); }}>Olvidé mi contraseña</button>
         </> : profileLoading || !ownProfile && !profileError ? <>

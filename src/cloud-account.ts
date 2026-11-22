@@ -17,6 +17,8 @@ export type CloudProfile = {
   /** UI onboarding only; never used to grant access or permissions. */
   profile_setup_required?: boolean;
   person_id?: string;
+  yo_seguro_management_id?: string | null;
+  yo_seguro_scope_set?: boolean;
 };
 
 function profileSetupCompleted(metadata: Record<string, unknown>) {

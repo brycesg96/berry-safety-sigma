@@ -1696,6 +1696,102 @@ test('rehire history boundaries also hide private safety records and files and d
  assert.equal((await safetyAs('admin','select * from public.berry_safety_documents')).rows.length,1);
 });
 
+// Yo Seguro runs the anonymous reception contract against real PostgreSQL roles and policies.
+const yoIds={m:'cd000000-0000-4000-8000-000000000001',m2:'cd000000-0000-4000-8000-000000000002',a:'cd000000-0000-4000-8000-000000000003',a2:'cd000000-0000-4000-8000-000000000004',outside:'cd000000-0000-4000-8000-000000000005',colleague:'cd000000-0000-4000-8000-000000000006'};
+const yoId='cd100000-0000-4000-8000-000000000001',yoToken='ab'.repeat(32);
+const yoArgs=(id=yoId,token=yoToken,area=yoIds.a)=>[id,token,area,'Trabajadora de Campo','ATS','Trabajo en campo','2026-11-22','Fundo','ats.pdf','application/pdf',100];
+const yoBegin=(args=yoArgs())=>as('anon',null,'select public.berry_begin_yo_seguro_upload($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11) value',args);
+const yoFinish=(id=yoId,token=yoToken)=>as('anon',null,'select public.berry_finish_yo_seguro_upload($1,$2) value',[id,token]);
+const yoPath=(id=yoId,token=yoToken)=>`public/${id}/${token}/documento.pdf`;
+const yoStore=(id=yoId,metadata={size:100,mimetype:'application/pdf'})=>as('anon',null,"insert into storage.objects(bucket_id,name,metadata)values('berry-safety-documents',$1,$2)",[yoPath(id),metadata]);
+test('Yo Seguro preserves existing safety records, is repeatable and exposes only active management and area labels publicly',async()=>{
+ const before=(await db.query('select count(*)::int n from public.berry_safety_documents')).rows[0].n;
+ for(const [id,parent,kind,name] of [[yoIds.m,null,'management','Gerencia de Campo'],[yoIds.m2,null,'management','Gerencia de Procesos'],[yoIds.a,yoIds.m,'area','Mantenimiento'],[yoIds.a2,yoIds.m,'area','Cosecha'],[yoIds.outside,yoIds.m2,'area','Packing']])await db.query('insert into public.berry_organization(id,parent_id,kind,name)values($1,$2,$3,$4)',[id,parent,kind,name]);
+ for(const area of [yoIds.a,yoIds.a2,yoIds.outside])await db.query("insert into public.berry_organization(parent_id,kind,name)values($1,'position','Operario')",[area]);
+ await db.query('insert into auth.users(id,email)values($1,$2)',[yoIds.colleague,'colleague@yo-seguro.invalid']);
+ for(const [id,management,area]of[[safetyUsers.worker,'Gerencia de Campo','Mantenimiento'],[safetyUsers.other,'Gerencia de Procesos','Packing'],[yoIds.colleague,'Gerencia de Campo','Cosecha']])await db.query("update public.berry_profiles set management=$2,area=$3,job_title='Operario',enabled=true,must_change_password=false,can_create_inspections=false,can_receive_inspections=false,history_access_from=null where id=$1",[id,management,area]);
+ const sql=await readFile(new URL('../migrations/202611220025_yo_seguro.sql',import.meta.url),'utf8');await db.exec(sql);await db.exec(sql);
+ assert.equal((await db.query('select count(*)::int n from public.berry_safety_documents')).rows[0].n,before);
+ const catalog=(await as('anon',null,'select public.berry_yo_seguro_catalog() value')).rows[0].value;
+ assert.equal(catalog.version,'202611220025');const m=catalog.catalog.find(m=>m.id===yoIds.m);assert.deepEqual(Object.keys(m).sort(),['areas','id','name']);assert.equal(m.areas.length,2);assert.deepEqual(Object.keys(m.areas[0]).sort(),['id','name']);
+ await db.query('update public.berry_organization set enabled=false where id=$1',[yoIds.a2]);assert.equal((await as('anon',null,'select public.berry_yo_seguro_catalog() value')).rows[0].value.catalog.find(m=>m.id===yoIds.m).areas.length,1);await db.query('update public.berry_organization set enabled=true where id=$1',[yoIds.a2]);
+ await denied(()=>as('anon',null,'select * from berry_private.yo_seguro_uploads'));await denied(()=>as('anon',null,'select * from public.berry_safety_documents'));await denied(()=>as('anon',null,'select public.berry_yo_seguro_scope()'));
+});
+test('anonymous reception requires a valid area, bounded file and unguessable capability and denies arbitrary Storage writes',async()=>{
+ await denied(()=>as('anon',null,"insert into storage.objects(bucket_id,name,metadata)values('berry-safety-documents','public/arbitrary/documento.pdf','{}')"));
+ const invalid=yoArgs();invalid[2]=yoIds.m;await assert.rejects(()=>yoBegin(invalid),e=>e.message.includes('AREA_NOT_AVAILABLE'));
+ const large=yoArgs();large[10]=10485761;await assert.rejects(()=>yoBegin(large),e=>e.message.includes('INVALID_DOCUMENT'));
+ const token=yoArgs();token[1]='abc';await assert.rejects(()=>yoBegin(token),e=>e.message.includes('INVALID_DOCUMENT'));
+ const html=yoArgs();html[8]='archivo.html';await assert.rejects(()=>yoBegin(html),e=>e.message.includes('INVALID_FILE_TYPE'));
+ const ticket=(await yoBegin()).rows[0].value;assert.equal(ticket.path,yoPath());assert.equal(ticket.completed,false);
+ await denied(()=>yoFinish(yoId,'cd'.repeat(32)));const forged=yoArgs();forged[1]='cd'.repeat(32);await denied(()=>yoBegin(forged));
+ const changed=yoArgs();changed[3]='Otro nombre';await assert.rejects(()=>yoBegin(changed),e=>e.code==='40001');
+ await assert.rejects(()=>yoFinish(),e=>e.message.includes('FILE_NOT_STORED'));
+});
+test('guest upload and receipt create no Auth account and are idempotent without any anonymous read or overwrite',async()=>{
+ const authCount=(await db.query('select count(*)::int n from auth.users')).rows[0].n;await yoStore();
+ assert.equal((await as('anon',null,"select * from storage.objects where bucket_id='berry-safety-documents'")).rows.length,0);
+ await denied(()=>yoStore());
+ const first=(await yoFinish()).rows[0].value;assert.deepEqual(first,{id:yoId,received:true});assert.deepEqual((await yoFinish()).rows[0].value,first);
+ assert.equal((await yoBegin()).rows[0].value.completed,true);
+ assert.equal((await db.query('select count(*)::int n from auth.users')).rows[0].n,authCount);
+ const row=(await db.query('select * from public.berry_safety_documents where id=$1',[yoId])).rows[0];assert.equal(row.owner_id,null);assert.equal(row.owner_name,'Trabajadora de Campo');assert.equal(row.management_id,yoIds.m);assert.equal(row.area_id,yoIds.a);assert.equal(row.submission_source,'guest');assert.equal(row.status,'pending');
+ assert.equal((await db.query("select count(*)::int n from public.berry_audit where entity_id=$1 and entity_type='berry_safety_documents'",[yoId])).rows[0].n,1);
+ await denied(()=>as('anon',null,'select public.berry_review_safety_document($1,1,$2,$3)',[yoId,'approved','']));await denied(()=>as('anon',null,'select public.berry_archive_safety_document($1,1)',[yoId]));
+ await denied(()=>as('anon',null,'update storage.objects set metadata=$2 where name=$1',[yoPath(),{size:50}]));await denied(()=>as('anon',null,'delete from storage.objects where name=$1',[yoPath()]));
+});
+test('same-management viewers see all areas but other managements and disabled accounts see neither records nor bytes',async()=>{
+ const second='cd100000-0000-4000-8000-000000000002';await yoBegin(yoArgs(second,yoToken,yoIds.a2));await yoStore(second);await yoFinish(second);
+ const colleague=(query,args=[])=>as('authenticated',yoIds.colleague,query,args,{iat:Math.floor(Date.now()/1000)});
+ const scope=(await colleague('select public.berry_yo_seguro_scope() value')).rows[0].value;assert.equal(scope.management_id,yoIds.m);assert.equal(scope.admin,false);
+ assert.equal((await colleague('select id from public.berry_safety_documents where id=any($1::uuid[])',[[yoId,second]])).rows.length,2);
+ assert.equal((await colleague('select name from storage.objects where name=any($1::text[])',[[yoPath(),yoPath(second)]])).rows.length,2);
+ assert.equal((await safetyAs('other','select id from public.berry_safety_documents where id=$1',[yoId])).rows.length,0);
+ assert.equal((await safetyAs('other','select name from storage.objects where name=$1',[yoPath()])).rows.length,0);
+ assert.equal((await safetyAs('admin','select id from public.berry_safety_documents where id=$1',[yoId])).rows.length,1);
+ assert.equal((await safetyAs('disabled','select id from public.berry_safety_documents where id=$1',[yoId])).rows.length,0);
+ await denied(()=>colleague("select public.berry_review_safety_document($1,1,'approved','')",[yoId]));await denied(()=>colleague('select public.berry_archive_safety_document($1,1)',[yoId]));
+ await db.query("update public.berry_profiles set history_access_from=now()+interval '1 day' where id=$1",[yoIds.colleague]);assert.equal((await colleague('select id from public.berry_safety_documents where id=$1',[yoId])).rows.length,0);assert.equal((await colleague('select name from storage.objects where name=$1',[yoPath()])).rows.length,0);await db.query('update public.berry_profiles set history_access_from=null where id=$1',[yoIds.colleague]);
+});
+test('guest finalization rejects false MIME, byte size and expired capabilities while preserving retry state',async()=>{
+ const id='cd100000-0000-4000-8000-000000000003';await yoBegin(yoArgs(id));await yoStore(id,{size:101,mimetype:'application/pdf'});
+ await assert.rejects(()=>yoFinish(id),e=>e.message.includes('INVALID_FILE_METADATA'));await db.query('update storage.objects set metadata=$2 where name=$1',[yoPath(id),{size:100,mimetype:'text/html'}]);await assert.rejects(()=>yoFinish(id),e=>e.message.includes('INVALID_FILE_METADATA'));
+ assert.equal((await db.query('select completed_at from berry_private.yo_seguro_uploads where id=$1',[id])).rows[0].completed_at,null);
+ await db.query("update berry_private.yo_seguro_uploads set expires_at=clock_timestamp()-interval '1 second' where id=$1",[id]);await assert.rejects(()=>yoFinish(id),e=>e.message.includes('UPLOAD_EXPIRED'));await assert.rejects(()=>yoBegin(yoArgs(id)),e=>e.message.includes('UPLOAD_EXPIRED'));
+});
+test('reception quotas count unfinished reservations, enforce byte budgets and permit matching receipt retries',async()=>{
+ await db.query('update berry_private.yo_seguro_limits set hourly=0 where singleton');
+ await assert.rejects(()=>yoBegin(yoArgs('cd100000-0000-4000-8000-000000000004')),e=>e.message.includes('UPLOAD_RATE_LIMIT'));
+ assert.equal((await yoBegin()).rows[0].value.completed,true);assert.equal((await yoFinish()).rows[0].value.received,true);
+ await db.query('update berry_private.yo_seguro_limits set hourly=500,daily_bytes=1 where singleton');await assert.rejects(()=>yoBegin(yoArgs('cd100000-0000-4000-8000-000000000004')),e=>e.message.includes('UPLOAD_RATE_LIMIT'));await db.query('update berry_private.yo_seguro_limits set daily_bytes=2147483648 where singleton');
+});
+test('management access follows the server profile, ignores user metadata, and remains closed when its catalogue entry is inactive',async()=>{
+ const own=(query,args=[])=>as('authenticated',safetyUsers.other,query,args,{iat:Math.floor(Date.now()/1000),user_metadata:{management:'Gerencia de Campo'}});
+ assert.equal((await own('select id from public.berry_safety_documents where id=$1',[yoId])).rows.length,0);
+ await db.query('update public.berry_organization set enabled=false where id=$1',[yoIds.m]);assert.equal((await safetyAs('worker','select id from public.berry_safety_documents where id=$1',[yoId])).rows.length,0);assert.equal((await safetyAs('worker','select name from storage.objects where name=$1',[yoPath()])).rows.length,0);await db.query('update public.berry_organization set enabled=true where id=$1',[yoIds.m]);
+});
+
+test('editing a profile cannot expand Yo Seguro access; only an administrator can change or revoke its stable management assignment',async()=>{
+ await denied(()=>as('anon',null,'select public.berry_yo_seguro_account_access($1)',[safetyUsers.worker]));
+ await denied(()=>safetyAs('worker','select public.berry_yo_seguro_account_access($1)',[safetyUsers.other]));
+ assert.equal((await safetyAs('admin','select public.berry_yo_seguro_account_access($1) value',[safetyUsers.worker])).rows[0].value.management_id,yoIds.m);
+ await denied(()=>safetyAs('worker','update public.berry_profiles set yo_seguro_management_id=$1 where id=$2',[yoIds.m2,safetyUsers.worker]));
+ await denied(()=>safetyAs('worker','select public.berry_set_yo_seguro_access($1,$2,$3)',[safetyUsers.worker,yoIds.m,yoIds.m2]));
+ await safetyAs('worker',"update public.berry_profiles set management='Gerencia de Procesos',area='Packing',job_title='Operario' where id=$1",[safetyUsers.worker]);
+ assert.equal((await safetyAs('worker','select public.berry_yo_seguro_scope() value')).rows[0].value.management_id,yoIds.m);
+ assert.equal((await safetyAs('worker','select id from public.berry_safety_documents where id=$1',[yoId])).rows.length,1);
+ await safetyAs('admin','select public.berry_set_yo_seguro_access($1,$2,$3)',[safetyUsers.worker,yoIds.m,yoIds.m2]);
+ assert.equal((await safetyAs('worker','select public.berry_yo_seguro_scope() value')).rows[0].value.management_id,yoIds.m2);
+ assert.equal((await safetyAs('worker','select id from public.berry_safety_documents where id=$1',[yoId])).rows.length,0);
+ await assert.rejects(()=>safetyAs('admin','select public.berry_set_yo_seguro_access($1,$2,$3)',[safetyUsers.worker,yoIds.m,null]),e=>e.code==='40001');
+ await safetyAs('admin','select public.berry_set_yo_seguro_access($1,$2,$3)',[safetyUsers.worker,yoIds.m2,null]);
+ await safetyAs('worker',"update public.berry_profiles set management='Gerencia de Campo',area='Mantenimiento',job_title='Operario' where id=$1",[safetyUsers.worker]);
+ assert.equal((await safetyAs('worker','select public.berry_yo_seguro_scope() value')).rows[0].value.management_id,null);
+ const sql=await readFile(new URL('../migrations/202611220025_yo_seguro.sql',import.meta.url),'utf8');await db.exec(sql);
+ assert.equal((await safetyAs('worker','select public.berry_yo_seguro_scope() value')).rows[0].value.management_id,null);
+ await safetyAs('admin','select public.berry_set_yo_seguro_access($1,$2,$3)',[safetyUsers.worker,null,yoIds.m]);
+});
+
 let failed;
 try {
   await setup();
