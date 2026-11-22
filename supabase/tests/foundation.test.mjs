@@ -1627,6 +1627,75 @@ test('rehire boundaries also deny historical conversation writes and replayed of
  await denied(()=>productivityRpc(productivityUsers.recipient,'select public.berry_apply_offline_correction($1,$2,$3,$4,$5,$6)',[offlineOperation,productivityReport,productivityObservation,1,'submit',{responsibleName:'recipient',state:'Pendiente',action:'Acción guardada sin conexión',date:'2026-11-16',photos:[]}]));
 });
 
+
+const safetyUsers={worker:'cc000000-0000-4000-8000-000000000001',other:'cc000000-0000-4000-8000-000000000002',admin:'cc000000-0000-4000-8000-000000000003',disabled:'cc000000-0000-4000-8000-000000000004'};
+const safetyId='cc100000-0000-4000-8000-000000000001';
+const safetyPath=safetyUsers.worker+'/'+safetyId+'/documento.pdf';
+const safetyAs=(user,sql,args=[])=>as('authenticated',safetyUsers[user],sql,args,{iat:Math.floor(Date.now()/1000)});
+const safetySubmit=(user='worker',id=safetyId)=>safetyAs(user,'select public.berry_submit_safety_document($1,$2,$3,$4,$5,$6,$7) value',[id,'ATS','Mantenimiento seguro','2026-11-22','Armonía I','ats.pdf','application/pdf']);
+test('safety documents migration is repeatable, uses private storage and rejects anonymous access',async()=>{
+ await db.exec('alter table storage.objects add column if not exists metadata jsonb; grant delete on storage.objects to authenticated');
+ const sql=await readFile(new URL('../migrations/202611220024_safety_documents.sql',import.meta.url),'utf8');await db.exec(sql);await db.exec(sql);
+ for(const [name,id] of Object.entries(safetyUsers)){await db.query('insert into auth.users(id,email)values($1,$2)',[id,name+'@safety.invalid']);await db.query("update public.berry_profiles set enabled=$2,must_change_password=false,full_name=$3,role=$4,can_create_inspections=($4='admin'),can_receive_inspections=($4='admin') where id=$1",[id,name!=='disabled',name,name==='admin'?'admin':'inspector']);}
+ assert.equal((await db.query("select public from storage.buckets where id='berry-safety-documents'")).rows[0].public,false);
+ await denied(()=>as('anon',null,'select * from public.berry_safety_documents'));
+ await denied(()=>as('anon',null,'select public.berry_safety_document_status()'));
+ await denied(()=>safetyAs('disabled','select public.berry_safety_document_status()'));
+});
+test('workers cannot upload into another account folder or register a file that was not stored',async()=>{
+ await denied(()=>safetyAs('other',"insert into storage.objects(bucket_id,name,metadata)values('berry-safety-documents',$1,$2)",[safetyPath,{size:100,mimetype:'application/pdf'}]));
+ await assert.rejects(()=>safetySubmit(),e=>e.message.includes('FILE_NOT_STORED'));
+ await safetyAs('worker',"insert into storage.objects(bucket_id,name,metadata)values('berry-safety-documents',$1,$2)",[safetyPath,{size:100,mimetype:'application/pdf'}]);
+});
+test('private document registration is idempotent and preserves server author identity',async()=>{
+ const first=(await safetySubmit()).rows[0].value;const second=(await safetySubmit()).rows[0].value;
+ assert.equal(first.owner_id,safetyUsers.worker);assert.equal(first.owner_name,'worker');assert.equal(first.status,'pending');assert.deepEqual(first,second);
+ await denied(()=>safetyAs('worker',"update public.berry_safety_documents set status='approved' where id=$1",[safetyId]));
+ await denied(()=>safetyAs('worker',"insert into public.berry_safety_documents(id)values(gen_random_uuid())"));
+});
+test('unrelated workers cannot read documents or files and cannot approve a document',async()=>{
+ assert.equal((await safetyAs('other','select * from public.berry_safety_documents')).rows.length,0);
+ assert.equal((await safetyAs('other',"select * from storage.objects where bucket_id='berry-safety-documents'")).rows.length,0);
+ assert.equal((await safetyAs('worker','select * from public.berry_safety_documents')).rows.length,1);
+ assert.equal((await safetyAs('admin','select * from public.berry_safety_documents')).rows.length,1);
+ await denied(()=>safetyAs('worker',"select public.berry_review_safety_document($1,1,'approved','')",[safetyId]));
+ await denied(()=>safetyAs('other','select public.berry_archive_safety_document($1,1)',[safetyId]));
+});
+test('administrative review requires a correction reason, guards concurrent changes and audits decisions',async()=>{
+ await assert.rejects(()=>safetyAs('admin',"select public.berry_review_safety_document($1,1,'corrections','')",[safetyId]),e=>e.message.includes('REVIEW_NOTE_REQUIRED'));
+ const value=(await safetyAs('admin',"select public.berry_review_safety_document($1,1,'corrections','Falta firma') value",[safetyId])).rows[0].value;
+ assert.equal(value.revision,2);assert.equal(value.reviewer_id,safetyUsers.admin);
+ await assert.rejects(()=>safetyAs('admin',"select public.berry_review_safety_document($1,1,'approved','')",[safetyId]),e=>e.code==='40001');
+ await safetyAs('admin',"select public.berry_review_safety_document($1,2,'approved','Validado')",[safetyId]);
+ assert.equal((await db.query("select count(*)::int n from public.berry_audit where entity_type='berry_safety_documents' and entity_id=$1",[safetyId])).rows[0].n,3);
+});
+test('approved and archived file bytes cannot be removed or overwritten by the uploader',async()=>{
+ await denied(()=>safetyAs('worker','select public.berry_archive_safety_document($1,3)',[safetyId]));
+ assert.equal((await safetyAs('worker',"delete from storage.objects where name=$1 returning id",[safetyPath])).rows.length,0);
+ await safetyAs('admin','select public.berry_archive_safety_document($1,3)',[safetyId]);
+ assert.equal((await safetyAs('worker','select * from public.berry_safety_documents')).rows.length,0);
+ assert.equal((await safetyAs('worker',"delete from storage.objects where name=$1 returning id",[safetyPath])).rows.length,0);
+});
+
+
+test('document registration rejects forged MIME and size metadata even when the object exists',async()=>{
+ const id='cc100000-0000-4000-8000-000000000002',path=safetyUsers.worker+'/'+id+'/documento.pdf';
+ await db.query("insert into storage.objects(bucket_id,name,metadata)values('berry-safety-documents',$1,$2)",[path,{size:100,mimetype:'text/html'}]);
+ await assert.rejects(()=>safetySubmit('worker',id),e=>e.message.includes('INVALID_FILE_METADATA'));
+ await db.query('update storage.objects set metadata=$2 where name=$1',[path,{size:10485761,mimetype:'application/pdf'}]);
+ await assert.rejects(()=>safetySubmit('worker',id),e=>e.message.includes('INVALID_FILE_METADATA'));
+});
+test('rehire history boundaries also hide private safety records and files and deny replayed submissions',async()=>{
+ const id='cc100000-0000-4000-8000-000000000003',path=safetyUsers.worker+'/'+id+'/documento.pdf';
+ await db.query("insert into storage.objects(bucket_id,name,metadata)values('berry-safety-documents',$1,$2)",[path,{size:100,mimetype:'application/pdf'}]);
+ await safetySubmit('worker',id);
+ await db.query("update public.berry_profiles set history_access_from=now()+interval '1 day' where id=$1",[safetyUsers.worker]);
+ assert.equal((await safetyAs('worker','select * from public.berry_safety_documents')).rows.length,0);
+ assert.equal((await safetyAs('worker',"select * from storage.objects where bucket_id='berry-safety-documents'")).rows.length,0);
+ await denied(()=>safetySubmit('worker',id));await denied(()=>safetyAs('worker','select public.berry_archive_safety_document($1,1)',[id]));
+ assert.equal((await safetyAs('admin','select * from public.berry_safety_documents')).rows.length,1);
+});
+
 let failed;
 try {
   await setup();

@@ -1,3 +1,4 @@
+import { expectAccessible } from './accessibility-fixture';
 import { organizationLabel } from '../src/organization-label';
 import { test, expect } from './test-fixture';
 import type { BrowserContext, Page } from '@playwright/test';
@@ -209,3 +210,5 @@ test('ordenar una lista buscada se bloquea y los cambios de otra sesión exigen 
   await page.getByRole('button', { name: 'Mover al principio: Gerencia Zeta', exact: true }).click();
   await expect(page.getByRole('region', { name: 'Gerencias', exact: true }).locator('.organization-node-name').first()).toHaveText('Gerencia Zeta');
 });
+
+test('gestión de áreas tiene contraste y etiquetas accesibles',async({page,context})=>{const state=stateOf();await mock(context,state);await login(page);await expectAccessible(page);await page.screenshot({path:test.info().outputPath('areas-renovadas.png'),fullPage:true});});

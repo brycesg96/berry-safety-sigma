@@ -252,7 +252,8 @@ export function CloudAccess({ exit, onReturn, onSessionChange, initialSection = 
   };
   const changeField = (key: keyof ProfileForm, value: string) => { setForm(current => ({ ...current, [key]: value })); setFormError(''); setSaved(false); };
 
-  const hasModules = !!ownProfile && (ownProfile.role === 'admin' || ownProfile.can_create_inspections !== false || ownProfile.can_receive_inspections !== false);
+  // Every enabled worker can use private safety documents; inspection permissions remain separate.
+  const hasModules = !!ownProfile;
   const showAdmin = !!ownProfile?.enabled && !ownProfile.must_change_password && !passwordRecovery && !completingProfile && ownProfile.role === 'admin' && section === 'admin';
   const showDashboard = !!ownProfile?.enabled && !ownProfile.must_change_password && !passwordRecovery && !completingProfile && ownProfile.role === 'admin' && section === 'dashboard';
   const showOrganization = !!ownProfile?.enabled && !ownProfile.must_change_password && !passwordRecovery && !completingProfile && ownProfile.role === 'admin' && section === 'organization';
@@ -311,7 +312,6 @@ export function CloudAccess({ exit, onReturn, onSessionChange, initialSection = 
             <button type="submit" className="button button-primary full-width" disabled={!!busy || organizationPending || !dirty && !completingProfile}>{busy === 'save' ? <LoaderCircle className="spin" size={17}/> : <Check size={17}/>} {busy === 'save' ? 'Guardando…' : completingProfile ? 'Guardar y continuar' : 'Guardar perfil'}</button>
           </form>
           {workspaceReady && hasModules && !completingProfile && <button type="button" className="button button-outline full-width cloud-enter-workspace" disabled={!!busy || dirty || !form.full_name.trim() || !form.area.trim()} onClick={() => setSection('workspace')}>Entrar al espacio de trabajo</button>}
-          {!hasModules && <p className="cloud-account-hint">El administrador debe asignarte los permisos que utilizarás.</p>}
         </> : <>
           <h1 ref={heading} tabIndex={-1}>No pudimos abrir tu perfil</h1>
           <p role="alert" className="error-message cloud-message">{profileError}</p>

@@ -40,7 +40,7 @@ export function Select(props: Props) {
       const rect = root.current!.getBoundingClientRect(), viewport = window.visualViewport;
       const top = viewport?.offsetTop || 0, bottom = top + (viewport?.height || innerHeight);
       const below = bottom - rect.bottom - 12, above = rect.top - top - 12;
-      const desired = choices.length * 42 + 12 + (props.searchable ? 54 : 0) + (props.multiple ? 50 : 0);
+      const desired = choices.length * (matchMedia('(max-width: 600px)').matches ? 48 : 44) + 12 + (props.searchable ? 54 : 0) + (props.multiple ? 50 : 0);
       const upwards = below < Math.min(210, desired) && above > below;
       setPlacement({ above: upwards, height: Math.max(100, Math.min(320, upwards ? above : below)) });
     };

@@ -1,3 +1,4 @@
+import { expectAccessible } from './accessibility-fixture';
 import { organizationLabel } from '../src/organization-label';
 import { selectSecondResponsible } from './responsible-fixture';
 import { selectValue } from './select-fixture';
@@ -295,3 +296,5 @@ test('el consolidado guarda el texto que empieza con signo igual como texto y ad
  const fichas=book.getWorksheet('Fichas')!;let objective:ExcelJS.Cell|undefined;fichas.eachRow(row=>{if(row.getCell(1).text==='Objetivo')objective=row.getCell(4);});
  expect(objective!.value).toBe(state.rows[0].data.objective);expect(objective!.type).toBe(ExcelJS.ValueType.String);expect(book.getWorksheet('Inspecciones')!.getCell('P7').value).toBe(0);expect(book.getWorksheet('Observaciones')!.rowCount).toBe(6);
 });
+
+test('el panel administrativo conserva contraste y controles accesibles',async({page,context})=>{await setup(page,context);await panel(page);await expectAccessible(page);await page.screenshot({path:test.info().outputPath('panel-renovado.png'),fullPage:true});});

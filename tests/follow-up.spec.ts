@@ -1,3 +1,4 @@
+import { expectAccessible } from './accessibility-fixture';
 import { openWorkspaceProfile } from './workspace-profile-fixture';
 import { selectSecondResponsible } from './responsible-fixture';
 import { inspectionFilterButton, selectInspectionFilter } from './list-filter-fixture';
@@ -300,3 +301,5 @@ test('levantamiento conserva cambios hasta Guardar Avance y Enviar guarda la úl
  await expect(card.getByLabel('Acción realizada')).toHaveAttribute('readonly','');
  await page.setViewportSize({width:1280,height:900});await page.reload();await openReceived(page);await expect(page.locator('.followup-card').first().getByLabel('Acción realizada')).toHaveValue('Cambio posterior sin guardar');
 });
+
+test('el seguimiento distingue conversación y estados con contraste accesible',async({page})=>{await createReport(page);await expectAccessible(page);await page.screenshot({path:test.info().outputPath('seguimiento-renovado.png'),fullPage:true});});

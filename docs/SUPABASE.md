@@ -198,3 +198,8 @@ El [paso 22](../supabase/migrations/202611160022_manual_installations.sql) permi
 Después del paso 22, ejecutar [activate-productivity-20261117.sql](../supabase/operations/activate-productivity-20261117.sql). Añade conversaciones, historial de movimientos, operaciones de sincronización idempotentes, seguimiento individual de correo y recordatorios configurables. Conserva los informes y las cuentas.
 
 La activación del correo, del proceso diario y del modo sin conexión se detalla en [Productividad](PRODUCTIVIDAD.md). Publicar la web o ejecutar SQL no configura por sí solo los eventos de entrega ni las credenciales del proceso diario.
+
+
+## Paso 24: documentos privados de seguridad
+
+Ejecutar el script completo [202611220024_safety_documents.sql](../supabase/migrations/202611220024_safety_documents.sql) en una consulta nueva. El resultado final es `safety_documents_version: 202611220024`. La activación, permisos, formatos y pruebas se describen en [DOCUMENTOS_SEGURIDAD.md](DOCUMENTOS_SEGURIDAD.md).

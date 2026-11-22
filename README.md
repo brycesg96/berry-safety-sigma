@@ -75,3 +75,5 @@ El flujo de envío de inspecciones con Excel y copias automáticas de jefes/gere
 Las inspecciones se conservan con Guardar y también al confirmar el envío; los levantamientos usan Guardar avance, con aviso de cambios pendientes. [Funcionamiento del guardado manual](docs/GUARDADO_MANUAL.md).
 
 Los desplegables comparten el diseño de Sede/Zona. [Búsqueda múltiple y áreas organizativas en el panel](docs/FILTROS_PANEL.md).
+
+El [sistema visual de Berry](design-system/berry-safety/MASTER.md) define contraste, tipografía y controles compartidos. El apartado [Documentos de seguridad](docs/DOCUMENTOS_SEGURIDAD.md) permite cargar ATS, PETAR y checklists privados y revisarlos desde Administración; requiere activar el paso 24 de Supabase.
