@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect } from './test-fixture';
 
 async function seed(page:import('@playwright/test').Page){
  await page.route('**/api/people?*',r=>r.fulfill({json:{people:[]}}));await page.goto('./');

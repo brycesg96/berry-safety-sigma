@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect } from './test-fixture';
 import { formatInspectionCode, pendingCodeExample, pendingCodeLabel, submissionYear } from '../src/inspection-code';
 
 test('formato IH, año Lima, secuencia de tres dígitos mínimos y sin vuelta a cero', () => {

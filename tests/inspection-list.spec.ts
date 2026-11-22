@@ -1,6 +1,21 @@
 import { inspectionFilterButton, selectInspectionFilter } from './list-filter-fixture';
 import { selectValue } from './select-fixture';
-import { expect, test } from '@playwright/test';
+import { expect, test } from './test-fixture';
+import type { Page } from '@playwright/test';
+
+async function storedSnapshot(page: Page) {
+  return page.evaluate(async () => {
+    const { database } = await import('/src/model.ts');
+    const db = await database();
+    try {
+      return await new Promise<string>((resolve, reject) => {
+        const request = db.transaction('inspections', 'readonly').objectStore('inspections').getAll();
+        request.onsuccess = () => resolve(JSON.stringify(request.result));
+        request.onerror = () => reject(request.error);
+      });
+    } finally { db.close(); }
+  });
+}
 
 test('lista responsables y sus áreas, y busca instalación, área y responsable en escritorio y móvil', async ({ page }) => {
   await page.route('**/api/people?*', route => route.fulfill({ json: { people: [] } }));
@@ -92,8 +107,8 @@ test('rangos de fechas respetan Lima, lunes a domingo, cambios de año y año bi
 for (const width of [1366, 390]) test(`tarjetas seleccionables combinan estados, fechas y búsqueda sin modificar registros (${width}px)`, async ({ page }) => {
   await page.setViewportSize({ width, height: 1000 }); await page.clock.install({ time: new Date('2026-11-15T15:00:00Z') });
   await page.route('**/api/people?*', route => route.fulfill({ json: { people: [] } })); await page.goto('./');
-  const before = await page.evaluate(async () => {
-    const { newInspection, newObservation, persistInspection, loadInspections } = await import('/src/model.ts');
+  await page.evaluate(async () => {
+    const { newInspection, newObservation, persistInspection } = await import('/src/model.ts');
     const reports = [
       { area: 'Borrador de hoy', date: '2026-11-15', state: 'draft' },
       { area: 'Corrección de bombas', date: '2026-11-14', state: 'pending' },
@@ -106,8 +121,8 @@ for (const width of [1366, 390]) test(`tarjetas seleccionables combinan estados,
       const draft = newInspection({ name: 'Inspectora de prueba', email: 'autora@example.invalid', accountId: report.owner || 'demo-admin' }), observation = { ...newObservation(), description: 'Hallazgo', correctiveAction: 'Corregir', dueDate: '2026-11-20' };
       await persistInspection({ ...draft, area: report.area, date: report.date, facility: 'Planta Sur', responsibles: [{ id: 'responsible', personId: 'demo-inspector', name: 'Responsable de prueba', email: 'responsable@example.invalid', area: 'Mantenimiento' }], observations: [observation], ...(report.state !== 'draft' ? { delivery: { sentAt: '2026-11-15T14:00:00Z', recipientIds: ['demo-inspector'], revision: 1, corrections: report.state === 'pending' ? {} : { [observation.id]: { actorId: 'demo-inspector', responsibleName: 'Responsable de prueba', action: 'Acción ejecutada', date: '2026-11-15', photos: [], state: report.state === 'closed' ? 'Ejecutado' : 'Pendiente', proposedState: 'Ejecutado', decision: report.state === 'closed' ? 'approved' : 'review', note: '' } } } } : {}) });
     }
-    return JSON.stringify(await loadInspections());
   });
+  const before = await storedSnapshot(page);
   await page.reload(); const menu = page.getByRole('button', { name: 'Abrir menú', exact: true }); if (await menu.isVisible()) await menu.click();
   await page.locator('.sidebar-nav').getByRole('button', { name: 'Mis inspecciones', exact: true }).click();
   const rows = page.locator('.inspection-list-row'), group = page.getByRole('group', { name: 'Filtrar inspecciones por estado', exact: true });
@@ -126,5 +141,5 @@ for (const width of [1366, 390]) test(`tarjetas seleccionables combinan estados,
   await page.getByRole('button', { name: 'Limpiar filtros', exact: true }).click(); await expect(rows).toHaveCount(5); await expect(dates).toHaveText('Todas las fechas'); await expect(inspectionFilterButton(page, 'all')).toHaveAttribute('aria-pressed', 'true');
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   await group.screenshot({ path: test.info().outputPath(`estados-${width}.png`) }); await page.locator('.inspection-list-toolbar').screenshot({ path: test.info().outputPath(`filtro-fechas-${width}.png`) });
-  expect(await page.evaluate(async () => { const { loadInspections } = await import('/src/model.ts'); return JSON.stringify(await loadInspections()); })).toBe(before);
+  expect(await storedSnapshot(page)).toBe(before);
 });

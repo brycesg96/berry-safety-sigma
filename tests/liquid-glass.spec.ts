@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect } from './test-fixture';
 import { mockDirectory } from './directory-fixture';
 import { saveAndOpenList } from './save-fixture';
 

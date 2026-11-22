@@ -1,5 +1,5 @@
 import { openWorkspaceProfile } from './workspace-profile-fixture';
-import { test, expect } from '@playwright/test';
+import { test, expect } from './test-fixture';
 
 test('corrector nativo en español solo para los cinco campos de redacción de la inspección', async ({ page }) => {
   await page.route('**/api/people?*', route => route.fulfill({ json: { people: [] } }));
@@ -22,7 +22,9 @@ test('corrector nativo en español solo para los cinco campos de redacción de l
     if (enabled) await expect(field).toHaveAttribute('lang', 'es-PE');
   };
   await expect(page.getByRole('button', { name: 'Continuar', exact: true })).toBeEnabled();
-  await check('Objetivo de la inspección interna', true); await check('Área e instalación inspeccionada', false);
+  await check('Objetivo de la inspección interna', true);
+  await expect(page.getByRole('textbox', { name: 'Área e instalación inspeccionada', exact: true })).toHaveCount(0);
+  await expect(page.getByRole('region', { name: 'Área e instalación inspeccionada', exact: true })).toContainText('Taller');
   await page.getByRole('button', { name: '02 Observaciones', exact: true }).click();
   await check('Descripción', true); await check('Acción a tomar', true);
   await page.getByRole('button', { name: '04 Cierre', exact: true }).click();

@@ -1,4 +1,7 @@
 import type { Locator, Page } from '@playwright/test';
+export async function selectedInspectionLocation(scope: Page | Locator) {
+  return (await scope.locator('.inspection-location-summary .inspection-area-prefix').innerText()).trim();
+}
 export async function selectLocation(scope: Page | Locator, label: 'Sede' | 'Zona de inspección', value: string, organization = true) {
   const control = scope.getByRole('combobox', { name: label, exact: true });
   if (await control.getAttribute('aria-expanded') !== 'true') await control.click();

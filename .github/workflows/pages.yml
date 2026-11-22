@@ -16,6 +16,9 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  browser-tests:
+    name: Verificar recorridos en el navegador
+    uses: ./.github/workflows/browser-tests.yml
   build:
     name: Compilar la aplicación
     runs-on: ubuntu-latest
@@ -31,12 +34,8 @@ jobs:
         run: npm ci --no-audit --no-fund
       - name: Verificar la API de prueba de Make
         run: npm run test:api
-      - name: Verificar el arranque con los archivos de producción
-        run: node --test scripts/server-image.test.mjs
-      - name: Verificar el arranque con los archivos de la imagen de producción
-        run: node --test scripts/server-image.test.mjs
-      - name: Verificar la conservación de archivos para pestañas abiertas
-        run: node --test scripts/retain-pages-assets.test.mjs scripts/build-offline-worker.test.mjs scripts/run-reminders.test.mjs scripts/run-reminders.test.mjs
+      - name: Verificar arranque, modo sin conexión, recordatorios y monitor
+        run: npm run test:scripts
       - name: Preparar Python para verificar los catálogos Excel
         uses: actions/setup-python@v5
         with:
@@ -73,7 +72,7 @@ jobs:
   deploy:
     name: Publicar la web
     runs-on: ubuntu-latest
-    needs: build
+    needs: [build, browser-tests]
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
@@ -81,3 +80,8 @@ jobs:
       - name: Publicar
         id: deployment
         uses: actions/deploy-pages@v4
+
+  verify-public:
+    name: Comprobar servicios publicados
+    needs: deploy
+    uses: ./.github/workflows/availability.yml

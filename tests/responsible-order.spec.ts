@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect } from './test-fixture';
 import ExcelJS from 'exceljs';
 import { writeFile } from 'node:fs/promises';
 import { execFile } from 'node:child_process';
@@ -18,7 +18,7 @@ for (const width of [1366, 390]) test(`dos responsables obligatorios, orden cons
   const rows = page.locator('.responsibles .responsible-row');
   await expect(rows).toHaveCount(2); await expect(rows.getByRole('button', { name: /Eliminar responsable/ })).toHaveCount(0);
   const select = async (index: number) => { await rows.nth(index).getByRole('combobox').fill(team[index].name); await page.getByRole('option').filter({ hasText: team[index].email }).click(); };
-  await page.getByLabel('Área e instalación inspeccionada').fill('Taller'); await selectLocation(page, 'Sede', 'Fundo'); await selectLocation(page, 'Zona de inspección', 'Armonía II');
+  await selectLocation(page, 'Sede', 'Fundo'); await selectLocation(page, 'Zona de inspección', 'Armonía II');
   await page.getByLabel('Hora de inspección').fill('09:30'); await selectValue(page.getByLabel('AM o PM'), 'AM'); await page.getByRole('radio', { name: 'Planeada', exact: true }).check();
   await page.getByRole('textbox', { name: 'Objetivo de la inspección interna', exact: true }).fill('Verificar condiciones.'); await select(0);
   await page.getByRole('button', { name: 'Continuar', exact: true }).click(); await expect(page.locator('.form-card-heading h2')).toHaveText('INFORMACIÓN GENERAL');

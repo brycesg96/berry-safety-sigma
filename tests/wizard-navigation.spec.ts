@@ -1,7 +1,7 @@
 import { selectSecondResponsible } from './responsible-fixture';
 import { selectValue } from './select-fixture';
 import { selectLocation } from './location-fixture';
-import { test, expect } from '@playwright/test';
+import { test, expect } from './test-fixture';
 import type { Locator, Page } from '@playwright/test';
 
 async function atStart(locator: Locator) {

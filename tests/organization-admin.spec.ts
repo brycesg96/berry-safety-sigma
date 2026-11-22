@@ -1,5 +1,5 @@
 import { organizationLabel } from '../src/organization-label';
-import { test, expect } from '@playwright/test';
+import { test, expect } from './test-fixture';
 import type { BrowserContext, Page } from '@playwright/test';
 import { catalogFromNodes, INITIAL_ORGANIZATION_NODES } from '../src/organization-catalog';
 import type { OrganizationNode } from '../src/organization-catalog';

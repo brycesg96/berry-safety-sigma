@@ -3,7 +3,7 @@ import { selectSecondResponsible } from './responsible-fixture';
 import { inspectionFilterButton, selectInspectionFilter } from './list-filter-fixture';
 import { selectValue } from './select-fixture';
 import { selectLocation } from './location-fixture';
-import { test, expect } from '@playwright/test';
+import { test, expect } from './test-fixture';
 import type { Page } from '@playwright/test';
 import ExcelJS from 'exceljs';
 test.beforeEach(async ({ page }) => { await page.route('**/api/people?*', route => route.fulfill({ json: { people: [] } })); });

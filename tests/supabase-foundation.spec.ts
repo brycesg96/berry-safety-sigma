@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect } from './test-fixture';
 
 test('cliente público preparado reconoce la estructura sin activar sincronización ni iniciar sesión', async ({ page }) => {
   await page.route('**/api/people?*', route => route.fulfill({ json: { people: [] } }));

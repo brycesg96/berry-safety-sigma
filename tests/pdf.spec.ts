@@ -1,5 +1,5 @@
 import { selectInspectionFilter } from './list-filter-fixture';
-import { test, expect } from '@playwright/test';
+import { test, expect } from './test-fixture';
 import { readFile } from 'node:fs/promises';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
@@ -29,7 +29,7 @@ for (const count of [1, 7]) test(`PDF descargable del registro cerrado con ${cou
     report.closingRemarks = 'Mantener la revisión periódica y verificar las medidas correctivas.';
     report.responsibles = [{ id: 'responsible', personId: 'demo-inspector', name: 'José Pérez', email: 'bcespedes@hortifrut.com' }];
     report.observations = Array.from({ length: count }, (_, index) => ({ ...newObservation(), description: `Hallazgo número ${index + 1}: señalización del área.`, correctiveAction: `Medida correctiva ${index + 1}: renovar señalización.`, severity: (['baja', 'media', 'alta'] as const)[index % 3], dueDate: '2026-11-10', photos: Array.from({ length: index === count - 1 ? 8 : 1 }, () => photo('Antes', '#4a6374')) }));
-    report.registrationDetails = { 'demo-admin': { jobTitle: 'Supervisora de seguridad', date: report.date, signature: photo('Firma', '#577c62') } };
+    report.registrationDetails = { 'demo-admin': { jobTitle: 'Supervisora de Seguridad', date: report.date, signature: photo('Firma', '#577c62') } };
     report.delivery = { sentAt: '2026-11-07T15:00:00Z', recipientIds: ['demo-inspector'], revision: 3, corrections: Object.fromEntries(report.observations.map((observation, index) => [observation.id, { actorId: 'demo-inspector', responsibleName: 'José Pérez', action: `Corrección realizada ${index + 1}: se renovó la señalización.`, date: '2026-11-10', photos: Array.from({ length: index === count - 1 ? 8 : 1 }, () => photo('Después', '#4a7459')), proposedState: 'Ejecutado', state: 'Ejecutado', decision: 'approved', note: 'Evidencia verificada.' }])) };
     await persistInspection(report);
   }, count);
@@ -45,7 +45,7 @@ for (const count of [1, 7]) test(`PDF descargable del registro cerrado con ${cou
   const bytes = await readFile(path);
   expect(bytes.subarray(0, 5).toString()).toBe('%PDF-'); expect(bytes.subarray(-20).toString()).toContain('%%EOF');
   const text = (await run('pdftotext', [path, '-'])).stdout.replace(/\s+/g, ' ');
-  for (const phrase of ['REGISTRO DE INSPECCIONES', 'María Núñez', 'José Pérez', 'Supervisora de seguridad', 'Verificar condiciones de seguridad', 'Falta de señalización', 'Mantener la revisión periódica', 'Ejecutado']) expect(text).toContain(phrase);
+  for (const phrase of ['REGISTRO DE INSPECCIONES', 'María Núñez', 'José Pérez', 'Supervisora de Seguridad', 'Verificar condiciones de seguridad', 'Falta de señalización', 'Mantener la revisión periódica', 'Ejecutado']) expect(text).toContain(phrase);
   for (let index = 1; index <= count; index++) {
     expect(text).toContain(`Hallazgo número ${index}`); expect(text).toContain(`Medida correctiva ${index}`);
   }

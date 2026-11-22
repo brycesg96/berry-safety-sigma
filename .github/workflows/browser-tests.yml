@@ -1,0 +1,43 @@
+name: Pruebas completas del navegador
+
+on:
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+  workflow_call:
+
+permissions:
+  contents: read
+
+jobs:
+  browser:
+    name: Chromium · móvil y escritorio
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - name: Instalar dependencias
+        run: npm ci --no-audit --no-fund
+      - name: Preparar Chromium y grabación
+        run: npx playwright install --with-deps chromium
+      - name: Preparar lectura y validación de PDF
+        run: sudo apt-get install -y poppler-utils
+      - name: Ejecutar todos los recorridos
+        run: npm test -- --workers=2
+        env:
+          CI: 'true'
+      - name: Conservar resultados, capturas, videos y trazas
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: diagnostico-playwright
+          path: |
+            playwright-report/
+            test-results/
+            quality-reports/playwright-results.json
+          if-no-files-found: warn
+          retention-days: 14

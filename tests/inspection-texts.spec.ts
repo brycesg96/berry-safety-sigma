@@ -3,7 +3,7 @@ import { selectSecondResponsible } from './responsible-fixture';
 import { selectValue } from './select-fixture';
 import { saveAndOpenList } from './save-fixture';
 import { selectLocation } from './location-fixture';
-import { test, expect, type Page } from '@playwright/test';
+import { test, expect, type Page } from './test-fixture';
 import { mockDirectory } from './directory-fixture';
 import { completeInspectionCause, NO_UNFAVORABLE_RESULTS } from '../src/registration';
 import { hasInspectionContent, newInspection, validateStep } from '../src/model';

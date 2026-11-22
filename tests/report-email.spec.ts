@@ -1,7 +1,7 @@
 import { selectSecondResponsible } from './responsible-fixture';
 import { selectValue } from './select-fixture';
 import { selectLocation } from './location-fixture';
-import { test, expect } from '@playwright/test';
+import { test, expect } from './test-fixture';
 import type { Page } from '@playwright/test';
 import ExcelJS from 'exceljs';
 import { readFile } from 'node:fs/promises';

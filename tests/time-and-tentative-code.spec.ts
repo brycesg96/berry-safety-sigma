@@ -2,7 +2,7 @@ import { selectSecondResponsible } from './responsible-fixture';
 import { selectValue } from './select-fixture';
 import { saveAndOpenList } from './save-fixture';
 import { selectLocation } from './location-fixture';
-import { test, expect } from '@playwright/test';
+import { test, expect } from './test-fixture';
 import ExcelJS from 'exceljs';
 import { mockDirectory } from './directory-fixture';
 import { migrateInspectionTime, validInspectionTime } from '../src/inspection-time';
@@ -21,15 +21,13 @@ test('hora de 12 horas y migración de borradores sin adivinar AM/PM nuevos', ()
 
 test('ubicación en el ejemplo, AM/PM requerido y conservación en revisión, recarga y Excel', async ({ page }) => {
   await mockDirectory(page); await page.goto('./');
-  await expect(page.getByLabel('Área e instalación inspeccionada')).toHaveAttribute('placeholder', 'Ej. Taller de Maquinaria');
+  await expect(page.getByLabel('Área e instalación inspeccionada')).toContainText('Selecciona los datos de la inspección');
   await expect(page.getByLabel('Hora de inspección')).toHaveValue('');
   await expect(page.getByLabel('AM o PM')).toHaveAttribute('data-value', '');
   await expect(page.getByRole('textbox', { name: 'Número de registro', exact: true })).toHaveValue(/^IH-\d{4}-001$/);
   await expect(page.getByRole('tooltip')).toBeHidden();
   await page.getByRole('button', { name: 'Información del número de registro', exact: true }).hover();
   await expect(page.getByRole('tooltip')).toContainText('El número de registro definitivo aparecerá en Mis inspecciones');
-  await page.getByLabel('Área e instalación inspeccionada').click();
-  await page.getByLabel('Área e instalación inspeccionada').fill('Taller de Maquinaria - Armonía 2');
   await selectLocation(page, 'Sede', 'Fundo'); await selectLocation(page, 'Zona de inspección', 'Armonía II');
   await page.getByRole('textbox', { name: 'Objetivo de la inspección interna', exact: true }).fill('Verificar las condiciones de maquinaria.');
   await page.getByRole('combobox', { name: /Nombre completo/ }).first().fill('Ana');
@@ -68,7 +66,7 @@ test('ubicación en el ejemplo, AM/PM requerido y conservación en revisión, re
 
 test('Mis inspecciones distingue un número de registro tentativo de un recibo definitivo', async ({ page }) => {
   await page.goto('./');
-  await page.getByLabel('Área e instalación inspeccionada').fill('Registro confirmado de prueba');
+  await page.getByRole('textbox', { name: 'Objetivo de la inspección interna', exact: true }).fill('Registro confirmado de prueba');
   await selectLocation(page, 'Sede', 'Fundo'); await selectLocation(page, 'Zona de inspección', 'Armonía II');
   await saveAndOpenList(page);
   await expect(page.getByText('Número de registro: pendiente de envío')).toBeVisible();
@@ -77,7 +75,7 @@ test('Mis inspecciones distingue un número de registro tentativo de un recibo d
     const db = await new Promise<IDBDatabase>((resolve, reject) => { request.onsuccess = () => resolve(request.result); request.onerror = reject; });
     const tx = db.transaction('inspections', 'readwrite'); const store = tx.objectStore('inspections');
     const requestAll = store.getAll(); requestAll.onsuccess = () => {
-      const draft = requestAll.result.find(d => d.area === 'Fundo – Armonía II – Registro confirmado de prueba');
+      const draft = requestAll.result.find(d => d.objective === 'Registro confirmado de prueba');
       store.put({ ...draft, serverRegistration: { inspectionId: draft.id, code: 'IH-2026-008', acceptedAt: '2026-11-04T13:00:00Z' } });
     };
     await new Promise<void>((resolve, reject) => { tx.oncomplete = () => resolve(); tx.onerror = reject; tx.onabort = reject; }); db.close();

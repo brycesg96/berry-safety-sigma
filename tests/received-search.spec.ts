@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect } from './test-fixture';
 
 for (const width of [1366, 390]) test(`buscador de recibidas combina estado, registro, área e inspector sin modificar informes (${width}px)`, async ({ page }) => {
   await page.setViewportSize({ width, height: 900 }); await page.route('**/api/people?*', route => route.fulfill({ json: { people: [] } })); await page.goto('./');

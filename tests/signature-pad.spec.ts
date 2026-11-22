@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect } from './test-fixture';
 import type { Page } from '@playwright/test';
 import ExcelJS from 'exceljs';
 import JSZip from 'jszip';

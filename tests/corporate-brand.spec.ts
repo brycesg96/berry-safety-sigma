@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect } from './test-fixture';
 import { openWorkspaceProfile } from './workspace-profile-fixture';
 
 for (const width of [1366, 768, 390]) test(`Hortifrut reemplaza el avatar superior y mantiene fondo blanco en la cabecera verde (${width}px)`, async ({ page }) => {

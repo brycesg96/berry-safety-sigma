@@ -118,6 +118,7 @@ function WorkspaceApp({ initialAccounts, exit, onCloudAccess, cloud }: { initial
   const [dateFilter, setDateFilter] = useState<InspectionDateFilter>('all');
   const [dateFrom, setDateFrom] = useState(''), [dateTo, setDateTo] = useState('');
   const contentRef = useRef<HTMLDivElement>(null);
+  const pendingViewTop = useRef(false);
   const editorStartRef = useRef<HTMLDivElement>(null);
   const observationRefs = useRef(new Map<string, HTMLElement>());
   const addObservationRef = useRef<HTMLButtonElement>(null);
@@ -125,6 +126,7 @@ function WorkspaceApp({ initialAccounts, exit, onCloudAccess, cloud }: { initial
 
   // Wait for the destination step to render before choosing its scroll position.
   useLayoutEffect(() => {
+    if (pendingViewTop.current) { pendingViewTop.current = false; window.scrollTo({ top: 0, behavior: 'instant' }); }
     const destination = pendingEditorScroll.current;
     if (!destination || view !== 'editor') return;
     pendingEditorScroll.current = null;
@@ -281,7 +283,7 @@ function WorkspaceApp({ initialAccounts, exit, onCloudAccess, cloud }: { initial
     setDraft(d => ({ ...setObservationClosingDate(d, observationId, date), status: 'draft', updatedAt: new Date().toISOString() }));
     setErrors(e => Object.fromEntries(Object.entries(e).filter(([key]) => !key.startsWith('date-'))));
   };
-  const top = () => window.scrollTo({ top: 0, behavior: 'smooth' });
+  const top = () => { pendingViewTop.current = true; window.scrollTo({ top: 0, behavior: 'instant' }); };
   const goToStep = (target: number, observationId?: string, addObservation = false) => {
     const stepDraft = target > 3 ? completeInspectionCause(draft) : draft;
     if (target > draft.step) {

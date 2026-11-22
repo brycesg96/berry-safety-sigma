@@ -1,7 +1,7 @@
 import { selectSecondResponsible } from './responsible-fixture';
 import { selectValue } from './select-fixture';
 import { selectLocation } from './location-fixture';
-import { test, expect } from '@playwright/test';
+import { test, expect } from './test-fixture';
 import { mockDirectory, people } from './directory-fixture';
 
 test('empleador fijo, tres tipos, Otro con detalle y máximo 560', async ({ page }) => {

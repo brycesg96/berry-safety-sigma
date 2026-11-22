@@ -56,13 +56,15 @@ El menú lateral se convierte en un panel desplegable en móvil. Incluye perfil 
 
 ## Pruebas
 
+La publicación exige que pasen todos los recorridos del navegador y las comprobaciones de compilación, servidor y base de datos. La [guía de calidad y disponibilidad](docs/CALIDAD.md) explica los informes con capturas, videos y trazas, y el monitor público que se ejecuta cada hora y después de publicar.
+
 ```bash
 npm test
 ```
 
 El servidor de pruebas configura un endpoint relativo interceptado por Playwright con datos ficticios, sin consultar ni publicar directorios reales. Las pruebas de Playwright ejecutan el recorrido completo, validación, evidencias y persistencia tras recargar, lectura del Excel generado (incluidas las imágenes), menú móvil, búsqueda, eliminación y comprobación de desbordamiento a cinco tamaños de pantalla.
 
-Por defecto usan Chromium en `/usr/bin/chromium`. En otro equipo se puede indicar `CHROMIUM_PATH=/ruta/a/chromium npm test`, o ajustar la configuración para un navegador instalado por Playwright. El servidor de desarrollo se inicia automáticamente si no está ejecutándose. Las capturas de validación se escriben en `/tmp/berry-desktop.png`, `/tmp/berry-mobile.png` y `/tmp/berry-mobile-menu.png`.
+Usan `CHROMIUM_PATH` si está definido, Chromium en `/usr/bin/chromium` si existe y, en otro caso, el navegador instalado con `npx playwright install --with-deps chromium`. El servidor de desarrollo se inicia automáticamente si no está ejecutándose. El informe queda en `playwright-report/`; los fallos conservan capturas, videos y trazas en `test-results/`.
 
 Las pruebas de PDF necesitan `pdftotext`, `pdfinfo` y `pdfimages` (Poppler) para comprobar los archivos con un lector independiente. Las del corrector ortográfico verifican los atributos nativos y el idioma; las líneas rojas y sugerencias requieren que el navegador del usuario tenga activada la revisión en español.
 

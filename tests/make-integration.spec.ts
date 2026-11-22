@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect } from './test-fixture';
 
 test('prototipo permite probar Make sin claves ni activación y mantiene acuse separado de Outlook',async({page})=>{
  const calls:{headers:Record<string,string>;body:unknown}[]=[];

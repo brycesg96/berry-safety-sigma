@@ -3,6 +3,7 @@ dist/
 dist-pages/
 test-results/
 playwright-report/
+quality-reports/
 *.tsbuildinfo
 *.local
 .env

@@ -3,7 +3,7 @@ import { selectSecondResponsible } from './responsible-fixture';
 import { selectValue } from './select-fixture';
 import { selectLocation } from './location-fixture';
 import { mockOrganizationCatalog } from './organization-fixture';
-import { test, expect } from '@playwright/test';
+import { test, expect } from './test-fixture';
 import type { BrowserContext, Page } from '@playwright/test';
 import { createHash } from 'node:crypto';
 import { readFile } from 'node:fs/promises';

@@ -15,6 +15,8 @@ No se necesitan claves de alojamiento en el código: el flujo usa el token tempo
 
 ## Validación antes de subir
 
+La publicación automática exige la compilación, las pruebas de API, SQL y scripts, las referencias Python y todos los recorridos del navegador. Los informes y el monitor posterior a la publicación se explican en [CALIDAD.md](CALIDAD.md).
+
 ```bash
 npm run build:pages
 npm run preview:pages -- --port 5174 --strictPort
@@ -30,4 +32,4 @@ El prefijo `/berry-safety-sigma/` se establece durante la compilación. La confi
 
 ## Después de publicar
 
-Verificar el formulario en móvil y escritorio, las fotografías y la descarga de Excel sobre HTTPS. Los borradores pertenecen al navegador y al dominio donde fueron creados; no se transfieren desde el entorno de desarrollo ni se sincronizan entre dispositivos. El correo y la plantilla Excel oficial continúan pendientes de integración.
+El flujo ejecuta el monitor público después de publicar. Para una revisión manual, verificar el formulario en móvil y escritorio, las fotografías y la descarga de Excel sobre HTTPS. Los borradores del espacio de pruebas pertenecen a su navegador y dominio; las cuentas internas usan la sincronización de Supabase. La disponibilidad de las rutas de correo no confirma la entrega al buzón corporativo; véanse [ENVIO_INFORMES.md](ENVIO_INFORMES.md) y [PRODUCTIVIDAD.md](PRODUCTIVIDAD.md).

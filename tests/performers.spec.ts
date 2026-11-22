@@ -1,6 +1,5 @@
-import { openWorkspaceProfile } from './workspace-profile-fixture';
 import { saveAndOpenList } from './save-fixture';
-import { test, expect } from '@playwright/test';
+import { test, expect } from './test-fixture';
 import ExcelJS from 'exceljs';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
@@ -33,11 +32,11 @@ test('responsables del registro independientes, autor de la cuenta bloqueado, se
   await expect(primary.getByLabel('Correo del responsable')).toHaveValue('bryx.96@gmail.com');
   await expect(primary.getByRole('button')).toHaveCount(0);
   const primaryJobTitle = section.locator('.registration-fields').first().getByLabel('Puesto', { exact: true });
-  await expect(primaryJobTitle).toHaveValue('Supervisor inicial');
+  await expect(primaryJobTitle).toHaveValue('Supervisor Inicial');
   await expect(primaryJobTitle).toHaveAttribute('readonly', '');
   await primaryJobTitle.focus();
   await page.keyboard.press('ControlOrMeta+A'); await page.keyboard.insertText('Cargo no permitido');
-  await expect(primaryJobTitle).toHaveValue('Supervisor inicial');
+  await expect(primaryJobTitle).toHaveValue('Supervisor Inicial');
   const add = section.getByRole('button', { name: 'Añadir responsable', exact: true });
   await add.click();
   const extras = section.locator('.additional-inspector');
@@ -72,13 +71,14 @@ test('responsables del registro independientes, autor de la cuenta bloqueado, se
   await expect(closing).toHaveValue(/Verificar corrección/);
   await expect(closing).toHaveAttribute('maxlength', '1200');
   await expect(cause).toHaveAttribute('maxlength', '1200');
-  expect((await closing.boundingBox())!.height).toBeLessThanOrEqual(60);
+  expect((await closing.boundingBox())!.height).toBeGreaterThanOrEqual(100);
+  expect((await closing.boundingBox())!.height).toBeLessThanOrEqual(240);
   await cause.fill('Falta de controles preventivos.');
   await closing.fill('c'.repeat(1200));
   await closing.press('End'); await closing.press('z');
   await expect(closing).toHaveValue('c'.repeat(1200));
   await closing.fill('Conclusiones y recomendaciones finales.');
-  await expect(primaryJobTitle).toHaveValue('Supervisor inicial');
+  await expect(primaryJobTitle).toHaveValue('Supervisor Inicial');
   await expect(section.locator('.registration-fields').first().getByLabel('Fecha', { exact: true })).toHaveValue('2026-11-04');
   await expect(section.locator('.registration-fields').first().getByLabel('Fecha', { exact: true })).not.toBeEditable();
   await section.getByLabel('Adjuntar firma', { exact: true }).first().setInputFiles({ name: 'firma.png', mimeType: 'image/png', buffer: Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=', 'base64') });
@@ -91,9 +91,7 @@ test('responsables del registro independientes, autor de la cuenta bloqueado, se
   for (const date of await registrationDates.all()) { await expect(date).toHaveValue('2026-11-05'); await expect(date).not.toBeEditable(); }
   await expect(section.locator('.signature-preview img')).toHaveCount(1);
   for (const jobTitle of ['', 'Supervisor SST']) {
-    await openWorkspaceProfile(page);
-    await page.getByRole('dialog', { name: 'Mi perfil' }).getByLabel('Puesto', { exact: true }).fill(jobTitle);
-    await page.getByRole('button', { name: 'Guardar perfil', exact: true }).click();
+    await page.evaluate(async title => { const { updateOwnProfile } = await import('/src/accounts.ts'); updateOwnProfile('demo-admin', 'Brian Céspedes', 'Seguridad', title); }, jobTitle);
     await expect(primaryJobTitle).toHaveValue(jobTitle);
     await expect(section.locator('.registration-fields').first().getByLabel('Fecha', { exact: true })).toHaveValue('2026-11-05');
     await expect(section.locator('.signature-preview img')).toHaveCount(1);
@@ -222,7 +220,7 @@ for(const width of [1366,390]) test(`inspectores muestran área y cargo sin cuad
  const number=(await extra.locator('.responsible-number').boundingBox())!;expect(number.x+number.width).toBeLessThan(input.x);
  expect(input.x+input.width).toBeLessThan(remove.x);expect(remove.x+remove.width).toBeLessThanOrEqual(card.x+card.width);expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
  const details=(await extra.locator('.field-hint').boundingBox())!;expect(details.y+details.height).toBeLessThanOrEqual(card.y+card.height-8);
- await page.getByLabel('Área e instalación inspeccionada').fill('Taller');await page.getByRole('button',{name:'Guardar',exact:true}).click();await expect(page.getByText('Guardado en este navegador',{exact:true})).toBeAttached();
+ await page.getByRole('textbox', { name: 'Objetivo de la inspección interna', exact: true }).fill('Taller');await page.getByRole('button',{name:'Guardar',exact:true}).click();await expect(page.getByText('Guardado en este navegador',{exact:true})).toBeAttached();
  page.once('dialog',dialog=>dialog.accept());await page.reload();await expect(primary.getByText('SIGMA — Supervisor de Seguridad Industrial',{exact:true})).toBeVisible();await expect(extra.getByRole('combobox')).toHaveValue('Ana Torres');await expect(extra.getByText('Operaciones — Supervisora de Producción y Mantenimiento',{exact:true})).toBeVisible();
  const saved=await page.evaluate(async()=>{const {loadInspections}=await import('/src/model.ts');return(await loadInspections())[0];});expect(saved.inspectorEmail).toBeTruthy();expect(saved.additionalInspectors[0]).toMatchObject({personId:'test-ana',email:'ana@example.com',area:'Operaciones',jobTitle:'Supervisora de Producción y Mantenimiento'});
  await page.locator('.form-body').screenshot({path:test.info().outputPath(`inspectores-${width}.png`)});

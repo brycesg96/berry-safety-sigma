@@ -1,4 +1,5 @@
-import { test, expect } from '@playwright/test';
+import { openWorkspaceProfile } from './workspace-profile-fixture';
+import { test, expect } from './test-fixture';
 import type { BrowserContext, Page } from '@playwright/test';
 import { mockOrganizationCatalog } from './organization-fixture';
 import { selectValue } from './select-fixture';
@@ -230,17 +231,17 @@ test('cerrar sesión mientras llega el perfil no restaura datos de una cuenta an
 test('el acceso interno conserva el borrador guardado manualmente y vuelve al espacio de pruebas', async ({ page, context }) => {
   await mock(context);
   await page.goto('./');
-  await page.getByLabel('Área e instalación inspeccionada').fill('Borrador que debe conservarse');
+  await page.getByRole('textbox', { name: 'Objetivo de la inspección interna', exact: true }).fill('Borrador que debe conservarse');
   await page.getByRole('button', { name: 'Guardar', exact: true }).first().click();
   await expect(page.getByText('Guardado en este navegador', { exact: true })).toBeVisible();
-  await page.getByRole('button', { name: 'Mi perfil', exact: true }).click();
+  await openWorkspaceProfile(page);
   await page.getByRole('button', { name: 'Iniciar sesión con correo', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'Inicia sesión', exact: true })).toBeVisible();
   await expect(page).toHaveURL(/acceso=cuenta/);
   await page.getByRole('button', { name: 'Espacio de pruebas', exact: true }).click();
-  await expect(page.getByLabel('Área e instalación inspeccionada')).toHaveValue('Borrador que debe conservarse');
+  await expect(page.getByRole('textbox', { name: 'Objetivo de la inspección interna', exact: true })).toHaveValue('Borrador que debe conservarse');
   await page.reload();
-  await expect(page.getByLabel('Área e instalación inspeccionada')).toHaveValue('Borrador que debe conservarse');
+  await expect(page.getByRole('textbox', { name: 'Objetivo de la inspección interna', exact: true })).toHaveValue('Borrador que debe conservarse');
 });
 
 test('el primer ingreso exige una contraseña personal, rechaza la temporal y vuelve al acceso tras actualizar', async ({ page, context }) => {
@@ -333,7 +334,7 @@ test('Administrar usuarios llega a la gestión real después de iniciar sesión 
   await page.getByRole('button', { name: 'Administrar usuarios', exact: true }).click();
   await page.getByLabel(/^Correo electrónico/).fill(email); await page.getByLabel(/^Contraseña/).fill('Fictitious!47'); await page.getByRole('button', { name: 'Iniciar sesión', exact: true }).click();
   await expect(page.getByRole('button', { name: 'Crear usuario', exact: true })).toBeVisible();
-  await expect(page.getByLabel(/^Correo del usuario/)).toBeVisible(); expect(lists).toBeGreaterThan(0);
+  await expect(page.getByLabel(/^Correo del usuario/)).toBeVisible(); await expect.poll(() => lists).toBeGreaterThan(0);
   expect(await page.evaluate(() => localStorage.getItem('berry-demo-accounts-v1'))).toBeNull();
   const beforeReload = lists;
   await page.reload(); await expect(page.getByRole('button', { name: 'Crear usuario', exact: true })).toBeVisible(); await expect.poll(() => lists).toBeGreaterThan(beforeReload);

@@ -1,6 +1,6 @@
 import { openWorkspaceProfile } from './workspace-profile-fixture';
 import { organizationLabel } from '../src/organization-label';
-import { test, expect } from '@playwright/test';
+import { test, expect } from './test-fixture';
 import ExcelJS from 'exceljs';
 import { organizationCatalog, mockOrganizationCatalog } from './organization-fixture';
 import { selectValue } from './select-fixture';

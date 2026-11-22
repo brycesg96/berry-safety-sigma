@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect } from './test-fixture';
 import ExcelJS from 'exceljs';
 import JSZip from 'jszip';
 import { readFile, writeFile } from 'node:fs/promises';

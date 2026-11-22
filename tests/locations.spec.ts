@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect } from './test-fixture';
 import type { BrowserContext, Page } from '@playwright/test';
 import ExcelJS from 'exceljs';
 import { INITIAL_LOCATION_NODES, PREVIEW_LOCATION_NODES, locationNodeActive } from '../src/location-catalog';

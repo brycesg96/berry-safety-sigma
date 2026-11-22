@@ -1,15 +1,14 @@
 import { selectSecondResponsible } from './responsible-fixture';
 import { selectValue } from './select-fixture';
 import { saveAndOpenList } from './save-fixture';
-import { selectLocation } from './location-fixture';
-import { test, expect } from '@playwright/test';
+import { selectLocation, selectedInspectionLocation } from './location-fixture';
+import { test, expect } from './test-fixture';
 import type { Page } from '@playwright/test';
 import ExcelJS from 'exceljs';
 import { mockDirectory } from './directory-fixture';
 test.beforeEach(async ({ page }) => { await mockDirectory(page); });
 
 async function fillGeneral(page: Page) {
-  await page.getByLabel('Área e instalación inspeccionada').fill('Almacén y despacho');
   await selectLocation(page, 'Sede', 'Fundo'); await selectLocation(page, 'Zona de inspección', 'Armonía II');
   await page.getByLabel('Hora de inspección').fill('07:30');
   await selectValue(page.getByLabel('AM o PM'), 'AM');
@@ -19,6 +18,7 @@ async function fillGeneral(page: Page) {
   await page.getByLabel(/Nombre completo/).first().fill('Ana Torres');
   await page.getByRole('listbox').getByRole('option', { name: /Ana Torres/ }).click();
   await selectSecondResponsible(page, 'jose@example.com', 'José');
+  return selectedInspectionLocation(page);
 }
 
 test('recorrido completo con evidencia, persistencia y un Excel válido', async ({ page }) => {
@@ -26,7 +26,7 @@ test('recorrido completo con evidencia, persistencia y un Excel válido', async 
   page.on('pageerror', e => errors.push(e.message));
   await page.setViewportSize({ width: 1440, height: 1080 });
   await page.goto('./');
-  await fillGeneral(page);
+  const inspectedArea = await fillGeneral(page);
   const responsibles = page.locator('.responsibles .responsible-row');
   await expect(responsibles).toHaveCount(2);
   await page.getByRole('button', { name: 'Continuar', exact: true }).click();
@@ -68,7 +68,7 @@ test('recorrido completo con evidencia, persistencia y un Excel válido', async 
   const downloadEvent = page.waitForEvent('download');
   await page.getByRole('button', { name: 'Descargar Excel', exact: true }).click();
   const download = await downloadEvent;
-  expect(download.suggestedFilename()).toBe('REG_INS_FUNDO – ARMONÍA II – ALMACÉN Y DESPACHO_03.11.2026.xlsx');
+  expect(download.suggestedFilename()).toBe(`REG_INS_${inspectedArea.toLocaleUpperCase('es')}_03.11.2026.xlsx`);
   const book = new ExcelJS.Workbook();
   await book.xlsx.readFile((await download.path())!);
   const sheet = book.getWorksheet('V.01')!;
@@ -121,7 +121,7 @@ test('validación de campos y observación obligatoria', async ({ page }) => {
 test('móvil: menú, borradores, búsqueda y eliminación', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto('./');
-  await fillGeneral(page);
+  const inspectedArea = await fillGeneral(page);
   await page.getByRole('button',{name:'Guardar',exact:true}).first().click();
   await page.getByRole('button', { name: 'Abrir menú' }).click();
   await expect(page.getByRole('dialog', { name: 'Menú principal' })).toBeVisible();
@@ -131,17 +131,17 @@ test('móvil: menú, borradores, búsqueda y eliminación', async ({ page }) => 
   await expect(page.locator('.sidebar')).not.toHaveClass(/sidebar-open/);
   await page.getByLabel('Buscar inspecciones').fill('No coincide');
   await expect(page.getByText('No encontramos inspecciones')).toBeVisible();
-  await page.getByLabel('Buscar inspecciones').fill('Almacén');
+  await page.getByLabel('Buscar inspecciones').fill(inspectedArea);
   await expect(page.locator('.inspection-list-row')).toHaveCount(1);
   await page.getByRole('button', { name: 'Continuar', exact: true }).click();
-  await expect(page.getByLabel('Área e instalación inspeccionada')).toHaveValue('Almacén y despacho');
+  await expect(page.getByLabel('Área e instalación inspeccionada')).toContainText(inspectedArea);
   await saveAndOpenList(page);
-  await page.getByRole('button', { name: 'Eliminar inspección Fundo – Armonía II – Almacén y despacho', exact: true }).click();
+  await page.getByRole('button', { name: `Eliminar inspección ${inspectedArea}`, exact: true }).click();
   await page.getByRole('button', { name: 'Conservar inspección' }).click();
   await expect(page.locator('.inspection-list-row')).toHaveCount(1);
-  await page.getByRole('button', { name: 'Eliminar inspección Fundo – Armonía II – Almacén y despacho', exact: true }).click();
+  await page.getByRole('button', { name: `Eliminar inspección ${inspectedArea}`, exact: true }).click();
   await page.getByRole('button', { name: 'Eliminar', exact: true }).click();
-  await expect(page.locator('.inspection-list-info').getByText('Almacén y despacho')).toHaveCount(0);
+  await expect(page.locator('.inspection-list-info').getByText(inspectedArea, { exact: true })).toHaveCount(0);
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
 });
 

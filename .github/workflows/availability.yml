@@ -1,0 +1,38 @@
+name: Disponibilidad de Berry Safety
+
+on:
+  schedule:
+    - cron: '17 * * * *'
+  workflow_dispatch:
+  workflow_call:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: berry-availability
+  cancel-in-progress: false
+
+jobs:
+  availability:
+    name: Web, API, base de datos y rutas de correo
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Comprobar disponibilidad sin modificar datos
+        run: npm run check:availability
+        env:
+          BERRY_HEALTH_WEB_URL: ${{ vars.BERRY_HEALTH_WEB_URL || 'https://brycesg96.github.io/berry-safety-sigma/' }}
+          BERRY_HEALTH_API_URL: ${{ vars.BERRY_HEALTH_API_URL || 'https://berry-safety-api.onrender.com' }}
+      - name: Conservar el diagnóstico
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: disponibilidad-${{ github.run_id }}
+          path: quality-reports/availability.json
+          if-no-files-found: warn
+          retention-days: 14
