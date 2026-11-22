@@ -3,8 +3,8 @@ import { mockDirectory } from './directory-fixture';
 
 test.beforeEach(async ({ page }) => { await mockDirectory(page); });
 
-for (const width of [1366, 390]) test(`movimiento conserva escritura, scroll nativo y guardado (${width}px)`, async ({ page }) => {
-  await page.setViewportSize({ width, height: 844 });
+for (const width of [1366, 390, 375, 667]) test(`movimiento conserva escritura, scroll nativo y guardado (${width}px)`, async ({ page }) => {
+  await page.setViewportSize({ width, height: width === 667 ? 375 : 844 });
   const errors: string[] = [];
   page.on('pageerror', error => errors.push(error.message));
   await page.goto('./');
@@ -24,8 +24,15 @@ for (const width of [1366, 390]) test(`movimiento conserva escritura, scroll nat
 
   await page.getByRole('button', { name: 'Guardar', exact: true }).first().click();
   await expect(page.locator('.save-status')).toContainText('Guardado en este navegador');
+  await expect(page.locator('.save-exit')).toHaveAttribute('data-save-phase', 'success');
+  await objective.fill('Edición posterior al guardado.');
+  await expect(page.locator('.save-exit')).toHaveAttribute('data-save-phase', 'idle');
+  await expect(page.locator('.save-status')).toContainText('Cambios sin guardar');
+  await page.getByRole('button', { name: 'Guardar', exact: true }).first().click();
+  await expect(page.locator('.save-exit')).toHaveAttribute('data-save-phase', 'success');
+  await page.screenshot({ path: test.info().outputPath(`guardado-${width}.png`), animations: 'disabled' });
   await page.reload();
-  await expect(objective).toHaveValue('Comprobar equipos y rutas de evacuación. Verificar señalización.');
+  await expect(objective).toHaveValue('Edición posterior al guardado.');
   expect(errors).toEqual([]);
 });
 
@@ -35,6 +42,7 @@ test('activar movimiento reducido elimina animaciones pendientes y mantiene los 
   await page.emulateMedia({ reducedMotion: 'reduce' });
   await expect(page.locator('#root')).not.toHaveAttribute('data-motion', 'ready');
   await expect(page.locator('.app-scroll-progress')).toBeHidden();
+  await expect.poll(() => page.locator('.stepper-progress>span').evaluate(element => parseFloat(getComputedStyle(element).transitionDuration))).toBeLessThan(.001);
   await expect(page.locator('.form-card')).toHaveCSS('transform', 'none');
   await expect(page.locator('.form-card')).toHaveCSS('opacity', '1');
   const objective = page.getByRole('textbox', { name: 'Objetivo de la inspección interna', exact: true });

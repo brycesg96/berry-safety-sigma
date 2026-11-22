@@ -105,6 +105,8 @@ test('una lista cargada habilita instalación por zona y cambiar sede o zona eli
 });
 
 for (const width of [1366, 768, 390]) test(`ordenar sedes, zonas e instalaciones persiste y se aplica a la nueva inspección (${width}px)`, async ({ page, context }) => {
+  if (width === 768) await page.route('**/src/catalog-order-motion.ts*', route => route.abort());
+  if (width === 390) await page.emulateMedia({ reducedMotion: 'reduce' });
   await page.setViewportSize({ width, height: 900 }); const state = stateOf(true);
   state.nodes = withCatalogOrder([...state.nodes,
     { id: installation, kind: 'installation', parent_id: zone.id, name: 'Taller de Prueba', enabled: true, revision: 1 },

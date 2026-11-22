@@ -405,10 +405,19 @@ test('editar durante Guardar mantiene el cambio nuevo pendiente hasta el siguien
  const state=stateOf();await mock(context,state,author);await enter(page,author);
  let release!:()=>void;const held=new Promise<void>(resolve=>release=resolve);let waiting=false;
  await page.route('**/rest/v1/rpc/berry_save_draft',async route=>{waiting=true;await held;await route.fallback();});
- await page.getByLabel('Área e instalación inspeccionada').fill('Primera edición');await page.getByRole('button',{name:'Guardar',exact:true}).first().click();await expect.poll(()=>waiting).toBe(true);
+ await page.getByLabel('Área e instalación inspeccionada').fill('Primera edición');
+ const saveWidth=(await page.locator('.save-exit').boundingBox())!.width;
+ await page.getByRole('button',{name:'Guardar',exact:true}).first().click();await expect.poll(()=>waiting).toBe(true);
+ expect((await page.locator('.save-exit').boundingBox())!.width).toBeCloseTo(saveWidth, 0);
+ await expect(page.locator('.save-exit')).toHaveAttribute('data-save-phase','pending');
+ await expect(page.locator('.save-exit')).toHaveAttribute('aria-busy','true');
+ await expect(page.locator('.save-exit')).toBeDisabled();
  await page.getByLabel('Área e instalación inspeccionada').fill('Segunda edición');release();await expect.poll(()=>state.saves).toBe(1);
- await expect(page.getByText('Cambios sin guardar',{exact:true})).toBeVisible();await page.waitForTimeout(1200);expect(state.saves).toBe(1);
+ await expect(page.getByText('Cambios sin guardar',{exact:true})).toBeVisible();
+ await expect(page.locator('.save-exit')).toHaveAttribute('data-save-phase','idle');
+ await page.waitForTimeout(1200);expect(state.saves).toBe(1);
  await page.getByRole('button',{name:'Guardar',exact:true}).first().click();await expect(page.getByText('Guardado en tu cuenta',{exact:true})).toBeVisible();expect(state.saves).toBe(2);expect([...state.rows.values()].find(r=>!r.data.partial)!.data.area).toBe('Segunda edición');
+ await expect(page.locator('.save-exit')).toHaveAttribute('data-save-phase','success');
 });
 
 

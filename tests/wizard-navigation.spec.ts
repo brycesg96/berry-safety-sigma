@@ -34,6 +34,7 @@ for (const viewport of [{ width: 1366, height: 900 }, { width: 390, height: 844 
     await page.getByRole('button', { name: 'Continuar', exact: true }).click();
     await atStart(start);
     await expect(heading).toHaveText('RESULTADO DE LA INSPECCIÓN');
+    await expect.poll(() => page.locator('.stepper-progress>span').evaluate(element => new DOMMatrix(getComputedStyle(element).transform).a)).toBeCloseTo(.4, 2);
     for (let index = 0; index < 3; index++) {
       await page.getByRole('button', { name: 'Añadir observación', exact: true }).click();
       const card = page.locator('.observation-card').nth(index);

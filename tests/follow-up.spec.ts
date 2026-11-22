@@ -285,7 +285,9 @@ test('levantamiento conserva cambios hasta Guardar Avance y Enviar guarda la úl
  await page.waitForTimeout(1200);
  const read=()=>page.evaluate(async()=>{const {loadInspections}=await import('/src/model.ts');const d=(await loadInspections()).find(d=>d.delivery)!;return d.delivery!.corrections[d.observations[0].id]?.action;});
  expect(await read()).not.toBe('Avance manual pendiente');await page.getByRole('button',{name:'Volver',exact:true}).click();await expect(page.getByRole('alert')).toContainText('Hay cambios sin guardar');
- await card.getByRole('button',{name:'Guardar Avance',exact:true}).click();await expect(card.getByText('Avance guardado.',{exact:true})).toBeVisible();expect(await read()).toBe('Avance manual pendiente');
+ await card.getByRole('button',{name:'Guardar Avance',exact:true}).click();await expect(card.getByText('Avance guardado.',{exact:true})).toBeVisible();
+ await expect(card.getByRole('button',{name:'Guardar Avance',exact:true})).toHaveAttribute('data-save-phase','success');
+ expect(await read()).toBe('Avance manual pendiente');
  await card.getByLabel('Acción realizada').fill('Cambio posterior sin guardar');await page.waitForTimeout(1200);expect(await read()).toBe('Avance manual pendiente');
  for(const width of [1280,390]) {
   await page.setViewportSize({width,height:900});

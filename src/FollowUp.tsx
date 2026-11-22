@@ -1,3 +1,5 @@
+import { SaveButton } from './SaveButton';
+import type { SavePhase } from './SaveButton';
 import { LiquidGlassSurface } from './components/ui/liquid-glass';
 import { supabaseClient } from './supabase';
 import { hydrateCloudInspection } from './cloud-store';
@@ -97,21 +99,23 @@ function CorrectionForm({ inspection, observationId, actor, owner, recipient, on
   const [note, setNote] = useState(''); const [message, setMessage] = useState(''); const [error, setError] = useState(''); const [busy, setBusy] = useState(false);
   usePendingChanges(valueDirty || note.length > 0 || busy);
   const actionPending = useRef(false);
+  const [advancePhase, setAdvancePhase] = useState<SavePhase>('idle');
   const closed = inspectionClosed(inspection);
   const locked = !recipient || saved?.decision === 'review' || saved?.decision === 'approved' || closed;
-  const update = <K extends keyof Correction>(key: K, v: Correction[K]) => { setMessage(''); setValue(c => ({ ...c, [key]: v })); };
-  async function act(action: () => Promise<Inspection>, success: string) {
+  const update = <K extends keyof Correction>(key: K, v: Correction[K]) => { setMessage(''); setAdvancePhase('idle'); setValue(c => ({ ...c, [key]: v })); };
+  async function act(action: () => Promise<Inspection>, success: string, advance = false) {
     if (actionPending.current) return;
-    actionPending.current = true;
+    actionPending.current = true; setAdvancePhase(advance ? 'pending' : 'idle');
     setBusy(true); setError(''); setMessage('');
     try {
       if (valueDirty && observed.current !== savedSnapshot) throw new Error('Este levantamiento cambió en otra sesión. Conserva tus cambios y vuelve a abrir la versión guardada.');
       let next = await action();
       const stored = next.delivery?.corrections[observationId];
       if (stored) { baseline.current = JSON.stringify(stored); setValue(stored); observed.current = JSON.stringify(stored); }
+      setAdvancePhase(advance && !next.pendingSync ? 'success' : 'idle');
       setNote(''); onChange(next); setMessage(next.pendingSync ? 'Avance guardado en este dispositivo. Se sincronizará al recuperar la conexión.' : success);
       if (next.storage === 'cloud' && inspectionClosed(next) && next.finalExcelStored === false) { next = await storeFinalExcel(next); onChange(next); }
-    } catch (e) { setError(e instanceof Error ? e.message : 'No se pudo guardar.'); } finally { actionPending.current = false; setBusy(false); }
+    } catch (e) { if (advance) setAdvancePhase('error'); setError(e instanceof Error ? e.message : 'No se pudo guardar.'); } finally { actionPending.current = false; setBusy(false); }
   }
   return <div className="correction-form"><h3>Levantamiento de resultados de la inspección</h3>
     {saved && saved.decision !== 'draft' && <section className="correction-state-summary" aria-label="Estado del levantamiento">
@@ -128,11 +132,11 @@ function CorrectionForm({ inspection, observationId, actor, owner, recipient, on
     <div className="followup-evidence">{value.photos.map(p => <div key={p.id}><button aria-label={`Ver levantamiento ${p.name}`} onClick={() => onPreview(p)}><img src={p.data} alt={p.name} loading="lazy"/></button>{!locked && <button className="photo-remove" aria-label={`Quitar evidencia ${p.name}`} disabled={busy} onClick={() => update('photos', value.photos.filter(x => x.id !== p.id))}><X size={13}/></button>}</div>)}</div>
     {!locked && <label className="button button-outline evidence-upload"><ImagePlus size={16}/>Añadir evidencias<input aria-label="Añadir evidencias del levantamiento" type="file" accept="image/jpeg,image/png,image/webp" multiple disabled={busy} onChange={async e => { const files = Array.from(e.target.files || []); e.target.value = ''; if (files.length + value.photos.length > 8) { setError('Máximo 8 evidencias por hallazgo.'); return; } setBusy(true); setError(''); try { const photos = await Promise.all(files.map(preparePhoto)); setValue(c => ({ ...c, photos: [...c.photos, ...photos] })); } catch (err) { setError(err instanceof Error ? err.message : 'No se pudo cargar la imagen.'); } finally { setBusy(false); } }}/></label>}</div></div>
     {valueDirty && <p role="status" className="inline-note">Cambios sin guardar. {locked ? 'Pulsa Guardar Avance.' : 'Guarda tu avance o envía el levantamiento.'}</p>}
-    {!locked && <><p className="inline-note">Al enviar el levantamiento, tu avance se guarda automáticamente.</p><div className="followup-actions correction-submit-actions"><button className="button button-outline" disabled={busy} onClick={() => void act(() => saveCorrection(inspection, observationId, actor.id, value, false), 'Avance guardado.')}>Guardar Avance</button><button className="button button-primary" disabled={busy} onClick={() => void act(() => saveCorrection(inspection, observationId, actor.id, value, true), 'Avance guardado y levantamiento enviado a revisión.')}><Send size={16}/>Enviar levantamiento</button></div></>}
-    {locked && !closed && recipient && <div className="followup-actions"><button className="button button-outline" disabled={busy} onClick={() => void act(() => saveCorrectionState(inspection, observationId, actor.id, value.state), 'Avance guardado.')}>Guardar Avance</button></div>}
+    {!locked && <><p className="inline-note">Al enviar el levantamiento, tu avance se guarda automáticamente.</p><div className="followup-actions correction-submit-actions"><SaveButton label="Guardar Avance" phase={advancePhase === 'success' && valueDirty ? 'idle' : advancePhase} disabled={busy} onClick={() => void act(() => saveCorrection(inspection, observationId, actor.id, value, false), 'Avance guardado.', true)}/><button className="button button-primary" disabled={busy} onClick={() => void act(() => saveCorrection(inspection, observationId, actor.id, value, true), 'Avance guardado y levantamiento enviado a revisión.')}><Send size={16}/>Enviar levantamiento</button></div></>}
+    {locked && !closed && recipient && <div className="followup-actions"><SaveButton label="Guardar Avance" phase={advancePhase === 'success' && valueDirty ? 'idle' : advancePhase} disabled={busy} onClick={() => void act(() => saveCorrectionState(inspection, observationId, actor.id, value.state), 'Avance guardado.', true)}/></div>}
     {owner && saved?.decision === 'review' && !closed && <div className="review-actions"><Field label="Comentario de revisión">{props => <textarea {...props} value={note} maxLength={5000} rows={2} readOnly={busy} onChange={e => setNote(e.target.value)} placeholder="Indica las correcciones necesarias, si corresponde."/>}</Field><div className="followup-actions"><button className="button button-outline" disabled={busy} onClick={() => void act(() => reviewCorrection(inspection, observationId, actor.id, false, note), 'Correcciones solicitadas. La observación volvió a Pendiente.')}>Solicitar Correcciones</button><button className="button button-primary" disabled={busy} onClick={() => void act(() => reviewCorrection(inspection, observationId, actor.id, true, note), 'Levantamiento aprobado.')}><Check size={16}/>Aprobar levantamiento</button></div></div>}
     {inspection.delivery && <FollowUpConversation inspection={inspection} observationId={observationId} actor={actor} readOnly={!owner && !recipient} onChange={onChange}/>}
-    {busy && <p className="inline-note"><LoaderCircle className="spin" size={16}/>Guardando…</p>}{error && <p className="error-message" role="alert">{error}</p>}{message && <p role="status">{message}</p>}
+    {busy && <p className="inline-note"><LoaderCircle className="spin" size={16}/>Guardando…</p>}{error && <p className="error-message" role="alert">{error}</p>}{message && <p role="status" className="save-confirmation"><Check size={16} aria-hidden="true"/>{message}</p>}
     {!saved && !recipient && <p className="inline-note"><Camera size={16}/>El destinatario aún no ha registrado su levantamiento.</p>}
   </div>;
 }

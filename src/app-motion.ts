@@ -39,7 +39,7 @@ export function installAppMotion(root: HTMLElement, progress: HTMLElement) {
       const movable = !element.matches('button') && !element.querySelector('button,input,textarea,select,a,[tabindex],canvas');
       entrance.tween = gsap.fromTo(element,
         { ...(movable ? { y: 14 } : {}), opacity: 0.45 },
-        { ...(movable ? { y: 0 } : {}), opacity: 1, duration: 0.48, delay, ease: 'power2.out',
+        { ...(movable ? { y: 0 } : {}), opacity: 1, duration: element.matches('.form-card[data-motion-key]') ? .22 : .48, delay, ease: 'power2.out',
           overwrite: 'auto', onComplete: () => {
             gsap.set(element, { clearProps: 'transform,opacity' });
             entrances.delete(element);
