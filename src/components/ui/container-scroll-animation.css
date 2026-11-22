@@ -1,0 +1,16 @@
+.container-scroll{position:relative;width:100%;min-width:0;margin-inline:auto}
+.container-scroll-perspective{perspective:1000px;perspective-origin:50% 35%}
+.container-scroll-frame{position:relative;transform-origin:center center;border:2px solid #6d917a;border-radius:20px;padding:6px;background:linear-gradient(145deg,#426852,#1f4435);box-shadow:0 3px 6px #153b2a12,0 12px 24px #153b2a14,0 26px 40px -25px #153b2a38}
+.container-scroll-content{min-width:0;overflow:hidden;border-radius:13px;background:linear-gradient(145deg,#f6faef,#e4eedb)}
+.container-scroll-message{max-width:460px}
+.container-scroll-message>.container-scroll-perspective{width:104px;margin:0 auto 17px}
+.container-scroll-message .container-scroll-frame{border-color:#91ad94;border-radius:20px;padding:5px}
+.container-scroll-message .container-scroll-content{height:74px;display:grid;place-items:center;color:#7b9b67}
+.container-scroll-header:empty{display:none}
+.container-scroll-message .container-scroll-header{position:relative;padding-top:4px}
+.container-scroll-illustration{margin-top:18px;margin-bottom:22px}
+.container-scroll-illustration .container-scroll-frame{border-color:#799b79;background:linear-gradient(145deg,#557754,#2b513b)}
+.container-scroll-illustration .context-illustration{margin-top:0;height:158px}
+.empty-list .container-scroll-message h3,.empty-observations .container-scroll-message h3{margin-top:0}
+@media(prefers-reduced-motion:reduce){.container-scroll-frame,.container-scroll-header{transform:none!important}}
+@media print{.container-scroll-frame,.container-scroll-header{transform:none!important}.container-scroll-frame{box-shadow:none}}
