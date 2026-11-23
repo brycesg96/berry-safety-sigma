@@ -2,9 +2,8 @@ import { supabaseClient } from './supabase';
 
 export type SafetyKind = 'ATS' | 'PETAR' | 'CHECKLIST';
 export type SafetyStatus = 'pending' | 'approved' | 'corrections';
-export type SafetyDocument = { id: string; owner_id: string | null; owner_name: string; kind: SafetyKind; title: string; document_date: string; workplace: string; storage_path: string; file_name: string; mime_type: string; file_size: number; status: SafetyStatus; review_note: string; reviewed_at: string | null; created_at: string; revision: number; management_id?: string | null; area_id?: string | null; management_name?: string; area_name?: string; submission_source?: 'account' | 'guest' };
+export type SafetyDocument = { id: string; owner_id: string | null; owner_name: string; kind: SafetyKind; title: string; document_date: string; workplace: string; storage_path: string; file_name: string; mime_type: string; file_size: number; status: SafetyStatus; review_note: string; reviewed_at: string | null; created_at: string; revision: number; management_id?: string | null; area_id?: string | null; management_name?: string; area_name?: string; submission_source?: 'account' | 'guest'; batch_id?:string|null; site_id?:string|null; zone_id?:string|null; site_name?:string; zone_name?:string };
 export const SAFETY_LABELS = { ATS: 'ATS', PETAR: 'PETAR', CHECKLIST: 'Checklist' };
-export const SAFETY_STATES = { pending: 'Por revisar', approved: 'Aprobado', corrections: 'Requiere correcciones' };
 const BUCKET = 'berry-safety-documents';
 const MAX_FILE = 10 * 1024 * 1024;
 export type UploadIntent = { id: string; file: File; mime: string; extension: string; uploaded: boolean; started: boolean };
@@ -33,13 +32,14 @@ export async function safetyReady() {
   return data?.ready === true;
 }
 
-export async function listSafetyDocuments({ type = '', status = '', query = '', page = 0, management = '', area = '' }: { type?: string; status?: string; query?: string; page?: number; management?: string; area?: string }) {
+export async function listSafetyDocuments({ type = '', types = [], status = '', query = '', page = 0, management = '', area = '' }: { type?: string; types?:string[]; status?: string; query?: string; page?: number; management?: string; area?: string }) {
   let request = supabaseClient().from('berry_safety_documents').select('*', { count: 'exact' }).order('management_name').order('area_name').order('created_at', { ascending: false }).order('id').range(page * 20, page * 20 + 19);
   if (management) request = request.eq('management_id', management);
   if (area) request = request.eq('area_id', area);
+  if (types.length) request = request.in('kind', types);
   if (type) request = request.eq('kind', type);
   if (status) request = request.eq('status', status);
-  if (query.trim()) request = request.ilike('title', `%${query.trim().replace(/[\\%_]/g, '\\$&')}%`);
+  if (query.trim()) request = request.ilike('owner_name', `%${query.trim().replace(/[\\%_]/g, '\\$&')}%`);
   const { data, count, error } = await request;
   if (error) throw new Error('No pudimos consultar los documentos. Revisa tu conexión y pulsa Actualizar lista.');
   return { rows: data as SafetyDocument[], count: count || 0 };
@@ -62,12 +62,6 @@ export async function submitSafetyDocument(actor: string, intent: UploadIntent, 
   return data as SafetyDocument;
 }
 
-export async function reviewSafetyDocument(document: SafetyDocument, status: 'approved' | 'corrections', note: string) {
-  const { data, error } = await supabaseClient().rpc('berry_review_safety_document', { p_id: document.id, p_revision: document.revision, p_status: status, p_note: note.trim() });
-  if (error) throw failure(error);
-  return data as SafetyDocument;
-}
-
 export async function archiveSafetyDocument(document: SafetyDocument) {
   const { error } = await supabaseClient().rpc('berry_archive_safety_document', { p_id: document.id, p_revision: document.revision });
   if (error) throw failure(error);
@@ -77,4 +71,13 @@ export async function safetyFile(document: SafetyDocument) {
   const { data, error } = await supabaseClient().storage.from(BUCKET).download(document.storage_path);
   if (error || !data) throw new Error('No se pudo descargar el archivo. Verifica tu conexión y tu acceso al documento.');
   return new Blob([data], { type: document.mime_type });
+}
+
+// Private, authenticated updates. Polling also covers missed events and permission changes.
+export function subscribeSafetyDocuments(onChange:()=>void) {
+ let timer=0,disposed=false;
+ const refresh=()=>{if(disposed||document.visibilityState!=='visible'||!navigator.onLine)return;clearTimeout(timer);timer=window.setTimeout(()=>{if(!disposed)onChange();},350);};
+ const channel=supabaseClient().channel(`yo-seguro-${crypto.randomUUID()}`).on('postgres_changes',{event:'INSERT',schema:'public',table:'berry_safety_documents'},refresh).subscribe();
+ const interval=window.setInterval(refresh,15000);window.addEventListener('focus',refresh);window.addEventListener('online',refresh);document.addEventListener('visibilitychange',refresh);
+ return()=>{disposed=true;clearTimeout(timer);clearInterval(interval);window.removeEventListener('focus',refresh);window.removeEventListener('online',refresh);document.removeEventListener('visibilitychange',refresh);void supabaseClient().removeChannel(channel);};
 }

@@ -1792,6 +1792,63 @@ test('editing a profile cannot expand Yo Seguro access; only an administrator ca
  await safetyAs('admin','select public.berry_set_yo_seguro_access($1,$2,$3)',[safetyUsers.worker,null,yoIds.m]);
 });
 
+const batchIds={id:'ce000000-0000-4000-8000-000000000001',site:'ce000000-0000-4000-8000-000000000002',zone:'ce000000-0000-4000-8000-000000000003',otherSite:'ce000000-0000-4000-8000-000000000004',otherZone:'ce000000-0000-4000-8000-000000000005'};
+const batchToken='ef'.repeat(32);
+const batchFiles=[{id:'ce100000-0000-4000-8000-000000000001',kind:'ATS',file_name:'ats-1.pdf',mime:'application/pdf',size:100},{id:'ce100000-0000-4000-8000-000000000002',kind:'ATS',file_name:'ats-2.pdf',mime:'application/pdf',size:100},{id:'ce100000-0000-4000-8000-000000000003',kind:'PETAR',file_name:'petar.pdf',mime:'application/pdf',size:100}];
+const batchBegin=(id=batchIds.id,files=batchFiles,token=batchToken,zone=batchIds.zone)=>as('anon',null,'select public.berry_begin_yo_seguro_batch($1,$2,$3,$4,$5,$6,$7,$8) value',[id,token,yoIds.a,'ana RUIZ','Mantenimiento de Cortinas',batchIds.site,zone,files]);
+const batchFinish=(id=batchIds.id,token=batchToken)=>as('anon',null,'select public.berry_finish_yo_seguro_batch($1,$2) value',[id,token]);
+const batchPath=id=>`public/${id}/${batchToken}/documento.pdf`;
+const batchStore=(file,metadata={size:100,mimetype:'application/pdf'})=>as('anon',null,"insert into storage.objects(bucket_id,name,metadata)values('berry-safety-documents',$1,$2)",[batchPath(file.id),metadata]);
+test('batch migration preserves records, exposes only active sites and zones and removes approval permissions',async()=>{
+ for(const [id,parent,kind,name]of[[batchIds.site,null,'site','Sede de pruebas'],[batchIds.zone,batchIds.site,'zone','Zona de trabajo'],[batchIds.otherSite,null,'site','Sede Alternativa de Lotes'],[batchIds.otherZone,batchIds.otherSite,'zone','Lugar Alternativo de Lotes']])await db.query('insert into public.berry_locations(id,parent_id,kind,name)values($1,$2,$3,$4)',[id,parent,kind,name]);
+ const count=(await db.query('select count(*)::int n from public.berry_safety_documents')).rows[0].n;
+ const sql=await readFile(new URL('../migrations/202611220026_yo_seguro_batches.sql',import.meta.url),'utf8');await db.exec(sql);await db.exec(sql);
+ assert.equal((await db.query('select count(*)::int n from public.berry_safety_documents')).rows[0].n,count);
+ const catalog=(await as('anon',null,'select public.berry_yo_seguro_locations() value')).rows[0].value;assert.equal(catalog.version,'202611220026');const site=catalog.sites.find(s=>s.id===batchIds.site);assert.deepEqual(Object.keys(site).sort(),['id','name','zones']);assert.equal(site.zones[0].id,batchIds.zone);
+ await denied(()=>as('anon',null,'select * from berry_private.yo_seguro_batches'));await denied(()=>safetyAs('admin',"select public.berry_review_safety_document($1,1,'approved','')",[yoId]));
+});
+test('batch reservation validates the complete file list and location relation before reserving any capacity',async()=>{
+ await assert.rejects(()=>batchBegin(batchIds.id,batchFiles,batchToken,batchIds.otherZone),e=>e.message.includes('LOCATION_NOT_AVAILABLE'));
+ await assert.rejects(()=>batchBegin(batchIds.id,[batchFiles[0],batchFiles[0]]),e=>e.message.includes('INVALID_FILE_COUNT'));
+ await assert.rejects(()=>batchBegin(batchIds.id,[{...batchFiles[0],size:10485761}]),e=>e.message.includes('INVALID_FILE_METADATA'));
+ await assert.rejects(()=>batchBegin(batchIds.id,[{...batchFiles[0],extra:'not accepted'}]),e=>e.message.includes('INVALID_DOCUMENT'));
+ await assert.rejects(()=>batchBegin(batchIds.id,[]),e=>e.message.includes('INVALID_FILE_COUNT'));
+ assert.equal((await db.query('select count(*)::int n from berry_private.yo_seguro_batches')).rows[0].n,0);
+ const ticket=(await batchBegin()).rows[0].value;assert.equal(ticket.files.length,3);assert.equal(ticket.completed,false);
+ await denied(()=>batchBegin(batchIds.id,batchFiles,'fa'.repeat(32)));
+ await assert.rejects(()=>batchBegin(batchIds.id,[{...batchFiles[0],file_name:'changed.pdf'},...batchFiles.slice(1)]),e=>e.code==='40001');
+});
+test('a batch stays invisible until every file is stored and individual endpoints cannot confirm it partially',async()=>{
+ await batchStore(batchFiles[0]);await assert.rejects(()=>batchFinish(),e=>e.message.includes('FILE_NOT_STORED'));
+ assert.equal((await db.query('select count(*)::int n from public.berry_safety_documents where batch_id=$1',[batchIds.id])).rows[0].n,0);
+ await denied(()=>as('anon',null,'select public.berry_finish_yo_seguro_upload($1,$2)',[batchFiles[0].id,batchToken]));
+ await batchStore(batchFiles[1]);await batchStore(batchFiles[2]);
+ assert.equal((await as('anon',null,'select name from storage.objects where name=$1',[batchPath(batchFiles[0].id)])).rows.length,0);
+});
+test('batch reception is atomic, gives every document one server timestamp and records the authoritative site, area and normalized person',async()=>{
+ const before=Date.now(),receipt=(await batchFinish()).rows[0].value;assert.equal(receipt.count,3);assert.equal(receipt.received,true);assert.equal(receipt.id,batchIds.id);assert.ok(Date.parse(receipt.received_at)>=before-1000);assert.ok(Date.parse(receipt.received_at)<=Date.now()+1000);
+ const rows=(await db.query("select owner_name,kind,created_at,site_id,zone_id,area_id,document_date=(created_at at time zone 'America/Lima')::date as correct_date from public.berry_safety_documents where batch_id=$1 order by id",[batchIds.id])).rows;assert.equal(rows.length,3);assert.equal(new Set(rows.map(row=>new Date(row.created_at).toISOString())).size,1);assert.equal(rows[0].owner_name,'Ana Ruiz');assert.equal(rows[0].site_id,batchIds.site);assert.equal(rows[0].zone_id,batchIds.zone);assert.equal(rows[0].area_id,yoIds.a);assert.equal(rows.every(row=>row.correct_date),true);assert.deepEqual(rows.map(row=>row.kind),['ATS','ATS','PETAR']);
+ const retry=(await batchFinish()).rows[0].value;assert.deepEqual(retry,receipt);assert.equal((await batchBegin()).rows[0].value.completed,true);
+ assert.equal((await db.query('select count(*)::int n from public.berry_safety_documents where batch_id=$1',[batchIds.id])).rows[0].n,3);
+});
+test('batch documents and bytes retain same-management visibility while dates, approval and direct writes stay protected',async()=>{
+ assert.equal((await safetyAs('worker','select id from public.berry_safety_documents where batch_id=$1',[batchIds.id])).rows.length,3);
+ assert.equal((await safetyAs('other','select id from public.berry_safety_documents where batch_id=$1',[batchIds.id])).rows.length,0);
+ assert.equal((await safetyAs('other','select name from storage.objects where name=$1',[batchPath(batchFiles[0].id)])).rows.length,0);
+ assert.equal((await safetyAs('admin','select id from public.berry_safety_documents where batch_id=$1',[batchIds.id])).rows.length,3);
+ await denied(()=>safetyAs('worker',"update public.berry_safety_documents set created_at='2000-01-01' where batch_id=$1",[batchIds.id]));await denied(()=>batchStore(batchFiles[0]));
+});
+test('a bad file blocks the complete batch and a corrected retry preserves the same reservation',async()=>{
+ const id='ce000000-0000-4000-8000-000000000010',files=[{...batchFiles[0],id:'ce100000-0000-4000-8000-000000000010'},{...batchFiles[2],id:'ce100000-0000-4000-8000-000000000011'}];await batchBegin(id,files);await batchStore(files[0]);await batchStore(files[1],{size:99,mimetype:'application/pdf'});
+ await assert.rejects(()=>batchFinish(id),e=>e.message.includes('INVALID_FILE_METADATA'));assert.equal((await db.query('select count(*)::int n from public.berry_safety_documents where batch_id=$1',[id])).rows[0].n,0);
+ await db.query('update storage.objects set metadata=$2 where name=$1',[batchPath(files[1].id),{size:100,mimetype:'application/pdf'}]);await batchFinish(id);assert.equal((await db.query('select count(*)::int n from public.berry_safety_documents where batch_id=$1',[id])).rows[0].n,2);
+});
+test('batch quotas reserve all files together, reject expired permits and revalidate disabled work locations',async()=>{
+ const id='ce000000-0000-4000-8000-000000000020',files=[{...batchFiles[0],id:'ce100000-0000-4000-8000-000000000020'}];await db.query('update berry_private.yo_seguro_limits set hourly=0 where singleton');await assert.rejects(()=>batchBegin(id,files),e=>e.message.includes('UPLOAD_RATE_LIMIT'));await db.query('update berry_private.yo_seguro_limits set hourly=500 where singleton');await batchBegin(id,files);await batchStore(files[0]);
+ await db.query('update public.berry_locations set enabled=false where id=$1',[batchIds.zone]);await assert.rejects(()=>batchFinish(id),e=>e.message.includes('LOCATION_NOT_AVAILABLE'));await db.query('update public.berry_locations set enabled=true where id=$1',[batchIds.zone]);
+ await db.query("update berry_private.yo_seguro_batches set expires_at=clock_timestamp()-interval '1 second' where id=$1",[id]);await assert.rejects(()=>batchFinish(id),e=>e.message.includes('UPLOAD_EXPIRED'));await assert.rejects(()=>batchBegin(id,files),e=>e.message.includes('UPLOAD_EXPIRED'));
+});
+
 let failed;
 try {
   await setup();

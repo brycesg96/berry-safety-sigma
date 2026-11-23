@@ -207,3 +207,7 @@ Ejecutar el script completo [202611220024_safety_documents.sql](../supabase/migr
 ## Paso 25 — Yo Seguro sin cuenta y por gerencia
 
 El paso 24 queda ampliado por [202611220025_yo_seguro.sql](../supabase/migrations/202611220025_yo_seguro.sql). Habilita un catálogo público mínimo y permisos de recepción de un solo archivo; mantiene privados los registros y los archivos. Las cuentas habilitadas consultan los documentos de todas las áreas de su gerencia y Administración conserva la vista general. Véase [Yo Seguro](DOCUMENTOS_SEGURIDAD.md) para activación, uso, límites operativos y pruebas. No se habilita Auth anónimo ni se configuran claves de servidor nuevas.
+
+## Paso 26 — recepción múltiple y consulta sin aprobaciones
+
+[202611220026_yo_seguro_batches.sql](../supabase/migrations/202611220026_yo_seguro_batches.sql) amplía Yo Seguro con varios archivos por tipo, ubicación tomada de Sede/zona y sello de recepción del servidor. Registra cada envío completo de forma atómica, conserva documentos anteriores, revoca la revisión de documentos y agrega la tabla privada a la publicación Realtime existente. Mantiene los permisos por gerencia del paso 25. Véase [Yo Seguro](DOCUMENTOS_SEGURIDAD.md) para activación y uso.

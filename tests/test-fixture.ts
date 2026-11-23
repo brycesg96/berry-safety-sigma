@@ -7,6 +7,10 @@ export const test = base.extend<{}, { browser: Browser }>({
   browser: [async ({ browser }, use, workerInfo) => {
     const origin = new URL(String(workerInfo.project.use.baseURL || 'http://127.0.0.1:5173/')).origin;
     const isolate = async (context: BrowserContext) => {
+      await context.routeWebSocket('**/*', socket => {
+        if (new URL(socket.url()).host === new URL(origin).host) socket.connectToServer();
+        else socket.close();
+      });
       await context.route('**/*', route => {
         const url = new URL(route.request().url());
         if (url.origin === origin && !url.pathname.startsWith('/api/')) return route.continue();

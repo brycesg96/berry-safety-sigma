@@ -7,8 +7,11 @@ import type { SafetyKind, UploadIntent } from './safety-documents';
 
 export type YoManagement = { id: string; name: string; areas: { id: string; name: string }[] };
 export type YoScope = { admin: boolean; management_id: string | null; management_name: string };
-export type GuestValues = { worker: string; management: string; area: string; kind: SafetyKind; title: string; date: string; workplace: string };
-export type GuestIntent = UploadIntent & { token: string; path?: string };
+export type GuestValues = { worker: string; management: string; area: string; title: string; site: string; zone: string };
+export type YoSite = { id: string; name: string; zones: {id:string;name:string}[] };
+export type BatchIntent = { id:string; token:string; started:boolean; files:GuestIntent[] };
+export type GuestReceipt = {code:string;receivedAt:string;count:number};
+export type GuestIntent = UploadIntent & { kind:SafetyKind; path?:string };
 let guest: SupabaseClient | undefined;
 // This client never reads, creates or changes the account session saved in this browser.
 function guestClient() {
@@ -22,6 +25,7 @@ function problem(error: { code?: string; message?: string }) {
  if(error.code==='PGRST202')return new Error('Yo Seguro está pendiente de activación. Vuelve a intentarlo más tarde.');
  if(error.message?.includes('UPLOAD_RATE_LIMIT'))return new Error('Se recibieron muchos envíos. Espera unos minutos y vuelve a intentarlo; conservamos tu selección.');
  if(error.message?.includes('UPLOAD_EXPIRED'))return new Error('Venció el tiempo de este envío. Pulsa Empezar de nuevo y vuelve a seleccionar el archivo.');
+ if(error.message?.includes('LOCATION_NOT_AVAILABLE'))return new Error('La Sede o el Lugar de Trabajo ya no están disponibles. Empieza de nuevo y actualiza las listas.');
  if(error.message?.includes('AREA_NOT_AVAILABLE'))return new Error('El área ya no está disponible. Empieza de nuevo y actualiza la lista de áreas.');
  if(error.code==='40001')return new Error('Los datos de este intento cambiaron. Reintenta con los mismos datos o empieza un envío nuevo.');
  return new Error('No pudimos confirmar el envío. Conservamos tus datos y archivo para que puedas reintentarlo sin duplicar el registro.');
@@ -39,33 +43,43 @@ export async function yoSeguroScope():Promise<YoScope|null> {
  if(data?.version!=='202611220025'||typeof data.admin!=='boolean'||(data.management_id!==null&&typeof data.management_id!=='string')||typeof data.management_name!=='string')throw new Error('No pudimos verificar la gerencia de tu cuenta.');
  return data;
 }
-export async function prepareGuestFile(file:File):Promise<GuestIntent> {
- const intent=await prepareSafetyFile(file);
- const token=Array.from(crypto.getRandomValues(new Uint8Array(32)),value=>value.toString(16).padStart(2,'0')).join('');
- return {...intent,token};
+export async function yoSeguroLocations():Promise<YoSite[]> {
+ const {data,error}=await guestClient().rpc('berry_yo_seguro_locations').abortSignal(AbortSignal.timeout(15000));
+ if(error)throw problem(error);
+ if(data?.version!=='202611220026'||!Array.isArray(data.sites)||data.sites.some((site:YoSite)=>!site||typeof site.id!=='string'||typeof site.name!=='string'||!Array.isArray(site.zones)||site.zones.some(zone=>!zone||typeof zone.id!=='string'||typeof zone.name!=='string')))throw new Error('No pudimos verificar las Sedes y Lugares de Trabajo. Actualiza las listas.');
+ return data.sites;
 }
-export async function sendGuestDocument(intent:GuestIntent,values:GuestValues,onPhase:(phase:string)=>void):Promise<string> {
- if(!navigator.onLine)throw new Error('Necesitas conexión para enviar el documento. Tu selección sigue en este formulario.');
- const client=guestClient();intent.started=true;
- onPhase('Preparando envío…');
- const { data:ticket,error:ticketError }=await client.rpc('berry_begin_yo_seguro_upload',{
-  p_id:intent.id,p_token:intent.token,p_area:values.area,p_worker:values.worker.trim(),p_kind:values.kind,
-  p_title:values.title.trim(),p_date:values.date,p_workplace:values.workplace.trim(),p_file_name:intent.file.name.replace(/[\\/\r\n]/g,'_').slice(0,200),p_mime:intent.mime,p_size:intent.file.size,
+export const guestToken=()=>Array.from(crypto.getRandomValues(new Uint8Array(32)),value=>value.toString(16).padStart(2,'0')).join('');
+export const formatWorkerName=(name:string)=>name.toLocaleLowerCase('es').replace(/(^|[\s'-])(\p{L})/gu,(_,separator:string,letter:string)=>separator+letter.toLocaleUpperCase('es'));
+export async function prepareGuestFile(file:File,kind:SafetyKind):Promise<GuestIntent> {
+ return {...await prepareSafetyFile(file),kind};
+}
+export async function sendGuestDocuments(batch:BatchIntent,values:GuestValues,onPhase:(phase:string)=>void):Promise<GuestReceipt> {
+ if(!navigator.onLine)throw new Error('Necesitas conexión para enviar los documentos. Conservamos tu selección en este formulario.');
+ const client=guestClient();batch.started=true;onPhase('Preparando envío…');
+ const {data:ticket,error:ticketError}=await client.rpc('berry_begin_yo_seguro_batch',{
+  p_id:batch.id,p_token:batch.token,p_area:values.area,p_worker:values.worker.trim(),p_title:values.title.trim(),p_site:values.site,p_zone:values.zone,
+  p_files:batch.files.map(file=>({id:file.id,kind:file.kind,file_name:file.file.name.replace(/[\\/\r\n]/g,'_').slice(0,200),mime:file.mime,size:file.file.size})),
  }).abortSignal(AbortSignal.timeout(20000));
  if(ticketError)throw problem(ticketError);
- if(ticket?.id!==intent.id||typeof ticket.path!=='string'||!ticket.path.startsWith(`public/${intent.id}/${intent.token}/`))throw new Error('No pudimos verificar el permiso de este envío. Vuelve a intentarlo.');
- intent.path=ticket.path;
- if(!intent.uploaded&&!ticket.completed){
-  onPhase('Subiendo documento…');
-  const {error}=await client.storage.from('berry-safety-documents').upload(ticket.path,intent.file,{contentType:intent.mime,upsert:false});
-  if(error&&!['409','Duplicate'].includes(String((error as {statusCode?:string}).statusCode||error.name)))throw problem(error);
-  intent.uploaded=true;
+ if(ticket?.id!==batch.id||!Array.isArray(ticket.files)||ticket.files.length!==batch.files.length)throw new Error('No pudimos verificar los permisos del envío. Reintenta conservando los archivos.');
+ for(const [index,file]of batch.files.entries()){
+  const permit=ticket.files.find((entry:{id:string;path:string})=>entry.id===file.id);
+  const path=`public/${file.id}/${batch.token}/documento.${file.extension}`;
+  if(permit?.path!==path)throw new Error('No pudimos verificar el permiso de uno de los archivos. Reintenta el envío.');
+  file.path=path;
+  if(!file.uploaded&&!ticket.completed){
+   onPhase(`Subiendo archivo ${index+1} de ${batch.files.length}…`);
+   const {error}=await client.storage.from('berry-safety-documents').upload(path,file.file,{contentType:file.mime,upsert:false});
+   if(error&&!['409','Duplicate'].includes(String((error as {statusCode?:string}).statusCode||error.name)))throw problem(error);
+   file.uploaded=true;
+  }
  }
  onPhase('Confirmando recepción…');
- const {data,error}=await client.rpc('berry_finish_yo_seguro_upload',{p_id:intent.id,p_token:intent.token}).abortSignal(AbortSignal.timeout(20000));
+ const {data,error}=await client.rpc('berry_finish_yo_seguro_batch',{p_id:batch.id,p_token:batch.token}).abortSignal(AbortSignal.timeout(20000));
  if(error)throw problem(error);
- if(data?.received!==true||data.id!==intent.id)throw new Error('No pudimos confirmar la recepción. Reintenta el mismo envío.');
- return `YS-${intent.id.slice(0,8).toUpperCase()}`;
+ if(data?.received!==true||data.id!==batch.id||data.count!==batch.files.length||typeof data.received_at!=='string'||!Number.isFinite(Date.parse(data.received_at)))throw new Error('No pudimos confirmar la recepción. Reintenta el mismo envío.');
+ return {code:`YS-${batch.id.slice(0,8).toUpperCase()}-${batch.id.slice(-8).toUpperCase()}`,receivedAt:data.received_at,count:data.count};
 }
 
 export async function setYoSeguroAccess(account:CloudProfile,management:string|null,expected:string|null):Promise<CloudProfile> {
