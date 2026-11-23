@@ -96,7 +96,8 @@ test('validación de campos y observación obligatoria', async ({ page }) => {
   await expect(page.getByText('Completa el área e instalación inspeccionada.')).toBeVisible();
   await fillGeneral(page);
   await page.getByRole('combobox', { name: /Nombre completo/ }).first().fill('Persona sin seleccionar');
-  await expect(page.getByLabel(/Correo electrónico/).first()).toHaveValue('');
+  await expect(page.locator('.responsibles .field-hint').first()).not.toContainText('@');
+  await expect(page.locator('.responsibles').getByRole('textbox', { name: 'Correo electrónico', exact: true })).toHaveCount(0);
   await page.getByRole('button', { name: 'Continuar', exact: true }).click();
   await expect(page.getByText('Selecciona una persona del directorio.').first()).toBeVisible();
   await page.getByRole('combobox', { name: /Nombre completo/ }).first().fill('Ana');

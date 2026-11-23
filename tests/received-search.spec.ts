@@ -25,7 +25,7 @@ for (const width of [1366, 390]) test(`buscador de recibidas combina estado, reg
   }
   await page.getByRole('button', { name: 'Cerradas', exact: true }).click(); await expect(search).toHaveValue('norte'); await expect(rows).toHaveCount(1); await expect(rows).toContainText('Taller cerrado');
   await search.fill('051'); await expect(rows).toHaveCount(0); await expect(page.getByRole('heading', { name: 'No encontramos inspecciones', exact: true })).toBeVisible();
-  await page.getByRole('button', { name: 'Pendientes', exact: true }).click(); await expect(rows).toHaveCount(1); await expect(rows).toContainText('Taller de maquinaria');
+  await page.getByRole('button', { name: 'Abiertas', exact: true }).click(); await expect(rows).toHaveCount(1); await expect(rows).toContainText('Taller de maquinaria');
   await search.fill('no coincide'); await expect(rows).toHaveCount(0); await page.getByRole('button', { name: 'Limpiar búsqueda', exact: true }).click(); await expect(rows).toHaveCount(2);
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   await page.locator('.received-search-toolbar').screenshot({ path: test.info().outputPath(`buscador-recibidas-${width}.png`) });

@@ -42,7 +42,8 @@ test('empleador fijo, tres tipos, Otro con detalle y máximo 560', async ({ page
   await page.reload();
   await expect(page.getByRole('radio', { name: 'Otro', exact: true })).toBeChecked();
   await expect(page.getByRole('combobox', { name: /Nombre completo/ }).first()).toHaveValue('Ana Torres');
-  await expect(page.getByLabel('Correo electrónico').first()).toHaveValue('ana@example.com');
+  await expect(page.locator('.responsibles .field-hint').first()).toContainText('ana@example.com');
+  await expect(page.locator('.responsibles').getByRole('textbox', { name: 'Correo electrónico', exact: true })).toHaveCount(0);
   await page.getByRole('button', { name: 'Continuar', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'RESULTADO DE LA INSPECCIÓN' })).toBeVisible();
 });
@@ -50,13 +51,14 @@ test('empleador fijo, tres tipos, Otro con detalle y máximo 560', async ({ page
 test('selección por teclado, homónimos, correo automático y limpieza al cambiar el nombre', async ({ page }) => {
   await page.route('**/api/people?*', route => route.fulfill({ json: { people: [people[0], { id: 'ana-2', name: 'Ana Torres', email: 'otra.ana@example.com' }] } }));
   await page.goto('./');
-  const input = page.getByRole('combobox', { name: /Nombre completo/ }).first(), email = page.getByLabel('Correo electrónico').first();
-  await expect(email).toHaveAttribute('readonly', '');
+  const input = page.getByRole('combobox', { name: /Nombre completo/ }).first(), details = page.locator('.responsibles .field-hint').first();
+  await expect(page.locator('.responsibles').getByRole('textbox', { name: 'Correo electrónico', exact: true })).toHaveCount(0);
   await input.fill('Ana'); await expect(page.getByRole('listbox').getByRole('option')).toHaveCount(2);
   await input.press('ArrowDown'); await input.press('ArrowDown'); await input.press('Enter');
-  await expect(email).toHaveValue('otra.ana@example.com');
+  await expect(details).toHaveText('otra.ana@example.com');
   await expect(input).toHaveValue('Ana Torres');
-  await input.fill('José'); await expect(email).toHaveValue('');
+  await input.fill('José'); await expect(details).not.toContainText('@');
+  await expect(details).toHaveText('Busca por nombre o correo y selecciona una persona.');
   await expect(input).toHaveAttribute('aria-expanded', 'true');
 });
 
@@ -73,7 +75,8 @@ test('directorio vacío o caído no permite inventar un destinatario', async ({ 
   await page.unroute('**/api/people?*'); await mockDirectory(page);
   await page.getByRole('button', { name: 'Reintentar' }).click();
   await page.getByRole('listbox').getByRole('option', { name: /Ana Torres/ }).click();
-  await expect(page.getByLabel('Correo electrónico').first()).toHaveValue('ana@example.com');
+  await expect(page.locator('.responsibles .field-hint').first()).toContainText('ana@example.com');
+  await expect(page.locator('.responsibles').getByRole('textbox', { name: 'Correo electrónico', exact: true })).toHaveCount(0);
 });
 
 test('borrador anterior conserva el objetivo largo y solicita corregirlo', async ({ page }) => {

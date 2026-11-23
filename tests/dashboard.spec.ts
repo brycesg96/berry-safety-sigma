@@ -90,7 +90,7 @@ test('consulta y descargas de un informe ajeno cerrado no modifican el informe n
  const state=await setup(page,context);await panel(page);await page.screenshot({path:test.info().outputPath('panel-escritorio.png'),fullPage:true});await page.setViewportSize({width:390,height:844});
  expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);await page.screenshot({path:test.info().outputPath('panel-telefono.png'),fullPage:true});
  const closed=page.locator('.dashboard-results tbody tr').filter({hasText:'IH-2026-003'});await closed.getByRole('button',{name:'Revisar',exact:true}).click();
- await expect(page.getByText('Consulta del informe',{exact:true})).toBeVisible();await expect(page.getByLabel('Acción realizada',{exact:false})).toHaveAttribute('readonly','');
+ await expect(page.locator('.followup-heading')).toContainText('Cerrada');await expect(page.getByLabel('Estado',{exact:true})).toHaveValue('Ejecutado');await expect(page.getByLabel('Estado',{exact:true})).toHaveAttribute('readonly','');await expect(page.getByLabel('Acción realizada',{exact:false})).toHaveAttribute('readonly','');
  await expect(page.getByRole('button',{name:/Guardar Avance|Enviar levantamiento|Aprobar levantamiento|Reintentar guardar Excel final/})).toHaveCount(0);
  const excel=page.waitForEvent('download');await page.getByRole('button',{name:'Descargar Excel',exact:true}).click();expect((await excel).suggestedFilename()).toContain('ALMACÉN');
  const pdf=page.waitForEvent('download');await page.getByRole('button',{name:'Descargar PDF',exact:true}).click();expect((await pdf).suggestedFilename()).toMatch(/\.pdf$/);
