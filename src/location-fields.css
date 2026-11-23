@@ -60,3 +60,11 @@
 @media(max-width:360px){.field-grid.inspection-date-time-grid{grid-template-columns:1fr;gap:0}}
 
 .field-grid.picker-without-email{grid-template-columns:minmax(0,1fr);gap:0}
+
+/* A search inside a selector is one control; ordinary field/focus styles must not add an inner frame. */
+:root .location-select .platform-select-menu .platform-select-search{background:#f8faf8;border-color:#d4ded8;color:#62766b;box-shadow:none}
+:root .location-select .platform-select-menu .platform-select-search:focus-within{border-color:#71847d;background:#fff;box-shadow:none}
+:root .location-select .platform-select-menu .platform-select-search input[type=search]{border:0;border-radius:0;background:transparent;outline:none;outline-offset:0;box-shadow:none;min-height:40px;height:auto;padding:10px 0;font-size:14px;color:inherit}
+:root .location-select .location-select-trigger[aria-expanded=true]{border-color:#81958a;box-shadow:none}
+:root .location-select .location-select-trigger:focus-visible{outline:2px solid #71847d;outline-offset:2px;box-shadow:none}
+@media(max-width:600px){:root .location-select .platform-select-menu .platform-select-search input[type=search]{font-size:16px}}

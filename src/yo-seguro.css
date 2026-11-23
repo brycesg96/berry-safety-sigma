@@ -68,3 +68,42 @@
 @media(max-width:760px){.yo-guest-layout{grid-template-columns:minmax(0,1fr)}.yo-guest-aside{display:none}.yo-intro{padding:30px}.yo-paper-art{flex-basis:160px;transform:scale(.85)}.yo-intro h1>span{font-size:24px}.yo-library-hero{align-items:flex-start;flex-direction:column;gap:20px}.yo-library-scope{max-width:none;width:100%}.yo-library-filters{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:540px){.yo-guest-header{min-height:82px;padding:12px 20px}.yo-guest-header .hortifrut-logo-on-dark>img{height:48px}.yo-guest-header .brand-name{font-size:30px}.yo-guest-main{padding:16px 16px 28px}.yo-guest-navigation{margin-bottom:16px}.yo-guest-navigation>span{display:none}.yo-intro{padding:28px 24px;border-radius:20px}.yo-paper-art{display:none}.yo-intro h1{font-size:38px}.yo-intro h1>span{font-size:23px}.yo-intro p{font-size:14px}.yo-intro-benefits{display:none}.yo-access-tag{font-size:9px;letter-spacing:1.2px}.yo-flow{gap:10px;padding:22px 0}.yo-flow li{gap:8px;align-items:flex-start}.yo-flow li>span{width:28px;height:28px;flex-basis:28px;font-size:11px}.yo-flow strong{font-size:12px}.yo-flow small{font-size:10px;line-height:1.6}.yo-upload-panel{padding:24px 20px;border-radius:18px}.yo-guest-page .field-grid{grid-template-columns:minmax(0,1fr)}.yo-kind-picker>div{gap:8px}.yo-kind-picker label{padding:16px 5px 12px}.yo-kind-picker strong{font-size:13px}.yo-kind-picker small{font-size:10px}.yo-send-actions>p:first-child{font-size:11px;align-items:flex-start;text-align:left}.yo-receipt{padding:30px 22px;margin:20px auto}.yo-receipt h1{font-size:28px}.yo-receipt dl{padding:18px}.yo-receipt dl>div{grid-template-columns:minmax(0,1fr);gap:2px}.yo-library-filters{grid-template-columns:minmax(0,1fr)}.yo-library-filters>.button{width:100%;justify-self:stretch}.yo-library-hero{padding:26px 24px}.yo-library-hero h1{font-size:32px}}
 @media(prefers-reduced-motion:reduce){.yo-kind-picker label{transition:none}}
+
+/* Welcoming entrance, meaningful preparation feedback and short, finite motion. */
+.yo-intro{background:linear-gradient(115deg,#12392f 5%,#204f3b 75%,#345c3d);gap:42px;padding:42px 46px}
+.yo-intro:before{background:radial-gradient(ellipse at 100% 0,#b6d78c19,transparent 60%)}
+.yo-intro-copy{flex:1;min-width:0}.yo-intro .yo-access-tag{border:1px solid #c5e2bb3d;background:#c6e4bc0c;padding:8px 12px;border-radius:30px;font-size:11px;letter-spacing:.45px;color:#d2e8ca}
+.yo-intro h1{margin-top:20px}.yo-intro p{max-width:610px}.yo-intro p strong{color:#f0f8e7;font-weight:600;white-space:nowrap}
+.yo-intro-benefits{gap:12px 22px;margin-top:24px;animation:yo-soft-in .42s ease-out both;animation-delay:.12s}
+.yo-intro-benefits>span{line-height:1.6}.yo-intro-benefits svg{flex-shrink:0;color:#cee6af}
+.yo-intro-actions{display:flex;align-items:center;flex-wrap:wrap;gap:14px;margin-top:26px}
+.yo-guest-page .yo-hero-start{background:#d9edbd;border:1px solid #d9edbd;color:#23482f;padding:12px 18px;font-weight:700;min-width:178px;box-shadow:0 5px 14px #0c241c26;transition:background .18s,box-shadow .18s}
+.yo-guest-page .yo-hero-start:enabled:hover{background:#e5f4cf;box-shadow:0 6px 18px #0c241c38}.yo-guest-page .yo-hero-start:focus-visible{outline-color:#e5f4cf}
+.yo-intro-actions>span{font-size:11px;line-height:1.7;color:#c4dac8;max-width:180px}
+.yo-paper-art{flex-basis:230px;height:260px}.yo-art-orbit{width:260px;height:260px}.yo-art-orbit:after{inset:22px;border-style:solid;border-color:#bdd7b817}
+.yo-art-paper{width:164px;height:216px;padding:22px;gap:9px;box-shadow:16px 20px 0 #a7c38c13,0 22px 32px #0b251e26;animation:yo-paper-in .55s cubic-bezier(.2,.75,.3,1) both}
+.yo-art-paper>small{font-size:8px;letter-spacing:1.7px;font-weight:700;color:#5c7352;margin-top:1px}.yo-art-paper>b{font-size:22px;line-height:1.25;letter-spacing:-.6px}
+.yo-art-paper>span{font-size:9px;margin-top:auto;gap:4px;padding:6px 4px}.yo-art-paper.is-prepared>span{background:#d8ecc1;color:#285338}
+.yo-art-mini{position:absolute;display:grid;place-items:center;width:40px;height:40px;background:#e6f0d816;border:1px solid #c6dfb331;border-radius:12px;color:#d7e8c8;animation:yo-soft-in .45s ease-out both}
+.yo-art-mini-phone{right:-7px;top:8px;transform:rotate(10deg);animation-delay:.1s}.yo-art-mini-camera{left:-4px;bottom:20px;transform:rotate(-9deg);animation-delay:.2s}
+.yo-art-seal{right:4px;bottom:24px;animation:yo-seal-in .45s cubic-bezier(.2,.75,.3,1) both;animation-delay:.16s}
+.yo-flow{padding-bottom:18px;gap:14px}.yo-flow li{padding:12px 14px;border:1px solid transparent;border-radius:12px;transition:background .18s,border-color .18s}
+.yo-flow li.is-current{background:#fff;border-color:#d7e4cf;box-shadow:0 4px 12px #24472e05}.yo-flow li>span{transition:background .18s,border-color .18s,color .18s}
+.yo-flow li.is-current>span{border-color:#678358;color:#315b3b}.yo-flow li.is-complete>span svg{animation:yo-check-in .22s ease-out both}
+.yo-preparation{display:flex;align-items:center;justify-content:space-between;gap:24px;margin:0 0 24px;padding:0 3px;color:var(--berry-secondary)}
+.yo-preparation>span{display:flex;align-items:center;gap:7px;font-size:12px;line-height:1.6}.yo-preparation svg{flex-shrink:0}.yo-preparation.is-ready>span{color:#315d3c}
+.yo-preparation-track{width:170px;height:5px;flex-shrink:0;border-radius:4px;background:#dce6d7;overflow:hidden}.yo-preparation-track>span{display:block;width:100%;height:100%;background:#6e9557;border-radius:4px;transform-origin:left;transition:transform .24s ease-out}
+.yo-upload-panel{scroll-margin-top:24px}.yo-kind-picker label{transition:background .18s,border-color .18s,box-shadow .18s}
+.yo-kind-check{position:absolute;display:grid;place-items:center;right:8px;top:8px;width:17px;height:17px;border-radius:50%;background:#386b43;color:#fff;opacity:0;transition:opacity .16s;pointer-events:none}
+.yo-kind-picker .is-selected .yo-kind-check{opacity:1}.yo-kind-picker label:has(input:enabled):hover{border-color:#77976b;box-shadow:inset 0 0 0 1px #77976b33}
+.yo-kind-picker label>svg{transition:color .18s}.yo-file-picker{transition:background .2s,border-color .2s}.yo-file-picker.has-file .yo-file-symbol{animation:yo-check-in .3s ease-out both}
+.yo-receipt-check svg{animation:yo-check-in .36s ease-out both}
+@keyframes yo-soft-in{from{opacity:.4}to{opacity:1}}
+@keyframes yo-paper-in{from{opacity:.5;transform:translateY(8px) rotate(-10deg)}to{opacity:1;transform:translateY(0) rotate(-7deg)}}
+@keyframes yo-seal-in{from{opacity:.4;transform:translateY(5px) rotate(0deg) scale(.85)}to{opacity:1;transform:translateY(0) rotate(8deg) scale(1)}}
+@keyframes yo-check-in{from{opacity:.3;transform:scale(.7)}to{opacity:1;transform:scale(1)}}
+@media(max-width:1000px){.yo-intro{gap:22px;padding:32px}.yo-paper-art{flex-basis:190px}.yo-intro-benefits{gap:10px 16px}}
+@media(max-width:760px){.yo-intro-actions>span{display:none}.yo-paper-art{flex-basis:155px}.yo-intro-benefits{flex-direction:column;gap:8px}.yo-flow li{padding:10px}.yo-intro h1>span{font-size:23px}}
+@media(max-width:540px){.yo-intro{padding:26px 24px}.yo-intro .yo-access-tag{font-size:10px;padding:6px 10px}.yo-intro h1{font-size:36px;margin:18px 0 14px}.yo-intro h1>span{font-size:21px;margin-top:10px}.yo-intro p{font-size:13px;line-height:1.8}.yo-intro-benefits{display:flex;flex-direction:column;gap:7px;margin-top:18px;font-size:11px}.yo-intro-actions{margin-top:20px}.yo-guest-page .yo-hero-start{min-height:46px;min-width:0;padding:10px 16px;font-size:13px}.yo-flow{gap:4px;padding:18px 0 14px}.yo-flow li{padding:8px 5px;gap:6px}.yo-flow li>span{flex-basis:24px;width:24px;height:24px}.yo-flow strong{font-size:11px}.yo-flow small{font-size:9px;line-height:1.7}.yo-preparation{gap:12px;flex-wrap:wrap;margin-bottom:20px}.yo-preparation-track{width:100%;height:4px}.yo-preparation>span{font-size:11px}}
+@media(prefers-reduced-motion:reduce){.yo-intro-benefits,.yo-art-paper,.yo-art-mini,.yo-art-seal,.yo-flow li.is-complete>span svg,.yo-file-picker.has-file .yo-file-symbol,.yo-receipt-check svg{animation:none}.yo-hero-start,.yo-flow li,.yo-flow li>span,.yo-preparation-track>span,.yo-kind-picker label,.yo-kind-check,.yo-kind-picker label>svg,.yo-file-picker{transition:none!important}}
+@media(max-width:540px){.yo-flow li{flex-direction:column;align-items:flex-start;gap:8px;padding:12px 10px}.yo-flow li>div{min-width:0;max-width:100%}.yo-flow strong{font-size:12px;overflow-wrap:anywhere}.yo-flow small{font-size:11px;line-height:1.65;overflow-wrap:anywhere}}
