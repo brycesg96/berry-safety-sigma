@@ -214,7 +214,7 @@ test('private drafts resume on another device and full approval replaces the ini
   await expect(receiver.getByRole('heading',{name:'No tienes informes a tu cargo'})).toBeVisible();
   await other.getByRole('button',{name:'Continuar',exact:true}).click();await other.getByRole('button',{name:'Continuar',exact:true}).click();
   await other.getByRole('textbox',{name:'CONCLUSIONES Y RECOMENDACIONES',exact:true}).fill('Gestionar la medida indicada.');
-  await expect(other.getByLabel('Puesto',{exact:true})).toHaveValue('Supervisora');await expect(other.getByLabel('Puesto',{exact:true})).toHaveAttribute('readonly','');
+  await expect(other.locator('.registration-meta-job').first()).toHaveText('Supervisora');await expect(other.locator('.registration-person-meta input')).toHaveCount(0);
   await other.getByRole('button',{name:'Continuar',exact:true}).click();await other.getByRole('button',{name:'Enviar inspección',exact:true}).click();
   await expect(other.getByText('Compartir solo en este navegador')).toHaveCount(0);
   state.failSave=true;await other.getByRole('button',{name:'Enviar informe por correo',exact:true}).click();
@@ -228,9 +228,9 @@ test('private drafts resume on another device and full approval replaces the ini
   // Same recipient device now sees the sent record, without local account switching or copied IndexedDB data.
   await receiver.reload();await expect(receiver.getByRole('heading',{name:'Mis inspecciones',exact:true})).toBeVisible();
   await receiver.getByRole('button',{name:'Abrir menú',exact:true}).click();await receiver.getByRole('button',{name:/Buzón de Inspecciones/}).click();await receiver.getByRole('button',{name:'Revisar inspección',exact:true}).click();
-  await expect(receiver.locator('.breadcrumbs')).toContainText('Buzón de Inspecciones');await expect(receiver.locator('.breadcrumbs')).toContainText('Pendientes');
-  await expect(receiver.getByLabel('Apellidos y nombres del responsable del levantamiento')).toHaveValue('Bruno Responsable');
-  await expect(receiver.getByLabel('Apellidos y nombres del responsable del levantamiento')).toHaveAttribute('readonly','');
+  await expect(receiver.locator('.breadcrumbs')).toContainText('Buzón de Inspecciones');await expect(receiver.locator('.breadcrumbs')).toContainText('Por atender');
+  await expect(receiver.getByLabel('Responsable del Levantamiento')).toHaveValue('Bruno Responsable');
+  await expect(receiver.getByLabel('Responsable del Levantamiento')).toHaveAttribute('readonly','');
   expect(await receiver.evaluate(()=>localStorage.getItem('berry-last-submitted-texts'))).toBeNull();
   await receiver.waitForFunction(()=>document.querySelector('.sidebar')!.getBoundingClientRect().right<=0);
   await receiver.screenshot({path:'/tmp/berry-cloud-mobile.png',fullPage:true,animations:'disabled'});
@@ -251,10 +251,10 @@ test('private drafts resume on another device and full approval replaces the ini
   expect(submissions.map(input=>input.p_action)).toEqual(['submit','submit']);
   expect(row.data.delivery.corrections[row.data.observations[0].id]).toMatchObject({action:'Protección instalada.',decision:'review'});
   await other.getByRole('button',{name:'Volver',exact:true}).click();await other.getByRole('button',{name:'Revisar informe',exact:true}).click();
-  await expect(other.getByLabel('Apellidos y nombres del responsable del levantamiento')).toHaveValue('Bruno Responsable');
+  await expect(other.getByLabel('Responsable del Levantamiento')).toHaveValue('Bruno Responsable');
   await other.getByLabel('Comentario de revisión').fill('Comentario interno del revisor.');
   state.failFinal=true;const originalPath=state.documents.get(row.id).storage_path;
-  await other.getByRole('button',{name:'Aprobar levantamiento',exact:true}).click();await expect(other.getByText('Inspección cerrada: todos los estados están en Ejecutado.',{exact:true})).toBeVisible();await expect(other.getByRole('button',{name:'Descargar PDF',exact:true})).toBeVisible();
+  await other.getByRole('button',{name:'Aprobar levantamiento',exact:true}).click();await expect(other.getByLabel('Estado',{exact:true})).toHaveValue('Ejecutado');await expect(other.getByRole('button',{name:'Descargar PDF',exact:true})).toBeVisible();
   expect(row.workflow).toBe('closed');expect(row.data.delivery.corrections[row.data.observations[0].id].state).toBe('Ejecutado');
   await expect(other.getByRole('alert')).toContainText('No se pudo guardar el Excel final');expect(state.documents.get(row.id).storage_path).toBe(originalPath);
   state.failFinal=false;await other.getByRole('button',{name:'Reintentar guardar Excel final'}).click();await expect.poll(()=>row.final_excel_stored).toBe(true);
@@ -300,19 +300,19 @@ test('Guardar sin conexión conserva el borrador por usuario y sincroniza al rec
  expect(state.saves).toBe(1);
 });
 
-test('seguimiento activo distingue aceptación de entrega y conserva comentarios nuevos por observación',async({page,context})=>{
+test('seguimiento conserva comentarios por observación sin mostrar el panel de correos',async({page,context})=>{
  const state=stateOf();await mock(context,state,author);await login(page,author);
  const report=await page.evaluate(async(author)=>{const {newInspection,newObservation}=await import('/src/model.ts');const d=newInspection({name:'Ana Inspectora',email:'ana@example.com',accountId:author,storage:'cloud'});d.area='Seguimiento de entrega y conversación';d.observations=[newObservation('2026-11-20')];d.delivery={sentAt:new Date().toISOString(),recipientIds:[],revision:1,corrections:{}};return d;},author);
  state.rows.set(report.id,{id:report.id,author_id:author,data:report,revision:1,updated_at:new Date().toISOString(),workflow:'sent',code:'IH-2026-055'});
- const events:any[]=[];let mailState='submitted';
+ const events:any[]=[];
  await page.route(`${project}/rest/v1/berry_followup_events*`,route=>route.fulfill({json:events}));
- await page.route(`${project}/rest/v1/berry_mail_recipients*`,route=>route.fulfill({json:[{request_id:report.id,email:'recipient@example.invalid',state:mailState,provider_id:'provider-id',detail:'',occurred_at:new Date().toISOString()}]}));
+ await page.route(`${project}/rest/v1/berry_mail_recipients*`,route=>route.fulfill({json:[{request_id:report.id,email:'recipient@example.invalid',state:'submitted',provider_id:'provider-id',detail:'',occurred_at:new Date().toISOString()}]}));
  await page.route(`${project}/rest/v1/rpc/berry_add_followup_comment`,route=>{const input=route.request().postDataJSON();expect(input.p_id).toBe(report.id);events.unshift({id:input.p_operation,inspection_id:report.id,observation_id:input.p_observation,actor_id:author,actor_name:'Ana Inspectora',action:'comment',body:input.p_body,created_at:new Date().toISOString()});return route.fulfill({json:events[0]});});
  await page.reload();await expect(page.locator('.inspection-list-row')).toContainText(report.area);
  await page.evaluate(()=>{const value=JSON.parse(localStorage.getItem('berry-offline-schema-v1')||'{}');localStorage.setItem('berry-offline-schema-v1',JSON.stringify({...value,productivity_version:'202611170023'}));});
- await page.getByRole('button',{name:'Revisar informe',exact:true}).click();await page.getByText('Seguimiento de correos',{exact:true}).click();await expect(page.locator('.mail-state')).toHaveText('Aceptado por Outlook');
+ await page.getByRole('button',{name:'Revisar informe',exact:true}).click();await expect(page.getByText('Seguimiento de correos',{exact:true})).toHaveCount(0);
  const conversation=page.getByRole('region',{name:'Conversación y seguimiento'});await conversation.getByLabel('Escribir comentario').fill('Confirmar el avance de esta observación.');await conversation.getByRole('button',{name:'Enviar comentario',exact:true}).click();await expect(conversation.getByText('Confirmar el avance de esta observación.',{exact:true})).toBeVisible();expect(events).toHaveLength(1);
- mailState='delivered';await page.getByRole('button',{name:'Actualizar estado',exact:true}).click();await expect(page.locator('.mail-state')).toHaveText('Entrega confirmada');
+ await expect(page.getByRole('button',{name:'Actualizar estado',exact:true})).toHaveCount(0);await expect(page.locator('.mail-state')).toHaveCount(0);
 });
 
 test('offline edits stay recoverable and an obsolete device cannot overwrite a newer draft',async({browser,page,context})=>{

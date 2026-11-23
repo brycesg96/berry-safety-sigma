@@ -3,6 +3,7 @@ import { CompliancePanel } from './CompliancePanel';
 import { ReminderSettings } from './ReminderSettings';
 import { useOrganizationCatalog } from './useOrganizationCatalog';
 import { Select } from './Select';
+import { AnimatedCount } from './AnimatedCount';
 import type { SelectOption } from './Select';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { BarChart3, CheckCheck, ClipboardList, Download, LoaderCircle, RefreshCw, Search, Trash2, TriangleAlert } from 'lucide-react';
@@ -134,4 +135,4 @@ export function InspectionDashboard({ actor, cache, isCurrent, onBusyChange }: {
     {busy && !deleting && <p role="status" className="dashboard-processing"><LoaderCircle className="spin" size={17}/>Preparando el informe…</p>}
   </section>;
 }
-function Metric({ label, value, icon }: { label: string; value: number; icon: React.ReactNode }) { return <div className="dashboard-metric liquid-glass-card"><LiquidGlassSurface/><span>{icon}</span><div><strong>{value}</strong><p>{label}</p></div></div>; }
+function Metric({ label, value, icon }: { label: string; value: number; icon: React.ReactNode }) { return <div className="dashboard-metric liquid-glass-card"><LiquidGlassSurface/><span>{icon}</span><div><AnimatedCount value={value}/><p>{label}</p></div></div>; }

@@ -5,10 +5,13 @@ import { selectLocation } from './location-fixture';
 import { test, expect } from './test-fixture';
 import ExcelJS from 'exceljs';
 import { mockDirectory } from './directory-fixture';
-import { migrateInspectionTime, validInspectionTime } from '../src/inspection-time';
+import { currentInspectionDateTime, migrateInspectionTime, validInspectionTime } from '../src/inspection-time';
 import { confirmedInspectionCode } from '../src/inspection-code';
 
 test('hora de 12 horas y migración de borradores sin adivinar AM/PM nuevos', () => {
+  expect(currentInspectionDateTime(new Date('2026-11-23T05:00:00Z'))).toEqual({date:'2026-11-23',inspectionTime:'12:00',inspectionPeriod:'AM'});
+  expect(currentInspectionDateTime(new Date('2026-11-23T17:05:00Z'))).toEqual({date:'2026-11-23',inspectionTime:'12:05',inspectionPeriod:'PM'});
+  expect(currentInspectionDateTime(new Date('2026-11-23T04:59:00Z'))).toEqual({date:'2026-11-22',inspectionTime:'11:59',inspectionPeriod:'PM'});
   expect(migrateInspectionTime('00:05')).toEqual({ inspectionTime: '12:05', inspectionPeriod: 'AM' });
   expect(migrateInspectionTime('12:00')).toEqual({ inspectionTime: '12:00', inspectionPeriod: 'PM' });
   expect(migrateInspectionTime('23:59')).toEqual({ inspectionTime: '11:59', inspectionPeriod: 'PM' });
@@ -19,11 +22,20 @@ test('hora de 12 horas y migración de borradores sin adivinar AM/PM nuevos', ()
   expect(confirmedInspectionCode({ id: 'one', serverRegistration: { inspectionId: 'one', code: 'IH-2026-008', acceptedAt: '2026-11-04T13:00:00Z' } })).toBe('IH-2026-008');
 });
 
+test('la hora automática de Lima permanece editable y un borrador guardado conserva la hora elegida', async ({ page }) => {
+  await page.clock.setFixedTime(new Date('2026-11-23T02:30:00Z')); await mockDirectory(page); await page.goto('./');
+  await expect(page.getByLabel('Fecha de inspección')).toHaveValue('2026-11-22'); await expect(page.getByLabel('Hora de inspección')).toHaveValue('09:30');
+  await expect(page.getByLabel('AM o PM')).toHaveAttribute('data-value', 'PM');
+  await page.getByLabel('Hora de inspección').fill('08:15'); await selectValue(page.getByLabel('AM o PM'), 'AM'); await saveAndOpenList(page);
+  await page.clock.setFixedTime(new Date('2026-11-23T17:45:00Z')); await page.reload();
+  await expect(page.getByLabel('Hora de inspección')).toHaveValue('08:15'); await expect(page.getByLabel('AM o PM')).toHaveAttribute('data-value', 'AM');
+});
+
 test('ubicación en el ejemplo, AM/PM requerido y conservación en revisión, recarga y Excel', async ({ page }) => {
-  await mockDirectory(page); await page.goto('./');
+  await page.clock.setFixedTime(new Date('2026-11-23T13:45:00Z'));await mockDirectory(page); await page.goto('./');
   await expect(page.getByLabel('Área e instalación inspeccionada')).toContainText('Selecciona los datos de la inspección');
-  await expect(page.getByLabel('Hora de inspección')).toHaveValue('');
-  await expect(page.getByLabel('AM o PM')).toHaveAttribute('data-value', '');
+  await expect(page.getByLabel('Hora de inspección')).toHaveValue('08:45');
+  await expect(page.getByLabel('AM o PM')).toHaveAttribute('data-value', 'AM');await page.getByLabel('Hora de inspección').fill('');await selectValue(page.getByLabel('AM o PM'),'');
   await expect(page.getByRole('textbox', { name: 'Número de registro', exact: true })).toHaveValue(/^IH-\d{4}-001$/);
   await expect(page.getByRole('tooltip')).toBeHidden();
   await page.getByRole('button', { name: 'Información del número de registro', exact: true }).hover();
@@ -87,7 +99,7 @@ test('Mis inspecciones distingue un número de registro tentativo de un recibo d
 
 test('hora con separador automático permite escribir, borrar y pegar; AM/PM permanece en una línea y alineado', async ({ page }) => {
  await mockDirectory(page);await page.goto('./');const time=page.getByLabel('Hora de inspección'),period=page.getByRole('combobox',{name:'AM o PM',exact:true});
- await expect(time).toHaveAttribute('inputmode','numeric');await time.pressSequentially('07');await expect(time).toHaveValue('07:');await time.pressSequentially('30');await expect(time).toHaveValue('07:30');
+ await expect(time).toHaveAttribute('inputmode','numeric');await time.fill('');await time.pressSequentially('07');await expect(time).toHaveValue('07:');await time.pressSequentially('30');await expect(time).toHaveValue('07:30');
  for(let n=0;n<3;n++)await time.press('Backspace');await expect(time).toHaveValue('0');await time.press('Backspace');await expect(time).toHaveValue('');
  await time.fill('0930');await expect(time).toHaveValue('09:30');await time.fill('7:30');await expect(time).toHaveValue('7:30');await time.fill('13:00');await expect(time).toHaveValue('13:00');
  for(const width of [1366,390,320]){

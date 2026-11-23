@@ -1,5 +1,6 @@
 import { useOrganizationCatalog } from './useOrganizationCatalog';
 import { areaDisplayName, areaNomenclature, organizationDetails } from './organization';
+import { organizationLabel } from './organization-label';
 import { useContext, useEffect, useId, useState } from 'react';
 import { LoaderCircle, Search } from 'lucide-react';
 import { Field, LockedEmailField } from './components';
@@ -9,7 +10,7 @@ import { readAccounts } from './accounts';
 import type { Responsible } from './model';
 import { AccountDirectory } from './AccountDirectory';
 
-export function ResponsiblePicker({ value, onChange, error, excludedIds, excludedEmails = [], emailLabel = 'Correo electrónico', purpose = 'receive', showEmail = true }: { value: Responsible; onChange: (changes: Partial<Responsible>) => void; error?: string; excludedIds: string[]; excludedEmails?: string[]; emailLabel?: string; purpose?: 'receive' | 'inspect'; showEmail?: boolean }) {
+export function ResponsiblePicker({ value, onChange, error, excludedIds, excludedEmails = [], emailLabel = 'Correo electrónico', purpose = 'receive', showEmail = true, showDetails = true }: { value: Responsible; onChange: (changes: Partial<Responsible>) => void; error?: string; excludedIds: string[]; excludedEmails?: string[]; emailLabel?: string; purpose?: 'receive' | 'inspect'; showEmail?: boolean; showDetails?: boolean }) {
   useOrganizationCatalog();
   const listId = useId();
   const directory = useContext(AccountDirectory);
@@ -45,10 +46,11 @@ export function ResponsiblePicker({ value, onChange, error, excludedIds, exclude
     setOpen(false); setActive(-1);
   };
   const currentPerson = value.personId ? (directory || readAccounts()).find(a => a.id === value.personId || a.email.toLowerCase() === value.email.toLowerCase()) : undefined;
-  const selectedDetails = purpose === 'receive' ? areaDisplayName(currentPerson || value) : organizationDetails(currentPerson || value);
+  const person = currentPerson || value;
+  const selectedDetails = purpose === 'receive' ? showEmail ? areaDisplayName(person) : [areaDisplayName(person), organizationLabel(person.jobTitle), person.email].filter(Boolean).join(' · ') : organizationDetails(person);
   return <div className={`field-grid picker-grid${showEmail ? '' : ' picker-without-email'}`}>
-    <Field label="Nombre completo" required error={error} hint={value.personId ? selectedDetails || (purpose === 'receive' ? 'Área por completar.' : 'Área y puesto por completar.') : 'Escribe al menos dos letras y selecciona una persona.'}>{props => <div className="person-picker" onBlur={event => { if (!event.currentTarget.contains(event.relatedTarget)) setOpen(false); }}>
-      <div className="input-icon"><Search size={16} /><input {...props} role="combobox" autoComplete="off" aria-autocomplete="list" aria-expanded={searching} aria-controls={searching ? listId : undefined} aria-activedescendant={active >= 0 && active < available.length ? `${listId}-${active}` : undefined} value={value.name} placeholder="Buscar persona por nombre" maxLength={250} onFocus={() => setOpen(true)} onChange={e => { onChange({ name: e.target.value, email: '', personId: undefined, area: '', areaNomenclature: '', jobTitle: '', management: '' }); setOpen(true); setActive(-1); }} onKeyDown={event => {
+    <Field label="Nombre completo" required error={error} hint={value.personId ? !showDetails ? undefined : selectedDetails || (purpose === 'receive' ? 'Área por completar.' : 'Área y puesto por completar.') : 'Busca por nombre o correo y selecciona una persona.'}>{props => <div className="person-picker" onBlur={event => { if (!event.currentTarget.contains(event.relatedTarget)) setOpen(false); }}>
+      <div className="input-icon"><Search size={16} /><input {...props} role="combobox" autoComplete="off" aria-autocomplete="list" aria-expanded={searching} aria-controls={searching ? listId : undefined} aria-activedescendant={active >= 0 && active < available.length ? `${listId}-${active}` : undefined} value={value.name} placeholder="Buscar por nombre o correo" maxLength={250} onFocus={() => setOpen(true)} onChange={e => { onChange({ name: e.target.value, email: '', personId: undefined, area: '', areaNomenclature: '', jobTitle: '', management: '' }); setOpen(true); setActive(-1); }} onKeyDown={event => {
         if (event.key === 'Escape') { setOpen(false); setActive(-1); return; }
         if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
           event.preventDefault(); setOpen(true);

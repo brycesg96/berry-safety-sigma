@@ -29,7 +29,7 @@ test('corrector nativo en español solo para los cinco campos de redacción de l
   await check('Descripción', true); await check('Acción a tomar', true);
   await page.getByRole('button', { name: '04 Cierre', exact: true }).click();
   await check('DESCRIPCIÓN DE LA CAUSA ANTE RESULTADOS DESFAVORABLES DE LA INSPECCIÓN', true);
-  await check('CONCLUSIONES Y RECOMENDACIONES', true); await check('Puesto', false);
+  await check('CONCLUSIONES Y RECOMENDACIONES', true); await expect(page.locator('.registration-person-meta').getByRole('textbox')).toHaveCount(0);
   await openWorkspaceProfile(page);
   await check('Nombres y apellidos', false);
 });

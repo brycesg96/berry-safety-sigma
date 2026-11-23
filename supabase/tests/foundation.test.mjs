@@ -1849,6 +1849,58 @@ test('batch quotas reserve all files together, reject expired permits and revali
  await db.query("update berry_private.yo_seguro_batches set expires_at=clock_timestamp()-interval '1 second' where id=$1",[id]);await assert.rejects(()=>batchFinish(id),e=>e.message.includes('UPLOAD_EXPIRED'));await assert.rejects(()=>batchBegin(id,files),e=>e.message.includes('UPLOAD_EXPIRED'));
 });
 
+const authorMigration=await readFile(new URL('../migrations/202611230027_correction_author.sql',import.meta.url),'utf8');
+const authorUsers={inspector:'d7000000-0000-4000-8000-000000000001',first:'d7000000-0000-4000-8000-000000000002',second:'d7000000-0000-4000-8000-000000000003'};
+const authorReport='d8000000-0000-4000-8000-000000000001',authorObservations=['d9000000-0000-4000-8000-000000000001','d9000000-0000-4000-8000-000000000002'];
+let authorRow;
+const authorChange=async(actor,observation,action,value)=>{const result=(await as('authenticated',actor,'select public.berry_change_correction($1,$2,$3,$4,$5) value',[authorReport,observation,authorRow.revision,action,value],freshCatalogClaims)).rows[0].value;authorRow=result;return result.data.delivery.corrections[observation];};
+test('actual correction author upgrade is repeatable and preserves existing reports, document paths and counter values',async()=>{
+ const before=(await db.query('select id,data,revision from public.berry_inspections order by id')).rows;
+ const counters=(await db.query('select * from berry_private.report_counters order by year')).rows;
+ await db.exec(authorMigration);await db.exec(authorMigration);
+ assert.deepEqual((await db.query('select id,data,revision from public.berry_inspections order by id')).rows,before);
+ assert.deepEqual((await db.query('select * from berry_private.report_counters order by year')).rows,counters);
+ assert.deepEqual((await as('anon',null,'select public.berry_correction_author_status() value')).rows[0].value,{version:'202611230027',binds_to:'authenticated_actor',automatic_state:true});
+ await denied(()=>as('authenticated',users.recipient,'select berry_private.correction_author_name($1,$2)',[users.author,'Forged']));
+ const organization=(await db.query("select m.name management,a.name area,p.name position from public.berry_organization m join public.berry_organization a on a.parent_id=m.id join public.berry_organization p on p.parent_id=a.id where m.enabled and a.enabled and p.enabled limit 1")).rows[0];
+ for(const [name,id]of Object.entries(authorUsers)){
+  await db.query('insert into auth.users(id,email,raw_user_meta_data)values($1,$2,$3)',[id,`${name}-authors@example.invalid`,{full_name:name}]);
+  await db.query("update public.berry_profiles set enabled=true,must_change_password=false,can_create_inspections=true,can_receive_inspections=true,full_name=$2,role=$3,management=$4,area=$5,job_title=$6 where id=$1",[id,name,name==='inspector'?'admin':'inspector',organization.management,organization.area,organization.position]);
+ }
+ const data={...cloudData(),id:authorReport,ownerId:authorUsers.inspector,inspector:'inspector',inspectorEmail:'inspector-authors@example.invalid',responsibles:[{id:'first',personId:authorUsers.first,name:'first',email:'first-authors@example.invalid'},{id:'second',personId:authorUsers.second,name:'second',email:'second-authors@example.invalid'}],observations:authorObservations.map(id=>({...cloudData().observations[0],id})),delivery:{recipientIds:[authorUsers.first,authorUsers.second],corrections:{},revision:1}};
+ authorRow=(await db.query("insert into public.berry_inspections(id,author_id,code,workflow,data,sent_at)values($1,$2,'IH-2032-901','sent',$3,now()) returning *",[authorReport,authorUsers.inspector,data])).rows[0];
+ for(const recipient of[authorUsers.first,authorUsers.second])await db.query('insert into public.berry_recipients(inspection_id,user_id,assigned_by)values($1,$2,$3)',[authorReport,recipient,authorUsers.inspector]);
+});
+test('each observation records its actual authenticated recipient and forged names cannot replace them',async()=>{
+ const input={actorId:authorUsers.inspector,responsibleName:'Forged identity',action:'Acción correctiva realizada.',date:'2026-11-23',photos:[],state:'Pendiente'};
+ const first=await authorChange(authorUsers.first,authorObservations[0],'save',input);
+ const second=await authorChange(authorUsers.second,authorObservations[1],'save',input);
+ assert.equal(first.actorId,authorUsers.first);assert.equal(first.responsibleName,'first');
+ assert.equal(second.actorId,authorUsers.second);assert.equal(second.responsibleName,'second');
+ await denied(()=>authorChange(productivityUsers.outsider,authorObservations[0],'save',input));
+ const stored=(await db.query('select actor_id,responsible_name from public.berry_corrections where inspection_id=$1 order by observation_id',[authorReport])).rows;
+ assert.deepEqual(stored,[{actor_id:authorUsers.first,responsible_name:'first'},{actor_id:authorUsers.second,responsible_name:'second'}]);
+});
+test('executed state is exclusive to inspector approval and review keeps the original correction author',async()=>{
+ const input={responsibleName:'Impersonated',action:'Acción lista para revisión.',date:'2026-11-23',photos:[],state:'Pendiente'};
+ await denied(()=>authorChange(authorUsers.first,authorObservations[0],'submit',{...input,state:'Ejecutado'}));
+ for(const person of Object.values(authorUsers))await denied(()=>authorChange(person,authorObservations[0],'state',{state:'Ejecutado'}));
+ let correction=await authorChange(authorUsers.first,authorObservations[0],'submit',input);
+ assert.equal(correction.state,'Pendiente');assert.equal(correction.responsibleName,'first');
+ await denied(()=>authorChange(authorUsers.second,authorObservations[0],'approve',{note:'Self approval'}));
+ correction=await authorChange(authorUsers.inspector,authorObservations[0],'changes',{note:'Adjuntar detalles.',responsibleName:'Reviewer impersonation'});
+ assert.equal(correction.state,'Pendiente');assert.equal(correction.actorId,authorUsers.first);assert.equal(correction.responsibleName,'first');
+ await authorChange(authorUsers.first,authorObservations[0],'submit',input);
+ correction=await authorChange(authorUsers.inspector,authorObservations[0],'approve',{note:'Conforme'});
+ assert.equal(correction.state,'Ejecutado');assert.equal(correction.actorId,authorUsers.first);assert.equal(correction.responsibleName,'first');
+ await authorChange(authorUsers.second,authorObservations[1],'submit',input);
+ const operation='da000000-0000-4000-8000-000000000001',edited={...authorRow.data,responsibles:[authorRow.data.responsibles[1],authorRow.data.responsibles[0]]};
+ const prepared=(await as('authenticated',authorUsers.inspector,'select public.berry_prepare_admin_edit($1,$2,$3,$4) value',[authorReport,authorRow.revision,edited,operation],freshCatalogClaims)).rows[0].value;
+ assert.equal(prepared.inspection.data.delivery.corrections[authorObservations[0]].responsibleName,'first');
+ assert.equal(prepared.inspection.data.delivery.corrections[authorObservations[1]].responsibleName,'second');
+ assert.equal(prepared.inspection.data.delivery.corrections[authorObservations[0]].actorId,authorUsers.first);
+});
+
 let failed;
 try {
   await setup();

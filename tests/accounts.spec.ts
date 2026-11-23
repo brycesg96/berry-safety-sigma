@@ -18,8 +18,8 @@ test('dos cuentas Bryan en el directorio y correo automático al seleccionar', a
   await expect(page.getByRole('listbox').getByRole('option')).toHaveCount(2);
   await expect(page.getByRole('listbox').getByRole('option', { name: new RegExp(adminEmail.replace('.', '\\.')) })).toBeVisible();
   await page.getByRole('listbox').getByRole('option', { name: new RegExp(inspectorEmail.replace('.', '\\.')) }).click();
-  await expect(page.getByLabel('Correo electrónico').first()).toHaveValue(inspectorEmail);
-  await expect(page.getByLabel('Correo electrónico').first()).toHaveAttribute('readonly', '');
+  await expect(page.locator('.responsibles .field-hint').first()).toContainText(inspectorEmail);
+  await expect(page.locator('.responsibles').getByRole('textbox',{name:'Correo electrónico',exact:true})).toHaveCount(0);
 });
 
 test('administración conserva los datos existentes y ofrece una sola gestión de usuarios con Supabase', async ({ page }) => {
@@ -103,18 +103,18 @@ test('área y cargo del perfil reemplazan la leyenda del directorio y se conserv
   await expect(page.getByRole('button', { name: 'Continuar', exact: true })).toBeEnabled();
   await page.getByRole('combobox', { name: /Nombre completo/ }).first().fill('Bryan');
   await page.getByRole('listbox').getByRole('option', { name: /bryx.96@gmail.com/ }).click();
-  await expect(page.getByText('Área por completar.', { exact: true })).toBeVisible();
+  await expect(page.locator('.responsibles .field-hint').first()).toHaveText(adminEmail);
   await openWorkspaceProfile(page);
   const profile = page.getByRole('dialog', { name: 'Mi perfil' });
   await selectValue(profile.getByRole('combobox', { name: 'Gerencia', exact: true }), 'Gerencia de prueba A');
   await selectValue(profile.getByRole('combobox', { name: 'Área', exact: true }), 'Área de prueba A1');
   await selectValue(profile.getByRole('combobox', { name: 'Puesto', exact: true }), 'Puesto de prueba A1');
   await page.getByRole('button', { name: 'Guardar perfil', exact: true }).click();
-  await expect(page.locator('.responsibles').getByText('Área de Prueba A1', { exact: true })).toBeVisible();
+  await expect(page.locator('.responsibles .field-hint').first()).toContainText('Área de Prueba A1');
   await expect(page.locator('.primary-inspector-field')).toContainText('Área de Prueba A1 — Puesto de Prueba A1');
   await expect(page.getByText('Persona seleccionada del directorio.', { exact: true })).toHaveCount(0);
   await saveAndOpenList(page); await page.reload();
-  await expect(page.locator('.responsibles').getByText('Área de Prueba A1', { exact: true })).toBeVisible();
+  await expect(page.locator('.responsibles .field-hint').first()).toContainText('Área de Prueba A1');
   await openWorkspaceProfile(page);
   await expect(profile.getByRole('combobox', { name: 'Puesto', exact: true })).toHaveAttribute('data-value', 'Puesto de prueba A1');
   await selectValue(profile.getByRole('combobox', { name: 'Puesto', exact: true }), 'Segundo puesto de prueba A1');
@@ -122,9 +122,9 @@ test('área y cargo del perfil reemplazan la leyenda del directorio y se conserv
   const picker = page.locator('.responsible-row .picker-grid').first();
   await expect(picker).toContainText('Área de Prueba A1');
   await expect(page.locator('.primary-inspector-field')).toContainText('Segundo Puesto de Prueba A1');
-  await expect(picker).not.toContainText('—');
-  await expect(page.getByLabel('Correo electrónico').first()).toHaveValue(adminEmail);
-  await expect(page.getByLabel('Correo electrónico').first()).toHaveAttribute('readonly', '');
+  await expect(picker.locator('.field-hint')).toContainText('Segundo Puesto de Prueba A1');
+  await expect(page.locator('.responsibles .field-hint').first()).toContainText(adminEmail);
+  await expect(page.locator('.responsibles').getByRole('textbox',{name:'Correo electrónico',exact:true})).toHaveCount(0);
   await page.getByRole('combobox', { name: /Nombre completo/ }).first().fill('Otra persona');
   await expect(picker).not.toContainText('Área de Prueba A1');
 });

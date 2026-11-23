@@ -18,7 +18,7 @@ La hora y el período comienzan vacíos. Al escribir los dos primeros dígitos s
 
 ## Responsables
 
-El responsable principal de la inspección muestra debajo de su nombre el área y cargo de su cuenta. Los inspectores adicionales muestran la misma información al seleccionarlos. Su cuadro de correo se omite en Datos generales, pero el correo y el identificador siguen guardándose para validar personas y generar el informe. Los responsables del registro en Cierre conservan su presentación independiente. Las tarjetas de inspectores se agrupan antes de fecha/hora y se adaptan al ancho disponible.
+El responsable principal de la inspección muestra debajo de su nombre el área y cargo de su cuenta. Los inspectores adicionales muestran la misma información al seleccionarlos. Su cuadro de correo se omite en Datos generales, pero el correo y el identificador siguen guardándose para validar personas y generar el informe. Los responsables del registro en Cierre muestran correo, puesto y fecha como texto bajo el nombre, y conservan su firma y sus controles. Las tarjetas de inspectores se agrupan antes de fecha/hora y se adaptan al ancho disponible.
 
 El usuario escribe al menos dos letras del nombre y selecciona un resultado del directorio de cuentas habilitadas por el administrador. Se guarda el identificador de la persona junto a la instantánea de su nombre y correo. El correo aparece automáticamente y es de solo lectura.
 
@@ -61,3 +61,5 @@ Esta actualización no publica la web ni modifica la configuración de GitHub Pa
 Sede y Zona de inspección usan menús propios de la plataforma, con opciones verdes, marca de selección y soporte de teclado/tacto. La zona depende de la sede; volver a elegir la misma sede conserva la zona actual. El prefijo de la ubicación se muestra como una etiqueta redondeada junto al texto editable. La información sigue exportándose completa en la celda existente del Excel.
 
 Gerencia y Área organizativa se incorporan como selectores dependientes. Su catálogo oficial y el paso 13 se describen en [Gerencia, área y ubicación inspeccionada](ORGANIZACION.md). El texto compuesto sigue el orden Sede – Zona de inspección – Área – Instalación inspeccionada.
+
+Los destinatarios del área tienen un solo cuadro para buscar por nombre o correo; después de seleccionar, el área, puesto y correo aparecen debajo en texto pequeño. Fecha y hora se completan una vez al crear la inspección, en la zona America/Lima, y siguen siendo editables. Retomar un borrador conserva la hora guardada.

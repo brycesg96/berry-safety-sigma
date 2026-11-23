@@ -42,6 +42,12 @@ No se muestran estados, aprobaciones, solicitudes de corrección ni comentarios 
 
 La gerencia autorizada se fija en PostgreSQL a partir del perfil existente al activar el paso 25 o del primer perfil válido al completar el ingreso. Editar después el perfil o los metadatos de Auth no cambia ese permiso. Administración puede modificarlo desde **Gestión de Usuarios → Administrar usuarios → Editar usuario → Yo Seguro**. Se mantienen los límites de historial de las cuentas reincorporadas y el cierre de acceso de las inhabilitadas.
 
+## Una tarjeta por envío
+
+La consulta presenta una tarjeta por `batch_id`, con el nombre de la persona una sola vez, actividad, fecha/hora y lugar, tipos incluidos (ATS/PETAR/Checklist) y todos los archivos con vista previa y descarga individuales. Administración conserva el retiro por archivo. La tarjeta reúne el envío original; no fusiona trabajos diferentes ni personas que declaren el mismo nombre. Los documentos anteriores al paso 26 sin identificador de envío permanecen independientes.
+
+Las páginas contienen hasta 20 envíos completos; un envío de 50 archivos nunca se divide. Al elegir tipos se buscan los envíos que contengan cualquiera de ellos y se muestran todos sus adjuntos. Los datos se leen de las tablas existentes con RLS; no requiere otra migración ni cambiar permisos. La actualización automática mantiene estas agrupaciones.
+
 ## Catálogo matriz de gerencias y áreas
 
 La fuente es **Administración → Gestión de Áreas** (`berry_organization`), compartida con Inspecciones. Yo Seguro consulta sus identificadores, relaciones y orden vigentes; no mantiene una lista independiente. Todos sus nombres visibles usan `organizationLabel`, el mismo formato de Administración e Inspecciones, con tildes y siglas conservadas. La consulta agrupa por identificadores y muestra los nombres actuales del catálogo; si un elemento ya no está activo, conserva como referencia el nombre histórico del documento con el mismo formato. Los cambios de escritura no modifican los identificadores ni los permisos.

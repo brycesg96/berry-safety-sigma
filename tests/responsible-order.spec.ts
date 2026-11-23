@@ -23,7 +23,7 @@ for (const width of [1366, 390]) test(`dos responsables obligatorios, orden cons
   await page.getByRole('textbox', { name: 'Objetivo de la inspección interna', exact: true }).fill('Verificar condiciones.'); await select(0);
   await page.getByRole('button', { name: 'Continuar', exact: true }).click(); await expect(page.locator('.form-card-heading h2')).toHaveText('INFORMACIÓN GENERAL');
   await rows.nth(1).getByRole('combobox').fill('Ana'); await expect(page.getByRole('option').filter({ hasText: team[0].email })).toHaveCount(0);
-  await select(1); await page.getByRole('button', { name: 'Añadir', exact: true }).click(); await select(2);
+  await select(1);await expect(rows.first().getByRole('textbox',{name:'Correo electrónico',exact:true})).toHaveCount(0);await expect(rows.first().locator('.field-hint')).toContainText('Producción · Jefa de Producción · ana@example.invalid'); await page.getByRole('button', { name: 'Añadir', exact: true }).click(); await select(2);
   await rows.nth(2).getByRole('button', { name: 'Eliminar responsable 3' }).click(); await expect(rows).toHaveCount(2);
   await page.getByRole('button', { name: 'Guardar', exact: true }).click(); await expect(page.getByText('Guardado en este navegador', { exact: true })).toBeAttached(); await page.reload();
   await expect(rows.nth(0).getByRole('combobox')).toHaveValue(team[0].name); await expect(rows.nth(1).getByRole('combobox')).toHaveValue(team[1].name);
@@ -33,7 +33,7 @@ for (const width of [1366, 390]) test(`dos responsables obligatorios, orden cons
   await page.getByRole('button', { name: 'Continuar', exact: true }).click(); await page.getByRole('button', { name: 'Continuar', exact: true }).click();
   await page.getByRole('textbox', { name: 'CONCLUSIONES Y RECOMENDACIONES', exact: true }).fill('Corregir y verificar.'); await page.getByRole('button', { name: 'Continuar', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'Responsables del área inspeccionada', exact: true })).toBeVisible();
-  await expect(page.getByText('Las siguientes personas recibirán el informe de esta inspección en sus correos electrónicos y en sus cuentas de Berry Safety. Asimismo, serán responsables de levantar las observaciones identificadas.', { exact: true })).toBeVisible();
+  await expect(page.getByText('El informe llegará a sus correos y al Buzón de Inspecciones.', { exact: true })).toBeVisible();
   await expect(page.locator('.recipient-list')).toContainText(team[0].email); await expect(page.locator('.recipient-list')).toContainText(team[1].email);
   await page.locator('.recipient-list').locator('..').screenshot({ path: test.info().outputPath(`destinatarios-${width}.png`) });
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);

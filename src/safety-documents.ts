@@ -32,17 +32,54 @@ export async function safetyReady() {
   return data?.ready === true;
 }
 
-export async function listSafetyDocuments({ type = '', types = [], status = '', query = '', page = 0, management = '', area = '' }: { type?: string; types?:string[]; status?: string; query?: string; page?: number; management?: string; area?: string }) {
-  let request = supabaseClient().from('berry_safety_documents').select('*', { count: 'exact' }).order('management_name').order('area_name').order('created_at', { ascending: false }).order('id').range(page * 20, page * 20 + 19);
-  if (management) request = request.eq('management_id', management);
-  if (area) request = request.eq('area_id', area);
-  if (types.length) request = request.in('kind', types);
-  if (type) request = request.eq('kind', type);
-  if (status) request = request.eq('status', status);
-  if (query.trim()) request = request.ilike('owner_name', `%${query.trim().replace(/[\\%_]/g, '\\$&')}%`);
-  const { data, count, error } = await request;
-  if (error) throw new Error('No pudimos consultar los documentos. Revisa tu conexión y pulsa Actualizar lista.');
-  return { rows: data as SafetyDocument[], count: count || 0 };
+export const safetySubmissionKey = (document: SafetyDocument) => document.batch_id ? `batch:${document.batch_id}` : `file:${document.id}`;
+
+// Page by complete submissions, not by files. RLS still controls every SELECT.
+// A type filter finds matching submissions; their remaining attachments stay visible.
+export async function listSafetyDocuments({ types = [], query = '', offset = 0, management = '', area = '' }: { types?: string[]; query?: string; offset?: number; management?: string; area?: string }) {
+  const client = supabaseClient(), chunk = 100, pageSize = 20;
+  const request = (filterTypes: boolean) => {
+    let next = client.from('berry_safety_documents').select('*', { count: 'exact' })
+      .order('management_name').order('area_name').order('created_at', { ascending: false }).order('batch_id').order('id').retry(false).abortSignal(AbortSignal.timeout(15000));
+    if (management) next = next.eq('management_id', management);
+    if (area) next = next.eq('area_id', area);
+    if (filterTypes && types.length) next = next.in('kind', types);
+    if (query.trim()) next = next.ilike('owner_name', `%${query.trim().replace(/[\\%_]/g, '\\$&')}%`);
+    return next;
+  };
+  const matches: SafetyDocument[] = [], keys = new Set<string>();
+  let count = 0, done = false;
+  while (!done) {
+    const start = offset + matches.length;
+    const result = await request(true).range(start, start + chunk - 1);
+    if (result.error) throw new Error('No pudimos consultar los envíos. Revisa tu conexión y pulsa Actualizar lista.');
+    const rows = result.data as SafetyDocument[];
+    count = result.count ?? start + rows.length;
+    for (const row of rows) {
+      const key = safetySubmissionKey(row);
+      if (!keys.has(key) && keys.size === pageSize) { done = true; break; }
+      keys.add(key); matches.push(row);
+    }
+    if (rows.length < chunk || offset + matches.length >= count) done = true;
+  }
+  let documents = matches;
+  const batches = [...new Set(matches.flatMap(row => row.batch_id ? [row.batch_id] : []))];
+  if (types.length && batches.length) {
+    const complete: SafetyDocument[] = [];
+    let start = 0, total = 0;
+    do {
+      const result = await request(false).in('batch_id', batches).range(start, start + chunk - 1);
+      if (result.error) throw new Error('No pudimos cargar todos los archivos del envío. Actualiza la lista para reintentar.');
+      const rows = result.data as SafetyDocument[];
+      complete.push(...rows); total = result.count ?? complete.length; start += rows.length;
+      if (!rows.length && start < total) throw new Error('No pudimos verificar todos los archivos del envío. Actualiza la lista.');
+    } while (start < total);
+    documents = [...matches.filter(row => !row.batch_id), ...complete];
+  }
+  const rank = new Map([...keys].map((key, index) => [key, index]));
+  const kinds = ['ATS', 'PETAR', 'CHECKLIST'];
+  documents.sort((a, b) => (rank.get(safetySubmissionKey(a)) ?? 0) - (rank.get(safetySubmissionKey(b)) ?? 0) || kinds.indexOf(a.kind) - kinds.indexOf(b.kind) || a.file_name.localeCompare(b.file_name, 'es') || a.id.localeCompare(b.id));
+  return { rows: documents, count, nextOffset: offset + matches.length };
 }
 
 export async function submitSafetyDocument(actor: string, intent: UploadIntent, values: { kind: SafetyKind; title: string; date: string; workplace: string }, onPhase: (phase: string) => void) {

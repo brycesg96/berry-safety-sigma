@@ -2,7 +2,7 @@ import { locationErrors, locationText } from './inspection-location';
 import type { InspectionLocation } from './inspection-location';
 import type { PhotoEdit } from './photo-editing';
 import { EMPLOYER, OBJECTIVE_LIMIT } from './employer';
-import { migrateInspectionTime, validInspectionTime } from './inspection-time';
+import { currentInspectionDateTime, migrateInspectionTime, validInspectionTime } from './inspection-time';
 import type { InspectionPeriod } from './inspection-time';
 import { CLOSING_LIMIT, closingRemarksOf, registrationParticipantsOf, NO_UNFAVORABLE_RESULTS } from './registration';
 import type { RegistrationDetails } from './registration';
@@ -46,6 +46,8 @@ export type Inspection = {
   legacyRegistrationNumber?: string;
   inspectionTime: string;
   inspectionPeriod: InspectionPeriod;
+  initialInspectionTime?: string;
+  initialInspectionPeriod?: InspectionPeriod;
   legacyType?: string;
   date: string;
   initialInspectionDate?: string;
@@ -80,10 +82,10 @@ export const id = () => crypto.randomUUID();
 export const newResponsible = (): Responsible => ({ id: id(), name: '', email: '' });
 export const newObservation = (closingDate = ''): Observation => ({ id: id(), description: '', correctiveAction: '', severity: 'media', dueDate: closingDate, photos: [] });
 export const newInspection = (profile: Profile, defaults?: InspectionTexts): Inspection => {
-  const date = new Date().toLocaleDateString('en-CA');
+  const { date, inspectionTime, inspectionPeriod } = currentInspectionDateTime();
   const texts = { ...(defaults || lastInspectionTexts(profile.accountId || 'demo-admin')), unfavorableCause: '' };
   return ({
-  id: id(), ownerId: profile.accountId || 'demo-admin', ...(profile.storage ? { storage: profile.storage } : {}), company: EMPLOYER.name, ruc: EMPLOYER.ruc, facility: '', area: '', type: '', otherType: '', registrationNumber: '', inspectionTime: '', inspectionPeriod: '',
+  id: id(), ownerId: profile.accountId || 'demo-admin', ...(profile.storage ? { storage: profile.storage } : {}), company: EMPLOYER.name, ruc: EMPLOYER.ruc, facility: '', area: '', type: '', otherType: '', registrationNumber: '', inspectionTime, inspectionPeriod, initialInspectionTime: inspectionTime, initialInspectionPeriod: inspectionPeriod,
   date, initialInspectionDate: date, ...texts, initialReportTexts: { ...texts }, responsibles: [newResponsible(), newResponsible()],
   observations: [], defaultClosingDate: '', registrationDetails: {}, conclusions: '', recommendations: '', inspector: profile.name,
   inspectorEmail: profile.email, additionalInspectors: [], registrationParticipants: [], step: 0, updatedAt: new Date().toISOString(), status: 'draft',
@@ -93,13 +95,14 @@ export const newInspection = (profile: Profile, defaults?: InspectionTexts): Ins
 /** Ignore generated defaults and empty rows when deciding whether a draft exists. */
 export function hasInspectionContent(d: Inspection): boolean {
   if (d.delivery || d.serverRegistration || d.status === 'ready') return true;
-  const text = [d.area, d.facility, d.inspectionTime, d.type, d.otherType, d.conclusions, d.recommendations, d.registrationNumber, d.legacyRegistrationNumber];
+  const text = [d.area, d.facility, d.type, d.otherType, d.conclusions, d.recommendations, d.registrationNumber, d.legacyRegistrationNumber];
   if (text.some(value => value?.trim())) return true;
+  if ((d.inspectionTime || '').trim() !== (d.initialInspectionTime || '').trim()) return true;
   if ((['objective', 'unfavorableCause', 'closingRemarks'] as const).some(key => {
     if (key === 'unfavorableCause' && d[key]?.trim() === NO_UNFAVORABLE_RESULTS && !d.initialReportTexts?.[key]?.trim()) return false;
     return (d[key] || '').trim() !== (d.initialReportTexts?.[key] || '').trim();
   })) return true;
-  if (d.inspectionPeriod || (d.date && d.initialInspectionDate && d.date !== d.initialInspectionDate)) return true;
+  if ((d.inspectionPeriod || '') !== (d.initialInspectionPeriod || '') || (d.date && d.initialInspectionDate && d.date !== d.initialInspectionDate)) return true;
   if ((d.company?.trim() && d.company !== EMPLOYER.name) || (d.ruc?.trim() && d.ruc !== EMPLOYER.ruc)) return true;
   if ([...(d.responsibles || []), ...(d.additionalInspectors || []), ...registrationParticipantsOf(d)].some(p => p.personId || p.name?.trim() || p.email?.trim())) return true;
   if ((d.observations || []).some(o => o.description?.trim() || o.correctiveAction?.trim() || o.dueDate || o.photos?.length || o.severity !== 'media')) return true;

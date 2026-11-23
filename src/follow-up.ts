@@ -23,10 +23,9 @@ export const inspectionClosed = (d: Inspection) => Boolean(d.delivery && d.obser
 export const needsReview = (d: Inspection) => Boolean(d.delivery && !inspectionClosed(d) && Object.values(d.delivery.corrections).some(c => c.decision === 'review'));
 export const workflowLabel = (d: Inspection) => inspectionClosed(d) ? 'Cerrada' : needsReview(d) ? 'Por validar / aprobar' : d.delivery ? 'En espera de respuesta' : d.status === 'ready' ? 'Sin enviar' : 'Borrador';
 export const isRecipient = (d: Inspection, actorId: string) => Boolean(d.delivery?.recipientIds.includes(actorId));
-// The initial responsible belongs to the report, not to the person viewing it.
-export function blankCorrection(d: Inspection, observationId: string): Correction {
-  const responsible = d.responsibles[0];
-  return { actorId: d.delivery?.recipientIds[0] ?? responsible?.personId ?? '', responsibleName: responsible?.name ?? '', action: '', date: d.observations.find(o => o.id === observationId)?.dueDate || '', photos: [], proposedState: 'Pendiente', state: 'Pendiente', decision: 'draft', note: '' };
+// A new correction belongs to the authenticated person who records it.
+export function blankCorrection(d: Inspection, observationId: string, actor?: { id: string; name: string }): Correction {
+  return { actorId: actor?.id || '', responsibleName: actor?.name || '', action: '', date: d.observations.find(o => o.id === observationId)?.dueDate || '', photos: [], proposedState: 'Pendiente', state: 'Pendiente', decision: 'draft', note: '' };
 }
 
 // Browser-only demo. The server must enforce these rules with authenticated identities later.
@@ -75,9 +74,9 @@ export async function deliverInspection(draft: Inspection, actorId: string): Pro
   });
 }
 export function saveCorrection(d: Inspection, observationId: string, actorId: string, correction: Correction, submit: boolean) {
+  correction={...correction,state:'Pendiente',proposedState:'Pendiente'};
   if (submit && (!correction.action.trim() || !correction.date)) throw new Error('Completa la acción realizada y la Fecha de Cierre.');
-  if (submit && correction.state === 'Ejecutado' && !correction.photos.length) throw new Error('Adjunta al menos una evidencia del levantamiento para enviar en Ejecutado.');
-  if (d.storage === 'cloud') return changeCloudCorrection(d, observationId, actorId, submit ? 'submit' : 'save', { ...correction, responsibleName: blankCorrection(d, observationId).responsibleName });
+  if (d.storage === 'cloud') return changeCloudCorrection(d, observationId, actorId, submit ? 'submit' : 'save', correction);
   return changeStored(d.id, current => {
     const delivery = current.delivery;
     if (!delivery || !isRecipient(current, actorId)) throw new Error('Esta inspección no está asignada a tu cuenta.');
@@ -87,29 +86,17 @@ export function saveCorrection(d: Inspection, observationId: string, actorId: st
     if (previous?.decision === 'approved' || previous?.decision === 'review' || inspectionClosed(current)) throw new Error('Este levantamiento ya fue enviado a revisión.');
     if (!['Pendiente', 'Ejecutado'].includes(correction.state)) throw new Error('Selecciona un estado válido.');
     if (correction.photos.length > 8) throw new Error('Puedes adjuntar hasta 8 evidencias.');
-    const responsibleName = blankCorrection(current, observationId).responsibleName;
+    const responsibleName = readAccounts().find(person => person.id === actorId)?.name || current.responsibles.find(person => (person.personId || person.id) === actorId)?.name || '';
     if (!responsibleName.trim()) throw new Error('No se encontró el responsable asignado a esta inspección.');
     if (submit && (!correction.action.trim() || !correction.date)) throw new Error('Completa la acción realizada y la Fecha de Cierre.');
-    if (submit && correction.state === 'Ejecutado' && !correction.photos.length) throw new Error('Adjunta al menos una evidencia del levantamiento para enviar en Ejecutado.');
-    const saved: Correction = { ...correction, actorId, responsibleName, proposedState: correction.state, decision: submit ? 'review' : 'draft', note: previous?.note || '' };
+      const saved: Correction = { ...correction, actorId, responsibleName, proposedState: correction.state, decision: submit ? 'review' : 'draft', note: previous?.note || '' };
     return { ...current, updatedAt: new Date().toISOString(), delivery: { ...delivery, revision: delivery.revision + 1, corrections: { ...delivery.corrections, [observationId]: saved } } };
   }, actorId);
 }
-export function saveCorrectionState(d: Inspection, observationId: string, actorId: string, state: Correction['state']) {
-  if (d.storage === 'cloud') return changeCloudCorrection(d, observationId, actorId, 'state', { state });
-  return changeStored(d.id, current => {
-    const delivery = current.delivery;
-    if (!delivery || !isRecipient(current, actorId)) throw new Error('Esta inspección no está asignada a tu cuenta.');
-    if (!current.observations.some(o => o.id === observationId)) throw new Error('No se encontró la observación.');
-    if (delivery.revision !== d.delivery?.revision) throw new Error('La inspección cambió en otra sesión. Vuelve a abrirla antes de guardar.');
-    if (inspectionClosed(current)) throw new Error('La inspección está cerrada.');
-    if (!['Pendiente', 'Ejecutado'].includes(state)) throw new Error('Selecciona un estado válido.');
-    const previous = delivery.corrections[observationId] || blankCorrection(current, observationId);
-    // A changed approved finding needs another review; changing a status never grants approval.
-    const saved: Correction = { ...previous, responsibleName: blankCorrection(current, observationId).responsibleName, state, proposedState: state, decision: previous.decision === 'approved' && previous.state !== state ? 'review' : previous.decision };
-    return { ...current, updatedAt: new Date().toISOString(), delivery: { ...delivery, revision: delivery.revision + 1, corrections: { ...delivery.corrections, [observationId]: saved } } };
-  }, actorId);
+export function saveCorrectionState(_d: Inspection, _observationId: string, _actorId: string, _state: Correction['state']): Promise<Inspection> {
+  return Promise.reject(new Error('El estado se actualiza automáticamente cuando el inspector aprueba el levantamiento.'));
 }
+
 export function reviewCorrection(d: Inspection, observationId: string, actorId: string, approve: boolean, note: string) {
   if (d.storage === 'cloud') return changeCloudCorrection(d, observationId, actorId, approve ? 'approve' : 'changes', { note });
   return changeStored(d.id, current => {
@@ -121,7 +108,7 @@ export function reviewCorrection(d: Inspection, observationId: string, actorId: 
     if (!correction || correction.decision !== 'review') throw new Error('El levantamiento no está pendiente de revisión.');
     if (!approve && !note.trim()) throw new Error('Indica qué debe corregir el responsable.');
     const state = approve ? 'Ejecutado' : 'Pendiente';
-    const reviewed: Correction = { ...correction, responsibleName: blankCorrection(current, observationId).responsibleName, state, proposedState: state, decision: approve ? 'approved' : 'changes', note: note.trim() };
+    const reviewed: Correction = { ...correction, state, proposedState: state, decision: approve ? 'approved' : 'changes', note: note.trim() };
     return { ...current, updatedAt: new Date().toISOString(), delivery: { ...delivery, revision: delivery.revision + 1, corrections: { ...delivery.corrections, [observationId]: reviewed } } };
   }, actorId);
 }

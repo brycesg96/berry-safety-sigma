@@ -15,7 +15,7 @@ async function seed(page:import('@playwright/test').Page){
 async function inbox(page:import('@playwright/test').Page){await page.reload();await page.getByRole('button',{name:'Buzón de Inspecciones',exact:true}).click();}
 test('prioridades combinan vencimiento y revisión sin contar observaciones aprobadas',async({page})=>{
  await seed(page);await inbox(page);const rows=page.locator('.inspection-list-row');await expect(rows).toHaveCount(3);
- for(const [label,count] of [['Vencidas',2],['Por vencer',1],['En espera de respuesta',2],['Por validar / aprobar',1],['Cerradas',1]] as const){await page.getByRole('button',{name:label,exact:true}).click();await expect(rows).toHaveCount(count);}
+ for(const [label,count] of [['Vencidas',1],['Por vencer',1],['Por atender',2],['En revisión del inspector',1],['Cerradas',1]] as const){await page.getByRole('button',{name:label,exact:true}).click();await expect(rows).toHaveCount(count);}
  await page.getByRole('button',{name:'Vencidas',exact:true}).click();await expect(rows.filter({hasText:'Cerrada'})).toHaveCount(0);
  for(const width of [1366,390]){await page.setViewportSize({width,height:900});if(width<900)await page.waitForFunction(()=>document.querySelector('.sidebar')!.getBoundingClientRect().right<=0);expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);await page.screenshot({path:`/tmp/berry-priorities-${width}.png`,fullPage:true});}
 });

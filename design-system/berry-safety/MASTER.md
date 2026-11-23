@@ -6,6 +6,12 @@ Aplicación interna de seguridad ocupacional. La prioridad es leer, registrar y 
 
 Interfaz corporativa sobria: superficies claras, verdes de marca, jerarquía tipográfica visible y sombras discretas. Se consultó UI UX Pro Max para tipografía, contraste, controles de carga y movimiento. Sus propuestas genéricas de portada comercial, paletas roja/azul y tipografías externas no correspondían al producto: no se persistieron ni aplicaron. La referencia válida de Berry es este documento y `src/product-theme.css`.
 
+## Referencia Treasury adaptada
+
+La entrega inspirada en Teal Treasury usa crema y verde bosque en Inicio y Yo Seguro, una ilustración propia de documentos con profundidad, y tarjetas que separan persona, actividad y adjuntos. Se mantienen DM Sans/Manrope locales, los logos oficiales y los componentes de la plataforma. Las recomendaciones verificadas de UI UX Pro Max son Minimalism & Swiss Style para herramientas empresariales, jerarquía clara, controles táctiles y movimiento reducido. La búsqueda inicial orientada a portales devolvió un perfil infantil; se descartó y se acotó a herramientas empresariales. No se adoptaron las paletas o fuentes genéricas de ninguno de los resultados.
+
+La portada no muestra cifras, expedientes o testimonios inventados. Los contadores del panel leen las métricas reales existentes. La ilustración no es un control ni una constancia de envío; el formulario conserva sus confirmaciones reales.
+
 ## Tokens
 
 | Uso | Valor |

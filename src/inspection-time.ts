@@ -1,4 +1,11 @@
 export type InspectionPeriod = '' | 'AM' | 'PM';
+/** One initial snapshot in the workplace timezone. The user may edit it afterwards. */
+export function currentInspectionDateTime(now = new Date()) {
+  const parts = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Lima', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).formatToParts(now);
+  const part = (type: string) => parts.find(value => value.type === type)!.value;
+  const hour = Number(part('hour'));
+  return { date: `${part('year')}-${part('month')}-${part('day')}`, inspectionTime: `${String(hour % 12 || 12).padStart(2, '0')}:${part('minute')}`, inspectionPeriod: (hour < 12 ? 'AM' : 'PM') as InspectionPeriod };
+}
 export const validInspectionTime = (time: string) => /^(0?[1-9]|1[0-2]):[0-5]\d$/.test(time);
 export function formatInspectionTime(time: string, period: InspectionPeriod): string {
   return time ? `${time}${period ? ` ${period}` : ''}` : '';

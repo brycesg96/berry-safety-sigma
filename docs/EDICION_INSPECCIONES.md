@@ -16,7 +16,7 @@ El guardado prepara una versión, genera su Excel y lo sube antes de publicar lo
 
 El SQL también aplica la ubicación compuesta (Sede, Zona e instalación/actividad) a los nuevos registros. La celda existente «Área inspeccionada» contiene el texto completo. Los informes históricos mantienen su área y ofrecen actualizar sede y zona expresamente. Puerto Morín no aparece entre las opciones.
 
-El autor deja de cambiar directamente el estado de los levantamientos: espera el envío y después aprueba o solicita ajustes. La restricción se aplica también en la función protegida de Supabase. El nombre del responsable permanece en solo lectura, sin candado y con la tipografía normal.
+Con el paso 27, ninguna cuenta cambia el estado directamente: el inspector espera el envío y después aprueba o solicita correcciones. Solo aprobar establece Ejecutado; el resto permanece Pendiente. La restricción se aplica también en la función protegida de Supabase. El responsable mostrado por observación es la cuenta que guardó o envió el levantamiento; modificar destinatarios no sustituye esa autoría. Su nombre permanece en solo lectura, sin candado y con la tipografía normal.
 
 ## Verificación
 
