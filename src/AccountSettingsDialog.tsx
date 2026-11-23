@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { ArrowLeft, ChevronRight, Mail, AtSign, ShieldCheck, Building2 } from 'lucide-react';
 import { Field, Modal } from './components';
 import { Select } from './Select';
+import { organizationLabel } from './organization-label';
 import { yoSeguroCatalog, yoSeguroAccountAccess } from './yo-seguro';
 import type { YoManagement } from './yo-seguro';
 import { AccessSwitches } from './AccessSwitches';
@@ -46,7 +47,7 @@ export function AccountSettingsDialog({ account, initialPermissions, busy, error
       <div className="modal-actions"><button type="button" className="button button-outline" disabled={busy} onClick={onClose}>Cancelar</button><button type="button" className="button button-primary" disabled={busy} onClick={() => onSavePermissions(permissions)}>{busy ? 'Guardando…' : 'Guardar permisos'}</button></div>
     </> : view === 'yo-seguro' ? <>
       <p className="modal-description">Esta cuenta podrá consultar los documentos de todas las áreas de la gerencia autorizada. Editar su perfil no cambia este permiso. Las cuentas administradoras conservan la vista general.</p>
-      {yoLoading?<p role="status">Consultando gerencias…</p>:yoError?<><p className="error-message" role="alert">{yoError}</p><button type="button" className="text-button" onClick={()=>setYoRetry(n=>n+1)}>Reintentar</button></>:<Field label="Gerencia autorizada para Yo Seguro">{props=><Select {...props} searchable disabled={busy} value={yoManagement} onChange={setYoManagement} options={[{value:'',label:'Sin gerencia autorizada'},...yoCatalog.map(m=>({value:m.id,label:m.name}))]}/>}</Field>}
+      {yoLoading?<p role="status">Consultando gerencias…</p>:yoError?<><p className="error-message" role="alert">{yoError}</p><button type="button" className="text-button" onClick={()=>setYoRetry(n=>n+1)}>Reintentar</button></>:<Field label="Gerencia autorizada para Yo Seguro">{props=><Select {...props} searchable disabled={busy} value={yoManagement} onChange={setYoManagement} options={[{value:'',label:'Sin gerencia autorizada'},...yoCatalog.map(m=>({value:m.id,label:organizationLabel(m.name)}))]}/>}</Field>}
       {error&&<p role="alert" className="error-message cloud-message">{error}</p>}
       <div className="modal-actions"><button type="button" className="button button-outline" disabled={busy} onClick={onClose}>Cancelar</button><button type="button" className="button button-primary" disabled={busy||yoLoading||!!yoError||!yoLoaded} onClick={()=>onSaveYoSeguro(yoManagement||null,yoExpected)}>{busy?'Guardando…':'Guardar acceso'}</button></div>
     </> : <form onSubmit={event => { event.preventDefault(); if (view === 'copies') onSaveCopies(copies); else onSaveEmail(email); }}>
