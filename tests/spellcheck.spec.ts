@@ -28,8 +28,8 @@ test('corrector nativo en español solo para los cinco campos de redacción de l
   await page.getByRole('button', { name: '02 Observaciones', exact: true }).click();
   await check('Descripción', true); await check('Acción a tomar', true);
   await page.getByRole('button', { name: '04 Cierre', exact: true }).click();
-  await check('Descripción de la causa ante resultados desfavorables de la inspección', true);
-  await check('Conclusiones y recomendaciones', true); await expect(page.locator('.registration-person-meta').getByRole('textbox')).toHaveCount(0);
+  await check('Descripción de la Causa ante Resultados Desfavorables de la Inspección', true);
+  await check('Conclusiones y Recomendaciones', true); await expect(page.locator('.registration-person-meta').getByRole('textbox')).toHaveCount(0);
   await openWorkspaceProfile(page);
   await check('Nombres y apellidos', false);
 });

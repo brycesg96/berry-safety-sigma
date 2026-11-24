@@ -54,8 +54,8 @@ test('recorrido completo con evidencia, persistencia y un Excel válido', async 
   await expect(page.locator('.review-observation')).toHaveCount(2);
   await expect(page.getByText('Retirar las cajas y señalizar la ruta de evacuación.')).toBeVisible();
   await page.getByRole('button', { name: 'Continuar', exact: true }).click();
-  await page.getByRole('textbox', { name: 'Conclusiones y recomendaciones', exact: true }).fill('Se identificó una condición de criticidad alta que requiere atención inmediata.');
-  await page.getByRole('textbox', { name: 'Descripción de la causa ante resultados desfavorables de la inspección', exact: true }).fill('Verificar diariamente que la ruta de evacuación permanezca despejada.');
+  await page.getByRole('textbox', { name: 'Conclusiones y Recomendaciones', exact: true }).fill('Se identificó una condición de criticidad alta que requiere atención inmediata.');
+  await page.getByRole('textbox', { name: 'Descripción de la Causa ante Resultados Desfavorables de la Inspección', exact: true }).fill('Verificar diariamente que la ruta de evacuación permanezca despejada.');
   await page.getByRole('button', { name: 'Continuar', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'REVISIÓN FINAL' })).toBeVisible();
   await expect(page.getByText('Ana Torres', { exact: true })).toBeVisible();

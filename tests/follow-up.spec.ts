@@ -38,8 +38,8 @@ async function createReport(page: Page) {
   }
   await page.getByRole('button', { name: 'Continuar', exact: true }).click();
   await page.getByRole('button', { name: 'Continuar', exact: true }).click();
-  await page.getByRole('textbox', { name: 'Conclusiones y recomendaciones', exact: true }).fill('Dos condiciones por corregir.');
-  await page.getByRole('textbox', { name: 'Descripción de la causa ante resultados desfavorables de la inspección', exact: true }).fill('Verificar el levantamiento.');
+  await page.getByRole('textbox', { name: 'Conclusiones y Recomendaciones', exact: true }).fill('Dos condiciones por corregir.');
+  await page.getByRole('textbox', { name: 'Descripción de la Causa ante Resultados Desfavorables de la Inspección', exact: true }).fill('Verificar el levantamiento.');
   await page.getByRole('button', { name: 'Continuar', exact: true }).click();
   await page.getByRole('button', { name: 'Guardar', exact: true }).first().click();await page.getByRole('button', { name: 'Enviar inspección', exact: true }).click();
   await page.getByText('Compartir solo en este navegador', { exact: true }).click();

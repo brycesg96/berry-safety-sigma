@@ -55,8 +55,8 @@ test('responsables del registro independientes, autor de la cuenta bloqueado, se
   await page.getByRole('listbox').getByRole('option', { name: /Ana Torres/ }).click();
   await page.getByRole('button', { name: '04 Cierre', exact: true }).click();
   await expect(section.locator('.inspector-entry').nth(1).locator('.registration-meta-email')).toHaveText('ana@example.com');
-  const closing = page.getByRole('textbox', { name: 'Conclusiones y recomendaciones', exact: true });
-  const cause = page.getByRole('textbox', { name: 'Descripción de la causa ante resultados desfavorables de la inspección', exact: true });
+  const closing = page.getByRole('textbox', { name: 'Conclusiones y Recomendaciones', exact: true });
+  const cause = page.getByRole('textbox', { name: 'Descripción de la Causa ante Resultados Desfavorables de la Inspección', exact: true });
   await expect(closing).toHaveValue(/Requiere seguimiento/);
   await expect(closing).toHaveValue(/Verificar corrección/);
   await expect(closing).toHaveAttribute('maxlength', '1200');
