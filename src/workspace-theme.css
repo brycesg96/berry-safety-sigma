@@ -85,6 +85,8 @@
 }
 .app-shell .breadcrumb-current { color: var(--safety-text); font-weight: 600; }
 .app-shell .save-status { color: var(--safety-text-secondary); }
+.app-shell .save-status[data-save-phase=success] { color: var(--safety-action); }
+.app-shell .save-status[data-save-phase=error] { color: var(--berry-danger); }
 .app-shell .workspace { background: var(--safety-page); }
 .app-shell .main-content { padding-bottom: 26px; }
 
@@ -160,8 +162,11 @@
 :is(.app-shell, .cloud-account-page:not(.treasury-access-page)) .button { border-radius: var(--workspace-control-radius); font-weight: 600; }
 :is(.app-shell, .cloud-account-page:not(.treasury-access-page)) .button-primary { background: var(--safety-action); border-color: var(--safety-action); color: var(--safety-white); }
 :is(.app-shell, .cloud-account-page:not(.treasury-access-page)) .button-primary:hover:enabled { background: var(--safety-action-hover); border-color: var(--safety-action-hover); }
-:is(.app-shell, .cloud-account-page:not(.treasury-access-page)) .button-outline { background: var(--safety-surface); color: var(--safety-action); border-color: var(--safety-field-border); }
-:is(.app-shell, .cloud-account-page:not(.treasury-access-page)) .button-outline:hover:enabled { background: var(--safety-selected); border-color: var(--safety-olive-700); }
+:is(.app-shell, .cloud-account-page:not(.treasury-access-page)) .button-outline:where(:not(.save-feedback), [data-save-phase=idle]) { background: var(--safety-surface); color: var(--safety-action); border-color: var(--safety-field-border); }
+:is(.app-shell, .cloud-account-page:not(.treasury-access-page)) .button-outline:where(:not(.save-feedback), [data-save-phase=idle]):hover:enabled { background: var(--safety-selected); border-color: var(--safety-olive-700); }
+:is(.app-shell, .cloud-account-page:not(.treasury-access-page)) .save-feedback[data-save-phase=success] { background: var(--safety-selected); color: var(--safety-action); border-color: var(--safety-olive-700); }
+:is(.app-shell, .cloud-account-page:not(.treasury-access-page)) .save-feedback[data-save-phase=pending] { background: var(--safety-surface-soft); color: var(--safety-action); border-color: var(--safety-field-border); }
+:is(.app-shell, .cloud-account-page:not(.treasury-access-page)) .save-feedback[data-save-phase=error] { background: var(--safety-surface); color: var(--berry-danger); border-color: var(--berry-danger); }
 
 /* Lists and the inbox: the selected view is explicit; status colors stay semantic. */
 .app-shell .inspection-stat { border-color: var(--safety-border); border-radius: 16px; box-shadow: var(--workspace-card-shadow); }

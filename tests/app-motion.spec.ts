@@ -22,11 +22,15 @@ for (const width of [1366, 390, 375, 667]) test(`movimiento conserva escritura, 
   await expect.poll(() => page.locator('.app-scroll-progress>span').evaluate(element => new DOMMatrix(getComputedStyle(element).transform).a)).toBeGreaterThan(0);
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
 
+  const saveFeedback = page.locator('.save-exit');
+  const idleBackground = await saveFeedback.evaluate(element => getComputedStyle(element).backgroundColor);
   await page.getByRole('button', { name: 'Guardar', exact: true }).first().click();
   await expect(page.locator('.save-status')).toContainText('Guardado en este navegador');
-  await expect(page.locator('.save-exit')).toHaveAttribute('data-save-phase', 'success');
+  await expect(saveFeedback).toHaveAttribute('data-save-phase', 'success');
+  await expect.poll(() => saveFeedback.evaluate(element => getComputedStyle(element).backgroundColor)).not.toBe(idleBackground);
   await objective.fill('Edición posterior al guardado.');
-  await expect(page.locator('.save-exit')).toHaveAttribute('data-save-phase', 'idle');
+  await expect(saveFeedback).toHaveAttribute('data-save-phase', 'idle');
+  await expect.poll(() => saveFeedback.evaluate(element => getComputedStyle(element).backgroundColor)).toBe(idleBackground);
   await expect(page.locator('.save-status')).toContainText('Cambios sin guardar');
   await page.getByRole('button', { name: 'Guardar', exact: true }).first().click();
   await expect(page.locator('.save-exit')).toHaveAttribute('data-save-phase', 'success');
