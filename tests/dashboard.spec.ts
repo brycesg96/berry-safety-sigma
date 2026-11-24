@@ -119,7 +119,7 @@ test('administrador corrige un informe abierto con número de registro y autor i
  await editor.locator('.responsibles').getByRole('combobox',{name:/Nombre completo/}).first().fill('Nueva');await page.getByRole('option',{name:/nueva@example.invalid/}).click();await selectSecondResponsible(page,'admin@example.invalid');
  await page.setViewportSize({width:390,height:844});await page.screenshot({path:test.info().outputPath('editar-telefono.png'),fullPage:true});expect(await page.evaluate(()=>Array.from(document.querySelectorAll('main *')).filter(node=>node.getBoundingClientRect().right>innerWidth+1).map(node=>({tag:node.tagName,cls:node.className,right:node.getBoundingClientRect().right})).slice(0,15))).toEqual([]);
  await editor.getByRole('tab',{name:'Observaciones',exact:true}).click();await editor.getByLabel('Descripción').fill('Descripción corregida por administración');
- await editor.getByRole('tab',{name:'Cierre',exact:true}).click();await editor.getByRole('textbox',{name:'CONCLUSIONES Y RECOMENDACIONES',exact:true}).fill('Nuevo seguimiento verificado.');
+ await editor.getByRole('tab',{name:'Cierre',exact:true}).click();await editor.getByRole('textbox',{name:'Conclusiones y recomendaciones',exact:true}).fill('Nuevo seguimiento verificado.');
  await expect(editor.locator('.registration-meta-date').first()).toHaveAttribute('datetime','2026-11-12');await expect(editor.locator('.registration-person-meta input')).toHaveCount(0);
  state.failEdit=true;await editor.getByRole('button',{name:'Guardar cambios',exact:true}).click();await expect(editor.getByRole('alert')).toContainText('El informe anterior se conserva');
  expect(state.rows[0].data.area).toBe('Maquinaria - Armonía 2');expect(state.rows[0].data.responsibles[0].personId).toBe(actor);

@@ -9,8 +9,8 @@ import { completeInspectionCause, NO_UNFAVORABLE_RESULTS } from '../src/registra
 import { hasInspectionContent, newInspection, validateStep } from '../src/model';
 
 const objective = (page: Page) => page.getByRole('textbox', { name: 'Objetivo de la inspección interna', exact: true });
-const cause = (page: Page) => page.getByRole('textbox', { name: 'DESCRIPCIÓN DE LA CAUSA ANTE RESULTADOS DESFAVORABLES DE LA INSPECCIÓN', exact: true });
-const remarks = (page: Page) => page.getByRole('textbox', { name: 'CONCLUSIONES Y RECOMENDACIONES', exact: true });
+const cause = (page: Page) => page.getByRole('textbox', { name: 'Descripción de la causa ante resultados desfavorables de la inspección', exact: true });
+const remarks = (page: Page) => page.getByRole('textbox', { name: 'Conclusiones y recomendaciones', exact: true });
 async function closing(page: Page) {
   await selectLocation(page, 'Sede', 'Fundo'); await selectLocation(page, 'Zona de inspección', 'Armonía II');
   await page.getByLabel('Hora de inspección').fill('07:30'); await selectValue(page.getByLabel('AM o PM'), 'AM');

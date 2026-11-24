@@ -30,7 +30,7 @@ async function prepare(page:Page, withTeam=false) {
  await page.getByLabel('Acción a tomar').fill('Instalar señalización.');
  await page.getByLabel('Fecha de Cierre').fill('2026-12-01');
  await page.getByRole('button',{name:'Continuar',exact:true}).click();await page.getByRole('button',{name:'Continuar',exact:true}).click();
- await page.getByRole('textbox',{name:'CONCLUSIONES Y RECOMENDACIONES',exact:true}).fill('Se requiere corregir el hallazgo.');
+ await page.getByRole('textbox',{name:'Conclusiones y recomendaciones',exact:true}).fill('Se requiere corregir el hallazgo.');
  await page.getByRole('button',{name:'Continuar',exact:true}).click();
  await page.getByRole('button',{name:'Enviar inspección',exact:true}).click();
 }

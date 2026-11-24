@@ -31,7 +31,7 @@ for (const width of [1366, 390]) test(`dos responsables obligatorios, orden cons
   await page.getByRole('button', { name: 'Continuar', exact: true }).click(); await page.getByRole('button', { name: 'Añadir observación', exact: true }).click();
   await page.getByLabel('Descripción', { exact: false }).fill('Falta mantenimiento.'); await page.getByLabel('Acción a tomar').fill('Realizar mantenimiento.'); await page.getByLabel('Fecha de Cierre').fill('2026-12-01');
   await page.getByRole('button', { name: 'Continuar', exact: true }).click(); await page.getByRole('button', { name: 'Continuar', exact: true }).click();
-  await page.getByRole('textbox', { name: 'CONCLUSIONES Y RECOMENDACIONES', exact: true }).fill('Corregir y verificar.'); await page.getByRole('button', { name: 'Continuar', exact: true }).click();
+  await page.getByRole('textbox', { name: 'Conclusiones y recomendaciones', exact: true }).fill('Corregir y verificar.'); await page.getByRole('button', { name: 'Continuar', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'Responsables del área inspeccionada', exact: true })).toBeVisible();
   await expect(page.getByText('El informe llegará a sus correos y al Buzón de Inspecciones.', { exact: true })).toBeVisible();
   await expect(page.locator('.recipient-list')).toContainText(team[0].email); await expect(page.locator('.recipient-list')).toContainText(team[1].email);

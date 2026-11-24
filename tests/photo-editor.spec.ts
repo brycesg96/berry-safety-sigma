@@ -89,7 +89,7 @@ test('edición con color, grosor, tamaño, recorte, persistencia y exportación 
   await page.getByRole('button', { name: 'Cancelar edición', exact: true }).click(); expect((await storedPhoto(page)).data).toBe(saved.data);
   await page.getByRole('button', { name: 'Cerrar ventana', exact: true }).click();
   await page.getByRole('button', { name: 'Continuar', exact: true }).click(); await page.getByRole('button', { name: 'Continuar', exact: true }).click();
-  await page.getByRole('textbox', { name: 'CONCLUSIONES Y RECOMENDACIONES', exact: true }).fill('Reforzar la señalización.');
+  await page.getByRole('textbox', { name: 'Conclusiones y recomendaciones', exact: true }).fill('Reforzar la señalización.');
   await page.getByRole('button', { name: 'Continuar', exact: true }).click();
   const event = page.waitForEvent('download'); await page.getByRole('button', { name: 'Descargar Excel', exact: true }).click();
   const book = new ExcelJS.Workbook(); await book.xlsx.readFile((await (await event).path())!);

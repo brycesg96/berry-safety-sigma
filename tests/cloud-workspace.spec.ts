@@ -213,7 +213,7 @@ test('private drafts resume on another device and full approval replaces the ini
   await receiver.getByRole('button',{name:'Abrir menú',exact:true}).click();await receiver.getByRole('button',{name:/Buzón de Inspecciones/}).click();
   await expect(receiver.getByRole('heading',{name:'No tienes informes a tu cargo'})).toBeVisible();
   await other.getByRole('button',{name:'Continuar',exact:true}).click();await other.getByRole('button',{name:'Continuar',exact:true}).click();
-  await other.getByRole('textbox',{name:'CONCLUSIONES Y RECOMENDACIONES',exact:true}).fill('Gestionar la medida indicada.');
+  await other.getByRole('textbox',{name:'Conclusiones y recomendaciones',exact:true}).fill('Gestionar la medida indicada.');
   await expect(other.locator('.registration-meta-job').first()).toHaveText('Supervisora');await expect(other.locator('.registration-person-meta input')).toHaveCount(0);
   await other.getByRole('button',{name:'Continuar',exact:true}).click();await other.getByRole('button',{name:'Enviar inspección',exact:true}).click();
   await expect(other.getByText('Compartir solo en este navegador')).toHaveCount(0);
@@ -469,7 +469,7 @@ test('Enviar guarda sin un Guardar previo y dos cuentas reciben 051 y 052 según
    await current.getByRole('button',{name:'Continuar',exact:true}).click();await current.getByRole('button',{name:'Añadir observación',exact:true}).click();
    await current.getByLabel('Descripción').fill('Hallazgo guardado al enviar.');await current.getByLabel('Acción a tomar').fill('Corregir el hallazgo.');await current.getByLabel('Fecha de Cierre').fill('2026-12-01');
    await current.getByRole('button',{name:'Continuar',exact:true}).click();await current.getByRole('button',{name:'Continuar',exact:true}).click();
-   await current.getByRole('textbox',{name:'CONCLUSIONES Y RECOMENDACIONES',exact:true}).fill('Última edición antes del envío.');await current.getByRole('button',{name:'Continuar',exact:true}).click();
+   await current.getByRole('textbox',{name:'Conclusiones y recomendaciones',exact:true}).fill('Última edición antes del envío.');await current.getByRole('button',{name:'Continuar',exact:true}).click();
   }
   await complete(page,'Bruno');await complete(other,'Ana');expect(state.rows.size).toBe(0);expect(state.saves).toBe(0);
   await other.getByRole('button',{name:'Enviar inspección',exact:true}).click();await other.getByRole('button',{name:'Enviar informe por correo',exact:true}).click();
