@@ -23,6 +23,7 @@ export async function cloudRpc<T>(name: string, params: Record<string, unknown>,
   }
   const { data, error } = await operation;
   if (error) {
+    if (error.message?.includes('OBSERVATION_CONVERSATION_CLOSED')) throw new Error('Esta observación ya fue aprobada. La conversación es de solo lectura.');
     if (error.code === '40001') throw new Error('La inspección cambió en otro dispositivo. Vuelve a abrirla antes de guardar; tu edición se conserva en este navegador.');
     if (error.code === '42501') throw new Error('Tu sesión no tiene acceso a esta operación. Revisa tu cuenta y vuelve a iniciar sesión.');
     if (error.code === 'PGRST202') throw new Error('Falta activar la conexión de inspecciones en Supabase.');

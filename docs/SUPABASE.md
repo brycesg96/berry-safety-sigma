@@ -221,3 +221,11 @@ Guardar o enviar un levantamiento vincula cada observación al usuario autentica
 Estado permanece Pendiente hasta que el inspector aprueba y pasa a Ejecutado. Solicitar correcciones lo deja Pendiente. El servidor rechaza cambiar el estado directamente y enviar un avance como Ejecutado. Conserva controles de versión, permisos, auditoría y bloqueo de informes cerrados.
 
 El script es repetible y no modifica filas de inspecciones, documentos o correlativos existentes. Las pruebas de PostgreSQL comprueban la instalación repetida, dos destinatarios con observaciones distintas, rechazo de suplantación y de cambios directos de estado, aprobación y edición administrativa. Los títulos y el formato de Excel/PDF se mantienen.
+
+## Paso 28 — conversación de solo lectura tras aprobar cada observación
+
+Después del paso 27, ejecutar completo [202611240028_followup_conversation.sql](../supabase/migrations/202611240028_followup_conversation.sql) como propietario en SQL Editor. Debe devolver `followup_conversation_version: 202611240028`. El diagnóstico público `berry_followup_conversation_status()` devuelve esa versión, `approved_read_only: true` y `per_observation: true`, sin datos de personas.
+
+Al aprobar una observación, el servidor rechaza comentarios nuevos en su conversación, aunque el resto de observaciones siga pendiente. El bloqueo de la fila se comparte con la aprobación para ordenar ambas operaciones de forma atómica. Los mensajes ya registrados siguen disponibles a sus participantes; repetir la misma operación confirma su entrega anterior sin duplicarla, incluso después de aprobar. Se conservan los permisos existentes y los eventos inmutables. El script es repetible y no reescribe inspecciones, conversaciones, documentos o correlativos.
+
+La interfaz retira el editor al aprobar. Si hay mensajes o comentarios de revisión conservados, muestra únicamente «Conversación registrada»; si no los hay, oculta todo el apartado. La separación es por observación. Un comentario offline que nunca llegó al servidor y se intenta enviar después de la aprobación queda como conflicto conservado en el dispositivo, con el motivo correspondiente; los reintentos de mensajes ya entregados se reconocen normalmente.

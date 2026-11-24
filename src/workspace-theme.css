@@ -12,6 +12,10 @@
   --safety-stone-200: #dfe3d5;
   --safety-stone-300: #bdcbb6;
   --safety-stone-600: #53664f;
+  --safety-amber-50: #fff5de;
+  --safety-amber-800: #785416;
+  --safety-green-50: #e6f2e7;
+  --safety-green-800: #255d3c;
 
   /* Semantic tokens. */
   --safety-page: var(--safety-paper-50);
@@ -26,6 +30,10 @@
   --safety-border: var(--safety-stone-200);
   --safety-selected: var(--safety-olive-100);
   --safety-on-selected: var(--safety-forest-700);
+  --safety-pending-bg: var(--safety-amber-50);
+  --safety-pending-text: var(--safety-amber-800);
+  --safety-executed-bg: var(--safety-green-50);
+  --safety-executed-text: var(--safety-green-800);
 
   /* Component tokens. */
   --workspace-card-radius: 18px;
@@ -172,6 +180,8 @@
 :is(.app-shell, .cloud-account-page:not(.treasury-access-page)) .save-feedback[data-save-phase=error] { background: var(--safety-surface); color: var(--berry-danger); border-color: var(--berry-danger); }
 
 /* Lists and the inbox: the selected view is explicit; status colors stay semantic. */
+.app-shell .list-status { background: var(--safety-pending-bg); color: var(--safety-pending-text); }
+.app-shell .list-status.status-ready { background: var(--safety-executed-bg); color: var(--safety-executed-text); }
 .app-shell .inspection-stat { border-color: var(--safety-border); border-radius: 16px; box-shadow: var(--workspace-card-shadow); }
 .app-shell .inspection-stat .list-stat-icon { color: var(--safety-olive-700); background: var(--safety-selected); }
 .app-shell .inspection-stat[aria-pressed=true] { background: var(--safety-action); border-color: var(--safety-action); box-shadow: var(--workspace-card-shadow); }

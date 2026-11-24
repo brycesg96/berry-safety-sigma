@@ -10,6 +10,7 @@ import './product-theme.css';
 import './yo-seguro.css';
 import './safety-treasury.css';
 import './workspace-theme.css';
+import './followup-navigation.css';
 
 ReactDOM.createRoot(document.getElementById('root')!).render(<React.StrictMode><Application /><AppMotion /></React.StrictMode>);
 

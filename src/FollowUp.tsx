@@ -1,5 +1,3 @@
-import { areaDisplayName } from './organization';
-import { organizationLabel } from './organization-label';
 import { AccountDirectory } from './AccountDirectory';
 import { readAccounts } from './accounts';
 import { correctionAuthorName } from './correction-author';
@@ -11,8 +9,10 @@ import { supabaseClient } from './supabase';
 import { hydrateCloudInspection } from './cloud-store';
 import type { CloudInspectionRow } from './cloud-store';
 import { FollowUpConversation } from './FollowUpConversation';
+import { FollowUpSummary } from './FollowUpSummary';
+import { FollowUpObservationNavigation } from './FollowUpObservationNavigation';
 import { hasPendingChanges, unsavedMessage, usePendingChanges } from './manual-save';
-import { useContext, useEffect, useRef, useState } from 'react';
+import { useContext, useEffect, useId, useRef, useState } from 'react';
 import { ArrowLeft, BadgeCheck, Camera, Check, Clock3, Download, ImagePlus, LoaderCircle, Pencil, RefreshCw, RotateCcw, Send, X } from 'lucide-react';
 import { Badge, Field, Modal } from './components';
 import type { Inspection } from './model';
@@ -20,7 +20,6 @@ import { formatDate, preparePhoto } from './model';
 import type { DemoAccount } from './accounts';
 import type { Correction } from './follow-up';
 import { blankCorrection, inspectionClosed, isRecipient, reviewCorrection, saveCorrection, workflowLabel } from './follow-up';
-import { closingRemarksOf } from './registration';
 import { exportExcel } from './export';
 import { exportPdf } from './pdf';
 import { confirmedInspectionCode } from './inspection-code';
@@ -28,7 +27,9 @@ import { CloudReportSendForm } from './CloudReportSendForm';
 import { storeFinalExcel } from './cloud-final';
 
 export function FollowUp({ inspection, actor, onChange, onBack, readOnly = false, onBusyChange, onEdit, onArchiveRetry, externalBusy = false }: { inspection: Inspection; actor: DemoAccount; onChange: (d: Inspection) => void; onBack: () => void; readOnly?: boolean; onBusyChange?: (busy: boolean) => void; onEdit?: () => void; onArchiveRetry?: () => void; externalBusy?: boolean }) {
-  const directory=useContext(AccountDirectory);
+  const [selectedObservation, setSelectedObservation] = useState('');
+  const navigationId = useId();
+  const activeObservation = inspection.observations.find(observation => observation.id === selectedObservation)?.id || inspection.observations[0]?.id || '';
   const [error, setError] = useState(''); const [busy, setBusy] = useState(false);
   const [preview, setPreview] = useState<{ data: string; name: string } | null>(null);
   const [mailOpen, setMailOpen] = useState(false);
@@ -73,12 +74,14 @@ export function FollowUp({ inspection, actor, onChange, onBack, readOnly = false
     <div className="page-heading followup-heading"><div><div className="eyebrow">SEGUIMIENTO DE HALLAZGOS</div><h1>{inspection.area}</h1><p>{owner ? workflowLabel(inspection) : inboxWorkflowLabel(inspection)} · {confirmedInspectionCode(inspection) || 'Número de registro definitivo pendiente'} · {formatDate(inspection.date)}</p></div><div className="followup-downloads">{onArchiveRetry && <button type="button" className="button button-primary" disabled={busy || externalBusy} onClick={onArchiveRetry}><RefreshCw size={16}/>Completar actualización del Excel</button>}{onEdit && !closed && !inspection.archiveEditOperation && <button type="button" className="button button-primary" disabled={busy || externalBusy} onClick={() => { if (hasPendingChanges()) setError(unsavedMessage); else onEdit?.(); }}><Pencil size={16}/>Editar inspección</button>}<button className="button button-outline" disabled={busy || externalBusy} onClick={() => void download('excel')}><Download size={16}/>Descargar Excel</button>{closed && <button className="button button-outline" disabled={busy || externalBusy} onClick={() => void download('pdf')}><Download size={16}/>Descargar PDF</button>}</div></div>
 
     {reviewer && inspection.storage === 'cloud' && inspection.emailDelivery?.state !== 'accepted' && <button type="button" className="button button-outline" onClick={() => setMailOpen(true)}>Comprobar envío por correo</button>}
-    <div className="followup-context liquid-glass-card"><LiquidGlassSurface/><div className="followup-people-grid"><section aria-label="Responsable de la Inspección"><strong className="followup-people-role">RESPONSABLE DE LA INSPECCIÓN</strong>{[{id:inspection.ownerId,personId:inspection.ownerId,name:inspection.inspector},...(inspection.additionalInspectors||[])].map(person=><div className="followup-person" key={person.id}><strong>{person.name}</strong><span>{personRoleDetails(person,directory||readAccounts(),inspection)}</span></div>)}</section><section aria-label="Responsables del Levantamiento"><strong className="followup-people-role">RESPONSABLES DEL LEVANTAMIENTO</strong>{inspection.responsibles.map(person=><div className="followup-person" key={person.id}><strong>{person.name}</strong><span>{personRoleDetails(person,directory||readAccounts(),inspection)}</span></div>)}</section></div><p><strong>Objetivo</strong> {inspection.objective}</p><p><strong>Descripción de la causa</strong> {inspection.unfavorableCause || 'Sin indicar'}</p><p><strong>Conclusiones y recomendaciones</strong> {closingRemarksOf(inspection)}</p></div>
+    <FollowUpSummary inspection={inspection}/>
     {finalizing && <p className="inline-note" role="status"><LoaderCircle size={16} className="spin"/>Guardando Excel final…</p>}
     {error && <p className="notice notice-error" role="alert">{error}</p>}
     {!readOnly && closed && inspection.storage === 'cloud' && inspection.finalExcelStored === false && !finalizing && <button type="button" className="button button-outline" disabled={busy} onClick={() => void finalize()}>Reintentar guardar Excel final</button>}
-    {inspection.observations.map((o, i) => <section className="followup-card liquid-glass-card" key={o.id}><LiquidGlassSurface/>
-      <div className="observation-heading"><span className="observation-index">{i + 1}</span><h2>Observación {i + 1}</h2><Badge severity={o.severity}/><span className="list-status">{inspection.delivery?.corrections[o.id]?.decision==='approved'?'Ejecutado':'Pendiente'}</span></div>
+    <FollowUpObservationNavigation inspection={inspection} activeId={activeObservation} onSelect={setSelectedObservation} idPrefix={navigationId}/>
+    {/* Preserve drafts, photos and conversations while inactive panels are hidden. */}
+    {inspection.observations.map((o, i) => <section className="followup-card liquid-glass-card" key={o.id} role="tabpanel" id={`${navigationId}-panel-${o.id}`} aria-labelledby={`${navigationId}-tab-${o.id}`} tabIndex={0} hidden={o.id !== activeObservation}><LiquidGlassSurface/>
+      <div className="observation-heading"><span className="observation-index">{i + 1}</span><h2>Observación {i + 1}</h2><Badge severity={o.severity}/><span className={`list-status${inspection.delivery?.corrections[o.id]?.decision==='approved'?' status-ready':''}`}>{inspection.delivery?.corrections[o.id]?.decision==='approved'?'Ejecutado':'Pendiente'}</span></div>
       <div className="followup-original-layout"><div className="followup-original"><p><strong>Descripción</strong>{o.description}</p><p><strong>Acción a tomar</strong>{o.correctiveAction}</p></div><div className="followup-original-side"><p className="followup-planned-date"><strong>Fecha de Cierre prevista</strong>{formatDate(o.dueDate)}</p>
       {o.photos.length > 0 && <div className="followup-evidence" aria-label="Registro fotográfico original">{o.photos.map(p => <button key={p.id} onClick={() => setPreview(p)} aria-label={`Ver evidencia original ${p.name}`}><img src={p.data} alt={p.name} loading="lazy"/></button>)}</div>}
       </div></div>
@@ -132,7 +135,7 @@ function CorrectionForm({ inspection, observationId, actor, owner, recipient, on
     </section>}
     <div className="correction-layout"><div className="correction-texts"><Field label="Responsable del Levantamiento" required>{props => <input {...props} value={saved && (locked || !valueDirty) ? correctionAuthorName(inspection,saved,directory||readAccounts()) : recipient ? actor.name : ''} readOnly aria-readonly="true" placeholder="Aún no se ha registrado un levantamiento" title="Persona que registró el levantamiento con su cuenta."/>}</Field>
     <Field label="Acción realizada" required>{props => <textarea {...props} rows={3} maxLength={5000} value={value.action} readOnly={locked || busy} onChange={e => update('action', e.target.value)} placeholder="Detalla cómo se corrigió el hallazgo."/>}</Field>
-    </div><div className="correction-details"><div className="correction-metadata"><Field label="Fecha de Cierre" required>{props => <input {...props} type="date" value={value.date} readOnly={locked || busy} onChange={e => update('date', e.target.value)}/>}</Field><Field label="Estado" hint="Se actualiza al aprobar el inspector.">{props => <input {...props} readOnly aria-readonly="true" value={saved?.decision==='approved'?'Ejecutado':'Pendiente'}/>}</Field></div>
+    </div><div className="correction-details"><div className="correction-metadata"><Field label="Fecha de Cierre" required>{props => <input {...props} type="date" value={value.date} readOnly={locked || busy} onChange={e => update('date', e.target.value)}/>}</Field><Field label="Estado">{props => <input {...props} readOnly aria-readonly="true" value={saved?.decision==='approved'?'Ejecutado':'Pendiente'}/>}</Field></div>
     <div className="evidence-label"><span>Registro fotográfico del levantamiento</span><span>{value.photos.length} / 8</span></div>
     <div className="followup-evidence">{value.photos.map(p => <div key={p.id}><button aria-label={`Ver levantamiento ${p.name}`} onClick={() => onPreview(p)}><img src={p.data} alt={p.name} loading="lazy"/></button>{!locked && <button className="photo-remove" aria-label={`Quitar evidencia ${p.name}`} disabled={busy} onClick={() => update('photos', value.photos.filter(x => x.id !== p.id))}><X size={13}/></button>}</div>)}</div>
     {!locked && <label className="button button-outline evidence-upload"><ImagePlus size={16}/>Añadir evidencias<input aria-label="Añadir evidencias del levantamiento" type="file" accept="image/jpeg,image/png,image/webp" multiple disabled={busy} onChange={async e => { const files = Array.from(e.target.files || []); e.target.value = ''; if (files.length + value.photos.length > 8) { setError('Máximo 8 evidencias por hallazgo.'); return; } setBusy(true); setError(''); try { const photos = await Promise.all(files.map(preparePhoto)); setValue(c => ({ ...c, photos: [...c.photos, ...photos] })); } catch (err) { setError(err instanceof Error ? err.message : 'No se pudo cargar la imagen.'); } finally { setBusy(false); } }}/></label>}</div></div>
@@ -144,11 +147,4 @@ function CorrectionForm({ inspection, observationId, actor, owner, recipient, on
     {busy && <p className="inline-note"><LoaderCircle className="spin" size={16}/>Guardando…</p>}{error && <p className="error-message" role="alert">{error}</p>}{message && <p role="status" className="save-confirmation"><Check size={16} aria-hidden="true"/>{message}</p>}
     {!saved && !recipient && <p className="inline-note"><Camera size={16}/>El destinatario aún no ha registrado su levantamiento.</p>}
   </div>;
-}
-
-function personRoleDetails(person:{id:string;personId?:string;jobTitle?:string;area?:string;management?:string},directory:DemoAccount[],inspection:Inspection){
- const current=directory.find(account=>account.id===(person.personId||person.id));
- const job=inspection.registrationDetails?.[person.personId||person.id]?.jobTitle||person.jobTitle||current?.jobTitle;
- const area=areaDisplayName(person.area?person:current||{});
- return [organizationLabel(job),area].filter(Boolean).join(' - ')||'Puesto y área no registrados';
 }

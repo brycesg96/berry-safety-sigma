@@ -1901,6 +1901,59 @@ test('executed state is exclusive to inspector approval and review keeps the ori
  assert.equal(prepared.inspection.data.delivery.corrections[authorObservations[0]].actorId,authorUsers.first);
 });
 
+const conversationMigration=await readFile(new URL('../migrations/202611240028_followup_conversation.sql',import.meta.url),'utf8');
+const conversationReport='db000000-0000-4000-8000-000000000001';
+const conversationObservations=['dc000000-0000-4000-8000-000000000001','dc000000-0000-4000-8000-000000000002'];
+const conversationOperation='dd000000-0000-4000-8000-000000000001';
+let conversationRow;
+const conversationRpc=(actor,observation,operation,body)=>as('authenticated',actor,'select public.berry_add_followup_comment($1,$2,$3,$4) value',[conversationReport,observation,operation,body],freshCatalogClaims);
+const conversationChange=async(observation,action,actor=authorUsers.inspector)=>{
+ const value=action==='submit'?{action:'Acción correctiva realizada.',date:'2026-11-23',photos:[],state:'Pendiente'}:{note:''};
+ conversationRow=(await as('authenticated',actor,'select public.berry_change_correction($1,$2,$3,$4,$5) value',[conversationReport,observation,conversationRow.revision,action,value],freshCatalogClaims)).rows[0].value;
+};
+test('conversation closure upgrade is repeatable and preserves every report and recorded event',async()=>{
+ const reportsBefore=(await db.query('select id,data,revision from public.berry_inspections order by id')).rows;
+ const eventsBefore=(await db.query('select * from public.berry_followup_events order by id')).rows;
+ const countersBefore=(await db.query('select * from berry_private.report_counters order by year')).rows;
+ await db.exec(conversationMigration);await db.exec(conversationMigration);
+ assert.deepEqual((await db.query('select id,data,revision from public.berry_inspections order by id')).rows,reportsBefore);
+ assert.deepEqual((await db.query('select * from public.berry_followup_events order by id')).rows,eventsBefore);
+ assert.deepEqual((await db.query('select * from berry_private.report_counters order by year')).rows,countersBefore);
+ assert.deepEqual((await as('anon',null,'select public.berry_followup_conversation_status() value')).rows[0].value,{version:'202611240028',approved_read_only:true,per_observation:true});
+ const data={...cloudData(),id:conversationReport,ownerId:authorUsers.inspector,inspector:'inspector',responsibles:[{personId:authorUsers.first,name:'first',email:'first-authors@example.invalid'}],observations:conversationObservations.map(id=>({...cloudData().observations[0],id})),delivery:{recipientIds:[authorUsers.first],corrections:{},revision:1}};
+ conversationRow=(await db.query("insert into public.berry_inspections(id,author_id,code,workflow,data,sent_at)values($1,$2,'IH-2033-901','sent',$3,now()) returning *",[conversationReport,authorUsers.inspector,data])).rows[0];
+ await db.query('insert into public.berry_recipients(inspection_id,user_id,assigned_by)values($1,$2,$3)',[conversationReport,authorUsers.first,authorUsers.inspector]);
+});
+test('approval closes only that conversation while preserving earlier messages and successful retries',async()=>{
+ const original=(await conversationRpc(authorUsers.first,conversationObservations[0],conversationOperation,'Consulta previa a la aprobación.')).rows[0].value;
+ await conversationRpc(authorUsers.inspector,conversationObservations[0],'dd000000-0000-4000-8000-000000000002','Respuesta del inspector.');
+ await conversationChange(conversationObservations[0],'submit',authorUsers.first);
+ await conversationChange(conversationObservations[0],'approve');
+ assert.equal(conversationRow.workflow,'sent');
+ for(const [index,actor]of [authorUsers.first,authorUsers.inspector].entries()){
+  await assert.rejects(()=>conversationRpc(actor,conversationObservations[0],`dd000000-0000-4000-8000-00000000001${index}`,'Mensaje posterior.'),error=>error.code==='42501'&&error.message.includes('OBSERVATION_CONVERSATION_CLOSED'));
+ }
+ const replay=(await conversationRpc(authorUsers.first,conversationObservations[0],conversationOperation,'Consulta previa a la aprobación.')).rows[0].value;
+ assert.equal(replay.id,original.id);assert.equal(replay.created_at,original.created_at);
+ await assert.rejects(()=>conversationRpc(authorUsers.first,conversationObservations[0],conversationOperation,'Contenido cambiado.'),error=>error.code==='40001');
+ await conversationRpc(authorUsers.first,conversationObservations[1],'dd000000-0000-4000-8000-000000000003','La segunda observación continúa pendiente.');
+ await conversationRpc(authorUsers.inspector,conversationObservations[1],'dd000000-0000-4000-8000-000000000004','Respuesta de la segunda observación.');
+ const messages=(await as('authenticated',authorUsers.first,"select observation_id,body from public.berry_followup_events where inspection_id=$1 and action='comment' order by observation_id,body",[conversationReport],freshCatalogClaims)).rows;
+ assert.equal(messages.length,4);assert.deepEqual(messages.filter(event=>event.observation_id===conversationObservations[0]).map(event=>event.body),['Consulta previa a la aprobación.','Respuesta del inspector.']);
+ await denied(()=>conversationRpc(productivityUsers.outsider,conversationObservations[1],'dd000000-0000-4000-8000-000000000005','No autorizado.'));
+});
+test('fully approved conversations remain readable and immutable without accepting new or queued messages',async()=>{
+ await conversationChange(conversationObservations[1],'submit',authorUsers.first);await conversationChange(conversationObservations[1],'approve');
+ assert.equal(conversationRow.workflow,'closed');
+ const before=(await db.query('select * from public.berry_followup_events where inspection_id=$1 order by id',[conversationReport])).rows;
+ await assert.rejects(()=>conversationRpc(authorUsers.first,conversationObservations[1],'dd000000-0000-4000-8000-000000000006','Comentario offline que nunca llegó.'),error=>error.code==='42501'&&error.message.includes('OBSERVATION_CONVERSATION_CLOSED'));
+ await conversationRpc(authorUsers.first,conversationObservations[0],conversationOperation,'Consulta previa a la aprobación.');
+ assert.deepEqual((await db.query('select * from public.berry_followup_events where inspection_id=$1 order by id',[conversationReport])).rows,before);
+ assert.equal((await as('authenticated',authorUsers.first,"select body from public.berry_followup_events where inspection_id=$1 and action='comment'",[conversationReport],freshCatalogClaims)).rows.length,4);
+ await denied(()=>as('authenticated',authorUsers.first,'delete from public.berry_followup_events where inspection_id=$1',[conversationReport],freshCatalogClaims));
+ await denied(()=>as('anon',null,'select public.berry_add_followup_comment($1,$2,$3,$4)',[conversationReport,conversationObservations[1],'dd000000-0000-4000-8000-000000000007','Anónimo.']));
+});
+
 let failed;
 try {
   await setup();

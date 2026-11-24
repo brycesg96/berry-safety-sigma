@@ -174,9 +174,7 @@
 .performers-section .additional-inspector .picker-without-email{width:100%;grid-template-columns:minmax(0,1fr)}
 .performers-section .additional-inspector .field{margin-bottom:0}
 .recipient-guidance{margin:4px 0 18px}.app-shell .recipient-guidance>p{font-size:14px;color:#4d6756;line-height:1.8}
-.recipient-responsibilities{display:flex;flex-wrap:wrap;gap:9px 18px;list-style:none;padding:0;margin:13px 0 0}
-.recipient-responsibilities>li{display:inline-flex;align-items:center;gap:6px;font-size:12px;color:#45623e;line-height:1.7}.recipient-responsibilities svg{color:#60824d}
-@media(max-width:700px){.performers-section .registration-fields{grid-template-columns:minmax(0,1fr);gap:12px;margin-top:6px}.performers-section .registration-person-meta{padding-left:29px}.performers-section .registration-signature{padding-left:29px}.recipient-responsibilities{flex-direction:column;gap:8px}.registration-person-meta>:not(:last-child):after{padding:0 6px}}
+@media(max-width:700px){.performers-section .registration-fields{grid-template-columns:minmax(0,1fr);gap:12px;margin-top:6px}.performers-section .registration-person-meta{padding-left:29px}.performers-section .registration-signature{padding-left:29px}.registration-person-meta>:not(:last-child):after{padding:0 6px}}
 
 .followup-people-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:28px;margin:0 0 22px;padding-bottom:22px;border-bottom:1px solid #e0e7d8}
 .followup-people-role{display:block;font-size:11px;font-weight:650;letter-spacing:.6px;line-height:1.7;color:#4e6d48;margin-bottom:12px}

@@ -126,6 +126,7 @@ export function addLocalComment(inspection: Inspection, observationId: string, a
     if (!current.delivery || !current.observations.some(o=>o.id===observationId) || current.ownerId !== actorId && !isRecipient(current,actorId)) throw new Error('No tienes acceso a esta conversación.');
     if (!body.trim() || body.length > 5000) throw new Error('Escribe un comentario de hasta 5.000 caracteres.');
     if (current.delivery.timeline?.some(e=>e.id===id)) return current;
+    if (current.delivery.corrections[observationId]?.decision === 'approved') throw new Error('Esta observación ya fue aprobada. La conversación es de solo lectura.');
     const event: FollowUpEvent = { id, inspection_id: current.id, observation_id: observationId, actor_id: actorId, actor_name: readAccounts().find(a=>a.id===actorId)?.name || '', action:'comment', body:body.trim(), created_at:new Date().toISOString() };
     return { ...current, delivery:{...current.delivery,timeline:[...(current.delivery.timeline||[]),event]}, updatedAt:new Date().toISOString() };
   });

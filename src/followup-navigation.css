@@ -1,0 +1,81 @@
+/* Compact report context and observation navigation share the platform tokens. */
+:is(.app-shell, .cloud-account-page) .followup-context {
+  display: block;
+  padding: 18px 20px 0;
+  border: 1px solid var(--safety-border);
+  line-height: 1.5;
+}
+:is(.app-shell, .cloud-account-page) .followup-people-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 24px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+.followup-people-section { min-width: 0; }
+.followup-people-section + .followup-people-section { border-left: 1px solid var(--safety-border); padding-left: 24px; }
+:is(.app-shell, .cloud-account-page) .followup-people-role {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 12px;
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.5;
+  letter-spacing: 0;
+  color: var(--safety-text-secondary);
+}
+.followup-people-role > svg { flex-shrink: 0; }
+.followup-people-role > small { padding: 1px 7px; border-radius: 6px; background: var(--safety-surface-soft); color: var(--safety-text-secondary); font-size: 11px; }
+.followup-people-list { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 220px), 1fr)); gap: 12px 16px; list-style: none; padding: 0; margin: 0; }
+:is(.app-shell, .cloud-account-page) .followup-person { display: flex; align-items: flex-start; gap: 10px; margin: 0; min-width: 0; }
+:is(.app-shell, .cloud-account-page) .followup-person-avatar { display: grid; place-items: center; flex: 0 0 30px; width: 30px; height: 30px; border-radius: 10px; background: var(--safety-selected); color: var(--safety-action); font-size: 10px; font-weight: 650; line-height: 1; }
+.followup-person-info { display: grid; gap: 3px; min-width: 0; }
+.followup-person-info > strong { font-size: 14px; font-weight: 600; line-height: 1.5; color: var(--safety-text); }
+.followup-person-info > span { font-size: 12px; line-height: 1.5; color: var(--safety-text-secondary); }
+.followup-report-details { margin-top: 16px; border-top: 1px solid var(--safety-border); }
+.followup-report-details > summary { display: flex; align-items: center; gap: 8px; min-height: 48px; padding: 10px 0; list-style: none; cursor: pointer; font-size: 13px; font-weight: 550; color: var(--safety-action); }
+.followup-report-details > summary::-webkit-details-marker { display: none; }
+.followup-report-details > summary > svg { flex-shrink: 0; }
+.followup-report-details > summary > small { margin-left: 8px; font-size: 12px; font-weight: 400; color: var(--safety-text-secondary); }
+.followup-report-details .followup-details-chevron { margin-left: auto; }
+.followup-report-details[open] .followup-details-chevron { transform: rotate(180deg); }
+.followup-report-texts { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 20px; padding: 4px 0 20px; }
+.followup-report-texts > section { min-width: 0; }
+.followup-report-texts h3 { margin: 0 0 5px; font-size: 13px; font-weight: 600; color: var(--safety-text); line-height: 1.5; }
+.followup-report-texts p { margin: 0; font-size: 13px; line-height: 1.65; color: var(--safety-text-secondary); white-space: pre-wrap; overflow-wrap: anywhere; }
+.followup-observation-navigation { display: grid; grid-template-columns: max-content minmax(0, 1fr); align-items: center; gap: 18px; margin: 12px 0 0; min-width: 0; }
+.followup-observation-nav-title h2 { margin: 0 0 2px; font-size: 14px; font-weight: 600; line-height: 1.4; color: var(--safety-text); }
+.followup-observation-nav-title > span { font-size: 12px; color: var(--safety-text-secondary); }
+.followup-observation-tabs { position: relative; display: flex; align-items: center; gap: 8px; min-width: 0; padding: 4px; overflow-x: auto; scrollbar-width: thin; scrollbar-color: var(--safety-field-border) transparent; }
+:is(.app-shell, .cloud-account-page) .followup-observation-tab { position: relative; display: grid; place-items: center; flex: 0 0 44px; width: 44px; height: 44px; box-sizing: border-box; padding: 0; border: 2px solid color-mix(in srgb, var(--safety-pending-text) 20%, transparent); border-radius: 10px; background: var(--safety-pending-bg); color: var(--safety-pending-text); font-size: 14px; font-weight: 650; line-height: 1; }
+.followup-observation-tab > svg { position: absolute; top: 3px; right: 3px; }
+:is(.app-shell, .cloud-account-page) .followup-observation-tab[data-state=executed] { background: var(--safety-executed-bg); color: var(--safety-executed-text); border-color: color-mix(in srgb, var(--safety-executed-text) 20%, transparent); }
+:is(.app-shell, .cloud-account-page) .followup-observation-tab[aria-selected=true] { border-color: var(--safety-action); box-shadow: inset 0 -2px var(--safety-action); }
+:is(.app-shell, .cloud-account-page) .followup-card .list-status { background: var(--safety-pending-bg); color: var(--safety-pending-text); }
+:is(.app-shell, .cloud-account-page) .followup-card .list-status.status-ready { background: var(--safety-executed-bg); color: var(--safety-executed-text); }
+:is(.app-shell, .cloud-account-page) .followup-card[hidden] { display: none; }
+:is(.app-shell, .cloud-account-page) .correction-form > .correction-conversation { margin: 20px 0 0; padding: 16px; }
+.followup-card .correction-conversation h4 { font-size: 14px; line-height: 1.5; }
+.followup-report-details > summary:focus-visible, .followup-observation-tab:focus-visible, .followup-card:focus-visible { outline: 3px solid var(--berry-focus); outline-offset: 2px; }
+@media (hover: hover) {
+  :is(.app-shell, .cloud-account-page) .followup-observation-tab:hover { border-color: var(--safety-action); }
+  .followup-report-details > summary:hover { color: var(--safety-action-hover); }
+}
+@media (prefers-reduced-motion: no-preference) {
+  .followup-details-chevron { transition: transform 160ms ease; }
+  .followup-observation-tab { transition: border-color 160ms ease, box-shadow 160ms ease; }
+}
+@media (max-width: 700px) {
+  :is(.app-shell, .cloud-account-page) .followup-context { padding: 16px 16px 0; }
+  :is(.app-shell, .cloud-account-page) .followup-people-grid { grid-template-columns: minmax(0, 1fr); gap: 16px; }
+  .followup-people-section + .followup-people-section { border-left: 0; border-top: 1px solid var(--safety-border); padding: 14px 0 0; }
+  .followup-report-details > summary > small { display: none; }
+  .followup-report-texts { grid-template-columns: minmax(0, 1fr); gap: 16px; padding-bottom: 16px; }
+  .followup-observation-navigation { gap: 12px; }
+  :is(.app-shell, .cloud-account-page) .correction-form > .correction-conversation { margin-top: 16px; padding: 14px; }
+}
+@media (forced-colors: active) {
+  .followup-observation-tab[aria-selected=true] { outline: 2px solid Highlight; outline-offset: -4px; }
+}
