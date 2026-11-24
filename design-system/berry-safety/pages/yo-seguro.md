@@ -21,3 +21,5 @@ Los buscadores de Select usan una sola superficie con borde discreto y foco gris
 ## Consulta agrupada por envío
 
 Cada envío tiene una tarjeta con persona, actividad, recepción, lugar y tipos incluidos, seguida de todos sus archivos. Se agrupa por `batch_id`; documentos históricos sin ese identificador conservan su independencia. Compartir nombre no fusiona personas ni trabajos. La paginación recupera hasta 20 envíos completos por página y los filtros de tipo seleccionan envíos que contienen cualquiera de esos tipos, conservando el resto de sus adjuntos. Los nombres de gerencias y áreas siguen procediendo de Administración → Gestión de Áreas y usan `organizationLabel`.
+
+La tarjeta de cada envío usa un desplegable nativo `details/summary`, cerrado al iniciar la consulta. Su encabezado conserva persona, actividad, fecha, lugar, tipos y cantidad de adjuntos. El indicador gira al abrir y respeta movimiento reducido. Los archivos y sus acciones se muestran dentro del desplegable. La actualización automática conserva el estado de apertura del envío visible.

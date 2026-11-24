@@ -21,10 +21,19 @@ for (const width of [1440, 375]) test(`una tarjeta reúne la persona, actividad 
   await expect(card.locator('.safety-submission-types')).toContainText('ATS2');
   await expect(card.locator('.safety-submission-types')).toContainText('PETAR'); await expect(card.locator('.safety-submission-types')).toContainText('Checklist');
   await expect(card.locator('.safety-document-row')).toHaveCount(4);
+  const disclosure = card.locator('details'), summary = card.locator('summary');
+  await expect(disclosure).not.toHaveAttribute('open', '');
+  await expect(card.locator('.safety-document-row').first()).not.toBeVisible();
+  await card.screenshot({ path: test.info().outputPath(`envio-resumido-${width}.png`), animations: 'disabled' });
+  await expectAccessible(page); await summary.click();
+  await expect(disclosure).toHaveAttribute('open', '');
   const download = page.waitForEvent('download'); await card.getByRole('button', { name: 'Descargar petar-1-1.pdf', exact: true }).click(); expect((await download).suggestedFilename()).toBe('petar-1-1.pdf');
   await card.getByRole('button', { name: 'Ver archivo checklist-1-2.pdf', exact: true }).click(); await expect(page.getByRole('dialog')).toBeVisible(); await page.getByRole('button', { name: 'Cerrar', exact: true }).click();
   await expectAccessible(page); expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   await card.screenshot({ path: test.info().outputPath(`envio-agrupado-${width}.png`), animations: 'disabled' });
+  await summary.focus(); await summary.press('Enter');
+  await expect(card.locator('.safety-document-row').first()).not.toBeVisible();
+  await summary.press('Space'); await expect(card.locator('.safety-document-row').first()).toBeVisible();
 });
 
 test('la búsqueda por tipo muestra el envío completo y las páginas no cortan ni repiten sus cincuenta archivos', async ({ page, context }) => {

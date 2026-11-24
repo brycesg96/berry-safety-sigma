@@ -44,7 +44,7 @@ La gerencia autorizada se fija en PostgreSQL a partir del perfil existente al ac
 
 ## Una tarjeta por envío
 
-La consulta presenta una tarjeta por `batch_id`, con el nombre de la persona una sola vez, actividad, fecha/hora y lugar, tipos incluidos (ATS/PETAR/Checklist) y todos los archivos con vista previa y descarga individuales. Administración conserva el retiro por archivo. La tarjeta reúne el envío original; no fusiona trabajos diferentes ni personas que declaren el mismo nombre. Los documentos anteriores al paso 26 sin identificador de envío permanecen independientes.
+La consulta presenta una tarjeta por `batch_id`, con el nombre de la persona una sola vez, actividad, fecha/hora y lugar, tipos incluidos (ATS/PETAR/Checklist) y todos los archivos con vista previa y descarga individuales. Las tarjetas aparecen cerradas y muestran los datos del envío, sus tipos y la cantidad de adjuntos. Pulsar el encabezado despliega o recoge sus archivos; el mismo control funciona con Enter o Espacio. Administración conserva el retiro por archivo. La tarjeta reúne el envío original; no fusiona trabajos diferentes ni personas que declaren el mismo nombre. Los documentos anteriores al paso 26 sin identificador de envío permanecen independientes.
 
 Las páginas contienen hasta 20 envíos completos; un envío de 50 archivos nunca se divide. Al elegir tipos se buscan los envíos que contengan cualquiera de ellos y se muestran todos sus adjuntos. Los datos se leen de las tablas existentes con RLS; no requiere otra migración ni cambiar permisos. La actualización automática mantiene estas agrupaciones.
 
