@@ -87,7 +87,7 @@ test('panel filtra estadísticas y consolidado por fecha, número de registro, �
  await page.getByLabel('Desde',{exact:true}).fill('2027-01-01');await expect(page.getByRole('alert')).toContainText('fecha inicial');await expect(page.getByRole('button',{name:'Descargar consolidado'})).toBeDisabled();
 });
 test('consulta y descargas de un informe ajeno cerrado no modifican el informe ni envían correo y el panel funciona en teléfono',async({page,context})=>{
- const state=await setup(page,context);await panel(page);await page.screenshot({path:test.info().outputPath('panel-escritorio.png'),fullPage:true});await page.setViewportSize({width:390,height:844});
+ const state=await setup(page,context);await page.emulateMedia({reducedMotion:'reduce'});await panel(page);await page.screenshot({path:test.info().outputPath('panel-escritorio.png'),fullPage:true});await page.setViewportSize({width:390,height:844});
  expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);await page.screenshot({path:test.info().outputPath('panel-telefono.png'),fullPage:true});
  const closed=page.locator('.dashboard-results tbody tr').filter({hasText:'IH-2026-003'});await closed.getByRole('button',{name:'Revisar',exact:true}).click();
  await expect(page.locator('.followup-heading')).toContainText('Cerrada');await expect(page.getByLabel('Estado',{exact:true})).toHaveValue('Ejecutado');await expect(page.getByLabel('Estado',{exact:true})).toHaveAttribute('readonly','');await expect(page.getByLabel('Acción realizada',{exact:false})).toHaveAttribute('readonly','');

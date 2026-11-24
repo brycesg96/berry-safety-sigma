@@ -44,3 +44,7 @@ El seguimiento muestra los inspectores y todos los responsables asignados al lev
 ## Desplegables con búsqueda en toda la aplicación
 
 Abrir Select nunca enfoca su búsqueda: la misma regla se aplica con toque, lápiz, mouse y teclado en todos los módulos. Se puede desplazar la lista y elegir directamente. La búsqueda recibe foco solo al pulsar su campo o llegar a él con Tab; entonces se puede escribir. Limpiar una selección tampoco devuelve el foco al buscador. Las flechas, Enter y Escape siguen disponibles desde el control de apertura, con opciones y selección anunciadas mediante ARIA.
+
+## Presentación común de la plataforma
+
+`workspace-theme.css` extiende la paleta de Inicio y Yo Seguro al espacio de trabajo, los formularios, listados y administración. Sus tokens se organizan en valores de marca, alias semánticos y propiedades de componentes. Las transiciones nuevas afectan color y sombra; los controles conservan sus posiciones. Se reutilizan los efectos existentes y su cancelación con movimiento reducido. La navegación de cada sección anuncia su ubicación actual con `aria-current`. Los formatos Excel/PDF y las operaciones de datos conservan su implementación.

@@ -1,0 +1,249 @@
+/* Treasury's paper and forest palette, shared by the working screens. */
+:root {
+  /* Brand primitives: the same palette used by Inicio and Yo Seguro. */
+  --safety-forest-900: #183f32;
+  --safety-forest-700: #244b38;
+  --safety-olive-700: #607442;
+  --safety-olive-100: #e7edda;
+  --safety-paper-0: #fdfdf8;
+  --safety-paper-50: #f7f6f0;
+  --safety-paper-100: #f0f1e7;
+  --safety-white: #fff;
+  --safety-stone-200: #dfe3d5;
+  --safety-stone-300: #bdcbb6;
+  --safety-stone-600: #53664f;
+
+  /* Semantic tokens. */
+  --safety-page: var(--safety-paper-50);
+  --safety-surface: var(--safety-white);
+  --safety-surface-wash: var(--safety-paper-0);
+  --safety-field-border: var(--safety-stone-300);
+  --safety-surface-soft: var(--safety-paper-100);
+  --safety-text: var(--safety-forest-900);
+  --safety-text-secondary: var(--safety-stone-600);
+  --safety-action: var(--safety-forest-700);
+  --safety-action-hover: var(--safety-forest-900);
+  --safety-border: var(--safety-stone-200);
+  --safety-selected: var(--safety-olive-100);
+  --safety-on-selected: var(--safety-forest-700);
+
+  /* Component tokens. */
+  --workspace-card-radius: 18px;
+  --workspace-control-radius: 11px;
+  --workspace-card-shadow: 0 6px 24px #263c2506;
+  --workspace-card-shadow-hover: 0 9px 26px #263c250d;
+  --workspace-menu-shadow: 0 14px 32px #253d291a;
+  --workspace-feedback-duration: 160ms;
+}
+
+:is(.app-shell, .cloud-account-page:not(.treasury-access-page)) {
+  --ink: var(--safety-text);
+  --green: var(--safety-action);
+  --green-hover: var(--safety-action-hover);
+  --muted: var(--safety-text-secondary);
+  --line: var(--safety-border);
+  --sidebar: var(--safety-forest-900);
+  --berry-text: var(--safety-text);
+  --berry-secondary: var(--safety-text-secondary);
+  --berry-surface: var(--safety-surface);
+  --berry-soft: var(--safety-surface-soft);
+  --berry-border: var(--safety-border);
+  --berry-shadow: var(--workspace-card-shadow);
+  background: var(--safety-page);
+  color: var(--safety-text);
+}
+
+/* Navigation keeps its established dimensions and mobile drawer behavior. */
+.app-shell .sidebar {
+  background: var(--safety-forest-900);
+  border-right: 1px solid color-mix(in srgb, var(--safety-white) 7%, transparent);
+}
+.app-shell .sidebar-brand .brand { color: var(--safety-white); }
+.app-shell .user-card {
+  background: color-mix(in srgb, var(--safety-white) 3%, transparent);
+  border-color: color-mix(in srgb, var(--safety-selected) 14%, transparent);
+  border-radius: 13px;
+}
+.app-shell .avatar {
+  background: var(--safety-selected);
+  color: var(--safety-forest-900);
+}
+.app-shell .sidebar-nav button { color: var(--safety-selected); }
+.app-shell .sidebar-nav button:hover { background: color-mix(in srgb, var(--safety-white) 4%, transparent); }
+.app-shell .sidebar-nav button.active {
+  background: var(--safety-selected);
+  color: var(--safety-forest-900);
+}
+.app-shell .sidebar-nav .nav-count { background: color-mix(in srgb, var(--safety-white) 8%, transparent); color: var(--safety-white); }
+.app-shell .sidebar-nav button.active .nav-count { background: color-mix(in srgb, var(--safety-action) 12%, var(--safety-selected)); color: var(--safety-action); }
+.app-shell .sidebar-divider { border-color: color-mix(in srgb, var(--safety-selected) 13%, transparent); background-color: color-mix(in srgb, var(--safety-selected) 13%, transparent); }
+.app-shell .prevention-card { border-color: color-mix(in srgb, var(--safety-selected) 18%, transparent); border-radius: 15px; }
+.app-shell .prevention-card .liquid-glass-forest { background: linear-gradient(150deg, var(--safety-action), var(--safety-forest-900)); }
+.app-shell .topbar {
+  background: var(--safety-page);
+  border-bottom-color: var(--safety-border);
+}
+.app-shell .breadcrumb-current { color: var(--safety-text); font-weight: 600; }
+.app-shell .save-status { color: var(--safety-text-secondary); }
+.app-shell .workspace { background: var(--safety-page); }
+.app-shell .main-content { padding-bottom: 26px; }
+
+/* Page hierarchy mirrors the welcoming typography without enlarging controls. */
+.app-shell .page-heading h1 {
+  font-size: clamp(28px, 2.8vw, 40px);
+  font-weight: 650;
+  letter-spacing: -1.3px;
+  line-height: 1.22;
+}
+.app-shell .page-heading p { color: var(--safety-text-secondary); }
+.app-shell .eyebrow { color: var(--safety-olive-700); }
+.app-shell .eyebrow > span { background: var(--safety-olive-700); }
+.app-shell .draft-badge {
+  color: var(--safety-on-selected);
+  background: var(--safety-selected);
+  border-color: var(--safety-border);
+  border-radius: 7px;
+}
+
+/* Shared surfaces, also used in account-based administration. */
+:is(.app-shell, .cloud-account-page) :is(.form-card, .list-card, .followup-card, .followup-context, .context-card, .registration-card, .account-table-card, .organization-column, .dashboard-filters, .dashboard-chart, .dashboard-results) {
+  border-color: var(--safety-border);
+  border-radius: var(--workspace-card-radius);
+  background-color: var(--safety-surface);
+  box-shadow: var(--workspace-card-shadow);
+}
+:is(.app-shell, .cloud-account-page:not(.treasury-access-page)) .liquid-glass-surface:not(.liquid-glass-forest) {
+  background: linear-gradient(145deg, var(--safety-white), var(--safety-surface-wash));
+  --glass-water: var(--safety-selected);
+}
+:is(.app-shell, .cloud-account-page:not(.treasury-access-page)) .liquid-glass-surface:not(.liquid-glass-forest) .liquid-glass-wave { opacity: .35; }
+:is(.app-shell, .cloud-account-page:not(.treasury-access-page)) .liquid-glass-surface:not(.liquid-glass-forest) .liquid-glass-reflection { opacity: .22; }
+
+/* Inspection forms: readable fields, clear section changes, stable signatures. */
+.app-shell .form-card-heading {
+  background: var(--safety-surface-soft);
+  border-bottom-color: var(--safety-border);
+  border-radius: var(--workspace-card-radius) var(--workspace-card-radius) 0 0;
+}
+.app-shell .form-card-heading h2 { font-weight: 600; letter-spacing: -.7px; }
+.app-shell .card-eyebrow { color: var(--safety-olive-700); }
+.app-shell .section-icon { background: var(--safety-selected); color: var(--safety-olive-700); border-radius: 11px; }
+.app-shell .section-title h3 { font-weight: 600; letter-spacing: -.35px; }
+.app-shell .section-divider { border-color: var(--safety-border); }
+:is(.app-shell, .cloud-account-page:not(.treasury-access-page)) .field input:not([type=checkbox]):not([type=radio]):not([type=file]),
+:is(.app-shell, .cloud-account-page:not(.treasury-access-page)) .field textarea,
+:is(.app-shell, .cloud-account-page:not(.treasury-access-page)) .location-select-trigger {
+  border-color: var(--safety-field-border);
+  border-radius: var(--workspace-control-radius);
+  background-color: var(--safety-surface);
+  color: var(--safety-text);
+}
+:is(.app-shell, .cloud-account-page:not(.treasury-access-page)) .field :is(input, textarea)[readonly] { background-color: var(--safety-surface-wash); }
+:is(.app-shell, .cloud-account-page:not(.treasury-access-page)) :is(.field-hint, .inline-note) { color: var(--safety-text-secondary); }
+:is(.app-shell, .cloud-account-page:not(.treasury-access-page)) .platform-select-menu {
+  border-color: var(--safety-border);
+  border-radius: 13px;
+  box-shadow: var(--workspace-menu-shadow);
+}
+:is(.app-shell, .cloud-account-page:not(.treasury-access-page)) .location-select-option.is-active { background-color: var(--safety-selected); }
+.app-shell .stepper { border-color: var(--safety-border); border-radius: 15px; background: var(--safety-surface); }
+.app-shell .step-active { background: var(--safety-surface-soft); }
+.app-shell .step-number { background: var(--safety-surface-soft); border-color: var(--safety-border); color: var(--safety-text-secondary); }
+.app-shell .step-active .step-number { background: var(--safety-action); border-color: var(--safety-action); color: var(--safety-white); }
+.app-shell .step-complete .step-number { background: var(--safety-selected); border-color: var(--safety-selected); color: var(--safety-on-selected); }
+.app-shell .stepper-progress > span { background: var(--safety-olive-700); }
+.app-shell .form-footer { border-top-color: var(--safety-border); background: var(--safety-surface-wash); border-radius: 0 0 var(--workspace-card-radius) var(--workspace-card-radius); }
+.app-shell .wizard-actions { border-top: 1px solid var(--safety-border); padding-top: 18px; }
+.app-shell .context-card { background: var(--safety-surface-wash); }
+
+/* Shared actions use the same forest ink as the public entry points. */
+:is(.app-shell, .cloud-account-page:not(.treasury-access-page)) .button { border-radius: var(--workspace-control-radius); font-weight: 600; }
+:is(.app-shell, .cloud-account-page:not(.treasury-access-page)) .button-primary { background: var(--safety-action); border-color: var(--safety-action); color: var(--safety-white); }
+:is(.app-shell, .cloud-account-page:not(.treasury-access-page)) .button-primary:hover:enabled { background: var(--safety-action-hover); border-color: var(--safety-action-hover); }
+:is(.app-shell, .cloud-account-page:not(.treasury-access-page)) .button-outline { background: var(--safety-surface); color: var(--safety-action); border-color: var(--safety-field-border); }
+:is(.app-shell, .cloud-account-page:not(.treasury-access-page)) .button-outline:hover:enabled { background: var(--safety-selected); border-color: var(--safety-olive-700); }
+
+/* Lists and the inbox: the selected view is explicit; status colors stay semantic. */
+.app-shell .inspection-stat { border-color: var(--safety-border); border-radius: 16px; box-shadow: var(--workspace-card-shadow); }
+.app-shell .inspection-stat .list-stat-icon { color: var(--safety-olive-700); background: var(--safety-selected); }
+.app-shell .inspection-stat[aria-pressed=true] { background: var(--safety-action); border-color: var(--safety-action); box-shadow: var(--workspace-card-shadow); }
+.app-shell .inspection-stat[aria-pressed=true] > .liquid-glass-surface { background: var(--safety-action); }
+.app-shell .inspection-stat[aria-pressed=true] :is(strong, .inspection-stat-label, .inspection-stat-value) { color: var(--safety-white); }
+.app-shell .inspection-stat[aria-pressed=true] .list-stat-icon { color: var(--safety-white); background: color-mix(in srgb, var(--safety-white) 9%, transparent); }
+.app-shell .list-toolbar { background: var(--safety-surface-wash); border-bottom-color: var(--safety-border); }
+.app-shell .inspection-list-row { border-bottom-color: var(--safety-border); }
+.app-shell .inspection-list-row:hover { background-color: var(--safety-surface-wash); }
+.app-shell :is(.search-box, .account-user-search, .safety-search) { background-color: var(--safety-surface); border-color: var(--safety-field-border); border-radius: var(--workspace-control-radius); }
+.app-shell .received-filters button { border-color: var(--safety-border); background: var(--safety-surface); border-radius: 11px; color: var(--safety-text-secondary); }
+.app-shell .received-filters button[aria-pressed=true] { border-color: var(--safety-action); background: var(--safety-action); color: var(--safety-white); }
+.app-shell .received-filters button[aria-pressed=true] .inbox-priority-count { background: color-mix(in srgb, var(--safety-white) 12%, transparent); color: var(--safety-white); }
+.app-shell .inbox-intro-checks li { color: var(--safety-text-secondary); }
+.app-shell .inbox-intro-checks svg { color: var(--safety-olive-700); }
+.app-shell .followup-people-role { color: var(--safety-olive-700); }
+.app-shell .safety-submission { border-color: var(--safety-border); box-shadow: var(--workspace-card-shadow); }
+
+/* Administration, catalogues and reporting share the same paper surfaces. */
+.cloud-account-page:not(.treasury-access-page) .cloud-account-header { background: var(--safety-page); border-bottom: 1px solid var(--safety-border); }
+.cloud-account-page:not(.treasury-access-page) .brand { color: var(--safety-text); }
+.cloud-account-page:not(.treasury-access-page) :is(.brand-symbol, .brand-dot) { color: var(--safety-olive-700); }
+.cloud-account-page:not(.treasury-access-page) .brand small { color: var(--safety-text-secondary); }
+.cloud-account-page:not(.treasury-access-page) .cloud-return { color: var(--safety-text); }
+.cloud-account-page:not(.treasury-access-page) .hortifrut-logo-on-dark { background: var(--safety-white); border: 1px solid var(--safety-border); box-shadow: none; }
+.cloud-account-page:not(.treasury-access-page) .cloud-account-card { background: var(--safety-surface); border-color: var(--safety-border); border-radius: 20px; box-shadow: var(--workspace-card-shadow); }
+:is(.app-shell, .cloud-account-page) .admin-tabs { background: var(--safety-surface); border-color: var(--safety-border); border-radius: 14px; }
+:is(.app-shell, .cloud-account-page) .admin-tabs button { color: var(--safety-text-secondary); border-radius: 10px; }
+:is(.app-shell, .cloud-account-page) .admin-tabs button[aria-current=page] { color: var(--safety-white); background: var(--safety-action); }
+:is(.app-shell, .cloud-account-page) .organization-column-heading { background: var(--safety-surface-wash); border-bottom-color: var(--safety-border); }
+:is(.app-shell, .cloud-account-page) .organization-column-heading h2 { color: var(--safety-text); font-weight: 600; }
+:is(.app-shell, .cloud-account-page) .organization-parent-name { color: var(--safety-text-secondary); }
+:is(.app-shell, .cloud-account-page) .organization-node-selected { background: var(--safety-selected); }
+:is(.app-shell, .cloud-account-page) .organization-node-name > button { color: var(--safety-text); }
+:is(.app-shell, .cloud-account-page) .account-table-card :is(th, .account-users-heading) { background: var(--safety-surface-wash); color: var(--safety-text-secondary); border-bottom-color: var(--safety-border); }
+.cloud-account-page .dashboard-results th { background: var(--safety-surface-soft); color: var(--safety-text-secondary); }
+.cloud-account-page .dashboard-results :is(td, th) { border-top-color: var(--safety-border); }
+.cloud-account-page .dashboard-metric { border-color: var(--safety-border); box-shadow: var(--workspace-card-shadow); }
+.cloud-account-page .dashboard-kpis .dashboard-metric:first-child { background: var(--safety-action); border-color: var(--safety-action); }
+.cloud-account-page .dashboard-kpis .dashboard-metric:first-child > .liquid-glass-surface { background: var(--safety-action); }
+.cloud-account-page .dashboard-kpis .dashboard-metric:first-child :is(strong, p) { color: var(--safety-white); }
+.cloud-account-page .dashboard-kpis .dashboard-metric:first-child > span { background: color-mix(in srgb, var(--safety-white) 9%, transparent); color: var(--safety-white); }
+.cloud-account-page .dashboard-kpis .dashboard-metric:first-child::before { background: var(--safety-selected); }
+
+@media (hover: hover) and (prefers-reduced-motion: no-preference) {
+  :is(.app-shell, .cloud-account-page:not(.treasury-access-page)) :is(.button, .sidebar-nav button, .received-filters button) {
+    transition: background-color var(--workspace-feedback-duration), border-color var(--workspace-feedback-duration), color var(--workspace-feedback-duration), box-shadow var(--workspace-feedback-duration);
+  }
+  .app-shell .inspection-stat:hover { box-shadow: var(--workspace-card-shadow-hover); }
+}
+@media (max-width: 899px) {
+  .app-shell .page-heading h1 { font-size: 30px; letter-spacing: -.9px; }
+}
+@media (max-width: 540px) {
+  .app-shell .page-heading h1 { font-size: 28px; letter-spacing: -.8px; }
+  .app-shell .form-card-heading h2 { font-size: 21px; }
+  .app-shell .wizard-actions { padding-top: 14px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  :is(.app-shell, .cloud-account-page) :is(.button, .sidebar-nav button, .received-filters button, .inspection-stat) { transition: none; }
+}
+@media (forced-colors: active) {
+  .app-shell .inspection-stat[aria-pressed=true],
+  .app-shell .received-filters button[aria-pressed=true],
+  :is(.app-shell, .cloud-account-page) .admin-tabs button[aria-current=page] { border: 2px solid Highlight; }
+}
+
+/* A quieter forest guidance panel and readable live inspection details. */
+.app-shell .context-column .context-card { background: var(--safety-action); border-color: var(--safety-action); }
+.app-shell .context-card h3 { color: var(--safety-white); font-weight: 550; }
+.app-shell .context-card h3 > span { color: var(--safety-selected); }
+.app-shell .context-card p { color: var(--safety-selected); font-size: 12px; }
+.app-shell .context-card .context-top > span:last-child { color: var(--safety-selected); font-size: 10px; line-height: 1.6; }
+.app-shell .context-card .context-leaf { color: var(--safety-white); background: color-mix(in srgb, var(--safety-white) 12%, transparent); }
+.app-shell .registration-title h3 { color: var(--safety-text); font-size: 15px; }
+.app-shell .registration-card dl > div { display: grid; grid-template-columns: minmax(0, 1fr); gap: 4px; margin-bottom: 14px; }
+.app-shell .registration-card dt { white-space: normal; font-size: 12px; color: var(--safety-text-secondary); }
+.app-shell .registration-card dd { text-align: left; font-size: 13px; color: var(--safety-text); font-weight: 550; }
+.app-shell .tip-card h4 { font-size: 13px; line-height: 1.6; color: var(--safety-text); }
+.app-shell .tip-card p { font-size: 12px; line-height: 1.7; color: var(--safety-text-secondary); }
+
+:is(.app-shell, .cloud-account-page) .modal { border-color: var(--safety-border); background: var(--safety-surface); border-radius: 20px; }
+:is(.app-shell, .cloud-account-page) .modal-header h2 { color: var(--safety-text); }
