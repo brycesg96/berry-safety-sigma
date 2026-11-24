@@ -11,9 +11,9 @@ El módulo acredita la **recepción** de ATS, PETAR y checklists. No aprueba doc
 
 El script es transaccional y repetible. Conserva documentos y auditoría anteriores, incorpora los envíos múltiples y sus lugares de trabajo, y revoca la función de aprobación de Yo Seguro. Sus columnas de revisión históricas se conservan por trazabilidad; ya no se usan en la consulta. Las inspecciones mantienen su flujo propio.
 
-## Trabajador: Ingresar sin cuenta
+## Trabajador: Ir a Yo Seguro
 
-El acceso abre únicamente el formulario de **Yo Seguro**. No crea cuentas de Auth ni permite buscar, leer, descargar o retirar archivos. El cliente público está separado de las sesiones de cuenta guardadas en el navegador.
+El botón **Ir a Yo Seguro** de la bienvenida abre únicamente el formulario de **Yo Seguro**. No crea cuentas de Auth ni permite buscar, leer, descargar o retirar archivos. El cliente público está separado de las sesiones de cuenta guardadas en el navegador.
 
 1. Escribe tus nombres y apellidos: las iniciales se convierten a mayúscula al escribir.
 2. Elige directamente tu **Área**. Debajo aparece la gerencia correspondiente; la relación se obtiene del catálogo del servidor.

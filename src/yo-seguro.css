@@ -1,6 +1,4 @@
 /* Yo Seguro: public reception and private library share Berry's brand and selectors. */
-.yo-login-entry{display:grid;gap:12px;margin:24px 0 18px;padding:22px 0 0;border-top:1px solid var(--berry-border);text-align:center;color:var(--berry-secondary);font-size:13px;line-height:1.6}
-.yo-login-entry small{font-size:12px}.cloud-account-page .yo-login-entry .button{min-height:50px;background:#f0f6ed}
 .yo-guest-page{min-height:100vh;color:var(--berry-text);background:radial-gradient(ellipse at 95% 15%,#e9f0df 0,transparent 40%),#f4f7f3;font-size:16px;line-height:1.6}
 .yo-guest-header{display:flex;align-items:center;justify-content:space-between;padding:18px max(24px,calc((100vw - 1180px)/2));background:#142d2a;min-height:96px;gap:24px}
 .yo-guest-header .brand{flex-shrink:0}.yo-guest-header .hortifrut-logo{flex-shrink:0}

@@ -14,8 +14,6 @@
 .treasury-access-main .cloud-account-card h1{font-size:30px;letter-spacing:-1px}
 .treasury-access-main .cloud-account-intro{font-size:14px;line-height:1.7;margin-bottom:24px;color:var(--berry-secondary)}
 .treasury-access-main .cloud-account-card .button-primary{border-radius:12px;background:var(--treasury-forest);min-height:50px}
-.treasury-access-main .yo-login-entry{background:#f4f6ed;border:1px solid #e1e7d6;border-radius:15px;margin-top:24px;padding:18px 16px;gap:9px}
-.treasury-access-main .yo-login-entry .button{background:#fff;border-color:#acbea7}
 .safety-welcome{min-width:0;padding:4px 0;color:var(--treasury-forest)}
 .safety-welcome-eyebrow{display:inline-flex;gap:9px;align-items:center;font-size:12px;color:#4c644d;font-weight:600;letter-spacing:.15px}
 .safety-welcome-eyebrow>span{height:7px;width:7px;background:#6c8846;border-radius:50%;box-shadow:0 0 0 4px #6c884610}

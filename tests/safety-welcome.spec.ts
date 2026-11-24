@@ -5,7 +5,8 @@ import { expectAccessible } from './accessibility-fixture';
 for (const [width, height] of [[1440, 1000], [375, 900], [667, 375]]) test(`la nueva bienvenida conserva los dos accesos y la lectura con zoom (${width}px)`, async ({ page, context }) => {
   await mockSafety(context); await page.setViewportSize({ width, height }); await page.emulateMedia({ reducedMotion: 'reduce' });
   await page.goto('./?acceso=cuenta'); await expect(page.getByRole('heading', { name: 'Inicia sesión', exact: true })).toBeVisible();
-  await expect(page.getByRole('button', { name: 'Ingresar sin cuenta', exact: true })).toBeEnabled();
+  await expect(page.getByRole('button', { name: 'Ir a Yo Seguro', exact: true })).toBeEnabled();
+  await expect(page.getByRole('button', { name: 'Ingresar sin cuenta', exact: true })).toHaveCount(0);
   await expectAccessible(page); await page.evaluate(() => document.documentElement.style.zoom = '150%');
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   await page.evaluate(() => { document.documentElement.style.zoom = '100%'; window.scrollTo({ top: 0, behavior: 'instant' }); });

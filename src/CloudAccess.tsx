@@ -283,8 +283,6 @@ export function CloudAccess({ exit, onReturn, onGuestAccess, onSessionChange, in
             {loginNotice && <p role="status" className="cloud-saved">{loginNotice}</p>}
             <button type="submit" className="button button-primary full-width" disabled={!!busy}>{busy === 'login' ? <LoaderCircle className="spin" size={17}/> : <LockKeyhole size={17}/>} {busy === 'login' ? 'Iniciando sesión…' : 'Iniciar sesión'}</button>
           </form>
-          {onGuestAccess && <div className="yo-login-entry"><span>¿Vas a enviar un documento de seguridad?</span><button type="button" className="button button-outline full-width" disabled={!!busy} onClick={onGuestAccess}><ShieldCheck size={19}/>Ingresar sin cuenta</button><small>Yo Seguro · ATS, PETAR y checklists</small></div>}
-          <p className="cloud-account-hint">Utiliza el correo y la contraseña de tu cuenta habilitada.</p>
           <button type="button" className="cloud-logout" disabled={!!busy} onClick={() => { setRecoveryRequest(true); setPassword(''); setLoginError(''); setRecoveryNotice(''); }}>Olvidé mi contraseña</button>
         </> : profileLoading || !ownProfile && !profileError ? <>
           <h1 ref={heading} tabIndex={-1}>Tu cuenta</h1><p className="cloud-loading" role="status"><LoaderCircle size={18} className="spin"/>Consultando tu perfil…</p>
