@@ -161,7 +161,7 @@ test('filtros con búsqueda y varias personas usan las áreas de cada responsabl
  const areaChart=page.locator('.dashboard-chart').filter({has:page.getByRole('heading',{name:'Inspecciones por área responsable',exact:true})});
  await expect(areaChart.getByRole('button',{name:'Filtrar área SS.GG',exact:true})).toContainText('1');
  await expect(areaChart.getByRole('button',{name:'Filtrar área Recursos Humanos',exact:true})).toContainText('2');
- await page.getByLabel('Inspector',{exact:true}).click();const search=page.getByRole('searchbox',{name:'Buscar inspectores',exact:true});
+ await page.getByLabel('Inspector',{exact:true}).click();const search=page.getByRole('searchbox',{name:'Buscar inspectores',exact:true});await expect(search).not.toBeFocused();
  await search.fill('adicion');await page.getByRole('option',{name:/Inspectora adicional/}).click();await expect(rows).toHaveCount(1);
  await search.fill('luis');await page.getByRole('option',{name:/Luis Pérez/}).click();await expect(rows).toHaveCount(2);await page.getByRole('button',{name:'Listo',exact:true}).click();
  await page.getByLabel('Responsable del área',{exact:true}).click();const responsibleSearch=page.getByRole('searchbox',{name:'Buscar responsables',exact:true});
@@ -169,7 +169,7 @@ test('filtros con búsqueda y varias personas usan las áreas de cada responsabl
  await responsibleSearch.fill('rocio');await page.getByRole('option',{name:/Rocío Producción/}).click();await expect(rows).toHaveCount(2);await page.getByRole('button',{name:'Listo',exact:true}).click();
  await selectValue(page.getByLabel('Área',{exact:true}),'ss.gg');await expect(rows).toHaveCount(1);await expect(rows).toContainText('IH-2026-001');
  await selectValue(page.getByLabel('Área',{exact:true}),'recursos humanos');await expect(rows).toHaveCount(0);
- await page.getByLabel('Responsable del área',{exact:true}).click();await page.getByRole('button',{name:'Limpiar selección',exact:true}).click();await page.getByRole('button',{name:'Listo',exact:true}).click();await expect(rows).toHaveCount(1);
+ await page.getByLabel('Responsable del área',{exact:true}).click();await responsibleSearch.click();await page.getByRole('button',{name:'Limpiar selección',exact:true}).click();await expect(responsibleSearch).not.toBeFocused();await page.getByRole('button',{name:'Listo',exact:true}).click();await expect(rows).toHaveCount(1);
  await page.getByRole('button',{name:'Limpiar filtros',exact:true}).click();await expect(rows).toHaveCount(3);
  await page.getByLabel('Área',{exact:true}).click();expect(await page.getByRole('option').allTextContents()).not.toContain('Maquinaria - Armonía 2');await page.getByRole('searchbox',{name:'Buscar áreas',exact:true}).press('Escape');
  await page.setViewportSize({width:390,height:844});await page.getByLabel('Inspector',{exact:true}).click();await search.fill('adicional');await search.press('Enter');

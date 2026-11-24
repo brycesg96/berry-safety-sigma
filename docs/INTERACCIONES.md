@@ -41,6 +41,6 @@ El Buzón presenta acciones con checks y filtros desde la perspectiva del destin
 
 El seguimiento muestra los inspectores y todos los responsables asignados al levantamiento, con puesto y área separados por guion, sin correos en esos grupos. Cada observación muestra Responsable del Levantamiento y un Estado de solo lectura. El paso 27 impide también en servidor cambiar el estado sin aprobación. Se retiran el cuadro introductorio y el panel visible de Seguimiento de correos; permanecen las conversaciones, el envío real y la recuperación de envíos fallidos. No se cambia el formato Excel/PDF.
 
-## Desplegables en teléfono y tablet
+## Desplegables con búsqueda en toda la aplicación
 
-Abrir Select mediante toque o lápiz no enfoca la búsqueda ni solicita teclado. Se puede desplazar la lista y elegir directamente. Tocar expresamente Buscar abre el teclado. Mouse y navegación por teclado conservan su búsqueda y foco, con opciones y selección anunciadas mediante ARIA.
+Abrir Select nunca enfoca su búsqueda: la misma regla se aplica con toque, lápiz, mouse y teclado en todos los módulos. Se puede desplazar la lista y elegir directamente. La búsqueda recibe foco solo al pulsar su campo o llegar a él con Tab; entonces se puede escribir. Limpiar una selección tampoco devuelve el foco al buscador. Las flechas, Enter y Escape siguen disponibles desde el control de apertura, con opciones y selección anunciadas mediante ARIA.
