@@ -5,7 +5,12 @@ import { mockDirectory } from './directory-fixture';
 import { mockSafety,enterSafety } from './safety-fixture';
 for(const width of [1440,375])test(`formulario y acceso tienen contraste, etiquetas y estructura accesibles (${width}px)`,async({page})=>{
  await page.setViewportSize({width,height:900});await page.emulateMedia({reducedMotion:'reduce'});await mockDirectory(page);await page.goto('./');
- const checkTextZoom=async()=>{await page.evaluate(()=>document.documentElement.style.zoom='150%');expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);await page.evaluate(()=>document.documentElement.style.zoom='100%');};
+ await page.evaluate(()=>document.fonts.ready);
+ const checkTextZoom=async()=>{
+  await page.evaluate(async()=>{document.documentElement.style.zoom='150%';await new Promise<void>(resolve=>requestAnimationFrame(()=>requestAnimationFrame(()=>resolve())));});
+  await expect.poll(()=>page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
+  await page.evaluate(()=>document.documentElement.style.zoom='100%');
+ };
  const audit=await new AxeBuilder({page}).withTags(['wcag2a','wcag2aa','wcag21aa']).analyze();expect(audit.violations.map(v=>({id:v.id,nodes:v.nodes.map(n=>n.target)}))).toEqual([]);
  await page.screenshot({path:test.info().outputPath(`inspeccion-${width}.png`),fullPage:true});
  await checkTextZoom();

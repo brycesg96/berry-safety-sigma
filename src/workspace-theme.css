@@ -142,6 +142,7 @@
 }
 :is(.app-shell, .cloud-account-page:not(.treasury-access-page)) .field :is(input, textarea)[readonly] { background-color: var(--safety-surface-wash); }
 :is(.app-shell, .cloud-account-page:not(.treasury-access-page)) :is(.field-hint, .inline-note) { color: var(--safety-text-secondary); }
+:is(.app-shell, .cloud-account-page:not(.treasury-access-page)) .cloud-loading { color: var(--safety-text-secondary); }
 :is(.app-shell, .cloud-account-page:not(.treasury-access-page)) .platform-select-menu {
   border-color: var(--safety-border);
   border-radius: 13px;
@@ -149,6 +150,8 @@
 }
 :is(.app-shell, .cloud-account-page:not(.treasury-access-page)) .location-select-option.is-active { background-color: var(--safety-selected); }
 .app-shell .stepper { border-color: var(--safety-border); border-radius: 15px; background: var(--safety-surface); }
+.app-shell .step { min-width: 0; }
+.app-shell .step-label { min-width: 0; max-width: 100%; white-space: normal; overflow-wrap: anywhere; }
 .app-shell .step-active { background: var(--safety-surface-soft); }
 .app-shell .step-number { background: var(--safety-surface-soft); border-color: var(--safety-border); color: var(--safety-text-secondary); }
 .app-shell .step-active .step-number { background: var(--safety-action); border-color: var(--safety-action); color: var(--safety-white); }
@@ -225,7 +228,10 @@
 @media (max-width: 540px) {
   .app-shell .page-heading h1 { font-size: 28px; letter-spacing: -.8px; }
   .app-shell .form-card-heading h2 { font-size: 21px; }
-  .app-shell .wizard-actions { padding-top: 14px; }
+  .app-shell .wizard-actions { padding-top: 14px; flex-wrap: wrap; }
+  .app-shell .wizard-actions .next-button { margin-left: auto; }
+  .app-shell .planning-options { flex-wrap: wrap; }
+  .app-shell .planning-options label { flex: 1 1 75px; min-width: 0; }
 }
 @media (prefers-reduced-motion: reduce) {
   :is(.app-shell, .cloud-account-page) :is(.button, .sidebar-nav button, .received-filters button, .inspection-stat) { transition: none; }

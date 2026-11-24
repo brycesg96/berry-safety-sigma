@@ -27,6 +27,7 @@ for (const width of [1366, 390, 375, 667]) test(`movimiento conserva escritura, 
   await page.getByRole('button', { name: 'Guardar', exact: true }).first().click();
   await expect(page.locator('.save-status')).toContainText('Guardado en este navegador');
   await expect(saveFeedback).toHaveAttribute('data-save-phase', 'success');
+  await page.mouse.move(0, 0);
   await expect.poll(() => saveFeedback.evaluate(element => getComputedStyle(element).backgroundColor)).not.toBe(idleBackground);
   await objective.fill('Edición posterior al guardado.');
   await expect(saveFeedback).toHaveAttribute('data-save-phase', 'idle');
