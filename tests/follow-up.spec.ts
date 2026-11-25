@@ -66,31 +66,31 @@ test('destinatario envía evidencias y solo el inspector puede convertir el esta
  await expect(page.locator('.breadcrumbs')).toContainText('Por atender');
  for(let index=0;index<2;index++){
   await page.getByRole('tab',{name:`Observación ${index+1}`,exact:true}).click();
-  const card=cards.nth(index);await expect(card.getByRole('combobox',{name:'Estado',exact:true})).toHaveCount(0);await expect(card.getByLabel('Estado',{exact:true})).toHaveValue('Pendiente');await expect(card.getByLabel('Estado',{exact:true})).toHaveAttribute('readonly','');
+  const card=cards.nth(index);await expect(card.getByRole('combobox',{name:'Estado',exact:true})).toHaveCount(0);await expect(card.locator('.observation-heading .list-status')).toHaveText('Pendiente');await expect(card.getByLabel('Estado',{exact:true})).toHaveCount(0);
   await card.getByLabel('Acción realizada').fill(`Corrección ${index+1} realizada`);await card.getByLabel('Añadir evidencias del levantamiento').setInputFiles(png);
   await expect(card.locator('.followup-evidence img')).toHaveCount(1);await card.getByRole('button',{name:'Enviar levantamiento',exact:true}).click();await expect(card.getByText('Avance guardado y levantamiento enviado a revisión.',{exact:true})).toBeVisible();
-  await expect(card.getByLabel('Estado',{exact:true})).toHaveValue('Pendiente');await expect(card.getByRole('button',{name:'Guardar Avance',exact:true})).toHaveCount(0);
+  await expect(card.locator('.observation-heading .list-status')).toHaveText('Pendiente');await expect(card.getByRole('button',{name:'Guardar Avance',exact:true})).toHaveCount(0);
  }
  await page.reload();await openReceived(page);await expect(cards.first().getByLabel('Acción realizada')).toHaveValue('Corrección 1 realizada');
  await switchTo(page,'demo-admin');await openReview(page);await expect(page.locator('.breadcrumbs')).toContainText('Por validar / aprobar');
- await cards.first().getByRole('button',{name:'Aprobar levantamiento',exact:true}).click();await expect(cards.first().getByLabel('Estado',{exact:true})).toHaveValue('Ejecutado');
+ await cards.first().getByRole('button',{name:'Aprobar levantamiento',exact:true}).click();await expect(cards.first().locator('.observation-heading .list-status')).toHaveText('Ejecutado');
  await expect(page.getByRole('tab',{name:'Observación 1',exact:true})).toHaveAttribute('data-state','executed');
  await page.getByRole('tab',{name:'Observación 2',exact:true}).click();
- await cards.nth(1).getByLabel('Comentario de revisión').fill('Añadir evidencia del área completa.');await cards.nth(1).getByRole('button',{name:'Solicitar Correcciones',exact:true}).click();await expect(cards.nth(1).getByLabel('Estado',{exact:true})).toHaveValue('Pendiente');
- await switchTo(page,'demo-inspector');await openReceived(page);await expect(cards.first().getByLabel('Estado',{exact:true})).toHaveValue('Ejecutado');await expect(cards.first().getByLabel('Acción realizada')).toHaveAttribute('readonly','');
+ await cards.nth(1).getByLabel('Comentario de revisión').fill('Añadir evidencia del área completa.');await cards.nth(1).getByRole('button',{name:'Solicitar Correcciones',exact:true}).click();await expect(cards.nth(1).locator('.observation-heading .list-status')).toHaveText('Pendiente');
+ await switchTo(page,'demo-inspector');await openReceived(page);await expect(cards.first().locator('.observation-heading .list-status')).toHaveText('Ejecutado');await expect(cards.first().getByLabel('Acción realizada')).toHaveAttribute('readonly','');
  await page.getByRole('tab',{name:'Observación 2',exact:true}).click();
- await cards.nth(1).getByLabel('Acción realizada').fill('Corrección completada y verificada.');await cards.nth(1).getByRole('button',{name:'Enviar levantamiento',exact:true}).click();await expect(cards.nth(1).getByLabel('Estado',{exact:true})).toHaveValue('Pendiente');
+ await cards.nth(1).getByLabel('Acción realizada').fill('Corrección completada y verificada.');await cards.nth(1).getByRole('button',{name:'Enviar levantamiento',exact:true}).click();await expect(cards.nth(1).locator('.observation-heading .list-status')).toHaveText('Pendiente');
  await switchTo(page,'demo-admin');await openReview(page);await page.getByRole('tab',{name:'Observación 2',exact:true}).click();await cards.nth(1).getByRole('button',{name:'Aprobar levantamiento',exact:true}).click();
  await expect(page.getByRole('tab',{name:'Observación 2',exact:true})).toHaveAttribute('aria-selected','true');await expect(page.getByRole('tab',{name:'Observación 2',exact:true})).toHaveAttribute('data-state','executed');
  await expect(page.getByRole('button',{name:'Descargar PDF',exact:true})).toBeVisible();await expect(page.locator('.breadcrumbs')).toContainText('Inspecciones cerradas');
- for(const card of await cards.all()){await expect(card.getByLabel('Estado',{exact:true})).toHaveValue('Ejecutado');await expect(card.getByLabel('Estado',{exact:true})).toHaveAttribute('readonly','');}
+ for(const card of await cards.all()){await expect(card.locator('.observation-heading .list-status')).toHaveText('Ejecutado');await expect(card.getByLabel('Estado',{exact:true})).toHaveCount(0);}
  const guards=await page.evaluate(async()=>{const{loadInspections}=await import('/src/model.ts');const{saveCorrectionState,saveCorrection,reviewCorrection}=await import('/src/follow-up.ts');const report=(await loadInspections()).find(d=>d.delivery)!;const id=report.observations[0].id;const reject=async(fn:()=>Promise<unknown>)=>{try{await fn();return false;}catch{return true;}};return Promise.all([reject(()=>saveCorrectionState(report,id,'demo-admin','Pendiente')),reject(()=>saveCorrectionState(report,id,'demo-inspector','Pendiente')),reject(()=>saveCorrection(report,id,'demo-inspector',report.delivery!.corrections[id],false)),reject(()=>reviewCorrection(report,id,'demo-admin',false,'Cambio'))]);});expect(guards).toEqual([true,true,true,true]);
  await page.getByRole('tab',{name:'Observación 1',exact:true}).click();await cards.first().screenshot({path:test.info().outputPath('levantamiento-aprobado.png')});await page.setViewportSize({width:390,height:844});expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
  await page.setViewportSize({width:1280,height:900});const download=page.waitForEvent('download');await page.getByRole('button',{name:'Descargar Excel',exact:true}).click();const book=new ExcelJS.Workbook();await book.xlsx.readFile((await(await download).path())!);const text=JSON.stringify(book.getWorksheet('V.01')!.getSheetValues());expect(text).toContain('LEVANTAMIENTO DE RESULTADOS DE LA INSPECCIÓN');expect(text).toContain('Ejecutado');expect(book.getWorksheet('V.01')!.getImages()).toHaveLength(3);
  await switchTo(page,'demo-inspector');await page.getByRole('button',{name:'Buzón de Inspecciones',exact:true}).click();await expect(page.getByRole('button',{name:'Abiertas',exact:true})).toHaveAttribute('aria-pressed','true');await expect(page.locator('.inspection-list-row')).toHaveCount(0);await page.getByRole('button',{name:'Cerradas',exact:true}).click();await expect(page.locator('.inspection-list-row')).toHaveCount(1);
 });
 
-test('autor y destinatario ven al mismo responsable antes de guardar y tras registrar el levantamiento', async ({ page }) => {
+test('el Buzón oculta el autor y el inspector conserva la identidad real de quien registra el levantamiento', async ({ page }) => {
   test.setTimeout(60000);
   await page.goto('./');
   await page.evaluate(async () => {
@@ -104,16 +104,15 @@ test('autor y destinatario ven al mismo responsable antes de guardar y tras regi
   await expect(page.locator('.followup-context')).toContainText('Autora de inspección');
   for(let index=0;index<2;index++)await expect(cards.nth(index).getByLabel(name)).toHaveValue('');
   await switchTo(page, 'demo-inspector'); await openReceived(page);
-  await expect(cards.first().getByLabel(name)).toHaveValue('Responsable destinataria');
-  await expect(cards.first().getByLabel(name)).toHaveAttribute('readonly', '');
-  await cards.first().getByLabel(name).focus(); await page.keyboard.press('ControlOrMeta+A'); await page.keyboard.insertText('Nombre no permitido');
-  await expect(cards.first().getByLabel(name)).toHaveValue('Responsable destinataria');
+  await expect(page.getByLabel(name)).toHaveCount(0);
+  await expect(page.getByRole('region', { name: 'Responsables del Levantamiento', exact: true }).getByText('Responsable destinataria (Tu)', { exact: true })).toBeVisible();
   await cards.first().getByRole('button', { name: 'Guardar Avance', exact: true }).click();
   await expect(cards.first().getByText('Avance guardado.', { exact: true })).toBeVisible();
   await switchTo(page, 'demo-admin');
   await page.getByRole('button', { name: 'Mis inspecciones', exact: true }).click();
   await page.getByRole('button', { name: 'Revisar informe', exact: true }).click();
   await expect(cards.first().getByLabel(name)).toHaveValue('Responsable destinataria');
+  await expect(cards.first().getByLabel(name)).toHaveAttribute('readonly', '');
   await expect(cards.nth(1).getByLabel(name)).toHaveValue('');
   const downloadEvent = page.waitForEvent('download');
   await page.getByRole('button', { name: 'Descargar Excel', exact: true }).click();
@@ -124,6 +123,7 @@ test('autor y destinatario ven al mismo responsable antes de guardar y tras regi
   await page.getByRole('button', { name: 'Mis inspecciones', exact: true }).click();
   await page.getByRole('button', { name: 'Revisar informe', exact: true }).click();
   await expect(cards.first().getByLabel(name)).toHaveValue('Responsable destinataria');
+  await expect(cards.first().getByLabel(name)).toHaveAttribute('readonly', '');
   await expect(cards.nth(1).getByLabel(name)).toHaveValue('');
 });
 

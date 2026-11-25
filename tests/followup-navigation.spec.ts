@@ -51,6 +51,10 @@ for (const width of [1440, 768, 390]) test(`resumen compacto y observaciones por
   await openReport(page, { inspectors, count: 24, executedFirst: true });
   await expect(page.getByRole('region', { name: inspectors === 1 ? 'Responsable de la Inspección' : 'Responsables de la Inspección', exact: true })).toBeVisible();
   await expect(page.locator('.followup-people-grid')).not.toContainText('@');
+  const self = page.locator('.followup-person').filter({ has: page.locator('.followup-person-self') });
+  await expect(self).toHaveCount(1);
+  await expect(self.locator('.followup-person-self')).toHaveText('(Tu)');
+  await expect(page.getByRole('region', { name: inspectors === 1 ? 'Responsable de la Inspección' : 'Responsables de la Inspección', exact: true }).locator('.followup-person-self')).toHaveCount(1);
   await expect(page.getByRole('region', { name: 'Responsables del Levantamiento', exact: true })).toBeVisible();
   const details = page.locator('.followup-report-details');
   await expect(details).toHaveJSProperty('open', false);
@@ -64,6 +68,11 @@ for (const width of [1440, 768, 390]) test(`resumen compacto y observaciones por
   const executedTone = await executed.evaluate(element => getComputedStyle(element).backgroundColor);
   const pendingTone = await pending.evaluate(element => getComputedStyle(element).backgroundColor);
   expect(executedTone).not.toBe(pendingTone);
+  const riskTone = await page.getByRole('tabpanel').locator('.severity-badge').evaluate(element => getComputedStyle(element).backgroundColor);
+  expect(executedTone).not.toBe(riskTone); expect(pendingTone).not.toBe(riskTone);
+  await expect(page.getByRole('tabpanel').getByLabel('Estado', { exact: true })).toHaveCount(0);
+  await expect(page.getByRole('tabpanel').getByRole('region', { name: 'Estado del levantamiento', exact: true })).toContainText('Levantamiento aprobado.');
+  await expect(page.getByRole('tabpanel').getByRole('region', { name: 'Estado del levantamiento', exact: true })).not.toContainText(/Ejecutado|Pendiente/);
   await expect(page.getByRole('tabpanel').locator('.observation-heading .list-status')).toHaveCSS('background-color', executedTone);
   await expect(page.getByRole('tabpanel').getByRole('region', { name: 'Conversación y seguimiento', exact: true })).toHaveCount(0);
   await pending.click();
@@ -96,6 +105,9 @@ test('los números admiten teclado y conservan acciones, fotos y mensajes pendie
   await page.setViewportSize({ width: 390, height: 1000 });
   await page.emulateMedia({ reducedMotion: 'reduce' });
   const id = await openReport(page, { recipientView: true, count: 24 });
+  await expect(page.getByRole('region', { name: 'Responsables del Levantamiento', exact: true }).locator('.followup-person-self')).toHaveCount(1);
+  await expect(page.getByRole('region', { name: 'Responsable de la Inspección', exact: true }).locator('.followup-person-self')).toHaveCount(0);
+  await expect(page.getByLabel('Responsable del Levantamiento')).toHaveCount(0);
   const first = page.getByRole('tab', { name: 'Observación 1', exact: true });
   const last = page.getByRole('tab', { name: 'Observación 24', exact: true });
   let panel = page.getByRole('tabpanel', { name: 'Observación 1', exact: true });
@@ -136,6 +148,8 @@ test('los números admiten teclado y conservan acciones, fotos y mensajes pendie
     return { first: report.delivery!.corrections[report.observations[0].id], last: report.delivery!.corrections[report.observations[23].id], comment: report.delivery!.timeline?.find(event => event.action === 'comment')?.body, pending: hasPendingChanges() };
   }, id);
   expect(stored.first.action).toBe('Avance de la primera observación sin perder.');
+  expect(stored.first.actorId).toBe('demo-admin'); expect(stored.last.actorId).toBe('demo-admin');
+  expect(stored.first.responsibleName).not.toContain('(Tu)');
   expect(stored.first.photos).toHaveLength(1); expect(stored.last.action).toBe('Avance de la última observación.');
   expect(stored.comment).toBe('Consulta todavía sin enviar.'); expect(stored.pending).toBe(false);
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);

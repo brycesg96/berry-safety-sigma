@@ -12,10 +12,10 @@
   --safety-stone-200: #dfe3d5;
   --safety-stone-300: #bdcbb6;
   --safety-stone-600: #53664f;
-  --safety-amber-50: #fff5de;
-  --safety-amber-800: #785416;
-  --safety-green-50: #e6f2e7;
-  --safety-green-800: #255d3c;
+  --safety-violet-50: #f2ebfc;
+  --safety-violet-800: #694191;
+  --safety-blue-50: #e7f0fd;
+  --safety-blue-800: #235b91;
 
   /* Semantic tokens. */
   --safety-page: var(--safety-paper-50);
@@ -30,10 +30,10 @@
   --safety-border: var(--safety-stone-200);
   --safety-selected: var(--safety-olive-100);
   --safety-on-selected: var(--safety-forest-700);
-  --safety-pending-bg: var(--safety-amber-50);
-  --safety-pending-text: var(--safety-amber-800);
-  --safety-executed-bg: var(--safety-green-50);
-  --safety-executed-text: var(--safety-green-800);
+  --safety-pending-bg: var(--safety-violet-50);
+  --safety-pending-text: var(--safety-violet-800);
+  --safety-executed-bg: var(--safety-blue-50);
+  --safety-executed-text: var(--safety-blue-800);
 
   /* Component tokens. */
   --workspace-card-radius: 18px;

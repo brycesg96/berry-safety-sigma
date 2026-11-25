@@ -33,6 +33,7 @@
 :is(.app-shell, .cloud-account-page) .followup-person-avatar { display: grid; place-items: center; flex: 0 0 30px; width: 30px; height: 30px; border-radius: 10px; background: var(--safety-selected); color: var(--safety-action); font-size: 10px; font-weight: 650; line-height: 1; }
 .followup-person-info { display: grid; gap: 3px; min-width: 0; }
 .followup-person-info > strong { font-size: 14px; font-weight: 600; line-height: 1.5; color: var(--safety-text); }
+.followup-person-self { font-size: 12px; font-weight: 500; white-space: nowrap; color: var(--safety-text-secondary); }
 .followup-person-info > span { font-size: 12px; line-height: 1.5; color: var(--safety-text-secondary); }
 .followup-report-details { margin-top: 16px; border-top: 1px solid var(--safety-border); }
 .followup-report-details > summary { display: flex; align-items: center; gap: 8px; min-height: 48px; padding: 10px 0; list-style: none; cursor: pointer; font-size: 13px; font-weight: 550; color: var(--safety-action); }
@@ -56,6 +57,7 @@
 :is(.app-shell, .cloud-account-page) .followup-card .list-status { background: var(--safety-pending-bg); color: var(--safety-pending-text); }
 :is(.app-shell, .cloud-account-page) .followup-card .list-status.status-ready { background: var(--safety-executed-bg); color: var(--safety-executed-text); }
 :is(.app-shell, .cloud-account-page) .followup-card[hidden] { display: none; }
+:is(.app-shell, .cloud-account-page) .followup-card .correction-metadata { grid-template-columns: minmax(0, 1fr); }
 :is(.app-shell, .cloud-account-page) .correction-form > .correction-conversation { margin: 20px 0 0; padding: 16px; }
 .followup-card .correction-conversation h4 { font-size: 14px; line-height: 1.5; }
 .followup-report-details > summary:focus-visible, .followup-observation-tab:focus-visible, .followup-card:focus-visible { outline: 3px solid var(--berry-focus); outline-offset: 2px; }

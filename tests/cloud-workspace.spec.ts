@@ -229,8 +229,7 @@ test('private drafts resume on another device and full approval replaces the ini
   await receiver.reload();await expect(receiver.getByRole('heading',{name:'Mis inspecciones',exact:true})).toBeVisible();
   await receiver.getByRole('button',{name:'Abrir menú',exact:true}).click();await receiver.getByRole('button',{name:/Buzón de Inspecciones/}).click();await receiver.getByRole('button',{name:'Revisar inspección',exact:true}).click();
   await expect(receiver.locator('.breadcrumbs')).toContainText('Buzón de Inspecciones');await expect(receiver.locator('.breadcrumbs')).toContainText('Por atender');
-  await expect(receiver.getByLabel('Responsable del Levantamiento')).toHaveValue('Bruno Responsable');
-  await expect(receiver.getByLabel('Responsable del Levantamiento')).toHaveAttribute('readonly','');
+  await expect(receiver.getByLabel('Responsable del Levantamiento')).toHaveCount(0);
   expect(await receiver.evaluate(()=>localStorage.getItem('berry-last-submitted-texts'))).toBeNull();
   await receiver.waitForFunction(()=>document.querySelector('.sidebar')!.getBoundingClientRect().right<=0);
   await receiver.screenshot({path:'/tmp/berry-cloud-mobile.png',fullPage:true,animations:'disabled'});
@@ -254,7 +253,7 @@ test('private drafts resume on another device and full approval replaces the ini
   await expect(other.getByLabel('Responsable del Levantamiento')).toHaveValue('Bruno Responsable');
   await other.getByLabel('Comentario de revisión').fill('Comentario interno del revisor.');
   state.failFinal=true;const originalPath=state.documents.get(row.id).storage_path;
-  await other.getByRole('button',{name:'Aprobar levantamiento',exact:true}).click();await expect(other.getByLabel('Estado',{exact:true})).toHaveValue('Ejecutado');await expect(other.getByRole('button',{name:'Descargar PDF',exact:true})).toBeVisible();
+  await other.getByRole('button',{name:'Aprobar levantamiento',exact:true}).click();await expect(other.locator('.observation-heading .list-status')).toHaveText('Ejecutado');await expect(other.getByRole('button',{name:'Descargar PDF',exact:true})).toBeVisible();
   expect(row.workflow).toBe('closed');expect(row.data.delivery.corrections[row.data.observations[0].id].state).toBe('Ejecutado');
   await expect(other.getByRole('alert')).toContainText('No se pudo guardar el Excel final');expect(state.documents.get(row.id).storage_path).toBe(originalPath);
   state.failFinal=false;await other.getByRole('button',{name:'Reintentar guardar Excel final'}).click();await expect.poll(()=>row.final_excel_stored).toBe(true);

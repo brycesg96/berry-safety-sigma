@@ -12,7 +12,7 @@ import { closingRemarksOf } from './registration';
 
 type SummaryPerson = { id: string; personId?: string; name: string; jobTitle?: string; area?: string; management?: string };
 
-export function FollowUpSummary({ inspection }: { inspection: Inspection }) {
+export function FollowUpSummary({ inspection, actorId }: { inspection: Inspection; actorId: string }) {
   const directory = useContext(AccountDirectory) || readAccounts();
   const inspectors = [...new Map<string, SummaryPerson>([
     { id: inspection.ownerId, personId: inspection.ownerId, name: inspection.inspector },
@@ -21,8 +21,8 @@ export function FollowUpSummary({ inspection }: { inspection: Inspection }) {
   return <div className="followup-context liquid-glass-card">
     <LiquidGlassSurface/>
     <div className="followup-people-grid">
-      <PeopleGroup label={inspectors.length === 1 ? 'Responsable de la Inspección' : 'Responsables de la Inspección'} people={inspectors} directory={directory} inspection={inspection} kind="inspection"/>
-      <PeopleGroup label={inspection.responsibles.length === 1 ? 'Responsable del Levantamiento' : 'Responsables del Levantamiento'} people={inspection.responsibles} directory={directory} inspection={inspection} kind="correction"/>
+      <PeopleGroup label={inspectors.length === 1 ? 'Responsable de la Inspección' : 'Responsables de la Inspección'} people={inspectors} directory={directory} inspection={inspection} actorId={actorId} kind="inspection"/>
+      <PeopleGroup label={inspection.responsibles.length === 1 ? 'Responsable del Levantamiento' : 'Responsables del Levantamiento'} people={inspection.responsibles} directory={directory} inspection={inspection} actorId={actorId} kind="correction"/>
     </div>
     <details className="followup-report-details" key={inspection.id}>
       <summary><FileText size={16} aria-hidden="true"/><span>Detalles de la Inspección</span><small aria-hidden="true">Objetivo, Causa y Conclusiones</small><ChevronDown size={16} className="followup-details-chevron" aria-hidden="true"/></summary>
@@ -35,7 +35,7 @@ export function FollowUpSummary({ inspection }: { inspection: Inspection }) {
   </div>;
 }
 
-function PeopleGroup({ label, people, directory, inspection, kind }: { label: string; people: SummaryPerson[]; directory: DemoAccount[]; inspection: Inspection; kind: 'inspection' | 'correction' }) {
+function PeopleGroup({ label, people, directory, inspection, actorId, kind }: { label: string; people: SummaryPerson[]; directory: DemoAccount[]; inspection: Inspection; actorId: string; kind: 'inspection' | 'correction' }) {
   const headingId = useId();
   const Icon = kind === 'inspection' ? ClipboardCheck : UsersRound;
   return <section className="followup-people-section" aria-labelledby={headingId}>
@@ -43,7 +43,7 @@ function PeopleGroup({ label, people, directory, inspection, kind }: { label: st
     <ul className="followup-people-list">
       {people.map(person => <li className="followup-person" key={person.personId || person.id}>
         <span className="followup-person-avatar" aria-hidden="true">{initials(person.name)}</span>
-        <div className="followup-person-info"><strong>{person.name || 'Sin nombre registrado'}</strong><span>{personRoleDetails(person, directory, inspection)}</span></div>
+        <div className="followup-person-info"><strong>{person.name || 'Sin nombre registrado'}{(person.personId || person.id) === actorId && <> <span className="followup-person-self">(Tu)</span></>}</strong><span>{personRoleDetails(person, directory, inspection)}</span></div>
       </li>)}
     </ul>
   </section>;
