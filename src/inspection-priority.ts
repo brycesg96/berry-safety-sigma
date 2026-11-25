@@ -1,18 +1,17 @@
 import type { Inspection } from './model';
 import { inspectionClosed, needsReview } from './follow-up';
 
-export type InboxPriority = 'pending' | 'overdue' | 'soon' | 'waiting' | 'review' | 'closed';
+export type InboxPriority = 'pending' | 'overdue' | 'soon' | 'review' | 'closed';
 export const inboxPriorities: { value: InboxPriority; label: string }[] = [
-  { value: 'pending', label: 'Abiertas' }, { value: 'overdue', label: 'Vencidas' },
-  { value: 'soon', label: 'Por vencer' }, { value: 'waiting', label: 'Por atender' },
-  { value: 'review', label: 'En revisión del inspector' }, { value: 'closed', label: 'Cerradas' },
+  { value: 'pending', label: 'Bandeja de Entrada' }, { value: 'overdue', label: 'Vencidas' },
+  { value: 'soon', label: 'Por vencer' },
+  { value: 'review', label: 'Correcciones Enviadas' }, { value: 'closed', label: 'Cerradas' },
 ];
 export const inboxPriorityHint: Record<InboxPriority, string> = {
-  pending: 'Todas las inspecciones asignadas que aún no están cerradas.',
+  pending: 'Todas tus inspecciones abiertas: registra acciones, envía correcciones y acompaña su revisión.',
   overdue: 'Observaciones por atender cuya fecha de cierre ya pasó.',
   soon: 'Observaciones por atender que vencen durante los próximos tres días.',
-  waiting: 'Registra o corrige tus acciones y envía el levantamiento al inspector.',
-  review: 'El inspector debe revisar los levantamientos enviados. Puedes consultar su seguimiento.',
+  review: 'Correcciones enviadas al inspector para su revisión. Consulta aquí su seguimiento.',
   closed: 'Inspecciones con todas sus observaciones ejecutadas y aprobadas.',
 };
 export const limaToday = (now = new Date()) => new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Lima', year: 'numeric', month: '2-digit', day: '2-digit' }).format(now);
@@ -27,7 +26,7 @@ export function findingClosed(inspection: Inspection, observationId: string) {
 export function inboxWorkflowLabel(inspection: Inspection) {
   if (inspectionClosed(inspection)) return 'Cerrada';
   const waiting = inspection.observations.some(o => !findingClosed(inspection, o.id) && inspection.delivery?.corrections[o.id]?.decision !== 'review');
-  return needsReview(inspection) ? waiting ? 'Por atender · Con levantamientos en revisión del inspector' : 'En revisión del inspector' : 'Por atender';
+  return needsReview(inspection) ? waiting ? 'Bandeja de Entrada · Correcciones Enviadas' : 'Correcciones Enviadas' : 'Bandeja de Entrada';
 }
 export function matchesPriority(inspection: Inspection, priority: InboxPriority, today = limaToday(), leadDays = 3) {
   const closed = inspectionClosed(inspection);
@@ -35,7 +34,6 @@ export function matchesPriority(inspection: Inspection, priority: InboxPriority,
   if (closed || !inspection.delivery) return false;
   if (priority === 'pending') return true;
   if (priority === 'review') return needsReview(inspection);
-  if (priority === 'waiting') return inspection.observations.some(o => !findingClosed(inspection, o.id) && inspection.delivery?.corrections[o.id]?.decision !== 'review');
   return inspection.observations.some(o => {
     if (findingClosed(inspection, o.id) || inspection.delivery?.corrections[o.id]?.decision === 'review') return false;
     const days = daysBetween(today, o.dueDate);

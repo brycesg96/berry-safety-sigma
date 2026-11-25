@@ -1,3 +1,4 @@
+import { expectAccessible } from './accessibility-fixture';
 import { inspectionFilterButton, selectInspectionFilter } from './list-filter-fixture';
 import { selectValue } from './select-fixture';
 import { expect, test } from './test-fixture';
@@ -126,9 +127,20 @@ for (const width of [1366, 390]) test(`tarjetas seleccionables combinan estados,
   await page.reload(); const menu = page.getByRole('button', { name: 'Abrir menú', exact: true }); if (await menu.isVisible()) await menu.click();
   await page.locator('.sidebar-nav').getByRole('button', { name: 'Mis inspecciones', exact: true }).click();
   const rows = page.locator('.inspection-list-row'), group = page.getByRole('group', { name: 'Filtrar inspecciones por estado', exact: true });
+  await expect(page.getByRole('list', { name: 'Qué puedes hacer en tus inspecciones', exact: true }).getByRole('listitem')).toHaveCount(3);
+  let activeTone = '';
   await expect(group.getByRole('button')).toHaveCount(5); await expect(rows).toHaveCount(5); await expect(inspectionFilterButton(page, 'all')).toHaveAttribute('aria-pressed', 'true');
   for (const [key, count] of [['draft', 1], ['pending', 1], ['review', 1], ['closed', 2]] as const) {
     await expect(inspectionFilterButton(page, key).locator('strong')).toHaveText(String(count)); await selectInspectionFilter(page, key); await expect(rows).toHaveCount(count); await expect(inspectionFilterButton(page, key)).toHaveAttribute('aria-pressed', 'true');
+    if (key === 'pending') activeTone = await inspectionFilterButton(page, key).evaluate(element => getComputedStyle(element).backgroundColor);
+    if (key === 'closed') {
+      await expect(rows.locator('.list-status.status-ready')).toHaveCount(count);
+      const closedTone = await inspectionFilterButton(page, key).evaluate(element => getComputedStyle(element).backgroundColor);
+      expect(closedTone).not.toBe(activeTone);
+      await expect(inspectionFilterButton(page, key).locator('.liquid-glass-surface')).toHaveCSS('background-color', closedTone);
+      await expectAccessible(page);
+      await page.screenshot({ path: test.info().outputPath(`mis-inspecciones-cerradas-${width}.png`), fullPage: true });
+    }
   }
   await inspectionFilterButton(page, 'pending').focus(); await page.keyboard.press('Enter'); await expect(rows).toHaveCount(1); await expect(rows).toContainText('Corrección de bombas');
   await expect(page.getByLabel('Filtrar por estado')).toHaveCount(0); await expect(page.locator('.local-storage-note')).toHaveCount(0);

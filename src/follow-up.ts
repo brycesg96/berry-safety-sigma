@@ -21,7 +21,7 @@ export const inspectionClosed = (d: Inspection) => Boolean(d.delivery && d.obser
   return correction?.decision === 'approved' && correction.state === 'Ejecutado';
 }));
 export const needsReview = (d: Inspection) => Boolean(d.delivery && !inspectionClosed(d) && Object.values(d.delivery.corrections).some(c => c.decision === 'review'));
-export const workflowLabel = (d: Inspection) => inspectionClosed(d) ? 'Cerrada' : needsReview(d) ? 'Por validar / aprobar' : d.delivery ? 'En espera de respuesta' : d.status === 'ready' ? 'Sin enviar' : 'Borrador';
+export const workflowLabel = (d: Inspection) => inspectionClosed(d) ? 'Cerrada' : needsReview(d) ? 'Correcciones por Validar' : d.delivery ? 'En espera de respuesta' : d.status === 'ready' ? 'Sin enviar' : 'Borrador';
 export const isRecipient = (d: Inspection, actorId: string) => Boolean(d.delivery?.recipientIds.includes(actorId));
 // A new correction belongs to the authenticated person who records it.
 export function blankCorrection(d: Inspection, observationId: string, actor?: { id: string; name: string }): Correction {

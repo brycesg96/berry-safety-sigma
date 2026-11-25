@@ -34,6 +34,7 @@
   --safety-pending-text: var(--safety-violet-800);
   --safety-executed-bg: var(--safety-blue-50);
   --safety-executed-text: var(--safety-blue-800);
+  --safety-closed-filter: var(--safety-blue-800);
 
   /* Component tokens. */
   --workspace-card-radius: 18px;
@@ -187,6 +188,8 @@
 .app-shell .inspection-stat[aria-pressed=true] { background: var(--safety-action); border-color: var(--safety-action); box-shadow: var(--workspace-card-shadow); }
 .app-shell .inspection-stat[aria-pressed=true] > .liquid-glass-surface { background: var(--safety-action); }
 .app-shell .inspection-stat[aria-pressed=true] :is(strong, .inspection-stat-label, .inspection-stat-value) { color: var(--safety-white); }
+.app-shell .inspection-stat[data-filter=closed][aria-pressed=true],
+.app-shell .inspection-stat[data-filter=closed][aria-pressed=true] > .liquid-glass-surface { background: var(--safety-closed-filter); border-color: var(--safety-closed-filter); }
 .app-shell .inspection-stat[aria-pressed=true] .list-stat-icon { color: var(--safety-white); background: color-mix(in srgb, var(--safety-white) 9%, transparent); }
 .app-shell .list-toolbar { background: var(--safety-surface-wash); border-bottom-color: var(--safety-border); }
 .app-shell .inspection-list-row { border-bottom-color: var(--safety-border); }
@@ -194,6 +197,10 @@
 .app-shell :is(.search-box, .account-user-search, .safety-search) { background-color: var(--safety-surface); border-color: var(--safety-field-border); border-radius: var(--workspace-control-radius); }
 .app-shell .received-filters button { border-color: var(--safety-border); background: var(--safety-surface); border-radius: 11px; color: var(--safety-text-secondary); }
 .app-shell .received-filters button[aria-pressed=true] { border-color: var(--safety-action); background: var(--safety-action); color: var(--safety-white); }
+.app-shell .received-filters button[data-filter=closed][aria-pressed=true] { background: var(--safety-closed-filter); border-color: var(--safety-closed-filter); }
+.app-shell .received-filters button { gap: 8px; }
+.app-shell .received-filters button > svg { flex-shrink: 0; }
+.app-shell .received-filters .inbox-filter-label { line-height: 1.4; }
 .app-shell .received-filters button[aria-pressed=true] .inbox-priority-count { background: color-mix(in srgb, var(--safety-white) 12%, transparent); color: var(--safety-white); }
 .app-shell .inbox-intro-checks li { color: var(--safety-text-secondary); }
 .app-shell .inbox-intro-checks svg { color: var(--safety-olive-700); }

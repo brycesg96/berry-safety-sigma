@@ -228,7 +228,7 @@ test('private drafts resume on another device and full approval replaces the ini
   // Same recipient device now sees the sent record, without local account switching or copied IndexedDB data.
   await receiver.reload();await expect(receiver.getByRole('heading',{name:'Mis inspecciones',exact:true})).toBeVisible();
   await receiver.getByRole('button',{name:'Abrir menú',exact:true}).click();await receiver.getByRole('button',{name:/Buzón de Inspecciones/}).click();await receiver.getByRole('button',{name:'Revisar inspección',exact:true}).click();
-  await expect(receiver.locator('.breadcrumbs')).toContainText('Buzón de Inspecciones');await expect(receiver.locator('.breadcrumbs')).toContainText('Por atender');
+  await expect(receiver.locator('.breadcrumbs')).toContainText('Buzón de Inspecciones');await expect(receiver.locator('.breadcrumbs')).toContainText('Bandeja de Entrada');
   await expect(receiver.getByLabel('Responsable del Levantamiento')).toHaveCount(0);
   expect(await receiver.evaluate(()=>localStorage.getItem('berry-last-submitted-texts'))).toBeNull();
   await receiver.waitForFunction(()=>document.querySelector('.sidebar')!.getBoundingClientRect().right<=0);

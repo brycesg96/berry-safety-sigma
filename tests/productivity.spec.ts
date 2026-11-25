@@ -1,3 +1,4 @@
+import { expectAccessible } from './accessibility-fixture';
 import { test, expect } from './test-fixture';
 
 async function seed(page:import('@playwright/test').Page){
@@ -15,9 +16,22 @@ async function seed(page:import('@playwright/test').Page){
 async function inbox(page:import('@playwright/test').Page){await page.reload();await page.getByRole('button',{name:'Buzón de Inspecciones',exact:true}).click();}
 test('prioridades combinan vencimiento y revisión sin contar observaciones aprobadas',async({page})=>{
  await seed(page);await inbox(page);const rows=page.locator('.inspection-list-row');await expect(rows).toHaveCount(3);
- for(const [label,count] of [['Vencidas',1],['Por vencer',1],['Por atender',2],['En revisión del inspector',1],['Cerradas',1]] as const){await page.getByRole('button',{name:label,exact:true}).click();await expect(rows).toHaveCount(count);}
+ const filters=page.getByRole('group',{name:'Estado de los informes a mi cargo',exact:true});
+ await expect(filters.getByRole('button')).toHaveCount(5);
+ await expect(filters.getByRole('button',{name:'Bandeja de Entrada',exact:true})).toHaveAttribute('aria-pressed','true');
+ await expect(filters.getByRole('button',{name:'Por atender',exact:true})).toHaveCount(0);
+ await expect(filters.getByRole('button',{name:'Abiertas',exact:true})).toHaveCount(0);
+ for(const button of await filters.getByRole('button').all()) await expect(button.locator('svg[aria-hidden=true]')).toHaveCount(1);
+ for(const [label,count] of [['Bandeja de Entrada',3],['Vencidas',1],['Por vencer',1],['Correcciones Enviadas',1],['Cerradas',1]] as const){await page.getByRole('button',{name:label,exact:true}).click();await expect(rows).toHaveCount(count);}
  await page.getByRole('button',{name:'Vencidas',exact:true}).click();await expect(rows.filter({hasText:'Cerrada'})).toHaveCount(0);
- for(const width of [1366,390]){await page.setViewportSize({width,height:900});if(width<900)await page.waitForFunction(()=>document.querySelector('.sidebar')!.getBoundingClientRect().right<=0);expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);await page.screenshot({path:`/tmp/berry-priorities-${width}.png`,fullPage:true});}
+ const openTone=await filters.getByRole('button',{name:'Vencidas',exact:true}).evaluate(element=>getComputedStyle(element).backgroundColor);
+ await filters.getByRole('button',{name:'Cerradas',exact:true}).click();
+ const closed=filters.getByRole('button',{name:'Cerradas',exact:true});
+ await expect(closed).toHaveAttribute('aria-pressed','true');
+ const closedTone=await closed.evaluate(element=>getComputedStyle(element).backgroundColor);expect(closedTone).not.toBe(openTone);
+ for(const width of [1366,390]){await page.setViewportSize({width,height:900});if(width<900)await page.waitForFunction(()=>document.querySelector('.sidebar')!.getBoundingClientRect().right<=0);expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);await expectAccessible(page);await page.screenshot({path:test.info().outputPath(`buzon-cerradas-${width}.png`),fullPage:true});}
+ await filters.getByRole('button',{name:'Bandeja de Entrada',exact:true}).focus();await page.keyboard.press('Enter');await expect(rows).toHaveCount(3);
+
 });
 test('cumplimiento distingue aprobación, vencimiento y tiempos de cierre verificables',async({page})=>{
  await seed(page);
