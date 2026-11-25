@@ -1,5 +1,5 @@
 import { test, expect } from './test-fixture';
-import { mockSafety, safetySite, safetyZone } from './safety-fixture';
+import { mockSafety, safetySite, safetyZone, safetyFacility } from './safety-fixture';
 
 test.describe('teléfono y tablet', () => {
 test.use({ hasTouch: true, isMobile: true });
@@ -14,7 +14,7 @@ for (const width of [390, 820]) test(`un toque abre la lista sin enfocar Buscar 
   await page.getByRole('option').filter({ hasText: 'Área de Trabajo 35' }).tap(); await expect(trigger).toHaveAttribute('data-value', 'f0000000-0000-4000-8000-000000000034');
   await trigger.tap(); await expect(search).not.toBeFocused(); await search.tap(); await expect(search).toBeFocused(); await search.fill('mantenimiento');
   await page.getByRole('option').filter({ hasText: 'Mantenimiento' }).tap(); await expect(trigger).toContainText('Mantenimiento');
-  for (const [name, value] of [['Sede', safetySite], ['Lugar de Trabajo', safetyZone]]) {
+  for (const [name, value] of [['Sede', safetySite], ['Zona', safetyZone], ['Instalación', safetyFacility]]) {
     const field = page.getByRole('combobox', { name, exact: true }); await field.tap();
     await expect(search).toBeVisible(); await expect(search).not.toBeFocused();
     await page.getByRole('listbox').locator(`[role="option"][data-value="${value}"]`).tap();

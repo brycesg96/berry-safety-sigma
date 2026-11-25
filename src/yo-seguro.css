@@ -109,3 +109,39 @@
 .yo-files-guidance{font-size:12px;line-height:1.8;color:var(--berry-secondary);margin:0 0 20px}.yo-batch-picker{padding:20px 18px}.yo-attached-files{list-style:none;padding:0;margin:14px 0 0;width:100%;text-align:left;display:grid;gap:8px}.yo-attached-files li{display:flex;gap:10px;align-items:center;padding:12px;background:#fff;border:1px solid var(--berry-border);border-radius:9px;min-width:0}.yo-attached-files li>span{min-width:0;flex:1}.yo-attached-files li strong{display:block;font-size:13px;overflow-wrap:anywhere;line-height:1.6}.yo-attached-files li small{display:block;font-size:11px;color:var(--berry-secondary);line-height:1.7}.yo-attached-files li>svg{flex-shrink:0}.yo-guest-page .yo-attached-files .icon-button{min-width:44px;min-height:44px;color:#667d6c}
 .yo-live-label{display:inline-flex;align-items:center;gap:7px;font-size:11px;color:var(--berry-secondary);margin-top:8px}.yo-live-label>span{width:6px;height:6px;border-radius:50%;background:#6b965b}
 :root .yo-guest-page .yo-received-clock input[readonly]{outline:none;outline-offset:0;box-shadow:none}.yo-received-clock:focus-within{border-color:#71847d}
+/* Daily library and nested disclosures share the working screens' palette. */
+.yo-management-groups{display:grid;gap:18px;margin:20px 0}
+.yo-management-group{min-width:0;border:1px solid var(--safety-border);border-left:4px solid var(--safety-action);border-radius:15px;background:var(--safety-surface);overflow:clip}
+.yo-group-summary{display:flex;align-items:center;gap:12px;list-style:none;cursor:pointer;min-height:64px;padding:16px;line-height:1.5;color:var(--safety-text)}
+.yo-group-summary::-webkit-details-marker{display:none}
+.yo-group-summary>div{min-width:0;flex:1}
+.yo-group-summary small{font-size:11px;font-weight:500;color:var(--safety-text-secondary)}
+.yo-group-summary :is(h3,h4){margin:2px 0 0;font-size:17px;line-height:1.45;font-weight:600;overflow-wrap:anywhere;color:var(--safety-text)}
+.yo-management-group>.yo-group-summary{background:var(--safety-surface-soft)}
+.yo-group-count{font-size:12px;line-height:1.5;white-space:nowrap;color:var(--safety-text-secondary)}
+.yo-group-chevron{flex-shrink:0;color:var(--safety-action)}
+.yo-management-group[open]>.yo-group-summary>.yo-group-chevron,.yo-area-group[open]>.yo-group-summary>.yo-group-chevron{transform:rotate(180deg)}
+.yo-management-areas{padding:0 16px 8px}
+.yo-management-areas>.yo-area-group{border:0;margin:0}
+.yo-management-areas>.yo-area-group+.yo-area-group{border-top:1px solid var(--safety-border);margin-top:4px}
+.yo-area-group>.yo-group-summary{padding:14px 0;min-height:58px}
+.yo-area-group>.yo-group-summary :is(h3,h4){font-size:15px}
+.yo-area-submissions{padding:2px 0 12px;display:grid;gap:12px}
+.yo-area-submissions .safety-submission{margin:0}
+.yo-library-page .safety-submission-details h5{font-size:19px;font-weight:650;letter-spacing:-.5px;line-height:1.5;margin:3px 0 6px;color:var(--safety-text);overflow-wrap:anywhere}
+.yo-group-summary:focus-visible{outline:3px solid var(--berry-focus);outline-offset:-4px;border-radius:10px}
+.yo-library-date-range{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:0 16px;grid-column:1/-1}
+.yo-library-date-range>.error-message{grid-column:1/-1;margin-top:0}
+.yo-workplace-fields{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:0 14px}
+.yo-intro p strong{white-space:normal}
+@media(max-width:700px){
+ .yo-workplace-fields{grid-template-columns:minmax(0,1fr)}
+ .yo-group-summary{gap:10px;padding:14px;flex-wrap:wrap}
+ .yo-group-summary>div{flex-basis:calc(100% - 95px)}
+ .yo-group-summary>.yo-group-count{margin-left:52px;flex:1}
+ .yo-management-areas{padding:0 12px 4px}
+ .yo-area-group>.yo-group-summary{padding:12px 0}
+ .yo-group-summary :is(h3,h4){font-size:15px}
+ .yo-library-page .safety-submission-details h5{font-size:17px}
+}
+@media(prefers-reduced-motion:no-preference){.yo-group-chevron{transition:transform 160ms ease}}

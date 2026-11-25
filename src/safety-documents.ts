@@ -2,7 +2,7 @@ import { supabaseClient } from './supabase';
 
 export type SafetyKind = 'ATS' | 'PETAR' | 'CHECKLIST';
 export type SafetyStatus = 'pending' | 'approved' | 'corrections';
-export type SafetyDocument = { id: string; owner_id: string | null; owner_name: string; kind: SafetyKind; title: string; document_date: string; workplace: string; storage_path: string; file_name: string; mime_type: string; file_size: number; status: SafetyStatus; review_note: string; reviewed_at: string | null; created_at: string; revision: number; management_id?: string | null; area_id?: string | null; management_name?: string; area_name?: string; submission_source?: 'account' | 'guest'; batch_id?:string|null; site_id?:string|null; zone_id?:string|null; site_name?:string; zone_name?:string };
+export type SafetyDocument = { id: string; owner_id: string | null; owner_name: string; kind: SafetyKind; title: string; document_date: string; workplace: string; storage_path: string; file_name: string; mime_type: string; file_size: number; status: SafetyStatus; review_note: string; reviewed_at: string | null; created_at: string; revision: number; management_id?: string | null; area_id?: string | null; management_name?: string; area_name?: string; submission_source?: 'account' | 'guest'; batch_id?:string|null; site_id?:string|null; zone_id?:string|null; site_name?:string; zone_name?:string; facility_id?:string|null; facility_name?:string };
 export const SAFETY_LABELS = { ATS: 'ATS', PETAR: 'PETAR', CHECKLIST: 'Checklist' };
 const BUCKET = 'berry-safety-documents';
 const MAX_FILE = 10 * 1024 * 1024;
@@ -36,11 +36,13 @@ export const safetySubmissionKey = (document: SafetyDocument) => document.batch_
 
 // Page by complete submissions, not by files. RLS still controls every SELECT.
 // A type filter finds matching submissions; their remaining attachments stay visible.
-export async function listSafetyDocuments({ types = [], query = '', offset = 0, management = '', area = '' }: { types?: string[]; query?: string; offset?: number; management?: string; area?: string }) {
+export async function listSafetyDocuments({ types = [], query = '', offset = 0, management = '', area = '', from = '', to = '' }: { types?: string[]; query?: string; offset?: number; management?: string; area?: string; from?: string; to?: string }) {
   const client = supabaseClient(), chunk = 100, pageSize = 20;
   const request = (filterTypes: boolean) => {
     let next = client.from('berry_safety_documents').select('*', { count: 'exact' })
       .order('management_name').order('area_name').order('created_at', { ascending: false }).order('batch_id').order('id').retry(false).abortSignal(AbortSignal.timeout(15000));
+    if (from) next = next.gte('created_at', `${from}T00:00:00-05:00`);
+    if (to) next = next.lt('created_at', new Date(Date.parse(`${to}T00:00:00-05:00`)+86400000).toISOString());
     if (management) next = next.eq('management_id', management);
     if (area) next = next.eq('area_id', area);
     if (filterTypes && types.length) next = next.in('kind', types);
@@ -52,7 +54,7 @@ export async function listSafetyDocuments({ types = [], query = '', offset = 0, 
   while (!done) {
     const start = offset + matches.length;
     const result = await request(true).range(start, start + chunk - 1);
-    if (result.error) throw new Error('No pudimos consultar los envíos. Revisa tu conexión y pulsa Actualizar lista.');
+    if (result.error) throw new Error('No pudimos consultar los envíos. Revisa tu conexión y vuelve a intentarlo.');
     const rows = result.data as SafetyDocument[];
     count = result.count ?? start + rows.length;
     for (const row of rows) {
@@ -69,10 +71,10 @@ export async function listSafetyDocuments({ types = [], query = '', offset = 0, 
     let start = 0, total = 0;
     do {
       const result = await request(false).in('batch_id', batches).range(start, start + chunk - 1);
-      if (result.error) throw new Error('No pudimos cargar todos los archivos del envío. Actualiza la lista para reintentar.');
+      if (result.error) throw new Error('No pudimos cargar todos los archivos del envío. Vuelve a intentar la consulta.');
       const rows = result.data as SafetyDocument[];
       complete.push(...rows); total = result.count ?? complete.length; start += rows.length;
-      if (!rows.length && start < total) throw new Error('No pudimos verificar todos los archivos del envío. Actualiza la lista.');
+      if (!rows.length && start < total) throw new Error('No pudimos verificar todos los archivos del envío. Vuelve a intentar la consulta.');
     } while (start < total);
     documents = [...matches.filter(row => !row.batch_id), ...complete];
   }

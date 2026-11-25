@@ -7,8 +7,8 @@ import type { SafetyKind, UploadIntent } from './safety-documents';
 
 export type YoManagement = { id: string; name: string; areas: { id: string; name: string }[] };
 export type YoScope = { admin: boolean; management_id: string | null; management_name: string };
-export type GuestValues = { worker: string; management: string; area: string; title: string; site: string; zone: string };
-export type YoSite = { id: string; name: string; zones: {id:string;name:string}[] };
+export type GuestValues = { worker: string; management: string; area: string; title: string; site: string; zone: string; facility: string };
+export type YoSite = { id: string; name: string; zones: {id:string;name:string;facilities:{id:string;name:string}[]}[] };
 export type BatchIntent = { id:string; token:string; started:boolean; files:GuestIntent[] };
 export type GuestReceipt = {code:string;receivedAt:string;count:number};
 export type GuestIntent = UploadIntent & { kind:SafetyKind; path?:string };
@@ -25,7 +25,7 @@ function problem(error: { code?: string; message?: string }) {
  if(error.code==='PGRST202')return new Error('Yo Seguro está pendiente de activación. Vuelve a intentarlo más tarde.');
  if(error.message?.includes('UPLOAD_RATE_LIMIT'))return new Error('Se recibieron muchos envíos. Espera unos minutos y vuelve a intentarlo; conservamos tu selección.');
  if(error.message?.includes('UPLOAD_EXPIRED'))return new Error('Venció el tiempo de este envío. Pulsa Empezar de nuevo y vuelve a seleccionar el archivo.');
- if(error.message?.includes('LOCATION_NOT_AVAILABLE'))return new Error('La Sede o el Lugar de Trabajo ya no están disponibles. Empieza de nuevo y actualiza las listas.');
+ if(error.message?.includes('LOCATION_NOT_AVAILABLE'))return new Error('La Sede, Zona o Instalación ya no están disponibles. Empieza de nuevo y actualiza las listas.');
  if(error.message?.includes('AREA_NOT_AVAILABLE'))return new Error('El área ya no está disponible. Empieza de nuevo y actualiza la lista de áreas.');
  if(error.code==='40001')return new Error('Los datos de este intento cambiaron. Reintenta con los mismos datos o empieza un envío nuevo.');
  return new Error('No pudimos confirmar el envío. Conservamos tus datos y archivo para que puedas reintentarlo sin duplicar el registro.');
@@ -44,9 +44,9 @@ export async function yoSeguroScope():Promise<YoScope|null> {
  return data;
 }
 export async function yoSeguroLocations():Promise<YoSite[]> {
- const {data,error}=await guestClient().rpc('berry_yo_seguro_locations').abortSignal(AbortSignal.timeout(15000));
+ const {data,error}=await guestClient().rpc('berry_yo_seguro_workplaces').abortSignal(AbortSignal.timeout(15000));
  if(error)throw problem(error);
- if(data?.version!=='202611220026'||!Array.isArray(data.sites)||data.sites.some((site:YoSite)=>!site||typeof site.id!=='string'||typeof site.name!=='string'||!Array.isArray(site.zones)||site.zones.some(zone=>!zone||typeof zone.id!=='string'||typeof zone.name!=='string')))throw new Error('No pudimos verificar las Sedes y Lugares de Trabajo. Actualiza las listas.');
+ if(data?.version!=='202611250029'||!Array.isArray(data.sites)||data.sites.some((site:YoSite)=>!site||typeof site.id!=='string'||typeof site.name!=='string'||!Array.isArray(site.zones)||site.zones.some(zone=>!zone||typeof zone.id!=='string'||typeof zone.name!=='string'||!Array.isArray(zone.facilities)||zone.facilities.some(f=>!f||typeof f.id!=='string'||typeof f.name!=='string'))))throw new Error('No pudimos verificar las Sedes, Zonas e Instalaciones. Actualiza las listas.');
  return data.sites;
 }
 export const guestToken=()=>Array.from(crypto.getRandomValues(new Uint8Array(32)),value=>value.toString(16).padStart(2,'0')).join('');
@@ -57,8 +57,8 @@ export async function prepareGuestFile(file:File,kind:SafetyKind):Promise<GuestI
 export async function sendGuestDocuments(batch:BatchIntent,values:GuestValues,onPhase:(phase:string)=>void):Promise<GuestReceipt> {
  if(!navigator.onLine)throw new Error('Necesitas conexión para enviar los documentos. Conservamos tu selección en este formulario.');
  const client=guestClient();batch.started=true;onPhase('Preparando envío…');
- const {data:ticket,error:ticketError}=await client.rpc('berry_begin_yo_seguro_batch',{
-  p_id:batch.id,p_token:batch.token,p_area:values.area,p_worker:values.worker.trim(),p_title:values.title.trim(),p_site:values.site,p_zone:values.zone,
+ const {data:ticket,error:ticketError}=await client.rpc('berry_begin_yo_seguro_batch_at_facility',{
+  p_id:batch.id,p_token:batch.token,p_area:values.area,p_worker:values.worker.trim(),p_title:values.title.trim(),p_site:values.site,p_zone:values.zone,p_facility:values.facility,
   p_files:batch.files.map(file=>({id:file.id,kind:file.kind,file_name:file.file.name.replace(/[\\/\r\n]/g,'_').slice(0,200),mime:file.mime,size:file.file.size})),
  }).abortSignal(AbortSignal.timeout(20000));
  if(ticketError)throw problem(ticketError);

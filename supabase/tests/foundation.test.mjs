@@ -1954,6 +1954,50 @@ test('fully approved conversations remain readable and immutable without accepti
  await denied(()=>as('anon',null,'select public.berry_add_followup_comment($1,$2,$3,$4)',[conversationReport,conversationObservations[1],'dd000000-0000-4000-8000-000000000007','Anónimo.']));
 });
 
+const workplacesMigration=await readFile(new URL('../migrations/202611250029_yo_seguro_workplaces.sql',import.meta.url),'utf8');
+const workplaceIds={facility:'f9000000-0000-4000-8000-000000000001',other:'f9000000-0000-4000-8000-000000000002',legacy:'f9000000-0000-4000-8000-000000000003',legacyFile:'f9000000-0000-4000-8000-000000000004',batch:'f9000000-0000-4000-8000-000000000005',file:'f9000000-0000-4000-8000-000000000006'};
+const workplaceFile={...batchFiles[0],id:workplaceIds.file};
+const beginAtFacility=(facility=workplaceIds.facility)=>as('anon',null,'select public.berry_begin_yo_seguro_batch_at_facility($1,$2,$3,$4,$5,$6,$7,$8,$9) value',[workplaceIds.batch,batchToken,yoIds.a,'ana RUIZ','Verificación de equipos',batchIds.site,batchIds.zone,facility,[workplaceFile]]);
+test('workplace migration is repeatable, preserves records and pending legacy batches, and exposes the administrative hierarchy',async()=>{
+ await batchBegin(workplaceIds.legacy,[{...batchFiles[0],id:workplaceIds.legacyFile}]);
+ const before=(await db.query('select id,workplace,created_at,batch_id,revision from public.berry_safety_documents order by id')).rows;
+ await db.exec(workplacesMigration);await db.exec(workplacesMigration);
+ assert.deepEqual((await db.query('select id,workplace,created_at,batch_id,revision from public.berry_safety_documents order by id')).rows,before);
+ for(const [id,parent,name]of[[workplaceIds.facility,batchIds.zone,'Instalación de pruebas'],[workplaceIds.other,batchIds.otherZone,'Instalación alternativa']])await db.query("insert into public.berry_locations(id,parent_id,kind,name)values($1,$2,'installation',$3)",[id,parent,name]);
+ const catalog=(await as('anon',null,'select public.berry_yo_seguro_workplaces() value')).rows[0].value;
+ assert.equal(catalog.version,'202611250029');
+ const zone=catalog.sites.find(s=>s.id===batchIds.site).zones.find(z=>z.id===batchIds.zone);
+ assert.ok(zone.facilities.some(f=>f.id===workplaceIds.facility));assert.ok(!zone.facilities.some(f=>f.id===workplaceIds.other));
+ assert.equal((await as('anon',null,'select public.berry_yo_seguro_locations() value')).rows[0].value.version,'202611220026');
+ await batchStore({...batchFiles[0],id:workplaceIds.legacyFile});await batchFinish(workplaceIds.legacy);
+ const old=(await db.query('select facility_id,facility_name,workplace from public.berry_safety_documents where id=$1',[workplaceIds.legacyFile])).rows[0];
+ assert.equal(old.facility_id,null);assert.equal(old.facility_name,'');assert.equal(old.workplace,'Sede de pruebas – Zona de trabajo');
+});
+test('new guest batches reject missing or foreign facilities before reserving any files',async()=>{
+ await assert.rejects(()=>beginAtFacility(null),e=>e.message.includes('INVALID_DOCUMENT'));
+ await assert.rejects(()=>beginAtFacility(workplaceIds.other),e=>e.message.includes('LOCATION_NOT_AVAILABLE'));
+ assert.equal((await db.query('select count(*)::int n from berry_private.yo_seguro_batches where id=$1',[workplaceIds.batch])).rows[0].n,0);
+ await beginAtFacility();await batchStore(workplaceFile);
+ await assert.rejects(()=>beginAtFacility(workplaceIds.other),e=>e.code==='40001');
+});
+test('receipt revalidates the facility, stays atomic and records immutable location and server timestamps',async()=>{
+ await db.query('update public.berry_locations set enabled=false where id=$1',[workplaceIds.facility]);
+ const catalog=(await as('anon',null,'select public.berry_yo_seguro_workplaces() value')).rows[0].value;
+ assert.ok(!catalog.sites.some(s=>s.zones.some(z=>z.facilities.some(f=>f.id===workplaceIds.facility))));
+ await assert.rejects(()=>batchFinish(workplaceIds.batch),e=>e.message.includes('LOCATION_NOT_AVAILABLE'));
+ assert.equal((await db.query('select count(*)::int n from public.berry_safety_documents where batch_id=$1',[workplaceIds.batch])).rows[0].n,0);
+ await db.query('update public.berry_locations set enabled=true where id=$1',[workplaceIds.facility]);
+ const receipt=(await batchFinish(workplaceIds.batch)).rows[0].value;
+ const row=(await db.query('select * from public.berry_safety_documents where id=$1',[workplaceIds.file])).rows[0];
+ assert.equal(row.facility_id,workplaceIds.facility);assert.equal(row.facility_name,'Instalación de pruebas');
+ assert.equal(row.workplace,'Sede de pruebas – Zona de trabajo – Instalación de pruebas');assert.equal(new Date(row.created_at).toISOString(),new Date(receipt.received_at).toISOString());
+ assert.equal(row.management_id,yoIds.m);assert.equal(row.area_id,yoIds.a);
+ assert.deepEqual((await batchFinish(workplaceIds.batch)).rows[0].value,receipt);
+ assert.equal((await beginAtFacility()).rows[0].value.completed,true);
+ await denied(()=>as('anon',null,'select * from public.berry_safety_documents'));
+ assert.equal((await as('anon',null,'select name from storage.objects where name=$1',[batchPath(workplaceIds.file)])).rows.length,0);
+});
+
 let failed;
 try {
   await setup();

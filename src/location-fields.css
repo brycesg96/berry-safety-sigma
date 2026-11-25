@@ -68,3 +68,5 @@
 :root .location-select .location-select-trigger[aria-expanded=true]{border-color:#81958a;box-shadow:none}
 :root .location-select .location-select-trigger:focus-visible{outline:2px solid #71847d;outline-offset:2px;box-shadow:none}
 @media(max-width:600px){:root .location-select .platform-select-menu .platform-select-search input[type=search]{font-size:16px}}
+.platform-select-group-heading{padding:10px 12px 7px;margin:8px 2px 3px;border-top:1px solid var(--berry-border);font-size:11px;line-height:1.5;font-weight:650;letter-spacing:.02em;color:var(--berry-secondary);overflow-wrap:anywhere}
+.platform-select-group-heading:first-child{border-top:0;margin-top:0}

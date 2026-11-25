@@ -1,9 +1,9 @@
-import { useEffect, useId, useLayoutEffect, useRef, useState } from 'react';
+import { Fragment, useEffect, useId, useLayoutEffect, useRef, useState } from 'react';
 import type { KeyboardEvent, ReactNode } from 'react';
 import { Check, ChevronDown, Search } from 'lucide-react';
 import './location-fields.css';
 
-export type SelectOption = { value: string; label: string; description?: string };
+export type SelectOption = { value: string; label: string; description?: string; group?: string };
 type Common = {
   id?: string; options: readonly SelectOption[]; placeholder?: string; disabled?: boolean; icon?: ReactNode;
   searchable?: boolean; searchLabel?: string; className?: string; 'aria-label'?: string;
@@ -20,7 +20,7 @@ export function Select(props: Props) {
   const [open, setOpen] = useState(false), [active, setActive] = useState(0), [query, setQuery] = useState('');
   const [placement, setPlacement] = useState({ above: false, height: 280 });
   const typed = useRef({ text: '', at: 0 });
-  const choices = props.options.filter(option => normalize(`${option.label} ${option.description || ''}`).includes(normalize(query)));
+  const choices = props.options.filter(option => normalize(`${option.label} ${option.description || ''} ${option.group || ''}`).includes(normalize(query)));
   const selected = props.options.filter(option => values.includes(option.value));
   const selectionLabels = values.filter(Boolean).map(value => props.options.find(option => option.value === value)?.label || value);
   const selectedIndex = Math.max(0, choices.findIndex(option => values.includes(option.value)));
@@ -40,7 +40,8 @@ export function Select(props: Props) {
       const rect = root.current!.getBoundingClientRect(), viewport = window.visualViewport;
       const top = viewport?.offsetTop || 0, bottom = top + (viewport?.height || innerHeight);
       const below = bottom - rect.bottom - 12, above = rect.top - top - 12;
-      const desired = choices.length * (matchMedia('(max-width: 600px)').matches ? 48 : 44) + 12 + (props.searchable ? 54 : 0) + (props.multiple ? 50 : 0);
+      const groups = choices.filter((option,index)=>option.group && option.group!==choices[index-1]?.group).length;
+      const desired = groups * 35 + choices.length * (matchMedia('(max-width: 600px)').matches ? 48 : 44) + 12 + (props.searchable ? 54 : 0) + (props.multiple ? 50 : 0);
       const upwards = below < Math.min(210, desired) && above > below;
       setPlacement({ above: upwards, height: Math.max(100, Math.min(320, upwards ? above : below)) });
     };
@@ -92,7 +93,7 @@ export function Select(props: Props) {
     {open && <div className={`location-select-menu platform-select-menu ${placement.above ? 'opens-above' : ''}`} style={{ maxHeight: placement.height }}>
       {props.searchable && <div className="platform-select-search"><Search size={16} aria-hidden="true"/><input ref={input} type="search" aria-label={props.searchLabel || 'Buscar opciones'} placeholder="Buscar…" value={query} autoComplete="off" aria-controls={listId} aria-activedescendant={choices.length ? `${listId}-${active}` : undefined} onChange={event => { setQuery(event.target.value); setActive(0); }} onKeyDown={keydown}/></div>}
       <div id={listId} role="listbox" aria-labelledby={id} aria-multiselectable={props.multiple || undefined} className="platform-select-options">
-        {choices.map((option, index) => <button type="button" role="option" tabIndex={-1} key={option.value} data-value={option.value} id={`${listId}-${index}`} aria-selected={values.includes(option.value)} className={`location-select-option ${index === active ? 'is-active' : ''} ${!option.value ? 'is-placeholder' : ''}`} onMouseEnter={() => setActive(index)} onPointerDown={event => { if (event.pointerType === 'mouse') event.preventDefault(); }} onClick={() => choose(index)}><span>{option.label}{option.description && <small>{option.description}</small>}</span>{values.includes(option.value) && option.value && <Check size={16} aria-hidden="true"/>}</button>)}
+        {choices.map((option, index) => <Fragment key={option.value}>{option.group && option.group !== choices[index-1]?.group && <div className="platform-select-group-heading" role="presentation" aria-hidden="true">{option.group}</div>}<button type="button" role="option" tabIndex={-1} aria-label={option.group ? `${option.label} · ${option.group}` : undefined} data-value={option.value} id={`${listId}-${index}`} aria-selected={values.includes(option.value)} className={`location-select-option ${index === active ? 'is-active' : ''} ${!option.value ? 'is-placeholder' : ''}`} onMouseEnter={() => setActive(index)} onPointerDown={event => { if (event.pointerType === 'mouse') event.preventDefault(); }} onClick={() => choose(index)}><span>{option.label}{option.description && <small>{option.description}</small>}</span>{values.includes(option.value) && option.value && <Check size={16} aria-hidden="true"/>}</button></Fragment>)}
       </div>
       {!choices.length && <p className="platform-select-empty" role="status">Sin resultados para esta búsqueda.</p>}
       {props.multiple && <div className="platform-select-footer"><button type="button" disabled={!props.value.length} onClick={() => { trigger.current?.focus({ preventScroll: true }); props.onChange([]); setQuery(''); }}>Limpiar selección</button><button type="button" onClick={() => { close(); trigger.current?.focus(); }}>Listo</button></div>}
