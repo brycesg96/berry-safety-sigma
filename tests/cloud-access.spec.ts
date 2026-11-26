@@ -290,7 +290,9 @@ test('el administrador crea usuarios reales sin añadir cuentas locales y conser
   await login(page);
   await page.getByRole('button', { name: 'Gestión de Usuarios', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'Gestión de Usuarios', exact: true })).toBeVisible();
-  await page.getByLabel('Nombres y apellidos').fill('Persona de Prueba');
+  await page.getByLabel('Nombres y apellidos').fill('  jOSÉ ÁNGEL nÚÑEZ  ');
+  await expect(page.getByLabel('Nombres y apellidos')).toHaveValue('  José Ángel Núñez  ');
+  await expect(page.getByText('Escribe nombres y apellidos con sus iniciales en mayúscula.', { exact: true })).toHaveCount(0);
   await page.getByLabel(/^Correo del usuario/).fill('persona@example.invalid');
   await expect(page.getByLabel('Área', { exact: true })).toHaveCount(0);
   await expect(page.getByLabel('Puesto', { exact: true })).toHaveCount(0);
@@ -314,11 +316,11 @@ test('el administrador crea usuarios reales sin añadir cuentas locales y conser
   await page.getByRole('button', { name: 'Crear usuario', exact: true }).click();
   await expect(page.getByRole('status')).toContainText('Cuenta creada para persona@example.invalid');
   expect(calls).toHaveLength(2); expect(calls[0].id).toBe(calls[1].id);
-  expect(calls[1].body).toMatchObject({ area: '', job_title: '', can_create_inspections: true, can_receive_inspections: true, role: 'inspector' });
+  expect(calls[1].body).toMatchObject({ full_name: 'José Ángel Núñez', area: '', job_title: '', can_create_inspections: true, can_receive_inspections: true, role: 'inspector' });
   await expect(page.locator('.account-row')).toHaveCount(0);
   await page.getByRole('button', { name: 'Administrar usuarios', exact: true }).click();
   await expect(page.getByRole('button', { name: 'Crear usuario', exact: true })).toHaveCount(0);
-  await expect(page.locator('.account-row')).toContainText('Persona de Prueba');
+  await expect(page.locator('.account-row')).toContainText('José Ángel Núñez');
   await expect(page.locator('.account-row')).toContainText('Contraseña temporal');
   expect(await page.evaluate(() => localStorage.getItem('berry-demo-accounts-v1'))).toBeNull();
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);

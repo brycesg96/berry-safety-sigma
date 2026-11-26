@@ -10,7 +10,7 @@ import type { CloudProfile, AccountPermissions, AccountMatch, NewCloudAccount, A
 import { AccountMatchDialog } from './AccountMatchDialog';
 import { supervisorEmails } from './accounts';
 import { TEMPORARY_PASSWORD } from '../shared/account-rules.mjs';
-import { setYoSeguroAccess } from './yo-seguro';
+import { formatWorkerName, setYoSeguroAccess } from './yo-seguro';
 import { AccountSettingsDialog } from './AccountSettingsDialog';
 import { AccessSwitches } from './AccessSwitches';
 
@@ -58,7 +58,7 @@ export function CloudAdministration({ actor, isCurrent, onSelfChange, cache, onB
   const submit = async () => {
     if (busy || !ready) return; setError(''); setMessage('');
     try {
-      const values = { full_name: form.full_name.trim(), email: form.email.trim().toLowerCase(), area: '', job_title: '', role: form.role, supervisor_emails: supervisorEmails(form.copies), can_create_inspections: form.can_create_inspections, can_receive_inspections: form.can_receive_inspections };
+      const values = { full_name: formatWorkerName(form.full_name).trim(), email: form.email.trim().toLowerCase(), area: '', job_title: '', role: form.role, supervisor_emails: supervisorEmails(form.copies), can_create_inspections: form.can_create_inspections, can_receive_inspections: form.can_receive_inspections };
       if (!values.full_name || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(values.email)) throw new Error('Completa el nombre y un correo válido.');
       const signature = JSON.stringify(values); if (request.current?.signature !== signature) request.current = { signature, id: crypto.randomUUID() };
       setBusy(true);
@@ -104,7 +104,7 @@ export function CloudAdministration({ actor, isCurrent, onSelfChange, cache, onB
     {tab === 'add' ? <>
       <div className="form-card liquid-glass-card"><LiquidGlassSurface/><div className="form-body"><SectionTitle icon={<UsersRound size={20}/>} title="Agregar Usuario" subtitle="En su primer ingreso, el usuario cambiará su contraseña temporal y completará su gerencia, área y puesto antes de acceder al espacio de trabajo."/>
         <form onSubmit={event => { event.preventDefault(); void submit(); }}>
-          <div className="field-grid"><Field label="Nombres y apellidos" required hint="Escribe nombres y apellidos con sus iniciales en mayúscula.">{props => <input {...props} required autoComplete="off" autoCapitalize="words" maxLength={250} disabled={busy} value={form.full_name} onChange={event => field('full_name', event.target.value)}/>}</Field><Field label="Correo del usuario" required>{props => <input {...props} required type="email" autoComplete="off" maxLength={254} disabled={busy} value={form.email} onChange={event => field('email', event.target.value)}/>}</Field></div>
+          <div className="field-grid"><Field label="Nombres y apellidos" required>{props => <input {...props} required autoComplete="off" autoCapitalize="words" maxLength={250} disabled={busy} value={form.full_name} onChange={event => {const input=event.currentTarget,raw=input.value,start=input.selectionStart??raw.length,end=input.selectionEnd??start,formatted=formatWorkerName(raw);field('full_name',formatted);queueMicrotask(()=>{if(input.isConnected&&document.activeElement===input&&input.value===formatted)input.setSelectionRange(formatWorkerName(raw.slice(0,start)).length,formatWorkerName(raw.slice(0,end)).length);});}}/>}</Field><Field label="Correo del usuario" required>{props => <input {...props} required type="email" autoComplete="off" maxLength={254} disabled={busy} value={form.email} onChange={event => field('email', event.target.value)}/>}</Field></div>
           <AccessSwitches value={{ ...form, enabled: true }} disabled={busy || !ready} onChange={next => setForm(previous => ({ ...previous, role: next.role, can_create_inspections: next.can_create_inspections, can_receive_inspections: next.can_receive_inspections }))}/>
           <Field label="Contraseña temporal" hint="Obligatorio cambiarla al iniciar sesión.">{props => <div className="cloud-password"><input {...props} type={showPassword ? 'text' : 'password'} autoComplete="off" readOnly value={TEMPORARY_PASSWORD}/><button className="icon-button" type="button" aria-label={showPassword ? 'Ocultar contraseña temporal' : 'Mostrar contraseña temporal'} onClick={() => setShowPassword(value => !value)}>{showPassword ? <EyeOff size={18}/> : <Eye size={18}/>}</button></div>}</Field>
           <Field label="Responde a (CC):" hint="Separa los correos con comas. Las personas indicadas recibirán una copia de las próximas notificaciones dirigidas a este usuario.">{props => <textarea {...props} rows={2} maxLength={13000} disabled={busy} value={form.copies} onChange={event => field('copies', event.target.value)} placeholder="persona1@hortifrut.com, persona2@hortifrut.com"/>}</Field>
