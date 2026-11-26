@@ -1998,6 +1998,90 @@ test('receipt revalidates the facility, stays atomic and records immutable locat
  assert.equal((await as('anon',null,'select name from storage.objects where name=$1',[batchPath(workplaceIds.file)])).rows.length,0);
 });
 
+const reviewMigration=await readFile(new URL('../migrations/202611250030_yo_reviso.sql',import.meta.url),'utf8');
+const emgIds={equipment:'fa000000-0000-4000-8000-000000000001',other:'fa000000-0000-4000-8000-000000000002',review:'fa000000-0000-4000-8000-000000000003',account:'fa000000-0000-4000-8000-000000000004',stale:'fa000000-0000-4000-8000-000000000005',expired:'fa000000-0000-4000-8000-000000000006'};
+const emgToken='cd'.repeat(32),emgFiles=[{id:'fb000000-0000-4000-8000-000000000001',role:'signature',name:'firma.png',mime:'image/png',size:100},{id:'fb000000-0000-4000-8000-000000000002',role:'photo',name:'equipo.jpg',mime:'image/jpeg',size:100}];
+let emgData,emgInput,emgReceipt;
+const emgBegin=(id=emgIds.review,input=emgInput,kind='extinguisher',expected=1,role='anon',actor=null)=>as(role,actor,'select public.berry_begin_emergency_inspection($1,$2,$3,$4,$5,$6) value',[id,emgToken,kind,'EXT-001',expected,input],{iat:Math.floor(Date.now()/1000)});
+const emgFinish=(id=emgIds.review,token=emgToken,role='anon',actor=null)=>as(role,actor,'select public.berry_finish_emergency_inspection($1,$2) value',[id,token],{iat:Math.floor(Date.now()/1000)});
+const emgPath=(id,file)=>`public/${id}/${emgToken}/${file.id}.${file.role==='signature'?'png':'jpg'}`;
+const emgStore=(id,file,role='anon',actor=null)=>as(role,actor,"insert into storage.objects(bucket_id,name,metadata)values('berry-emergency-evidence',$1,$2)",[emgPath(id,file),{mimetype:file.mime,size:file.size}],{iat:Math.floor(Date.now()/1000)});
+test('Yo Reviso migration is repeatable; only administrators register stable coded equipment',async()=>{
+ await db.exec(reviewMigration);await db.exec(reviewMigration);
+ assert.equal((await as('anon',null,'select public.berry_emergency_status() value')).rows[0].value.version,'202611250030');
+ const today=(await db.query("select (clock_timestamp() at time zone 'America/Lima')::date::text current_day")).rows[0].current_day;
+ emgData={code:'ext-001',kind:'extinguisher',area_id:yoIds.a,location:'Edificio principal, piso 1',serial_number:'SN-001',brand:'Marca de prueba',agent:'PQS',capacity:'6 kg',manufacture_year:2024,expiry_month:'2027-11',last_hydro_date:'2024-01-01',next_hydro_date:'2029-01-01',enabled:true};
+ emgInput={worker_name:'ana RUIZ',employee_code:'1234',inspection_date:today,state:'operational',notes:'',files:emgFiles};
+ await denied(()=>as('anon',null,'select public.berry_save_emergency_equipment($1,0,$2)',[emgIds.equipment,emgData]));
+ await denied(()=>safetyAs('worker','select public.berry_save_emergency_equipment($1,0,$2)',[emgIds.equipment,emgData]));
+ const row=(await safetyAs('admin','select public.berry_save_emergency_equipment($1,0,$2) value',[emgIds.equipment,emgData])).rows[0].value;
+ assert.equal(row.code,'EXT-001');assert.equal(row.management_id,yoIds.m);assert.equal(row.revision,1);
+ await db.exec(reviewMigration);assert.equal((await db.query('select count(*)::int n from public.berry_emergency_equipment')).rows[0].n,1);
+ await assert.rejects(()=>safetyAs('admin','select public.berry_save_emergency_equipment($1,1,$2)',[emgIds.equipment,{...emgData,code:'CAMBIADO'}]),e=>e.message.includes('EQUIPMENT_CODE_IMMUTABLE'));
+ await denied(()=>as('anon',null,'select * from public.berry_emergency_equipment'));
+ const found=(await as('anon',null,'select public.berry_emergency_lookup($1,$2) value',['extinguisher',' ext-001 '])).rows[0].value;
+ assert.equal(found.equipment.code,'EXT-001');assert.equal(found.equipment.created_by,undefined);assert.equal(found.latest,null);
+ assert.equal((await as('anon',null,'select public.berry_emergency_lookup($1,$2) value',['extinguisher','EXT-00'])).rows[0].value,null);
+});
+test('public emergency reservations validate identity, format, signature and immutable retry payloads',async()=>{
+ await assert.rejects(()=>emgBegin(emgIds.review,{...emgInput,inspector_id:safetyUsers.admin}),e=>e.message.includes('INVALID_INSPECTION'));
+ await assert.rejects(()=>emgBegin(emgIds.review,{...emgInput,state:'out_of_service'}),e=>e.message.includes('INVALID_INSPECTION'));
+ await assert.rejects(()=>emgBegin(emgIds.review,{...emgInput,files:[emgFiles[1]]}),e=>e.message.includes('INVALID_FILES'));
+ await assert.rejects(()=>emgBegin(emgIds.review,emgInput,'eyewash'),e=>e.message.includes('FORMAT_NOT_AVAILABLE'));
+ const ticket=(await emgBegin()).rows[0].value;assert.equal(ticket.files.length,2);assert.equal(ticket.files[0].path,emgPath(emgIds.review,emgFiles[0]));
+ await assert.rejects(()=>emgBegin(emgIds.review,{...emgInput,notes:'cambio'}),e=>e.code==='40001');
+ await denied(()=>emgFinish(emgIds.review,'ff'.repeat(32)));
+ await denied(()=>as('anon',null,"insert into storage.objects(bucket_id,name,metadata)values('berry-emergency-evidence',$1,$2)",[emgPath(emgIds.review,emgFiles[0]).replace(emgToken,'ff'.repeat(32)),{mimetype:'image/png',size:100}]));
+});
+test('emergency receipts are atomic and idempotent; anonymous lookup never exposes people, notes, signatures or evidence',async()=>{
+ await emgStore(emgIds.review,emgFiles[0]);await assert.rejects(()=>emgFinish(),e=>e.message.includes('FILE_NOT_STORED'));
+ assert.equal((await db.query('select count(*)::int n from public.berry_emergency_inspections')).rows[0].n,0);
+ await emgStore(emgIds.review,emgFiles[1]);emgReceipt=(await emgFinish()).rows[0].value;
+ assert.equal(emgReceipt.received,true);assert.equal(emgReceipt.worker_name,'Ana Ruiz');assert.deepEqual((await emgFinish()).rows[0].value,emgReceipt);
+ assert.equal((await emgBegin()).rows[0].value.completed,true);
+ const row=(await db.query('select * from public.berry_emergency_inspections where id=$1',[emgIds.review])).rows[0];
+ assert.equal(row.inspector_id,null);assert.equal(row.submission_source,'guest');assert.equal(row.photos.length,1);assert.equal(row.equipment_snapshot.serial_number,'SN-001');
+ const pub=(await as('anon',null,'select public.berry_emergency_lookup($1,$2) value',['extinguisher','EXT-001'])).rows[0].value;
+ assert.deepEqual(Object.keys(pub.latest).sort(),['inspection_date','state']);assert.equal(pub.latest.state,'operational');
+ await denied(()=>as('anon',null,'select * from public.berry_emergency_inspections'));
+ assert.equal((await as('anon',null,"select name from storage.objects where bucket_id='berry-emergency-evidence'")).rows.length,0);
+ await denied(()=>emgStore(emgIds.review,emgFiles[0]));
+});
+test('authorized accounts review guest inspections by management, while account submissions bind the authenticated person',async()=>{
+ await db.query('update public.berry_profiles set yo_seguro_management_id=$1,history_access_from=null where id=$2',[yoIds.m,safetyUsers.worker]);
+ await db.query('update public.berry_profiles set yo_seguro_management_id=$1,history_access_from=null where id=$2',[yoIds.m2,safetyUsers.other]);
+ assert.equal((await safetyAs('worker','select id from public.berry_emergency_inspections')).rows.length,1);
+ assert.equal((await safetyAs('other','select id from public.berry_emergency_inspections')).rows.length,0);
+ assert.equal((await safetyAs('worker',"select name from storage.objects where bucket_id='berry-emergency-evidence'")).rows.length,2);
+ assert.equal((await safetyAs('other',"select name from storage.objects where bucket_id='berry-emergency-evidence'")).rows.length,0);
+ await emgBegin(emgIds.account,{...emgInput,worker_name:'Nombre falso'},'extinguisher',1,'authenticated',safetyUsers.worker);
+ for(const file of emgFiles)await emgStore(emgIds.account,file,'authenticated',safetyUsers.worker);
+ await denied(()=>emgFinish(emgIds.account,emgToken));
+ await emgFinish(emgIds.account,emgToken,'authenticated',safetyUsers.worker);
+ const row=(await db.query('select inspector_id,worker_name from public.berry_emergency_inspections where id=$1',[emgIds.account])).rows[0];
+ assert.equal(row.inspector_id,safetyUsers.worker);assert.equal(row.worker_name,(await db.query('select full_name from public.berry_profiles where id=$1',[safetyUsers.worker])).rows[0].full_name);
+ await denied(()=>safetyAs('admin','delete from public.berry_emergency_inspections where id=$1',[emgIds.review]));
+ await denied(()=>safetyAs('worker',"update public.berry_emergency_inspections set notes='alterado' where id=$1",[emgIds.review]));
+ await db.query("update public.berry_profiles set history_access_from=clock_timestamp()+interval '1 day' where id=$1",[safetyUsers.worker]);
+ assert.equal((await safetyAs('worker','select id from public.berry_emergency_inspections')).rows.length,0);
+ await db.query('update public.berry_profiles set history_access_from=null where id=$1',[safetyUsers.worker]);
+});
+test('metadata changes and expiration cannot publish stale inspections or rewrite earlier snapshots; reservations obey quotas',async()=>{
+ await emgBegin(emgIds.stale);
+ const edited=(await safetyAs('admin','select public.berry_save_emergency_equipment($1,1,$2) value',[emgIds.equipment,{...emgData,serial_number:'SN-002'}])).rows[0].value;
+ assert.equal(edited.revision,2);
+ for(const file of emgFiles)await emgStore(emgIds.stale,file);
+ await assert.rejects(()=>emgFinish(emgIds.stale),e=>e.message.includes('EQUIPMENT_CONFLICT'));
+ assert.equal((await db.query('select equipment_snapshot from public.berry_emergency_inspections where id=$1',[emgIds.review])).rows[0].equipment_snapshot.serial_number,'SN-001');
+ await db.query('update berry_private.emergency_limits set hourly=0 where singleton');
+ await assert.rejects(()=>emgBegin(emgIds.expired,emgInput,'extinguisher',2),e=>e.message.includes('UPLOAD_RATE_LIMIT'));
+ await db.query('update berry_private.emergency_limits set hourly=500 where singleton');await emgBegin(emgIds.expired,emgInput,'extinguisher',2);
+ await db.query("update berry_private.emergency_permits set expires_at=clock_timestamp()-interval '1 second' where id=$1",[emgIds.expired]);
+ await assert.rejects(()=>emgFinish(emgIds.expired),e=>e.message.includes('UPLOAD_EXPIRED'));
+ await assert.rejects(()=>emgBegin(emgIds.expired,emgInput,'extinguisher',2),e=>e.message.includes('UPLOAD_EXPIRED'));
+ assert.equal((await db.query('select count(*)::int n from public.berry_emergency_inspections')).rows[0].n,2);
+});
+
 let failed;
 try {
   await setup();

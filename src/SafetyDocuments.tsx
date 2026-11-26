@@ -1,7 +1,10 @@
 import { SafetyDocumentGroups } from './SafetyDocumentGroups';
 import { inspectionDateRange, inspectionListToday } from './inspection-list-filters';
 import type { InspectionDateFilter } from './inspection-list-filters';
-import { useEffect, useRef, useState } from 'react';
+import { lazy, Suspense, useEffect, useRef, useState } from 'react';
+import { YoReviewEntry } from './YoReviewEntry';
+import type { DemoAccount } from './accounts';
+const EmergencyInspections=lazy(()=>import('./EmergencyInspections'));
 import { Building2, Check, Download, FileText, FolderOpen, LockKeyhole, RefreshCw, Search, ShieldCheck, X } from 'lucide-react';
 import { Field, Modal } from './components';
 import { Select } from './Select';
@@ -13,7 +16,8 @@ import type { SafetyDocument } from './safety-documents';
 import { yoSeguroCatalog, yoSeguroScope } from './yo-seguro';
 import type { YoManagement, YoScope } from './yo-seguro';
 
-export default function SafetyDocuments({actor,admin,onBusyChange}:{actor:string;admin:boolean;onBusyChange:(busy:boolean)=>void}) {
+export default function SafetyDocuments({actor,admin,account,onBusyChange}:{actor:string;admin:boolean;account:DemoAccount;onBusyChange:(busy:boolean)=>void}) {
+ const [reviewOpen,setReviewOpen]=useState(false);
  const [ready,setReady]=useState<boolean|null>(null),[loading,setLoading]=useState(true),[fetching,setFetching]=useState(false),[busy,setBusy]=useState(false);
  const [scope,setScope]=useState<YoScope|null>(null),[catalog,setCatalog]=useState<YoManagement[]>([]);
  const [error,setError]=useState(''),[notice,setNotice]=useState(''),[rows,setRows]=useState<SafetyDocument[]>([]),[count,setCount]=useState(0),[hasMore,setHasMore]=useState(false),[page,setPage]=useState(0),[revision,setRevision]=useState(0);
@@ -30,6 +34,7 @@ export default function SafetyDocuments({actor,admin,onBusyChange}:{actor:string
  useEffect(()=>{onBusyChange(busy);return()=>onBusyChange(false);},[busy,onBusyChange]);
  useEffect(()=>{
   let active=true;
+  if(reviewOpen)return;
   if(invalidDateRange){setRows([]);setCount(0);setHasMore(false);setLoading(false);setFetching(false);return;}
   const key=JSON.stringify([actor,types,management,area,applied,page,dateRange.from,dateRange.to]);
   setLoading(queryKey.current!==key);setFetching(true);refreshWorking.current=true;setError('');
@@ -47,8 +52,8 @@ export default function SafetyDocuments({actor,admin,onBusyChange}:{actor:string
   }catch(problem){if(active){setRows([]);setCount(0);setHasMore(false);setError(problem instanceof Error?problem.message:'No pudimos consultar los documentos.');}}
   finally{if(active){setLoading(false);setFetching(false);refreshWorking.current=false;}}})();
   return()=>{active=false;refreshWorking.current=false;};
- },[actor,types,management,area,applied,page,revision,dateRange.from,dateRange.to,invalidDateRange]);
- useEffect(()=>{if(!ready)return;return subscribeSafetyDocuments(()=>{if(!refreshWorking.current)setRevision(n=>n+1);});},[actor,ready]);
+ },[actor,types,management,area,applied,page,revision,dateRange.from,dateRange.to,invalidDateRange,reviewOpen]);
+ useEffect(()=>{if(!ready||reviewOpen)return;return subscribeSafetyDocuments(()=>{if(!refreshWorking.current)setRevision(n=>n+1);});},[actor,ready,reviewOpen]);
 
  async function run(action:()=>Promise<void>){if(locked.current)return;locked.current=true;setBusy(true);setError('');setNotice('');try{await action();}catch(problem){if(live.current)setError(problem instanceof Error?problem.message:'No se pudo completar la operación.');}finally{locked.current=false;if(live.current)setBusy(false);}}
  const closePreview=()=>{if(preview){URL.revokeObjectURL(preview.url);urls.current.delete(preview.url);}setPreview(null);};
@@ -59,8 +64,10 @@ export default function SafetyDocuments({actor,admin,onBusyChange}:{actor:string
  for(const document of rows){const key=safetySubmissionKey(document);if(!submissions.has(key))submissions.set(key,[]);submissions.get(key)!.push(document);}
 
 
+ if(reviewOpen)return <Suspense fallback={<LoadingState label="Preparando ¡Yo Reviso!…"/>}><EmergencyInspections actor={account} admin={admin} onBack={()=>setReviewOpen(false)} onBusyChange={onBusyChange}/></Suspense>;
  return <section className="safety-documents yo-library-page" aria-label="Yo Seguro">
   <div className="yo-library-hero"><div><span className="yo-access-tag"><ShieldCheck size={15}/>DOCUMENTOS DE SEGURIDAD</span><h1>Yo Seguro</h1><p>Los documentos del equipo, organizados por área.<br/>Consulta ATS, PETAR y checklists de {all?'todas las gerencias.':'tu gerencia.'}</p></div><div className="yo-library-scope"><span><Building2 size={21}/>{all?'Vista de Administración':organizationLabel(scope?.management_name)||'Gerencia autorizada'}</span><small><LockKeyhole size={14}/>Consulta con cuenta</small></div></div>
+  <YoReviewEntry disabled={busy} onClick={()=>setReviewOpen(true)}/>
   {!online&&<p className="notice" role="status">Necesitas conexión para consultar y descargar documentos.</p>}
   {error&&!removing&&<div className="error-message safety-notice" role="alert"><p>{error}</p><button className="button button-outline" disabled={fetching} onClick={()=>setRevision(n=>n+1)}>Reintentar consulta</button></div>}{notice&&<p className="save-confirmation" role="status"><Check size={17}/>{notice}</p>}
   {ready===false?<div className="safety-unavailable"><FileText size={32}/><h2>Yo Seguro está en preparación</h2><p>La recepción sin cuenta y la consulta por gerencia se habilitarán cuando Administración termine la activación.</p><button className="button button-outline" onClick={()=>setRevision(n=>n+1)}>Comprobar disponibilidad<RefreshCw size={16}/></button></div>:<>
