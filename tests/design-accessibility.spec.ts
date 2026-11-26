@@ -3,7 +3,7 @@ import AxeBuilder from '@axe-core/playwright';
 import { test,expect } from './test-fixture';
 import { mockDirectory } from './directory-fixture';
 import { mockSafety,enterSafety } from './safety-fixture';
-for(const width of [1440,375])test(`formulario y acceso tienen contraste, etiquetas y estructura accesibles (${width}px)`,async({page})=>{
+for(const width of [1440,768,375])test(`formulario y acceso tienen contraste, etiquetas y estructura accesibles (${width}px)`,async({page})=>{
  await page.setViewportSize({width,height:900});await page.emulateMedia({reducedMotion:'reduce'});await mockDirectory(page);await page.goto('./');
  await page.evaluate(()=>document.fonts.ready);
  const checkTextZoom=async()=>{

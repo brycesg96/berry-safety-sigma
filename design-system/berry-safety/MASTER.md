@@ -56,3 +56,5 @@ La nueva capa define valores de marca, nombres semánticos y ajustes por compone
 Se aplicaron las guías instaladas de Marca, Diseño de Sistemas, UI Styling y UI UX Pro Max. Se conservan los componentes React/CSS existentes y los logos oficiales. La búsqueda de UI UX Pro Max verificó Minimalism & Swiss Style para herramientas empresariales; el patrón comercial Hero + Features + CTA no corresponde a estos módulos y se descartó. La distribución operativa y la paleta proceden de Berry y de la dirección aprobada por el propietario.
 
 Véase [Plataforma](pages/plataforma.md) para los criterios de cada módulo y la verificación.
+
+Los listados de Mis inspecciones y Buzón, y la gestión administrativa, usan además `src/WorkspaceUI.tsx` y `src/workspace-unified.css` para compartir cabeceras, filtros, resúmenes y navegación. Se conservan los tokens de esta guía. Véase [Diseño compartido del espacio de trabajo](../../docs/DISENO_ESPACIO_TRABAJO.md).

@@ -26,3 +26,11 @@ Usuarios, informes y catálogos comparten las superficies y acciones del resto d
 GSAP y Framer Motion mantienen sus elementos actuales. El estilo añade respuestas breves de color y sombra, sin mover los controles de escritura. Movimiento reducido cancela esas transiciones. Los modos de alto contraste conservan bordes de selección con colores del sistema.
 
 Las pruebas revisan contraste con axe, pantallas de 375/1440 px, navegación entre secciones, búsqueda, apertura de documentos, informes cerrados y la distribución del panel. Las pruebas de distribución incluyen tablet y teléfono horizontal. Los datos de las capturas son ficticios y pertenecen al entorno de pruebas.
+
+## Composición compartida de listados y gestión
+
+`WorkspaceUI.tsx` y `workspace-unified.css` añaden una base común: cabecera contextual con icono, tarjetas de filtro de igual estructura, listados con una misma distribución y resúmenes compactos. Se aplicó el resultado verificado Minimalism & Swiss Style de UI/UX Pro Max para herramientas empresariales; el patrón comercial Hero + Features + CTA y su paleta negra/dorada se descartaron. Se mantienen los tokens y tipografías de MASTER.md.
+
+Mis inspecciones y Buzón comparten cabeceras, filtros, búsqueda y filas; se distinguen por su contexto, icono, prioridades y personas mostradas. Administración comparte esta base y añade navegación con descripciones, resúmenes reales de usuarios y catálogos, columnas numeradas y estadísticas del panel antes de sus filtros. Las tarjetas seleccionadas usan verde bosque; Cerradas conserva azul. No se cambia el significado de los colores de riesgos y levantamientos.
+
+Los estilos se cargan después de las capas existentes, limitados a estas superficies. No se desplazan controles mientras se escribe ni se añaden dependencias, fuentes remotas, imágenes externas o animaciones continuas. Los menús siguen usando Select y la búsqueda requiere foco explícito.

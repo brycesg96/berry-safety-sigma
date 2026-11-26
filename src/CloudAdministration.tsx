@@ -1,4 +1,5 @@
 import { LiquidGlassSurface } from './components/ui/liquid-glass';
+import { WorkspacePageHeader, WorkspaceSummary } from './WorkspaceUI';
 import { areaDisplayName } from './organization';
 import { organizationLabel } from './organization-label';
 import { useEffect, useRef, useState } from 'react';
@@ -95,7 +96,8 @@ export function CloudAdministration({ actor, isCurrent, onSelfChange, cache, onB
   };
   const field = <K extends keyof ReturnType<typeof initial>>(key: K, value: ReturnType<typeof initial>[K]) => { setForm(previous => ({ ...previous, [key]: value })); setMessage(''); };
   return <section className="cloud-administration" aria-label="Gestión de Usuarios">
-    <div className="page-heading"><div><h1>Gestión de Usuarios</h1><p className="administration-actor"><span>{actor.full_name || actor.email}</span><span className="account-enabled">Administrador</span></p></div></div>
+    <WorkspacePageHeader title="Gestión de Usuarios" description="Organiza las cuentas y los accesos de tu equipo." eyebrow="ADMINISTRACIÓN / PERSONAS" icon={<UsersRound/>}><p className="administration-actor"><span>{actor.full_name||actor.email}</span><span className="account-enabled">Administrador</span></p></WorkspacePageHeader>
+    <WorkspaceSummary label="Resumen de usuarios" loading={(loading||!!error)&&!accounts.length} items={[{label:'Cuentas registradas',value:accounts.length},{label:'Activas',value:accounts.filter(account=>account.enabled).length},{label:'Inhabilitadas',value:accounts.filter(account=>!account.enabled).length}]}/>
     <nav className="admin-tabs" aria-label="Gestión administrativa"><button type="button" aria-current={tab === 'add' ? 'page' : undefined} disabled={busy} onClick={() => { setError(''); setMessage(''); setTab('add'); }}>Agregar Usuario</button><button type="button" aria-current={tab === 'users' ? 'page' : undefined} disabled={busy} onClick={() => { setError(''); setMessage(''); setTab('users'); }}>Administrar usuarios</button></nav>
     {!ready && <p className="notice">La gestión de usuarios está pendiente de activación. Solicita al administrador que complete la configuración.</p>}
     {error && !settings && !confirmation && !matching && <p role="alert" className="error-message cloud-message">{error}</p>}{message && <p role="status" className="account-success cloud-message">{message}</p>}

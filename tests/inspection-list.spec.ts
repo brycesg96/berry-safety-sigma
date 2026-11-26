@@ -137,7 +137,7 @@ for (const width of [1366, 390]) test(`tarjetas seleccionables combinan estados,
       await expect(rows.locator('.list-status.status-ready')).toHaveCount(count);
       const closedTone = await inspectionFilterButton(page, key).evaluate(element => getComputedStyle(element).backgroundColor);
       expect(closedTone).not.toBe(activeTone);
-      await expect(inspectionFilterButton(page, key).locator('.liquid-glass-surface')).toHaveCSS('background-color', closedTone);
+      await expect(inspectionFilterButton(page, key)).toHaveCSS('color', 'rgb(255, 255, 255)');
       await expectAccessible(page);
       await page.screenshot({ path: test.info().outputPath(`mis-inspecciones-cerradas-${width}.png`), fullPage: true });
     }

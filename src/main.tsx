@@ -11,6 +11,7 @@ import './yo-seguro.css';
 import './safety-treasury.css';
 import './workspace-theme.css';
 import './followup-navigation.css';
+import './workspace-unified.css';
 
 ReactDOM.createRoot(document.getElementById('root')!).render(<React.StrictMode><Application /><AppMotion /></React.StrictMode>);
 
