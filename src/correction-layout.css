@@ -1,0 +1,29 @@
+/* Compact correction editing: text and date first, a shared evidence rail below. */
+.followup-card .correction-workspace{display:grid;grid-template-columns:minmax(0,1fr);gap:16px;align-items:stretch}
+.correction-workspace>div,.correction-workspace>section{min-width:0}
+.correction-workspace .correction-author,.correction-workspace .correction-attachments{grid-column:1/-1}
+.followup-card .correction-workspace .field{margin:0;min-width:0;gap:7px}
+.followup-card .correction-action textarea{height:104px;min-height:104px;line-height:1.65;resize:vertical}
+.correction-date-panel{display:flex;align-items:center;padding:14px 16px;border:1px solid #dfe6d6;border-radius:12px;background:#f7f9f3}
+.followup-card .correction-date-panel .correction-metadata{display:block;width:100%}
+.correction-date-panel .field{width:100%}
+.followup-card .correction-date-panel input{width:100%;min-width:0}
+.correction-attachments{padding:14px 16px;border:1px solid #e0e6d9;border-radius:12px;background:#fcfdf9}
+.followup-card .correction-attachments .evidence-label{gap:14px;align-items:center;margin:0 0 10px;font-size:12px;line-height:1.6;color:#53664f}
+.followup-card .correction-attachments .evidence-label>span:last-child{flex-shrink:0;padding:2px 8px;border-radius:7px;background:#edf2e5;color:#53664f;font-size:11px;line-height:1.6}
+.followup-card .correction-attachments .followup-evidence{display:flex;align-items:flex-start;flex-wrap:wrap;gap:10px;margin:0;min-width:0}
+.correction-attachments .followup-evidence>div{flex:0 0 112px;width:112px;height:88px;position:relative}
+.correction-attachments .followup-evidence>div>button:first-child{display:block;padding:0;width:100%;height:100%;border:1px solid #dfe6d6;border-radius:9px;overflow:hidden;background:#f0f4e9}
+.followup-card .correction-attachments .followup-evidence img{display:block;width:100%;height:100%;object-fit:cover;border-radius:0}
+.correction-attachments .followup-evidence .photo-remove{display:grid;place-items:center;position:absolute;top:3px;right:3px;min-width:44px;min-height:44px;border:1px solid #dce3d5;border-radius:10px;background:#fffffff5;color:#6f4339}
+.followup-card .correction-attachments .evidence-upload{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;flex:0 1 144px;width:144px;max-width:100%;min-height:88px;min-width:0;margin:0;padding:10px 12px;border:1px dashed #9fb590;border-radius:9px;background:#f3f7ec;color:#365b3e;text-align:center;font-size:12px;line-height:1.5;white-space:normal;position:relative;overflow:hidden}
+.correction-attachments .evidence-upload input{height:100%;inset:0}
+.correction-attachments .evidence-upload:focus-within{outline:3px solid #287452;outline-offset:3px}
+.correction-attachments .evidence-upload[aria-disabled=true]{opacity:.6;cursor:default}
+.followup-card .correction-form .correction-submit-actions{display:flex;flex-wrap:nowrap;gap:12px;width:100%;max-width:none;justify-content:flex-end;margin:16px 0 0;padding:16px 0 0;border-top:1px solid #e1e7d9}
+.followup-card .correction-submit-actions>.button{flex:0 1 210px;min-width:0;min-height:46px;margin:0;padding:11px 15px;font-size:13px;line-height:1.55;white-space:normal;justify-content:center}
+.followup-card .correction-form>.correction-conversation{margin-top:20px}
+@container(min-width:650px){.followup-card .correction-workspace{grid-template-columns:minmax(0,1fr) minmax(210px,240px);gap:16px 20px}}
+@container(max-width:540px){.followup-card .correction-date-panel,.followup-card .correction-attachments{padding:12px}.followup-card .correction-submit-actions>.button{flex:1;font-size:12px;padding:10px 8px}.followup-card .correction-form .correction-submit-actions{gap:10px}.followup-card .correction-action textarea{height:96px;min-height:96px}}
+@media(hover:hover) and (pointer:fine){.correction-attachments .followup-evidence .photo-remove{min-width:28px;min-height:28px;width:28px;height:28px;border-radius:50%}.correction-attachments .evidence-upload:hover{background:#edf4e4;border-color:#6f9161}}
+@media(forced-colors:active){.correction-date-panel,.correction-attachments,.correction-attachments .evidence-upload{border-color:CanvasText}.correction-attachments .evidence-upload{border-style:dashed}}

@@ -12,6 +12,7 @@ import './safety-treasury.css';
 import './workspace-theme.css';
 import './followup-navigation.css';
 import './workspace-unified.css';
+import './correction-layout.css';
 
 ReactDOM.createRoot(document.getElementById('root')!).render(<React.StrictMode><Application /><AppMotion /></React.StrictMode>);
 

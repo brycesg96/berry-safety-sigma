@@ -85,7 +85,8 @@ for (const width of [1440, 768, 390]) test(`resumen compacto y observaciones por
   await expect(page.getByText('Los comentarios de ambas partes aparecerán aquí.', { exact: true })).toHaveCount(0);
   await expect(page.getByText('Se actualiza al aprobar el inspector.', { exact: true })).toHaveCount(0);
   const panel = page.getByRole('tabpanel');
-  await expect(panel.getByRole('heading', { name: 'Tienes dudas, conversa con el inspector', exact: true })).toBeVisible();
+  await expect(panel.getByRole('heading', { name: '¿Tienes dudas?, conversa con el inspector...', exact: true })).toBeVisible();
+  await expect(panel.getByText('Al enviar el levantamiento, tu avance se guarda automáticamente.', { exact: true })).toHaveCount(0);
   const gap = await panel.evaluate(element => element.querySelector('.correction-conversation')!.getBoundingClientRect().top - element.querySelector('.correction-layout')!.getBoundingClientRect().bottom);
   expect(gap).toBeGreaterThanOrEqual(16);
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
@@ -115,6 +116,20 @@ test('los números admiten teclado y conservan acciones, fotos y mensajes pendie
   await panel.getByRole('textbox', { name: 'Escribir comentario', exact: true }).fill('Consulta todavía sin enviar.');
   await panel.getByLabel('Añadir evidencias del levantamiento', { exact: true }).setInputFiles(png);
   await expect(panel.locator('.followup-evidence img')).toHaveCount(1);
+  for (const width of [1440, 768, 390]) {
+    await page.setViewportSize({ width, height: 1000 });
+    const layout = await panel.locator('.correction-workspace').evaluate(element => {
+      const rect = (selector: string) => element.querySelector(selector)!.getBoundingClientRect();
+      const action = rect('.correction-action'), date = rect('.correction-date-panel'), attachments = rect('.correction-attachments');
+      const photo = rect('.followup-evidence > div'), upload = rect('.evidence-upload');
+      return { evidenceTop: attachments.top, contentBottom: Math.max(action.bottom, date.bottom), evidenceWidth: attachments.width, width: element.getBoundingClientRect().width, photoTop: photo.top, uploadTop: upload.top };
+    });
+    expect(layout.evidenceTop).toBeGreaterThan(layout.contentBottom);
+    expect(Math.abs(layout.evidenceWidth - layout.width)).toBeLessThanOrEqual(1);
+    expect(Math.abs(layout.photoTop - layout.uploadTop)).toBeLessThanOrEqual(1);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+    await panel.locator('.correction-form').screenshot({ path: test.info().outputPath(`levantamiento-editable-${width}.png`) });
+  }
   await first.focus(); await first.press('End');
   await expect(last).toBeFocused(); await expect(last).toHaveAttribute('aria-selected', 'true');
   await expect(last).toBeInViewport();
