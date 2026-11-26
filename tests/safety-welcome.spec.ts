@@ -28,7 +28,10 @@ test('la tarjeta conserva los campos estables, cancela su efecto al reducir movi
   expect(await email.boundingBox()).toEqual(initial);
   await page.emulateMedia({reducedMotion:'reduce'}); await expect.poll(flat).toBe(true);
   await expect.poll(()=>page.locator('.sign-in-card-edge').evaluate(element=>element.getAnimations({subtree:true}).filter(animation=>animation.playState==='running').length)).toBe(0);
-  await page.emulateMedia({reducedMotion:'no-preference'}); await page.mouse.move(box.x+15,box.y+15); await expect.poll(flat).toBe(false);
+  await page.emulateMedia({reducedMotion:'no-preference'});
+  // The preference change resets the effect asynchronously; keep moving as a user would after it resumes.
+  let resumedMoves=0;
+  await expect.poll(async()=>{await page.mouse.move(box.x+15+(resumedMoves++%2),box.y+15);return flat();}).toBe(false);
   await email.fill('seguridad@example.invalid'); await password.fill('Fictitious!47'); await expect.poll(flat).toBe(true);
   await card.dispatchEvent('pointermove',{pointerType:'touch',clientX:box.x+10,clientY:box.y+10}); await expect.poll(flat).toBe(true);
   expect(await email.boundingBox()).toEqual(initial); await expectAccessible(page);
