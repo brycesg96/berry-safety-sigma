@@ -1,0 +1,60 @@
+/* Public access only. The existing workspace keeps its own theme and controls. */
+.cloud-account-page.berry-sign-in-page{--sign-in-text:#183f32;--sign-in-muted:#53664f;--sign-in-accent:#287452;--sign-in-rule:#dfe3d5;--berry-focus:#287452;--treasury-forest:var(--sign-in-text);--treasury-rule:var(--sign-in-rule);position:relative;isolation:isolate;background:#f7f6f0;color:var(--sign-in-text);min-height:100dvh}
+.sign-in-backdrop{position:absolute;inset:0;overflow:hidden;z-index:-1;pointer-events:none;background:linear-gradient(180deg,#e4ebd580,#f7f6f0 76%)}
+.sign-in-glow{position:absolute;display:block;border-radius:50%;pointer-events:none}
+.sign-in-glow-top{width:min(1300px,145vw);height:850px;top:-550px;left:50%;translate:-50% 0;background:radial-gradient(ellipse,#a8c28b70,transparent 66%)}
+.sign-in-glow-bottom{width:1050px;height:950px;bottom:-600px;right:-350px;background:radial-gradient(ellipse,#8fbba54d,transparent 66%)}
+.sign-in-texture{position:absolute;inset:0;opacity:.13;background-image:radial-gradient(#526e4226 .5px,transparent .5px);background-size:5px 5px}
+.berry-sign-in-page .cloud-account-header{position:relative;background:transparent;border-bottom:1px solid var(--sign-in-rule)}
+.cloud-account-page.berry-sign-in-page .brand{color:#183f32}
+.cloud-account-page.berry-sign-in-page .brand-symbol,.cloud-account-page.berry-sign-in-page .brand-dot{color:#527344}
+.cloud-account-page.berry-sign-in-page .brand small,.cloud-account-page.berry-sign-in-page .cloud-return{color:var(--sign-in-muted)}
+.cloud-account-page.berry-sign-in-page .hortifrut-logo-on-dark{border:1px solid #dfe3d5;box-shadow:0 4px 20px #244b3810}
+.berry-sign-in-page .cloud-account-main{position:relative}
+.cloud-account-page.berry-sign-in-page .cloud-account-card.sign-in-card-2{position:relative;isolation:isolate;perspective:1200px;border:1px solid #c8d6bf;border-radius:24px;background:#fffefb;box-shadow:0 24px 80px #183f3212,inset 0 1px 0 #ffffffcc;padding:32px;color:var(--sign-in-text)}
+@supports(backdrop-filter:blur(16px)){.cloud-account-page.berry-sign-in-page .cloud-account-card.sign-in-card-2{background:#fffffff0;backdrop-filter:blur(16px)}}
+.sign-in-card-content{position:relative;z-index:1;min-width:0}
+.sign-in-card-aura{position:absolute;inset:-2px;z-index:-1;border-radius:inherit;box-shadow:0 0 36px #769c6a18;border:1px solid #b9cda366;background:radial-gradient(ellipse at 30% 0,#bed4ab26,transparent 60%);pointer-events:none}
+.sign-in-card-edge{position:absolute;inset:0;overflow:hidden;border-radius:inherit;pointer-events:none}
+.sign-in-card-edge>span{position:absolute;width:50%;height:2px;top:0;left:-50%;background:linear-gradient(90deg,transparent,#5c8656a6,transparent);opacity:0}
+.berry-sign-in-page .sign-in-card-2 .cloud-account-icon{margin:0 auto 20px;width:48px;height:48px;border:1px solid #c4d4b7;border-radius:16px;background:linear-gradient(145deg,#e9f1df,#f4f8ed);color:#3c663f;box-shadow:inset 0 1px 0 #ffffffcc}
+.berry-sign-in-page .sign-in-card-2 h1{color:var(--sign-in-text);text-align:center;font-size:29px;letter-spacing:-.9px;line-height:1.35}
+.berry-sign-in-page .sign-in-card-2 .eyebrow{color:var(--sign-in-accent);text-align:center;font-size:10px;letter-spacing:1.5px;margin-bottom:10px}
+.cloud-account-page.berry-sign-in-page .cloud-account-intro{color:var(--sign-in-muted);text-align:center;font-size:14px;line-height:1.7;margin:10px 0 26px}
+.berry-sign-in-page .sign-in-card-2 .field>label{color:#324d3c;font-size:13px}
+.berry-sign-in-page .sign-in-card-2 .required{color:#a23e31}
+.cloud-account-page.berry-sign-in-page .sign-in-card-2 .field input:not([type=checkbox]):not([type=radio]):not([type=file]){min-height:50px;font-size:16px;color:#183f32;background:#fbfdf9;border:1px solid #bdcdbd;border-radius:11px;box-shadow:inset 0 1px 2px #0001;caret-color:#287452}
+.berry-sign-in-page .sign-in-card-2 .field input::placeholder{color:#627569}
+.berry-sign-in-page .sign-in-card-2 .field input:focus-visible{outline:2px solid var(--sign-in-accent);outline-offset:3px;border-color:#62895d}
+.berry-sign-in-page .sign-in-card-2 .field input:disabled{opacity:.7}
+.berry-sign-in-page .sign-in-card-2 .field input:-webkit-autofill{-webkit-text-fill-color:#183f32;box-shadow:inset 0 0 0 100px #fbfdf9;caret-color:#287452}
+.sign-in-input{position:relative}
+.sign-in-input>svg,.sign-in-card-2 .cloud-password>svg{position:absolute;left:15px;top:16px;color:#627569;pointer-events:none;width:18px;height:18px}
+.berry-sign-in-page .sign-in-card-2 .sign-in-input input,.berry-sign-in-page .sign-in-card-2 .cloud-password input{padding-left:43px}
+.berry-sign-in-page .sign-in-card-2 .cloud-password .icon-button{width:46px;height:48px;min-height:44px;right:2px;top:1px;color:#53664f;border-radius:10px}
+.berry-sign-in-page .sign-in-card-2 .cloud-password .icon-button:hover:enabled{color:#183f32;background:#eef3e7}
+.berry-sign-in-page .sign-in-card-2 .cloud-remember{color:var(--sign-in-muted);font-size:12px;line-height:1.6;min-height:44px;margin:-3px 0 16px;gap:10px}
+.berry-sign-in-page .sign-in-card-2 .cloud-remember input{accent-color:#287452;flex:0 0 18px;width:18px;height:18px}
+.cloud-account-page.berry-sign-in-page .sign-in-card-2 .button-primary{min-height:50px;border:1px solid #244b38;background:linear-gradient(135deg,#2b5741,#183f32);color:#fff;border-radius:11px;font-size:14px;font-weight:700;box-shadow:0 3px 16px #254b3818;gap:10px}
+.cloud-account-page.berry-sign-in-page .sign-in-card-2 .button-primary:hover:enabled{background:#183f32;border-color:#183f32;box-shadow:0 4px 24px #254b382b}
+.berry-sign-in-page .sign-in-card-2 .cloud-logout{color:#365e43;border-top:1px solid #dfe3d5;margin-top:20px;padding-top:14px;min-height:48px;font-size:13px}
+.berry-sign-in-page .sign-in-card-2 :is(button,a):focus-visible{outline:3px solid var(--sign-in-accent);outline-offset:4px}
+.berry-sign-in-page .sign-in-card-2 .error-message{color:#a2342e;background:#fff0eb;border:1px solid #e9c5bd;border-radius:10px;padding:11px 13px;font-size:13px}
+.berry-sign-in-page .sign-in-card-2 .cloud-saved{color:#315d40;line-height:1.7}
+.berry-sign-in-page .sign-in-card-2 .cloud-loading{color:var(--sign-in-muted)}
+.berry-sign-in-page .safety-welcome{color:var(--sign-in-text)}
+.berry-sign-in-page .safety-welcome-title em{color:#697e42}
+.berry-sign-in-page :is(.safety-welcome-copy,.safety-welcome-eyebrow,.safety-welcome-signature){color:var(--sign-in-muted)}
+.berry-sign-in-page .safety-welcome-eyebrow>span{background:#697e42;box-shadow:0 0 0 4px #6c884610}
+.berry-sign-in-page .safety-welcome-guest{border-color:var(--sign-in-rule)}
+.berry-sign-in-page .safety-welcome-guest-icon{background:#eef3e7;border-color:#d9e2cb;color:#49643b}
+.berry-sign-in-page .safety-welcome-guest p{color:var(--sign-in-muted)}
+.cloud-account-page.berry-sign-in-page .safety-welcome-guest>.button{color:#183f32;background:#eef3e7;border-color:#a5b89b}
+.cloud-account-page.berry-sign-in-page .safety-welcome-guest>.button:hover:enabled{color:#183f32;background:#e9f0de;border-color:#287452}
+.berry-sign-in-page .safety-scene-halo{background:radial-gradient(ellipse,#a8c28b30,transparent 66%)}
+@media(max-width:850px){.berry-sign-in-page .safety-welcome-title{font-size:42px}.berry-sign-in-page .safety-welcome-copy{font-size:14px}.berry-sign-in-page .safety-welcome-guest{margin-top:20px}}
+@media(max-width:540px){.cloud-account-page.berry-sign-in-page .cloud-account-card.sign-in-card-2{padding:26px 22px;border-radius:22px}.berry-sign-in-page .safety-welcome-title{font-size:37px;letter-spacing:-1.6px}.berry-sign-in-page .safety-welcome-copy{font-size:13px}.berry-sign-in-page .sign-in-card-2 h1{font-size:27px}.sign-in-glow-top{width:180vw}.sign-in-glow-bottom{right:-700px}}
+@media(prefers-reduced-motion:no-preference){.sign-in-card-edge>span{animation:sign-in-light-pass 3s .3s ease-in-out 1 both}.berry-sign-in-page .sign-in-card-2 :is(input,button){transition:border-color .16s ease,background-color .16s ease,box-shadow .16s ease}}
+@keyframes sign-in-light-pass{0%{transform:translateX(0);opacity:0}15%{opacity:.8}85%{opacity:.65}100%{transform:translateX(300%);opacity:0}}
+@media(prefers-reduced-motion:reduce){.sign-in-card-aura{transform:none!important}.sign-in-card-edge>span{animation:none;opacity:0}}
+@media(forced-colors:active){.sign-in-backdrop,.sign-in-card-aura,.sign-in-card-edge{display:none}.cloud-account-page.berry-sign-in-page,.cloud-account-page.berry-sign-in-page .cloud-account-card.sign-in-card-2{background:Canvas;color:CanvasText;border-color:CanvasText}.cloud-account-page.berry-sign-in-page .sign-in-card-2 .field input:not([type=checkbox]):not([type=radio]):not([type=file]){background:Field;color:FieldText;border-color:FieldText}}
