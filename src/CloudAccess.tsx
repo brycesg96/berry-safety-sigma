@@ -10,7 +10,7 @@ import { refreshOrganizationCatalog } from './organization-api';
 import { useOrganizationCatalog } from './useOrganizationCatalog';
 import { CloudOrganization } from './CloudOrganizationManager';
 import { refreshLocationCatalog, resetLocationCatalog } from './location-catalog';
-import { useEffect, useRef, useState } from 'react';
+import { lazy, Suspense, useEffect, useRef, useState } from 'react';
 import type { Session } from '@supabase/supabase-js';
 import { ArrowLeft, ArrowRight, Check, Eye, EyeOff, LoaderCircle, LockKeyhole, LogOut, Mail, ShieldCheck } from 'lucide-react';
 import { Brand, Field, LockedEmailField, Modal } from './components';
@@ -27,6 +27,7 @@ import { clearCloudRuntime } from './cloud-store';
 import { AccountSupport } from './AccountSupport';
 import { newPasswordError } from '../shared/account-rules.mjs';
 import { CloudWorkspace } from './CloudWorkspace';
+const EmergencyAdministration = lazy(() => import('./EmergencyAdministration'));
 import { supabaseFoundationStatus } from './supabase';
 
 type ProfileForm = { full_name: string; area: string; job_title: string; management: string };
@@ -36,7 +37,7 @@ function rememberEmail(email: string) { try { if (email) localStorage.setItem(re
 const blank = (): ProfileForm => ({ full_name: '', area: '', job_title: '', management: '' });
 const fieldsOf = (profile: CloudProfile): ProfileForm => ({ full_name: profile.full_name, area: profile.area, job_title: profile.job_title, management: profile.management || '' });
 
-export function CloudAccess({ exit, onReturn, onGuestAccess, onSessionChange, initialSection = 'workspace' }: { exit: ExitConfirmation; onReturn?: () => void; onGuestAccess?: () => void; onSessionChange?: (authenticated: boolean) => void; initialSection?: 'profile' | 'admin' | 'dashboard' | 'organization' | 'workspace' }) {
+export function CloudAccess({ exit, onReturn, onGuestAccess, onSessionChange, initialSection = 'workspace' }: { exit: ExitConfirmation; onReturn?: () => void; onGuestAccess?: () => void; onSessionChange?: (authenticated: boolean) => void; initialSection?: 'profile' | 'admin' | 'dashboard' | 'organization' | 'emergency' | 'workspace' }) {
   const catalogState = useOrganizationCatalog();
   const [ready, setReady] = useState(false);
   const [session, setSession] = useState<Session | null>(null);
@@ -57,7 +58,7 @@ export function CloudAccess({ exit, onReturn, onGuestAccess, onSessionChange, in
   const [formError, setFormError] = useState('');
   const [saved, setSaved] = useState(false);
   const [busy, setBusy] = useState<'login' | 'save' | 'logout' | 'password' | 'recovery' | null>(null);
-  const [section, setSection] = useState<'profile' | 'admin' | 'dashboard' | 'organization' | 'workspace'>(initialSection);
+  const [section, setSection] = useState<'profile' | 'admin' | 'dashboard' | 'organization' | 'emergency' | 'workspace'>(initialSection);
   const [workspaceReady, setWorkspaceReady] = useState(false), [workspaceChecked, setWorkspaceChecked] = useState(false);
   const [workspaceError, setWorkspaceError] = useState('');
   const [identityReady, setIdentityReady] = useState(false);
@@ -70,7 +71,7 @@ export function CloudAccess({ exit, onReturn, onGuestAccess, onSessionChange, in
   const [reportBusy, setReportBusy] = useState(false);
   const reportWorking = useRef(false); reportWorking.current = reportBusy;
   useEffect(() => {
-    if (section !== 'dashboard' && section !== 'organization') return;
+    if (section !== 'dashboard' && section !== 'organization' && section !== 'emergency') return;
     return exit.setBeforeLeave(async () => { if (reportWorking.current) throw new Error('Termina la operación o guarda o cancela la edición antes de cerrar sesión.'); });
   }, [section, exit.setBeforeLeave]);
   const administrationCache = useRef<CloudAdministrationCache | null>(null);
@@ -100,7 +101,7 @@ export function CloudAccess({ exit, onReturn, onGuestAccess, onSessionChange, in
         setShowPassword(false);
         setNewPassword(''); setRepeatPassword(''); setPasswordError('');
         const target = new URL(location.href).searchParams.get('seccion');
-        setSection(next ? target === 'usuarios' ? 'admin' : target === 'panel' ? 'dashboard' : target === 'areas' ? 'organization' : target === 'perfil' ? 'profile' : 'workspace' : 'workspace');
+        setSection(next ? target === 'usuarios' ? 'admin' : target === 'panel' ? 'dashboard' : target === 'areas' ? 'organization' : target === 'extintores' ? 'emergency' : target === 'perfil' ? 'profile' : 'workspace' : 'workspace');
         if (!next) { setEmail(rememberedEmail()); setRecoveryRequest(false); }
       }
       sessionRef.current = next;
@@ -176,7 +177,7 @@ export function CloudAccess({ exit, onReturn, onGuestAccess, onSessionChange, in
     if (!ownProfile?.enabled || ownProfile.must_change_password || passwordRecovery) return;
     const url = new URL(location.href);
     if (section === 'workspace') url.searchParams.delete('seccion');
-    else url.searchParams.set('seccion', section === 'admin' ? 'usuarios' : section === 'dashboard' ? 'panel' : section === 'organization' ? 'areas' : 'perfil');
+    else url.searchParams.set('seccion', section === 'admin' ? 'usuarios' : section === 'dashboard' ? 'panel' : section === 'organization' ? 'areas' : section === 'emergency' ? 'extintores' : 'perfil');
     history.replaceState(history.state, '', url);
   }, [section, ownProfile?.id, ownProfile?.enabled, ownProfile?.must_change_password, passwordRecovery]);
 
@@ -259,16 +260,17 @@ export function CloudAccess({ exit, onReturn, onGuestAccess, onSessionChange, in
   const showAdmin = !!ownProfile?.enabled && !ownProfile.must_change_password && !passwordRecovery && !completingProfile && ownProfile.role === 'admin' && section === 'admin';
   const showDashboard = !!ownProfile?.enabled && !ownProfile.must_change_password && !passwordRecovery && !completingProfile && ownProfile.role === 'admin' && section === 'dashboard';
   const showOrganization = !!ownProfile?.enabled && !ownProfile.must_change_password && !passwordRecovery && !completingProfile && ownProfile.role === 'admin' && section === 'organization';
+  const showEmergency = !!ownProfile?.enabled && !ownProfile.must_change_password && !passwordRecovery && !completingProfile && ownProfile.role === 'admin' && section === 'emergency';
   if (section === 'workspace' && workspaceReady && hasModules && ownProfile?.enabled && !ownProfile.must_change_password && !passwordRecovery && !completingProfile) return <CloudWorkspace profile={ownProfile} exit={exit} onAccount={target => { setSection(target || 'profile'); setRetry(value => value + 1); }}/>;
   const welcome = ready && !session && !recoveryRequest && !passwordRecovery;
   const signInView = !session;
   return <div className={`cloud-account-page${welcome ? ' treasury-access-page' : ''}${signInView ? ' berry-sign-in-page' : ''}`} spellCheck={false}>
     {signInView && <SignInBackdrop/>}
     <header className="cloud-account-header"><Brand/><div className="cloud-header-actions">{onReturn && !ownProfile?.must_change_password && !passwordRecovery && <button type="button" className="cloud-return" disabled={!!busy || reportBusy} onClick={() => dirty ? setConfirmLeave('return') : onReturn()}><ArrowLeft size={17}/>Espacio de pruebas</button>}<HortifrutLogo onDark/></div></header>
-    <main className={`cloud-account-main ${welcome ? 'treasury-access-main' : showDashboard ? 'cloud-account-dashboard-main' : showAdmin || showOrganization ? 'cloud-account-admin-main' : ''}`}>
+    <main className={`cloud-account-main ${welcome ? 'treasury-access-main' : showDashboard ? 'cloud-account-dashboard-main' : showAdmin || showOrganization || showEmergency ? 'cloud-account-admin-main' : ''}`}>
       {welcome && <SafetyWelcome onGuestAccess={onGuestAccess} disabled={!!busy}/>}
       {(section !== 'workspace' || workspaceChecked && !workspaceReady && !workspaceError) && ownProfile?.enabled && !ownProfile.must_change_password && !passwordRecovery && ownProfile.role === 'admin' && !completingProfile && <WorkspaceAdminNavigation value={section} busy={!!busy||reportBusy} dirty={dirty} onChange={setSection}/>}
-      {showOrganization ? <><CloudOrganization key={ownProfile!.id} isCurrent={() => sessionRef.current?.user.id === ownProfile!.id} onBusyChange={setReportBusy}/><button type="button" className="cloud-logout" disabled={!!busy || reportBusy} onClick={() => void logout()}><LogOut size={17}/>Cerrar sesión en este dispositivo</button></> : showDashboard ? <><InspectionDashboard actor={ownProfile!} cache={dashboardCache} isCurrent={() => sessionRef.current?.user.id === ownProfile!.id} onBusyChange={setReportBusy}/><button type="button" className="cloud-logout" disabled={!!busy || reportBusy} onClick={() => void logout()}><LogOut size={17}/>Cerrar sesión en este dispositivo</button></> : showAdmin ? <><CloudAdministration key={ownProfile!.id} actor={ownProfile!} identityReady={identityReady} cache={administrationCache} onBusyChange={setReportBusy} isCurrent={() => sessionRef.current?.user.id === ownProfile!.id} onSelfChange={next => { setProfile(next); setForm(fieldsOf(next)); if (next.role !== 'admin') { administrationCache.current = null; dashboardCache.current = null; setSection('profile'); } }}/><button type="button" className="cloud-logout" disabled={!!busy || reportBusy} onClick={() => void logout()}><LogOut size={17}/>Cerrar sesión en este dispositivo</button>{formError && <p role="alert" className="error-message cloud-message">{formError}</p>}</> : <SignInCard active={signInView} busy={!ready || profileLoading || !!busy}>
+      {showEmergency ? <><Suspense fallback={<p role="status">Abriendo el inventario…</p>}><EmergencyAdministration key={ownProfile!.id} actor={ownProfile!} isCurrent={() => sessionRef.current?.user.id === ownProfile!.id} onBusyChange={setReportBusy}/></Suspense><button type="button" className="cloud-logout" disabled={!!busy || reportBusy} onClick={() => void logout()}><LogOut size={17}/>Cerrar sesión en este dispositivo</button></> : showOrganization ? <><CloudOrganization key={ownProfile!.id} isCurrent={() => sessionRef.current?.user.id === ownProfile!.id} onBusyChange={setReportBusy}/><button type="button" className="cloud-logout" disabled={!!busy || reportBusy} onClick={() => void logout()}><LogOut size={17}/>Cerrar sesión en este dispositivo</button></> : showDashboard ? <><InspectionDashboard actor={ownProfile!} cache={dashboardCache} isCurrent={() => sessionRef.current?.user.id === ownProfile!.id} onBusyChange={setReportBusy}/><button type="button" className="cloud-logout" disabled={!!busy || reportBusy} onClick={() => void logout()}><LogOut size={17}/>Cerrar sesión en este dispositivo</button></> : showAdmin ? <><CloudAdministration key={ownProfile!.id} actor={ownProfile!} identityReady={identityReady} cache={administrationCache} onBusyChange={setReportBusy} isCurrent={() => sessionRef.current?.user.id === ownProfile!.id} onSelfChange={next => { setProfile(next); setForm(fieldsOf(next)); if (next.role !== 'admin') { administrationCache.current = null; dashboardCache.current = null; setSection('profile'); } }}/><button type="button" className="cloud-logout" disabled={!!busy || reportBusy} onClick={() => void logout()}><LogOut size={17}/>Cerrar sesión en este dispositivo</button>{formError && <p role="alert" className="error-message cloud-message">{formError}</p>}</> : <SignInCard active={signInView} busy={!ready || profileLoading || !!busy}>
         <div className="cloud-account-icon"><ShieldCheck size={27}/></div>
         {!ready ? <><h1 ref={heading} tabIndex={-1}>Tu cuenta</h1><p className="cloud-loading" role="status"><LoaderCircle size={18} className="spin"/>Comprobando tu sesión…</p></> : !session && recoveryRequest ? <>
           <h1 ref={heading} tabIndex={-1}>Recupera tu contraseña</h1><p className="cloud-account-intro">Recibe un enlace en el correo de tu cuenta.</p>

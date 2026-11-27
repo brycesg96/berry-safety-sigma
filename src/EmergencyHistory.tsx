@@ -3,17 +3,23 @@ import { ArrowUpRight, Image, LoaderCircle } from 'lucide-react';
 import { Modal } from './components';
 import { formatDate } from './model';
 import { organizationLabel } from './organization-label';
-import { EMERGENCY_STATES, emergencyHistory, emergencyImage, emergencyYearLabel } from './emergency-equipment';
-import type { EmergencyInspection } from './emergency-equipment';
+import { EMERGENCY_STATES, emergencyHistory, emergencyInspection, emergencyImage, emergencyYearLabel } from './emergency-equipment';
+import type { EmergencyHistoryItem, EmergencyInspection } from './emergency-equipment';
 
 export function EmergencyHistory({equipmentId,revision}:{equipmentId:string;revision:number}){
- const[page,setPage]=useState(0),[rows,setRows]=useState<EmergencyInspection[]>([]),[count,setCount]=useState(0),[loading,setLoading]=useState(true),[error,setError]=useState(''),[selected,setSelected]=useState<EmergencyInspection|null>(null),[retry,setRetry]=useState(0);
+ const[page,setPage]=useState(0),[rows,setRows]=useState<EmergencyHistoryItem[]>([]),[count,setCount]=useState(0),[loading,setLoading]=useState(true),[error,setError]=useState(''),[selected,setSelected]=useState<EmergencyHistoryItem|null>(null),[retry,setRetry]=useState(0);
  useEffect(()=>{let active=true;setLoading(true);setError('');void emergencyHistory(equipmentId,page*10).then(result=>{if(active){setRows(result.rows);setCount(result.count);}}).catch(problem=>{if(active){setRows([]);setError(problem instanceof Error?problem.message:'No pudimos consultar el historial.');}}).finally(()=>{if(active)setLoading(false);});return()=>{active=false;};},[equipmentId,page,revision,retry]);
  return <section className="er-card er-history" aria-label="Historial de inspecciones"><h2>Revisiones recibidas</h2><p className="er-muted">Consulta quién inspeccionó este equipo, su firma y las evidencias registradas.</p>
   {error?<div><p className="error-message" role="alert">{error}</p><button className="button button-outline" onClick={()=>setRetry(value=>value+1)}>Reintentar consulta</button></div>:loading?<p role="status"><LoaderCircle size={17} className="spin"/> Consultando revisiones…</p>:rows.length?<div className="er-history-list">{rows.map(row=><button type="button" className="er-history-item" key={row.id} onClick={()=>setSelected(row)} aria-label={`Ver inspección de ${row.worker_name} del ${formatDate(row.inspection_date)}`}><span><strong>{row.worker_name}</strong><small>{formatDate(row.inspection_date)} · {row.submission_source==='guest'?'Sin cuenta':'Con cuenta'}</small></span><span className={`er-state er-state-${row.state}`}>{EMERGENCY_STATES[row.state]}</span><ArrowUpRight size={18} aria-hidden="true"/></button>)}</div>:<p className="er-muted">Todavía no hay revisiones disponibles para tu cuenta.</p>}
   {count>10&&<div className="er-history-pagination"><span>Página {page+1}</span><button className="button button-outline" disabled={loading||page===0} onClick={()=>setPage(value=>value-1)}>Anterior</button><button className="button button-outline" disabled={loading||(page+1)*10>=count} onClick={()=>setPage(value=>value+1)}>Siguiente</button></div>}
-  {selected&&<InspectionDetail inspection={selected} onClose={()=>setSelected(null)}/>}
+  {selected&&<InspectionDetailLoader id={selected.id} onClose={()=>setSelected(null)}/>}
  </section>;
+}
+function InspectionDetailLoader({id,onClose}:{id:string;onClose:()=>void}){
+ const[row,setRow]=useState<EmergencyInspection|null>(null),[error,setError]=useState(''),[retry,setRetry]=useState(0);
+ useEffect(()=>{let active=true;setRow(null);setError('');void emergencyInspection(id).then(value=>{if(active)setRow(value);}).catch(problem=>{if(active)setError(problem instanceof Error?problem.message:'No pudimos abrir la inspección.');});return()=>{active=false;};},[id,retry]);
+ if(row)return <InspectionDetail inspection={row} onClose={onClose}/>;
+ return <Modal title="Detalle de inspección" onClose={onClose}>{error?<><p className="error-message" role="alert">{error}</p><button className="button button-outline" onClick={()=>setRetry(value=>value+1)}>Reintentar detalle</button></>:<p role="status"><LoaderCircle size={17} className="spin"/>Abriendo la inspección…</p>}</Modal>;
 }
 function InspectionDetail({inspection,onClose}:{inspection:EmergencyInspection;onClose:()=>void}){
  const[images,setImages]=useState<{url:string;name:string;signature:boolean}[]>([]),[error,setError]=useState(''),[loading,setLoading]=useState(true),[retry,setRetry]=useState(0);

@@ -47,7 +47,7 @@
 .app-shell .sidebar-nav>button{min-height:56px;border-radius:14px;align-items:center}
 .cloud-account-main:has(>.workspace-admin-navigation){width:min(100%,1320px);padding-top:28px}
 .cloud-account-main:has(>.workspace-admin-navigation)>.cloud-account-card{max-width:520px;margin-inline:auto}
-.workspace-admin-navigation{display:grid;grid-template-columns:1fr 1.2fr 1fr .85fr;gap:10px;margin:0 0 26px;padding:0;border:0;min-width:0}
+.workspace-admin-navigation{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:10px;margin:0 0 26px;padding:0;border:0;min-width:0}
 .workspace-admin-navigation>button{display:flex;align-items:center;gap:12px;padding:15px;min-height:78px;min-width:0;border:1px solid #dce3d5;border-radius:14px;background:#fff;color:#183f32;text-align:left}
 .workspace-admin-icon{display:grid;place-items:center;width:36px;height:38px;flex-shrink:0;border-radius:10px;background:#edf2e5;color:#607442}
 .workspace-admin-navigation>button>span:nth-child(2){display:grid;gap:4px;flex:1;min-width:0}

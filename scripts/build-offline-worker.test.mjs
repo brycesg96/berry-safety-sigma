@@ -11,9 +11,10 @@ test('offline cache contains the application shell and public assets, excludes d
  try{
   await mkdir(join(root,'assets'));await writeFile(join(root,'index.html'),'<script src="/berry/assets/index-hash.js"></script>');
   await writeFile(join(root,'assets','index-hash.js'),'public script');await writeFile(join(root,'assets','style.css'),'public style');await writeFile(join(root,'assets','private.json'),'must not be cached');
+  await writeFile(join(root,'assets','on-demand-worker-emergency.js'),'export worker');await writeFile(join(root,'assets','on-demand-worker-exceljs.js'),'spreadsheet library');
   await promisify(execFile)(process.execPath,[new URL('./build-offline-worker.mjs',import.meta.url).pathname,root,'/berry/']);
   const source=await readFile(join(root,'sw.js'),'utf8');
-  assert.ok(source.includes('/berry/assets/index-hash.js'));assert.ok(source.includes('/berry/templates/inspection.xlsx'));assert.ok(!source.includes('private.json'));assert.ok(source.includes("url.pathname.includes('/api/')"));assert.ok(source.includes("event.request.method!=='GET'"));assert.ok(source.includes('ACTIVATE_UPDATE'));assert.ok(!source.includes('Authorization'));
+  assert.ok(source.includes('/berry/assets/index-hash.js'));assert.ok(source.includes('/berry/templates/inspection.xlsx'));assert.ok(!source.includes('private.json'));assert.ok(!source.includes('on-demand-worker-emergency.js'));assert.ok(!source.includes('on-demand-worker-exceljs.js'));assert.ok(source.includes("url.pathname.includes('/api/')"));assert.ok(source.includes("event.request.method!=='GET'"));assert.ok(source.includes('ACTIVATE_UPDATE'));assert.ok(!source.includes('Authorization'));
   const listeners=new Map();
   runInNewContext(source,{URL,Request,Response,fetch:async()=>{throw Error('Offline');},self:{location:{origin:'https://berry.example'},addEventListener:(name,callback)=>listeners.set(name,callback)},caches:{open:async()=>({match:async request=>request==='/berry/'?new Response('current HTML'):request.url.endsWith('index-hash.js')?new Response('current JavaScript'):undefined}),match:async()=>new Response('previous JavaScript')}});
   let result;const fetchEvent=(url,mode='cors',method='GET')=>({request:{url,mode,method},respondWith:promise=>{result=promise;}});

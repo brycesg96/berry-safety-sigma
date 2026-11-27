@@ -12,6 +12,8 @@ import openpyxl
 from openpyxl.styles import Font, PatternFill
 
 ROOT = Path(__file__).resolve().parents[1]
+EDITOR_PART_BYTES = 350_000
+EDITOR_FILE_BYTES = 400_000
 
 
 def text(value):
@@ -105,6 +107,103 @@ def prepare(source, catalog, excluded):
     return headers, output, removed, changes
 
 
+def editor_scripts(records, batch_sha, source_sha, migration, part_bytes=EDITOR_PART_BYTES):
+    """Stage small queries privately, then publish the unchanged complete batch atomically."""
+    if not records or any(not re.fullmatch(r'[0-9a-f]{64}', value) for value in (batch_sha, source_sha)):
+        raise ValueError('Lote vacío o identificador inválido.')
+    chunks, current, size = [], [], 2
+    for record in records:
+        encoded = json.dumps(record, ensure_ascii=False, separators=(',', ':'))
+        length = len(encoded.encode())
+        if length + 2 > part_bytes:
+            raise ValueError('Un registro supera el límite de una parte del SQL Editor.')
+        if current and size + length + 1 > part_bytes:
+            chunks.append('[' + ','.join(current) + ']'); current, size = [], 2
+        current.append(encoded); size += length + (len(current) > 1)
+    chunks.append('[' + ','.join(current) + ']')
+    total, count = len(chunks), len(records)
+    setup = migration + '''
+-- Preparación privada para respetar el límite del SQL Editor.
+begin;
+alter table berry_private.emergency_import_batches enable row level security;
+create table if not exists berry_private.emergency_import_parts(
+ batch_sha text not null check(batch_sha ~ '^[0-9a-f]{64}$'),
+ source_sha text not null check(source_sha ~ '^[0-9a-f]{64}$'),
+ part_no integer not null check(part_no>0),total_parts integer not null check(total_parts between 1 and 1000),
+ record_count integer not null check(record_count between 1 and 5000),
+ part_sha text not null check(part_sha ~ '^[0-9a-f]{64}$'),rows jsonb not null check(jsonb_typeof(rows)='array'),
+ primary key(batch_sha,part_no),check(part_no<=total_parts)
+);
+alter table berry_private.emergency_import_parts enable row level security;
+revoke all on berry_private.emergency_import_parts from public,anon,authenticated;
+commit;
+'''
+    scripts = {}
+    for index, payload in enumerate(chunks, 1):
+        chunk_sha = hashlib.sha256(payload.encode()).hexdigest()
+        delimiter = '$inventory_part_' + chunk_sha[:16] + '$'
+        block_delimiter = '$stage_' + chunk_sha[16:32] + '$'
+        if delimiter in payload or block_delimiter in payload:
+            raise ValueError('Delimitador inesperado en los datos.')
+        script = (setup if index == 1 else '') + f'''
+-- Parte {index} de {total}. Ejecutar cada archivo completo, en orden.
+-- Contiene datos privados. No publicar en el repositorio ni en la web.
+begin;
+do {block_delimiter}
+declare v_text text:={delimiter}{payload}{delimiter};v_old berry_private.emergency_import_parts;
+begin
+ if encode(sha256(convert_to(v_text,'UTF8')),'hex')<>'{chunk_sha}' then raise exception 'La parte está incompleta o fue modificada';end if;
+ perform pg_advisory_xact_lock(20261127,31);
+ select * into v_old from berry_private.emergency_import_parts where batch_sha='{batch_sha}' and part_no={index} for update;
+ if found then
+  if v_old.source_sha<>'{source_sha}' or v_old.total_parts<>{total} or v_old.record_count<>{count}
+   or v_old.part_sha<>'{chunk_sha}' or v_old.rows is distinct from v_text::jsonb then raise exception 'Conflicto: esta parte pertenece a otra preparación';end if;
+ else
+  insert into berry_private.emergency_import_parts(batch_sha,source_sha,part_no,total_parts,record_count,part_sha,rows)
+  values('{batch_sha}','{source_sha}',{index},{total},{count},'{chunk_sha}',v_text::jsonb);
+ end if;
+end;{block_delimiter};
+'''
+        if index == total:
+            script += f'''
+do $finish_inventory$
+declare v_rows jsonb;v_batch berry_private.emergency_import_batches;
+begin
+ select * into v_batch from berry_private.emergency_import_batches where batch_sha='{batch_sha}';
+ if found then
+  if v_batch.source_sha<>'{source_sha}' or v_batch.record_count<>{count} then raise exception 'Conflicto de lote';end if;
+ else
+  if (select count(*) from berry_private.emergency_import_parts where batch_sha='{batch_sha}')<>{total}
+   or exists(select 1 from berry_private.emergency_import_parts where batch_sha='{batch_sha}' and
+    (source_sha<>'{source_sha}' or total_parts<>{total} or record_count<>{count} or part_no not between 1 and {total}))
+   then raise exception 'Faltan partes de la carga: ejecuta los archivos anteriores y vuelve a ejecutar este último';end if;
+  select jsonb_agg(r.value order by p.part_no,r.ordinality) into v_rows
+   from berry_private.emergency_import_parts p cross join lateral jsonb_array_elements(p.rows) with ordinality r(value,ordinality)
+   where p.batch_sha='{batch_sha}';
+  if jsonb_array_length(v_rows)<>{count} then raise exception 'Cantidad de equipos incompleta';end if;
+  perform berry_private.import_emergency_inventory('{batch_sha}','{source_sha}',v_rows);
+ end if;
+ delete from berry_private.emergency_import_parts where batch_sha='{batch_sha}';
+end;$finish_inventory$;
+commit;
+select public.berry_emergency_status()->>'version' as yo_reviso_version,
+ count(*) as extintores_importados,
+ bool_and((months->>'Noviembre') is not distinct from official_date::text) as noviembre_igual_a_h
+from public.berry_emergency_legacy_records where batch_sha='{batch_sha}';
+'''
+        else:
+            script += f'''commit;
+select 'Parte {index} de {total} recibida. Continúa con el archivo {index+1:02d}.' as resultado,
+ count(*) as partes_recibidas,{total} as partes_totales,
+ coalesce(sum(jsonb_array_length(rows)),0) as equipos_preparados
+from berry_private.emergency_import_parts where batch_sha='{batch_sha}';
+'''
+        if len(script.encode()) > EDITOR_FILE_BYTES:
+            raise ValueError('Un archivo supera el límite de tamaño previsto para el SQL Editor.')
+        scripts[f'31-{index:02d}-de-{total:02d}-extintores.sql'] = script
+    return scripts
+
+
 def write(source, catalog_path, output_dir, excluded):
     if output_dir.resolve().is_relative_to(ROOT):
         raise ValueError('La salida contiene datos privados: elige una carpeta fuera del repositorio público.')
@@ -147,6 +246,36 @@ def write(source, catalog_path, output_dir, excluded):
         raise ValueError('Delimitador inesperado en datos de origen.')
     script = migration + f'\n-- Carga privada. No incorporar este archivo al repositorio público.\nbegin;\nselect berry_private.import_emergency_inventory(\n\'{batch_sha}\',\'{source_sha}\',\n{delimiter}{payload}{delimiter}::jsonb\n) as resultado_carga;\ncommit;\nselect public.berry_emergency_status()->>\'version\' as yo_reviso_version,\n  count(*) as extintores_importados,\n  bool_and((months->>\'Noviembre\') is not distinct from official_date::text) as noviembre_igual_a_h\nfrom public.berry_emergency_legacy_records where batch_sha=\'{batch_sha}\';\n'
     (output_dir/'31-cargar-extintores.sql').write_text(script)
+    editor_dir = output_dir/'sql-editor'
+    editor_dir.mkdir(exist_ok=True)
+    for previous in editor_dir.glob('31-*-de-*-extintores.sql'):
+        previous.unlink()
+    parts = editor_scripts(records, batch_sha, source_sha, migration)
+    for name, contents in parts.items():
+        (editor_dir/name).write_text(contents)
+    instructions = '\n'.join(f'{number}. {name}' for number, name in enumerate(parts, 1))
+    (editor_dir/'LEEME.txt').write_text(f'''CARGA DE EXTINTORES EN SUPABASE SQL EDITOR
+
+El archivo completo 31-cargar-extintores.sql supera el límite del editor para este consolidado. Usar estos {len(parts)} archivos pequeños, uno por uno y en este orden:
+
+{instructions}
+
+1) Abrir el primer archivo como texto y copiar TODO su contenido.
+2) En Supabase -> SQL Editor, reemplazar el contenido anterior y pulsar Run.
+3) Esperar el resultado antes de continuar con el siguiente archivo.
+4) Repetir con cada archivo. No juntar todas las partes en una sola consulta.
+
+Las primeras partes preparan la carga en una tabla privada con RLS. La última incorpora el lote completo de forma atómica. Repetir un archivo no duplica equipos. Si faltan partes, ejecutar las anteriores y volver a ejecutar el último archivo.
+
+Al terminar el último archivo debe aparecer:
+yo_reviso_version: 202611270031
+extintores_importados: {len(records)}
+noviembre_igual_a_h: true
+
+Después, actualizar Berry Safety y buscar HPF-100 o T9J-834 en Yo Seguro -> ¡Yo Reviso! -> Extintores.
+''')
+    manifest.update(sql_editor_files=list(parts), sql_editor_max_file_bytes=max(len(sql.encode()) for sql in parts.values()))
+    (output_dir/'decisiones-y-validacion.json').write_text(json.dumps(manifest, ensure_ascii=False, indent=2) + '\n')
     print(json.dumps(manifest, ensure_ascii=False))
 
 

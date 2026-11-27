@@ -3,7 +3,7 @@ import { createHash } from 'node:crypto';
 import { join } from 'node:path';
 const root=process.argv[2]||'dist',base=process.argv[3]||'/';
 if(!base.startsWith('/')||!base.endsWith('/'))throw Error('Invalid application base');
-const html=await readFile(join(root,'index.html'),'utf8'),assets=(await readdir(join(root,'assets'))).filter(name=>/\.(js|css|woff2)$/.test(name));
+const html=await readFile(join(root,'index.html'),'utf8'),assets=(await readdir(join(root,'assets'))).filter(name=>/\.(js|css|woff2)$/.test(name)&&!name.startsWith('on-demand-worker-'));
 const version=createHash('sha256').update(html).digest('hex').slice(0,16),cache=`berry-static-${version}`;
 const urls=[base,...assets.map(name=>`${base}assets/${name}`),`${base}favicon.svg`,`${base}templates/inspection.xlsx`,`${base}brand/hortifrut-compact.png`,`${base}brand/hortifrut.svg`,`${base}fonts/report/LiberationSans-Regular.ttf`,`${base}fonts/report/LiberationSans-Bold.ttf`];
 const source=`const CACHE=${JSON.stringify(cache)},BASE=${JSON.stringify(base)},FILES=${JSON.stringify(urls)};

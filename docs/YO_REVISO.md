@@ -2,6 +2,8 @@
 
 El **paso 31** incorpora el consolidado de extintores, los antecedentes de la base anterior y la asignación de gerencia/área usuarias en campo. Consulta [Inventario de extintores](INVENTARIO_EXTINTORES.md) para preparar y cargar los datos privados. Las instrucciones siguientes describen el recorrido base del paso 30; la aplicación mantiene su compatibilidad durante la actualización.
 
+Con el paso 31 activo, **Administración → Extintores** también permite registrar equipos y descargar una base anual en Excel generada con los datos actuales de Berry. El archivo de la app anterior solo es la fuente de la migración inicial; el funcionamiento diario usa Supabase.
+
 El acceso está dentro de **Yo Seguro**, tanto en el recorrido sin cuenta como en el espacio autenticado. Extintores es el primer formato habilitado. Lavaojos y Duchas lavaojos muestran «Formato pendiente» hasta disponer de sus modelos; todavía no reciben inspecciones.
 
 ## Registrar las fichas reales

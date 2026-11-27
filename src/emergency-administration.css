@@ -1,0 +1,15 @@
+.emergency-administration{min-width:0}
+.emergency-export-card{padding:28px;border:1px solid #dce3d5;border-radius:20px;background:#fff;box-shadow:0 8px 28px #183f3205}
+.emergency-export-intro{display:flex;align-items:center;gap:17px}
+.emergency-export-icon{display:grid;place-items:center;flex-shrink:0;width:58px;height:62px;border-radius:15px;background:#edf3e5;color:#49663d}
+.emergency-export-intro h2{margin:0 0 8px;font-size:22px;color:#183f32}
+.emergency-export-intro p{margin:0;color:#53664f;line-height:1.7}
+.emergency-export-sheets{display:flex;flex-wrap:wrap;gap:12px 28px;margin:24px 0;padding:20px 0 20px 20px;border-top:1px solid #e4e9df;border-bottom:1px solid #e4e9df;color:#53664f;font-size:13px;line-height:1.6}
+.emergency-export-sheets li{padding-right:12px}
+.emergency-export-controls{display:flex;align-items:flex-end;gap:20px}
+.emergency-export-controls .field{width:min(230px,100%);margin:0}
+.emergency-export-controls>.button{margin-bottom:0;min-height:52px}
+.emergency-export-status,.emergency-export-notice{display:flex;align-items:center;gap:9px;margin:20px 0 0;color:#365b42;font-size:13px;line-height:1.7}
+.emergency-export-status svg,.emergency-export-notice svg{flex-shrink:0}
+.emergency-export-download{display:inline-flex;overflow-wrap:anywhere;margin-top:13px;max-width:100%}
+@media(max-width:700px){.emergency-export-card{padding:20px}.emergency-export-intro{align-items:flex-start;gap:12px}.emergency-export-icon{width:44px;height:49px;border-radius:12px}.emergency-export-intro h2{font-size:20px}.emergency-export-intro p{font-size:13px}.emergency-export-controls{align-items:stretch;flex-direction:column;gap:16px}.emergency-export-controls .field{width:100%}.emergency-export-controls>.button{width:100%}.emergency-export-sheets{display:grid;gap:10px;margin:20px 0}.emergency-export-notice{align-items:flex-start}}

@@ -105,3 +105,16 @@ test('otra gerencia consulta solo la ficha pública importada sin descargar ante
  const state=await mockEmergency(context,false,true);importedFixture(state,true);const other=state.safety.catalog[1];Object.assign(state.equipment[0],{management_id:other.id,area_id:other.areas[0].id,area_name:other.areas[0].name,management_name:other.name});
  await enterSafety(page);await page.getByRole('button',{name:/¡Yo Reviso!/}).click();await loadEquipment(page,'LGC-100');await expect(page.getByRole('region',{name:'Antecedentes de la base anterior'})).toHaveCount(0);await expect(page.getByText('INSPECTOR-ANTERIOR')).toHaveCount(0);expect(state.requests.filter(request=>request.path.endsWith('berry_emergency_legacy_records'))).toHaveLength(0);
 });
+
+test('la consulta inicial trae resúmenes y carga antecedentes, ficha completa e imágenes solo al abrirlos',async({page,context})=>{
+ const state=await mockEmergency(context,true,true);importedFixture(state,true);
+ const item=state.equipment[0],id='eb000000-0000-4000-8000-000000000099';
+ state.inspections.push({id,equipment_id:item.id,management_id:item.management_id!,area_id:item.area_id!,inspector_id:null,worker_name:'Camila Revisora',employee_code:'0007',submission_source:'guest',inspection_date:'2026-11-25',state:'operational',notes:'Revisión de prueba',equipment_snapshot:item,signature_path:'guest/firma.png',photos:[],created_at:'2026-11-25T15:00:00Z'});
+ await enterSafety(page,true);await page.getByRole('button',{name:/¡Yo Reviso!/}).click();await loadEquipment(page,'LGC-100');await expect(page.getByRole('region',{name:'Historial de inspecciones'})).toContainText('Camila Revisora');
+ const lists=state.requests.filter(r=>r.path.endsWith('berry_emergency_inspections'));expect(lists.length).toBeGreaterThan(0);expect(lists.every(row=>!new URLSearchParams(row.query).get('select')?.includes('equipment_snapshot')&&!new URLSearchParams(row.query).get('select')?.includes('signature_path'))).toBe(true);
+ expect(state.requests.filter(r=>r.path.endsWith('berry_emergency_legacy_records'))).toHaveLength(0);expect(state.requests.some(r=>r.path.includes('/storage/'))).toBe(false);
+ const legacy=page.getByRole('region',{name:'Antecedentes de la base anterior'});await legacy.locator('summary').first().click();await expect(legacy).toContainText('INSPECTOR-ANTERIOR');await legacy.locator('summary').first().click();await legacy.locator('summary').first().click();expect(state.requests.filter(r=>r.path.endsWith('berry_emergency_legacy_records'))).toHaveLength(1);
+ await page.getByRole('button',{name:/Ver inspección de Camila Revisora/}).click();await expect(page.getByRole('dialog',{name:'Inspección · LGC-100',exact:true})).toContainText('0007');
+ expect(state.requests.some(r=>r.path.endsWith('berry_emergency_inspections')&&new URLSearchParams(r.query).get('id')==='eq.'+id)).toBe(true);
+ await expect(page.getByRole('dialog').locator('.er-detail-images img')).toHaveCount(1);
+});
