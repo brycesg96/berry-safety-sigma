@@ -2082,6 +2082,92 @@ test('metadata changes and expiration cannot publish stale inspections or rewrit
  assert.equal((await db.query('select count(*)::int n from public.berry_emergency_inspections')).rows[0].n,2);
 });
 
+const inventoryMigration=await readFile(new URL('../migrations/202611270031_emergency_inventory.sql',import.meta.url),'utf8');
+const inventoryBatch='31'.repeat(32),inventorySource='ab'.repeat(32);
+const fieldIds={first:'fc000000-0000-4000-8000-000000000001',race:'fc000000-0000-4000-8000-000000000002',account:'fc000000-0000-4000-8000-000000000003'};
+let importedEquipment,importedOther;
+const importedRow=(code,row,date='2026-10-06')=>({source_row:row,code,kind:'extinguisher',location:'Ubicación de prueba',serial_number:'000637',brand:'Marca de prueba',agent:'PQS',capacity:'06 Kg',manufacture_year:2017,
+ last_hydro_year:2022,next_hydro_year:2027,expiry_month:'2026-11',owner_management_id:yoIds.m2,owner_name:'Propietaria de origen',classification:'FUNDO',placement_kind:'Instalación',enabled:true,
+ legacy:{official_date:date,previous_date:'2026-09-10',state:'OPERATIVO',notes:'Nota privada de origen',inspector_code:'OLD-EMPLOYEE',
+  months:{Enero:'12 enero 2025',Octubre:'2026-11-01',Noviembre:date},original:{'FECHA DE INSPECCIÓN':date,'AÑO DE FABRICACIÓN':'2017','ÚLTIMA PRUEBA HIDRÓSTATICA':'2022','PRÓXIMA PRUEBA HIDRÓSTATICA':'2027','Gerencia':'Propietaria de origen','Gerencia Usuaria':null,'Noviembre':date}}});
+let inventoryRows;
+const importInventory=(rows=inventoryRows,batch=inventoryBatch)=>db.query('select berry_private.import_emergency_inventory($1,$2,$3) value',[batch,inventorySource,rows]);
+const beginField=(id,code='LGC-100',area=yoIds.a,patch={},role='anon',actor=null)=>as(role,actor,'select public.berry_begin_emergency_inspection($1,$2,$3,$4,$5,$6) value',[id,emgToken,'extinguisher',code,1,{...emgInput,area_id:area,...patch}],{iat:Math.floor(Date.now()/1000)});
+
+test('inventory upgrade repeats safely and preserves already-completed step-30 retries',async()=>{
+ await db.exec(inventoryMigration);await db.exec(inventoryMigration);
+ assert.equal((await as('anon',null,'select public.berry_emergency_status() value')).rows[0].value.version,'202611270031');
+ assert.deepEqual((await emgFinish()).rows[0].value,emgReceipt);
+ assert.equal((await emgBegin()).rows[0].value.completed,true);
+ await db.query('update public.berry_organization set enabled=true where id=any($1::uuid[])',[[yoIds.m,yoIds.m2,yoIds.a,yoIds.a2]]);
+ inventoryRows=[importedRow('LGC-100',2),importedRow('LGC-101',3,null),{...importedRow('EXT-001',4),serial_number:'OLD-IMPORT-SERIAL'},
+  {...importedRow('MOB-001',5),classification:'VEHÍCULOS',placement_kind:'Camioneta',location:'PERSONA_ASIGNADA_PRIVADA'}];
+});
+test('private legacy import is atomic, idempotent and never overwrites an existing native ficha',async()=>{
+ await denied(()=>as('anon',null,'select berry_private.import_emergency_inventory($1,$2,$3)',[inventoryBatch,inventorySource,inventoryRows]));
+ await denied(()=>safetyAs('admin','select berry_private.import_emergency_inventory($1,$2,$3)',[inventoryBatch,inventorySource,inventoryRows]));
+ const result=(await importInventory()).rows[0].value;assert.equal(result.records,4);assert.equal(result.new_equipment,3);assert.equal(result.existing_equipment_preserved,1);
+ assert.equal((await db.query('select serial_number from public.berry_emergency_equipment where id=$1',[emgIds.equipment])).rows[0].serial_number,'SN-002');
+ assert.equal((await importInventory()).rows[0].value.already_imported,true);
+ await assert.rejects(()=>importInventory(inventoryRows.map((r,i)=>i? r:{...r,brand:'Otra marca'})),e=>e.message.includes('IMPORT_CONFLICT'));
+ await assert.rejects(()=>importInventory([importedRow('WRONG-100',12),{...importedRow('WRONG-101',13),legacy:{...importedRow('X',13).legacy,months:{Noviembre:'2026-11-01'}}}],'32'.repeat(32)),e=>e.message.includes('INVALID_INVENTORY_ROW'));
+ assert.equal((await db.query("select count(*)::int n from public.berry_emergency_equipment where code like 'WRONG%'")).rows[0].n,0);
+ importedEquipment=(await db.query("select * from public.berry_emergency_equipment where code='LGC-100'")).rows[0];
+ importedOther=(await db.query("select * from public.berry_emergency_equipment where code='LGC-101'")).rows[0];
+ assert.equal(importedEquipment.area_id,null);assert.equal(importedEquipment.management_id,null);assert.equal(importedEquipment.owner_management_id,yoIds.m2);
+ assert.equal(importedEquipment.last_hydro_date,null);assert.equal(importedEquipment.last_hydro_year,2022);
+});
+test('public imported-code lookup uses H, accepts separators, and exposes no old inspector, observations or monthly records',async()=>{
+ const value=(await as('anon',null,'select public.berry_emergency_lookup($1,$2) value',['extinguisher',' lgc 100 '])).rows[0].value;
+ assert.equal(value.equipment.code,'LGC-100');assert.equal(value.latest.inspection_date,'2026-10-06');assert.equal(value.latest.date_column,'H');
+ assert.equal(value.equipment.serial_number,'000637');assert.equal(value.equipment.last_hydro_year,2022);assert.equal(value.equipment.area_id,null);
+ const serialized=JSON.stringify(value);for(const hidden of ['OLD-EMPLOYEE','Nota privada','original','source_row','months','created_by','import_batch_sha'])assert.equal(serialized.includes(hidden),false,hidden);
+ assert.equal((await as('anon',null,'select public.berry_emergency_lookup($1,$2) value',['extinguisher','LGC101'])).rows[0].value.latest,null);
+ const mobile=(await as('anon',null,'select public.berry_emergency_lookup($1,$2) value',['extinguisher','MOB001'])).rows[0].value;
+ assert.equal(mobile.equipment.location,'Camioneta · MOB-001');assert.equal(JSON.stringify(mobile).includes('PERSONA_ASIGNADA_PRIVADA'),false);
+ assert.equal((await safetyAs('admin',"select location from public.berry_emergency_equipment where code='MOB-001'")).rows[0].location,'PERSONA_ASIGNADA_PRIVADA');
+ await denied(()=>as('anon',null,'select * from public.berry_emergency_legacy_records'));
+ assert.equal((await safetyAs('worker','select id from public.berry_emergency_legacy_records where equipment_id=$1',[importedEquipment.id])).rows.length,0);
+ assert.equal((await safetyAs('admin','select id from public.berry_emergency_legacy_records where equipment_id=$1',[importedEquipment.id])).rows.length,1);
+});
+test('field assignment waits for a complete signed inspection and cannot replace the owner or race another assignment',async()=>{
+ await assert.rejects(()=>beginField(fieldIds.first,'LGC-100',null),e=>e.message.includes('AREA_NOT_AVAILABLE'));
+ await assert.rejects(()=>beginField(fieldIds.first,'LGC-100',yoIds.a,{owner_management_id:yoIds.m}),e=>e.message.includes('INVALID_INSPECTION'));
+ await beginField(fieldIds.first,'lgc100');await beginField(fieldIds.race,'LGC-100',yoIds.a2);
+ assert.equal((await db.query('select area_id from public.berry_emergency_equipment where id=$1',[importedEquipment.id])).rows[0].area_id,null);
+ await emgStore(fieldIds.first,emgFiles[0]);await assert.rejects(()=>emgFinish(fieldIds.first),e=>e.message.includes('FILE_NOT_STORED'));
+ assert.equal((await db.query('select area_id from public.berry_emergency_equipment where id=$1',[importedEquipment.id])).rows[0].area_id,null);
+ await emgStore(fieldIds.first,emgFiles[1]);for(const file of emgFiles)await emgStore(fieldIds.race,file);
+ const receipt=(await emgFinish(fieldIds.first)).rows[0].value;
+ const saved=(await db.query('select * from public.berry_emergency_equipment where id=$1',[importedEquipment.id])).rows[0];
+ assert.equal(saved.area_id,yoIds.a);assert.equal(saved.management_id,yoIds.m);assert.equal(saved.owner_management_id,yoIds.m2);
+ assert.equal(saved.assignment_inspection_id,fieldIds.first);assert.equal(saved.revision,2);assert.equal(saved.updated_by,null);
+ await assert.rejects(()=>emgFinish(fieldIds.race),e=>e.message.includes('EQUIPMENT_CONFLICT'));
+ assert.deepEqual((await emgFinish(fieldIds.first)).rows[0].value,receipt);
+ const snapshot=(await db.query('select equipment_snapshot from public.berry_emergency_inspections where id=$1',[fieldIds.first])).rows[0].equipment_snapshot;
+ assert.equal(snapshot.area_id,yoIds.a);assert.equal(snapshot.owner_management_id,yoIds.m2);assert.equal(snapshot.last_hydro_date,null);
+ await assert.rejects(()=>beginField('fc000000-0000-4000-8000-000000000005','LGC-100',yoIds.a2),e=>e.message.includes('EQUIPMENT_CONFLICT'));
+});
+test('legacy details follow the user management and history cutoff; reimport preserves assignments and new inspections',async()=>{
+ assert.equal((await safetyAs('worker','select id from public.berry_emergency_legacy_records where equipment_id=$1',[importedEquipment.id])).rows.length,1);
+ assert.equal((await safetyAs('other','select id from public.berry_emergency_legacy_records where equipment_id=$1',[importedEquipment.id])).rows.length,0);
+ await db.query('update public.berry_profiles set history_access_from=clock_timestamp() where id=$1',[safetyUsers.worker]);
+ assert.equal((await safetyAs('worker','select id from public.berry_emergency_legacy_records where equipment_id=$1',[importedEquipment.id])).rows.length,0);
+ await db.query('update public.berry_profiles set history_access_from=null where id=$1',[safetyUsers.worker]);
+ await importInventory();
+ assert.equal((await db.query('select area_id from public.berry_emergency_equipment where id=$1',[importedEquipment.id])).rows[0].area_id,yoIds.a);
+ assert.equal((await db.query('select count(*)::int n from public.berry_emergency_inspections where id=$1',[fieldIds.first])).rows[0].n,1);
+ const latest=(await as('anon',null,'select public.berry_emergency_lookup($1,$2) value',['extinguisher','LGC100'])).rows[0].value.latest;
+ assert.equal(latest.inspection_date,emgInput.inspection_date);assert.equal(latest.state,'operational');
+});
+test('authenticated field submissions bind the real person and support the original condition labels',async()=>{
+ await beginField(fieldIds.account,'LGC-101',yoIds.a,{worker_name:'Identidad falsa',state:'depressurized',notes:'Condición comprobada.'},'authenticated',safetyUsers.worker);
+ for(const file of emgFiles)await emgStore(fieldIds.account,file,'authenticated',safetyUsers.worker);
+ await denied(()=>emgFinish(fieldIds.account));await emgFinish(fieldIds.account,emgToken,'authenticated',safetyUsers.worker);
+ const row=(await db.query('select inspector_id,worker_name,state from public.berry_emergency_inspections where id=$1',[fieldIds.account])).rows[0];
+ assert.equal(row.inspector_id,safetyUsers.worker);assert.notEqual(row.worker_name,'Identidad falsa');assert.equal(row.state,'depressurized');
+});
+
 let failed;
 try {
   await setup();

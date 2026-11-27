@@ -51,3 +51,57 @@ test('una cuenta de otra gerencia solo obtiene la ficha pública del código, si
  const state=await mockEmergency(context),other=state.safety.catalog[1];state.equipment[0]=equipment({management_id:other.id,area_id:other.areas[0].id,area_name:'Servicios',management_name:'Administración'});
  await enterSafety(page);await page.getByRole('button',{name:/¡Yo Reviso!/}).click();await loadEquipment(page);await expect(page.getByRole('region',{name:'Ficha del equipo'})).toContainText('Servicios');await expect(page.getByRole('region',{name:'Historial de inspecciones'})).toHaveCount(0);await expect(page.getByRole('button',{name:/Ver historial/})).toHaveCount(0);expect(state.requests.filter(request=>request.path.endsWith('berry_emergency_inspections'))).toHaveLength(0);
 });
+
+function importedFixture(state:Awaited<ReturnType<typeof mockEmergency>>,assigned=false){
+ const owner=state.safety.catalog[1],user=state.safety.catalog[0];
+ state.equipment[0]=equipment({code:'LGC-100',serial_number:'000637',area_id:assigned?user.areas[0].id:null,management_id:assigned?user.id:null,area_name:assigned?user.areas[0].name:undefined,management_name:assigned?user.name:undefined,owner_management_id:owner.id,owner_name:owner.name,owner_management_name:owner.name,manufacture_year:2017,last_hydro_date:null,next_hydro_date:null,last_hydro_year:2022,next_hydro_year:2027,legacy_available:true,classification:'FUNDO',placement_kind:'Instalación'});
+ state.legacy.push({id:'ee000000-0000-4000-8000-000000000001',equipment_id:state.equipment[0].id,source_row:100,official_date:'2026-10-06',previous_date:'2026-09-10',state_original:'OPERATIVO',notes:'Observación privada de la base anterior.',inspector_code:'INSPECTOR-ANTERIOR',months:{Enero:'12 enero 2025',Octubre:'17 octubre 2026',Noviembre:'2026-10-06'},original:{'FECHA DE INSPECCIÓN':'2026-10-06','Noviembre':'2026-10-06','AÑO DE FABRICACIÓN':'2017'},imported_at:new Date().toISOString()});
+ return {owner,user};
+}
+
+for(const width of [1440,768,390])test(`la ficha importada usa H y permite levantar la gerencia usuaria sin cambiar la responsable (${width}px)`,async({page,context})=>{
+ const state=await mockEmergency(context,false,true),{owner,user}=importedFixture(state);await page.setViewportSize({width,height:1000});await page.emulateMedia({reducedMotion:'reduce'});
+ await openPublicReview(page);await page.getByRole('textbox',{name:'Código del equipo',exact:true}).fill('lgc 100');
+ const facts=page.getByRole('region',{name:'Ficha del equipo',exact:true});await expect(facts).toContainText('LGC-100');await expect(facts).toContainText('000637');
+ await expect(facts.getByText('Por levantar en campo',{exact:true})).toBeVisible();
+ await expect(facts.locator('dl>div').filter({hasText:'Última prueba hidrostática'}).locator('dd')).toHaveText('2022');
+ await expect(page.getByText('Fecha oficial de la base anterior.',{exact:true})).toBeVisible();
+ await expect(page.locator('.er-last-date')).toHaveText('06 oct. 2026');
+ await expect(page.getByRole('region',{name:'Antecedentes de la base anterior'})).toHaveCount(0);
+ await expect(page.getByText('INSPECTOR-ANTERIOR')).toHaveCount(0);
+ const management=page.getByRole('combobox',{name:'Gerencia usuaria',exact:true});await management.click();
+ await expect(page.getByRole('searchbox',{name:'Buscar opciones',exact:true})).not.toBeFocused();await page.keyboard.press('Escape');
+ await selectValue(management,user.id);await selectValue(page.getByRole('combobox',{name:'Área usuaria',exact:true}),user.areas[0].id);
+ await fillReview(page);await expectAccessible(page);expect(state.equipment[0].area_id).toBeNull();
+ await page.screenshot({path:test.info().outputPath(`inventario-campo-${width}.png`),fullPage:true});
+ await page.getByRole('button',{name:'Registrar inspección',exact:true}).click();await expect(page.getByRole('heading',{name:'Inspección registrada',exact:true})).toBeVisible();
+ expect(state.equipment[0].area_id).toBe(user.areas[0].id);expect(state.equipment[0].management_id).toBe(user.id);expect(state.equipment[0].owner_management_id).toBe(owner.id);
+ expect(state.inspections[0].equipment_snapshot.last_hydro_year).toBe(2022);expect(state.inspections[0].equipment_snapshot.last_hydro_date).toBeNull();expect(state.inspections[0].employee_code).toBe('1234');
+ expect(state.legacy[0].inspector_code).toBe('INSPECTOR-ANTERIOR');expect(state.requests.filter(request=>request.path.endsWith('berry_emergency_legacy_records'))).toHaveLength(0);
+ await expect(facts).toContainText('Mantenimiento');await page.getByRole('button',{name:'Registrar otra revisión de este equipo',exact:true}).click();await expect(page.getByRole('region',{name:'Ubicación usuaria del equipo'})).toHaveCount(0);
+});
+
+test('la ficha importada conserva la asignación ante una respuesta perdida y no repite evidencias ni inspecciones',async({page,context})=>{
+ const state=await mockEmergency(context,false,true),{user}=importedFixture(state);state.failReceipt=true;await openPublicReview(page);await loadEquipment(page,'LGC-100');
+ await selectValue(page.getByRole('combobox',{name:'Gerencia usuaria',exact:true}),user.id);await selectValue(page.getByRole('combobox',{name:'Área usuaria',exact:true}),user.areas[0].id);await fillReview(page);
+ await page.getByRole('button',{name:'Registrar inspección',exact:true}).click();await expect(page.getByRole('alert')).toBeVisible();expect(state.inspections).toHaveLength(1);expect(state.equipment[0].revision).toBe(2);
+ await page.getByRole('button',{name:'Reintentar inspección',exact:true}).click();await expect(page.getByRole('heading',{name:'Inspección registrada',exact:true})).toBeVisible();expect(state.inspections).toHaveLength(1);expect(state.uploads).toBe(2);expect(state.equipment[0].revision).toBe(2);
+});
+
+test('Administración consulta el antecedente H y edita años sin inventar fechas ni mezclar gerencias',async({page,context})=>{
+ const state=await mockEmergency(context,true,true),{owner,user}=importedFixture(state);await page.setViewportSize({width:390,height:1000});await enterSafety(page,true);await page.getByRole('button',{name:/¡Yo Reviso!/}).click();await loadEquipment(page,'LGC-100');
+ const history=page.getByRole('region',{name:'Antecedentes de la base anterior',exact:true});await expect(history.locator('details').first()).not.toHaveAttribute('open','');await history.locator('summary').first().click();
+ await expect(history).toContainText('INSPECTOR-ANTERIOR');await expect(history).toContainText('Observación privada');
+ await expect(history.locator('.er-legacy-months>div').filter({hasText:'Noviembre'}).locator('dd')).toHaveText('06 oct. 2026');
+ await expect(history.locator('.er-legacy-months>div').filter({hasText:'Enero'}).locator('dd')).toHaveText('12 enero 2025');await expectAccessible(page);
+ await page.getByRole('button',{name:'Editar ficha',exact:true}).click();const dialog=page.getByRole('dialog',{name:'Editar ficha del extintor',exact:true});
+ await expect(dialog.getByLabel('Última prueba hidrostática (año)',{exact:true})).toHaveValue('2022');await expect(dialog.getByLabel('Próxima prueba hidrostática (año)',{exact:true})).toHaveValue('2027');
+ await selectValue(dialog.getByRole('combobox',{name:'Área usuaria',exact:true}),user.areas[0].id);await dialog.getByRole('button',{name:'Guardar ficha',exact:true}).click();
+ await expect(dialog).toHaveCount(0);expect(state.equipment[0].owner_management_id).toBe(owner.id);expect(state.equipment[0].management_id).toBe(user.id);expect(state.equipment[0].last_hydro_date).toBeNull();expect(state.equipment[0].last_hydro_year).toBe(2022);
+ await page.screenshot({path:test.info().outputPath('inventario-antecedentes-privados-390.png'),fullPage:true});
+});
+
+test('otra gerencia consulta solo la ficha pública importada sin descargar antecedentes ni identidades',async({page,context})=>{
+ const state=await mockEmergency(context,false,true);importedFixture(state,true);const other=state.safety.catalog[1];Object.assign(state.equipment[0],{management_id:other.id,area_id:other.areas[0].id,area_name:other.areas[0].name,management_name:other.name});
+ await enterSafety(page);await page.getByRole('button',{name:/¡Yo Reviso!/}).click();await loadEquipment(page,'LGC-100');await expect(page.getByRole('region',{name:'Antecedentes de la base anterior'})).toHaveCount(0);await expect(page.getByText('INSPECTOR-ANTERIOR')).toHaveCount(0);expect(state.requests.filter(request=>request.path.endsWith('berry_emergency_legacy_records'))).toHaveLength(0);
+});

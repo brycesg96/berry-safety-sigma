@@ -124,3 +124,29 @@
 .er-workspace .location-select-trigger:not(.has-value) .location-select-value,.er-catalog-form .location-select-trigger:not(.has-value) .location-select-value{color:#536a74}
 .er-catalog-form{--berry-secondary:#536a74;--berry-text:#203f4c}
 .er-workspace .field input[readonly],.er-workspace .field textarea[readonly],.er-catalog-form .field input[readonly]{color:#203f4c}
+.er-user-assignment{padding:18px;border:1px solid #dbe5d3;border-radius:12px;background:#f5f8ef;margin-bottom:22px}
+.er-user-assignment h3{font-size:15px;margin:0 0 6px;color:#244b38}
+.er-user-assignment>p{font-size:13px;line-height:1.6;color:#53664f;margin:0 0 16px}
+.er-user-assignment .field{margin-bottom:0}
+.er-equipment-facts .er-equipment-organizations{padding:13px 0 17px;margin:0 0 17px;border-bottom:1px solid #e1e7d9}
+.er-legacy>details>summary{display:flex;gap:10px;align-items:center;cursor:pointer;min-height:48px;color:#244b38}
+.er-legacy summary>svg{flex-shrink:0}
+.er-legacy summary>span{display:grid;gap:5px}
+.er-legacy summary strong{font-size:15px;line-height:1.5}
+.er-legacy summary small{font-size:12px;line-height:1.5;color:#53664f}
+.er-legacy-body{padding-top:18px}
+.er-legacy-body h3{font-size:14px;color:#244b38;margin:22px 0 8px}
+.er-legacy-summary,.er-legacy-months,.er-legacy-original dl{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px;margin:0}
+.er-legacy dt{font-size:11px;line-height:1.5;color:#53664f;margin-bottom:5px}
+.er-legacy dd{font-size:13px;line-height:1.65;margin:0;overflow-wrap:anywhere;white-space:pre-wrap}
+.er-legacy-note{margin-top:18px;font-size:13px;line-height:1.7}
+.er-legacy-note p{white-space:pre-wrap;overflow-wrap:anywhere;margin:6px 0 0}
+.er-legacy-months{grid-template-columns:repeat(4,minmax(0,1fr));margin-top:16px}
+.er-legacy-months>div{padding:10px;border-radius:9px;background:#f4f7f0}
+.er-legacy-original{margin:20px 0}
+.er-legacy-original>summary{font-size:13px;cursor:pointer;min-height:44px;align-content:center}
+.er-legacy-original dl{padding-top:16px}
+.er-state-expired,.er-state-used,.er-state-depressurized,.er-state-overpressurized{background:#fff2e4;color:#804817;border:1px solid #f0d4b6}
+.er-state-disabled{background:#faeceb;color:#873c37;border:1px solid #edcfcc}
+.er-state-unknown{background:#eef0ec;color:#52604f;border:1px solid #dbe1d5}
+@media(max-width:600px){.er-user-assignment{padding:14px}.er-user-assignment .er-form-grid{gap:16px}.er-legacy-months{grid-template-columns:repeat(2,minmax(0,1fr))}.er-legacy-summary,.er-legacy-original dl{grid-template-columns:minmax(0,1fr)}}
